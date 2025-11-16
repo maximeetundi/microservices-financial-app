@@ -1,0 +1,187 @@
+import { defineStore } from 'pinia'
+import axios from 'axios'
+
+interface User {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string
+  country: string
+  kycStatus: string
+  kycLevel: number
+  isActive: boolean
+  twoFaEnabled: boolean
+  emailVerified: boolean
+  phoneVerified: boolean
+}
+
+interface AuthState {
+  user: User | null
+  accessToken: string | null
+  refreshToken: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+export const useAuthStore = defineStore('auth', {
+  state: (): AuthState => ({
+    user: null,
+    accessToken: null,
+    refreshToken: null,
+    isAuthenticated: false,
+    isLoading: false
+  }),
+
+  actions: {
+    async initializeAuth() {
+      const token = localStorage.getItem('accessToken')
+      const refreshToken = localStorage.getItem('refreshToken')
+      
+      if (token && refreshToken) {
+        this.accessToken = token
+        this.refreshToken = refreshToken
+        try {
+          await this.fetchUserProfile()
+        } catch (error) {
+          this.logout()
+        }
+      }
+    },
+
+    async login(email: string, password: string, twoFaCode?: string) {
+      this.isLoading = true
+      try {
+        const response = await axios.post('/api/v1/auth/login', {
+          email,
+          password,
+          two_fa_code: twoFaCode
+        })
+
+        const { access_token, refresh_token, user } = response.data
+        
+        this.accessToken = access_token
+        this.refreshToken = refresh_token
+        this.user = user
+        this.isAuthenticated = true
+
+        localStorage.setItem('accessToken', access_token)
+        localStorage.setItem('refreshToken', refresh_token)
+
+        return { success: true }
+      } catch (error: any) {
+        return { 
+          success: false, 
+          error: error.response?.data?.error || 'Login failed',
+          requires2FA: error.response?.data?.requires_2fa
+        }
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async register(userData: any) {
+      this.isLoading = true
+      try {
+        const response = await axios.post('/api/v1/auth/register', userData)
+        return { success: true, data: response.data }
+      } catch (error: any) {
+        return { 
+          success: false, 
+          error: error.response?.data?.error || 'Registration failed' 
+        }
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async logout() {
+      try {
+        if (this.accessToken) {
+          await axios.post('/api/v1/auth/logout', {}, {
+            headers: { Authorization: `Bearer ${this.accessToken}` }
+          })
+        }
+      } catch (error) {
+        console.error('Logout error:', error)
+      } finally {
+        this.user = null
+        this.accessToken = null
+        this.refreshToken = null
+        this.isAuthenticated = false
+        
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        
+        navigateTo('/auth/login')
+      }
+    },
+
+    async refreshAccessToken() {
+      if (!this.refreshToken) {
+        this.logout()
+        return false
+      }
+
+      try {
+        const response = await axios.post('/api/v1/auth/refresh', {
+          refresh_token: this.refreshToken
+        })
+
+        const { access_token, refresh_token } = response.data
+        this.accessToken = access_token
+        this.refreshToken = refresh_token
+
+        localStorage.setItem('accessToken', access_token)
+        localStorage.setItem('refreshToken', refresh_token)
+
+        return true
+      } catch (error) {
+        this.logout()
+        return false
+      }
+    },
+
+    async fetchUserProfile() {
+      if (!this.accessToken) return
+
+      try {
+        const response = await axios.get('/api/v1/users/profile', {
+          headers: { Authorization: `Bearer ${this.accessToken}` }
+        })
+
+        this.user = response.data
+        this.isAuthenticated = true
+      } catch (error) {
+        throw error
+      }
+    },
+
+    async forgotPassword(email: string) {
+      try {
+        await axios.post('/api/v1/auth/forgot-password', { email })
+        return { success: true }
+      } catch (error: any) {
+        return { 
+          success: false, 
+          error: error.response?.data?.error || 'Failed to send reset email' 
+        }
+      }
+    },
+
+    async resetPassword(token: string, newPassword: string) {
+      try {
+        await axios.post('/api/v1/auth/reset-password', {
+          token,
+          new_password: newPassword
+        })
+        return { success: true }
+      } catch (error: any) {
+        return { 
+          success: false, 
+          error: error.response?.data?.error || 'Failed to reset password' 
+        }
+      }
+    }
+  }
+})

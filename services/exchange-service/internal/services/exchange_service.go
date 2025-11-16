@@ -1,0 +1,490 @@
+package services
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"strings"
+	"time"
+
+	"github.com/crypto-bank/exchange-service/internal/config"
+	"github.com/crypto-bank/exchange-service/internal/models"
+	"github.com/crypto-bank/exchange-service/internal/repository"
+	"github.com/streadway/amqp"
+)
+
+type ExchangeService struct {
+	exchangeRepo *repository.ExchangeRepository
+	rateService  *RateService
+	config       *config.Config
+	mqChannel    *amqp.Channel
+}
+
+func NewExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, mqChannel *amqp.Channel, cfg *config.Config) *ExchangeService {
+	return &ExchangeService{
+		exchangeRepo: exchangeRepo,
+		rateService:  rateService,
+		config:       cfg,
+		mqChannel:    mqChannel,
+	}
+}
+
+func (s *ExchangeService) GetQuote(userID, fromCurrency, toCurrency string, fromAmount *float64, toAmount *float64) (*models.Quote, error) {
+	// Validation des devises
+	if !s.isSupportedCurrency(fromCurrency) || !s.isSupportedCurrency(toCurrency) {
+		return nil, fmt.Errorf("unsupported currency pair")
+	}
+
+	if fromCurrency == toCurrency {
+		return nil, fmt.Errorf("same currency exchange not allowed")
+	}
+
+	// Obtenir le taux de change actuel
+	rate, err := s.rateService.GetRate(fromCurrency, toCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exchange rate: %w", err)
+	}
+
+	// Calculer les montants
+	var calculatedFromAmount, calculatedToAmount float64
+	if fromAmount != nil {
+		calculatedFromAmount = *fromAmount
+		calculatedToAmount = calculatedFromAmount * rate.Rate
+	} else if toAmount != nil {
+		calculatedToAmount = *toAmount
+		calculatedFromAmount = calculatedToAmount / rate.Rate
+	} else {
+		return nil, fmt.Errorf("either from_amount or to_amount must be specified")
+	}
+
+	// Calculer les frais
+	feePercentage := s.calculateFeePercentage(fromCurrency, toCurrency, calculatedFromAmount)
+	fee := calculatedFromAmount * feePercentage / 100
+
+	// Ajuster le montant de destination avec les frais
+	finalToAmount := calculatedToAmount - (fee * rate.Rate)
+
+	// Créer le devis
+	quote := &models.Quote{
+		UserID:            userID,
+		FromCurrency:      strings.ToUpper(fromCurrency),
+		ToCurrency:        strings.ToUpper(toCurrency),
+		FromAmount:        calculatedFromAmount,
+		ToAmount:          finalToAmount,
+		ExchangeRate:      rate.Rate,
+		Fee:               fee,
+		FeePercentage:     feePercentage,
+		ValidUntil:        time.Now().Add(5 * time.Minute), // Valide 5 minutes
+		EstimatedDelivery: s.getEstimatedDelivery(fromCurrency, toCurrency),
+	}
+
+	// Sauvegarder le devis
+	err = s.exchangeRepo.CreateQuote(quote)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create quote: %w", err)
+	}
+
+	return quote, nil
+}
+
+func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalletID string) (*models.Exchange, error) {
+	// Récupérer le devis
+	quote, err := s.exchangeRepo.GetQuote(quoteID)
+	if err != nil {
+		return nil, fmt.Errorf("quote not found: %w", err)
+	}
+
+	// Vérifier la validité du devis
+	if quote.UserID != userID {
+		return nil, fmt.Errorf("quote does not belong to user")
+	}
+
+	if time.Now().After(quote.ValidUntil) {
+		return nil, fmt.Errorf("quote has expired")
+	}
+
+	// Vérifier les soldes des portefeuilles (via API Wallet Service)
+	// TODO: Implémenter la vérification des portefeuilles
+
+	// Créer l'échange
+	exchange := &models.Exchange{
+		UserID:           userID,
+		FromWalletID:     fromWalletID,
+		ToWalletID:       toWalletID,
+		FromCurrency:     quote.FromCurrency,
+		ToCurrency:       quote.ToCurrency,
+		FromAmount:       quote.FromAmount,
+		ToAmount:         quote.ToAmount,
+		ExchangeRate:     quote.ExchangeRate,
+		Fee:              quote.Fee,
+		FeePercentage:    quote.FeePercentage,
+		Status:           "pending",
+		QuoteID:          quoteID,
+	}
+
+	// Sauvegarder l'échange
+	err = s.exchangeRepo.Create(exchange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exchange: %w", err)
+	}
+
+	// Traiter l'échange de manière asynchrone
+	go s.processExchange(exchange)
+
+	return exchange, nil
+}
+
+func (s *ExchangeService) BuyCrypto(userID, cryptoCurrency, paymentCurrency string, amount float64, orderType string, limitPrice *float64) (*models.TradingOrder, error) {
+	// Valider les paramètres
+	if !s.isCryptoCurrency(cryptoCurrency) {
+		return nil, fmt.Errorf("invalid cryptocurrency: %s", cryptoCurrency)
+	}
+
+	if !s.isFiatCurrency(paymentCurrency) {
+		return nil, fmt.Errorf("invalid payment currency: %s", paymentCurrency)
+	}
+
+	// Obtenir le prix actuel
+	currentRate, err := s.rateService.GetRate(paymentCurrency, cryptoCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current rate: %w", err)
+	}
+
+	// Calculer le prix d'exécution
+	var executionPrice float64
+	if orderType == "market" {
+		executionPrice = currentRate.AskPrice // Prix de vente pour acheter
+	} else if orderType == "limit" && limitPrice != nil {
+		if *limitPrice > currentRate.AskPrice {
+			return nil, fmt.Errorf("limit price too high for buy order")
+		}
+		executionPrice = *limitPrice
+	} else {
+		return nil, fmt.Errorf("invalid order type or missing limit price")
+	}
+
+	// Calculer le montant total nécessaire
+	totalCost := amount * executionPrice
+	fee := s.calculateTradingFee(totalCost, "buy")
+	totalWithFee := totalCost + fee
+
+	// Créer l'ordre
+	order := &models.TradingOrder{
+		UserID:          userID,
+		OrderType:       orderType,
+		Side:            "buy",
+		FromCurrency:    paymentCurrency,
+		ToCurrency:      cryptoCurrency,
+		Amount:          amount,
+		Price:           &executionPrice,
+		RemainingAmount: amount,
+		Status:          "open",
+		Fee:             fee,
+	}
+
+	// Si c'est un ordre market, l'exécuter immédiatement
+	if orderType == "market" {
+		order.Status = "filled"
+		order.FilledAmount = amount
+		order.RemainingAmount = 0
+		now := time.Now()
+		order.ExecutedAt = &now
+	}
+
+	// Sauvegarder l'ordre
+	err = s.exchangeRepo.CreateOrder(order)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Publier l'événement
+	s.publishTradingEvent("order.created", order)
+
+	return order, nil
+}
+
+func (s *ExchangeService) SellCrypto(userID, cryptoCurrency, receiveCurrency string, amount float64, orderType string, limitPrice *float64) (*models.TradingOrder, error) {
+	// Valider les paramètres
+	if !s.isCryptoCurrency(cryptoCurrency) {
+		return nil, fmt.Errorf("invalid cryptocurrency: %s", cryptoCurrency)
+	}
+
+	if !s.isFiatCurrency(receiveCurrency) {
+		return nil, fmt.Errorf("invalid receive currency: %s", receiveCurrency)
+	}
+
+	// Obtenir le prix actuel
+	currentRate, err := s.rateService.GetRate(cryptoCurrency, receiveCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current rate: %w", err)
+	}
+
+	// Calculer le prix d'exécution
+	var executionPrice float64
+	if orderType == "market" {
+		executionPrice = currentRate.BidPrice // Prix d'achat pour vendre
+	} else if orderType == "limit" && limitPrice != nil {
+		if *limitPrice < currentRate.BidPrice {
+			return nil, fmt.Errorf("limit price too low for sell order")
+		}
+		executionPrice = *limitPrice
+	} else {
+		return nil, fmt.Errorf("invalid order type or missing limit price")
+	}
+
+	// Calculer le montant à recevoir
+	totalReceive := amount * executionPrice
+	fee := s.calculateTradingFee(totalReceive, "sell")
+	totalAfterFee := totalReceive - fee
+
+	// Créer l'ordre
+	order := &models.TradingOrder{
+		UserID:          userID,
+		OrderType:       orderType,
+		Side:            "sell",
+		FromCurrency:    cryptoCurrency,
+		ToCurrency:      receiveCurrency,
+		Amount:          amount,
+		Price:           &executionPrice,
+		RemainingAmount: amount,
+		Status:          "open",
+		Fee:             fee,
+	}
+
+	// Si c'est un ordre market, l'exécuter immédiatement
+	if orderType == "market" {
+		order.Status = "filled"
+		order.FilledAmount = amount
+		order.RemainingAmount = 0
+		now := time.Now()
+		order.ExecutedAt = &now
+	}
+
+	// Sauvegarder l'ordre
+	err = s.exchangeRepo.CreateOrder(order)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Publier l'événement
+	s.publishTradingEvent("order.created", order)
+
+	return order, nil
+}
+
+func (s *ExchangeService) GetUserOrders(userID string, status string, limit, offset int) ([]*models.TradingOrder, error) {
+	return s.exchangeRepo.GetUserOrders(userID, status, limit, offset)
+}
+
+func (s *ExchangeService) CancelOrder(userID, orderID string) error {
+	// Récupérer l'ordre
+	order, err := s.exchangeRepo.GetOrder(orderID)
+	if err != nil {
+		return fmt.Errorf("order not found: %w", err)
+	}
+
+	// Vérifier la propriété
+	if order.UserID != userID {
+		return fmt.Errorf("order does not belong to user")
+	}
+
+	// Vérifier qu'il peut être annulé
+	if order.Status != "open" && order.Status != "partial" {
+		return fmt.Errorf("order cannot be cancelled, current status: %s", order.Status)
+	}
+
+	// Annuler l'ordre
+	err = s.exchangeRepo.UpdateOrderStatus(orderID, "cancelled")
+	if err != nil {
+		return fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	// Publier l'événement
+	s.publishTradingEvent("order.cancelled", order)
+
+	return nil
+}
+
+func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error) {
+	// TODO: Implémenter la récupération du portfolio
+	// Cela nécessite l'intégration avec le Wallet Service
+	
+	portfolio := &models.Portfolio{
+		TotalValue:   0,
+		TotalPnL:     0,
+		TotalPnLPerc: 0,
+		Holdings:     []models.Holding{},
+		Performance: models.PerformanceMetrics{
+			TotalTrades:   0,
+			WinningTrades: 0,
+			LosingTrades:  0,
+			WinRate:       0,
+		},
+	}
+
+	return portfolio, nil
+}
+
+// Méthodes privées
+
+func (s *ExchangeService) processExchange(exchange *models.Exchange) {
+	// Simuler le traitement de l'échange
+	time.Sleep(2 * time.Second)
+
+	// Dans un vrai système, ici on ferait:
+	// 1. Débiter le portefeuille source
+	// 2. Créditer le portefeuille destination
+	// 3. Enregistrer les transactions
+	// 4. Mettre à jour le statut
+
+	// Pour la démo, on marque comme terminé
+	s.exchangeRepo.UpdateStatus(exchange.ID, "completed")
+	
+	now := time.Now()
+	exchange.CompletedAt = &now
+	exchange.Status = "completed"
+
+	// Publier l'événement
+	s.publishExchangeEvent("exchange.completed", exchange)
+}
+
+func (s *ExchangeService) calculateFeePercentage(fromCurrency, toCurrency string, amount float64) float64 {
+	baseFee := 0.5 // 0.5% par défaut
+
+	// Frais différents selon le type de change
+	if s.isCryptoCurrency(fromCurrency) && s.isFiatCurrency(toCurrency) {
+		baseFee = s.config.ExchangeFees["crypto_to_fiat"]
+	} else if s.isFiatCurrency(fromCurrency) && s.isCryptoCurrency(toCurrency) {
+		baseFee = s.config.ExchangeFees["fiat_to_crypto"]
+	} else if s.isCryptoCurrency(fromCurrency) && s.isCryptoCurrency(toCurrency) {
+		baseFee = s.config.ExchangeFees["crypto_to_crypto"]
+	} else {
+		baseFee = s.config.ExchangeFees["fiat_to_fiat"]
+	}
+
+	// Réduction de frais selon le volume (VIP tiers)
+	if amount > 100000 {
+		baseFee *= 0.5 // 50% de réduction
+	} else if amount > 10000 {
+		baseFee *= 0.7 // 30% de réduction
+	} else if amount > 1000 {
+		baseFee *= 0.9 // 10% de réduction
+	}
+
+	return baseFee
+}
+
+func (s *ExchangeService) calculateTradingFee(amount float64, side string) float64 {
+	feeRate := s.config.TradingFees[side] // buy ou sell
+	return amount * feeRate / 100
+}
+
+func (s *ExchangeService) getEstimatedDelivery(fromCurrency, toCurrency string) string {
+	if s.isCryptoCurrency(fromCurrency) || s.isCryptoCurrency(toCurrency) {
+		return "5-15 minutes" // Temps de confirmation blockchain
+	}
+	return "Instant"
+}
+
+func (s *ExchangeService) isSupportedCurrency(currency string) bool {
+	supportedCurrencies := []string{
+		"USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF",
+		"BTC", "ETH", "USDT", "USDC", "BNB", "ADA", "XRP", "DOT", "LTC",
+	}
+	
+	currency = strings.ToUpper(currency)
+	for _, supported := range supportedCurrencies {
+		if currency == supported {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ExchangeService) isCryptoCurrency(currency string) bool {
+	cryptoCurrencies := []string{
+		"BTC", "ETH", "USDT", "USDC", "BNB", "ADA", "XRP", "DOT", "LTC", "LINK", "BCH", "XLM",
+	}
+	
+	currency = strings.ToUpper(currency)
+	for _, crypto := range cryptoCurrencies {
+		if currency == crypto {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ExchangeService) isFiatCurrency(currency string) bool {
+	fiatCurrencies := []string{
+		"USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SEK", "NOK", "DKK",
+	}
+	
+	currency = strings.ToUpper(currency)
+	for _, fiat := range fiatCurrencies {
+		if currency == fiat {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *models.Exchange) {
+	if s.mqChannel == nil {
+		return
+	}
+
+	event := map[string]interface{}{
+		"type":        eventType,
+		"exchange_id": exchange.ID,
+		"user_id":     exchange.UserID,
+		"from_currency": exchange.FromCurrency,
+		"to_currency": exchange.ToCurrency,
+		"amount":      exchange.FromAmount,
+		"status":      exchange.Status,
+		"timestamp":   time.Now(),
+	}
+
+	eventJSON, _ := json.Marshal(event)
+
+	s.mqChannel.Publish(
+		"exchange.events", // exchange
+		eventType,         // routing key
+		false,             // mandatory
+		false,             // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        eventJSON,
+		},
+	)
+}
+
+func (s *ExchangeService) publishTradingEvent(eventType string, order *models.TradingOrder) {
+	if s.mqChannel == nil {
+		return
+	}
+
+	event := map[string]interface{}{
+		"type":     eventType,
+		"order_id": order.ID,
+		"user_id":  order.UserID,
+		"side":     order.Side,
+		"amount":   order.Amount,
+		"price":    order.Price,
+		"status":   order.Status,
+		"timestamp": time.Now(),
+	}
+
+	eventJSON, _ := json.Marshal(event)
+
+	s.mqChannel.Publish(
+		"trading.events", // exchange
+		eventType,        // routing key
+		false,            // mandatory
+		false,            // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        eventJSON,
+		},
+	)
+}

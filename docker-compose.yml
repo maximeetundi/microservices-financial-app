@@ -1,0 +1,205 @@
+version: '3.8'
+
+services:
+  # Bases de données
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: crypto_bank
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - crypto-bank-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - crypto-bank-network
+
+  # Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secure_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - crypto-bank-network
+
+  # API Gateway
+  api-gateway:
+    build: 
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+    networks:
+      - crypto-bank-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+    networks:
+      - crypto-bank-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+    networks:
+      - crypto-bank-network
+
+  # Wallet Service
+  wallet-service:
+    build:
+      context: ./services/wallet-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+    networks:
+      - crypto-bank-network
+
+  # Transfer Service
+  transfer-service:
+    build:
+      context: ./services/transfer-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+    networks:
+      - crypto-bank-network
+
+  # Exchange Service
+  exchange-service:
+    build:
+      context: ./services/exchange-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - crypto-bank-network
+
+  # Card Service
+  card-service:
+    build:
+      context: ./services/card-service
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+    networks:
+      - crypto-bank-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "8087:8087"
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - crypto-bank-network
+
+  # Frontend Nuxt.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    environment:
+      - API_BASE_URL=http://api-gateway:8080
+    networks:
+      - crypto-bank-network
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - crypto-bank-network
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - crypto-bank-network
+
+volumes:
+  postgres_data:
+
+networks:
+  crypto-bank-network:
+    driver: bridge

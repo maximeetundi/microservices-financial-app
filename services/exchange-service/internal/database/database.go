@@ -1,0 +1,202 @@
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/streadway/amqp"
+	_ "github.com/lib/pq"
+)
+
+// Initialize PostgreSQL database
+func Initialize(dbURL string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Create tables if they don't exist
+	if err := createTables(db); err != nil {
+		return nil, fmt.Errorf("failed to create tables: %w", err)
+	}
+
+	log.Println("Database connected and initialized successfully")
+	return db, nil
+}
+
+// Initialize Redis client
+func InitializeRedis(redisURL string) (*redis.Client, error) {
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
+	}
+
+	client := redis.NewClient(opt)
+
+	// Test connection
+	_, err = client.Ping(client.Context()).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	log.Println("Redis connected successfully")
+	return client, nil
+}
+
+// Initialize RabbitMQ connection
+func InitializeRabbitMQ(rabbitURL string) (*amqp.Channel, error) {
+	conn, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+	}
+
+	channel, err := conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	// Declare exchanges and queues
+	if err := declareExchangesAndQueues(channel); err != nil {
+		return nil, fmt.Errorf("failed to declare exchanges and queues: %w", err)
+	}
+
+	log.Println("RabbitMQ connected and configured successfully")
+	return channel, nil
+}
+
+// Create necessary database tables
+func createTables(db *sql.DB) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS exchanges (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR NOT NULL,
+			from_wallet_id VARCHAR,
+			to_wallet_id VARCHAR,
+			from_currency VARCHAR NOT NULL,
+			to_currency VARCHAR NOT NULL,
+			from_amount DECIMAL NOT NULL,
+			to_amount DECIMAL NOT NULL,
+			exchange_rate DECIMAL NOT NULL,
+			fee DECIMAL NOT NULL,
+			fee_percentage DECIMAL NOT NULL,
+			status VARCHAR NOT NULL DEFAULT 'pending',
+			destination_amount DECIMAL,
+			destination_currency VARCHAR,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			completed_at TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS exchange_rates (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			from_currency VARCHAR NOT NULL,
+			to_currency VARCHAR NOT NULL,
+			rate DECIMAL NOT NULL,
+			bid_price DECIMAL NOT NULL,
+			ask_price DECIMAL NOT NULL,
+			spread DECIMAL NOT NULL,
+			source VARCHAR NOT NULL,
+			volume_24h DECIMAL DEFAULT 0,
+			change_24h DECIMAL DEFAULT 0,
+			last_updated TIMESTAMP DEFAULT NOW(),
+			UNIQUE(from_currency, to_currency)
+		)`,
+		`CREATE TABLE IF NOT EXISTS quotes (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR NOT NULL,
+			from_currency VARCHAR NOT NULL,
+			to_currency VARCHAR NOT NULL,
+			from_amount DECIMAL NOT NULL,
+			to_amount DECIMAL NOT NULL,
+			exchange_rate DECIMAL NOT NULL,
+			fee DECIMAL NOT NULL,
+			fee_percentage DECIMAL NOT NULL,
+			valid_until TIMESTAMP NOT NULL,
+			estimated_delivery VARCHAR,
+			created_at TIMESTAMP DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS trading_orders (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR NOT NULL,
+			order_type VARCHAR NOT NULL,
+			pair VARCHAR NOT NULL,
+			side VARCHAR NOT NULL,
+			amount DECIMAL NOT NULL,
+			price DECIMAL,
+			stop_price DECIMAL,
+			status VARCHAR NOT NULL DEFAULT 'pending',
+			filled_amount DECIMAL DEFAULT 0,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_exchanges_user_id ON exchanges(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_exchanges_status ON exchanges(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_rates_pair ON exchange_rates(from_currency, to_currency)`,
+		`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON trading_orders(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_orders_status ON trading_orders(status)`,
+	}
+
+	for _, query := range queries {
+		if _, err := db.Exec(query); err != nil {
+			return fmt.Errorf("failed to execute query %s: %w", query, err)
+		}
+	}
+
+	return nil
+}
+
+// Declare RabbitMQ exchanges and queues
+func declareExchangesAndQueues(ch *amqp.Channel) error {
+	// Declare exchanges
+	exchanges := []string{
+		"exchange.events",
+		"fiat_exchange.events",
+		"trading.events",
+		"rate.updates",
+	}
+
+	for _, exchange := range exchanges {
+		err := ch.ExchangeDeclare(
+			exchange, // name
+			"topic",  // type
+			true,     // durable
+			false,    // auto-deleted
+			false,    // internal
+			false,    // no-wait
+			nil,      // arguments
+		)
+		if err != nil {
+			return fmt.Errorf("failed to declare exchange %s: %w", exchange, err)
+		}
+	}
+
+	// Declare queues
+	queues := []string{
+		"exchange.completed",
+		"fiat_exchange.completed", 
+		"trading.order_filled",
+		"rate.crypto_updated",
+		"rate.fiat_updated",
+	}
+
+	for _, queue := range queues {
+		_, err := ch.QueueDeclare(
+			queue, // name
+			true,  // durable
+			false, // delete when unused
+			false, // exclusive
+			false, // no-wait
+			nil,   // arguments
+		)
+		if err != nil {
+			return fmt.Errorf("failed to declare queue %s: %w", queue, err)
+		}
+	}
+
+	return nil
+}

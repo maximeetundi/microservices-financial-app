@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  exchange-service:
+    build: .
+    ports:
+      - "8083:8083"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgres://user:password@postgres:5432/crypto_bank_exchange?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - JWT_SECRET=your-secret-key
+      - WALLET_SERVICE_URL=http://wallet-service:8084
+      - CRYPTO_TO_CRYPTO_FEE=0.5
+      - CRYPTO_TO_FIAT_FEE=0.75
+      - FIAT_TO_CRYPTO_FEE=0.75
+      - FIAT_TO_FIAT_FEE=0.25
+      - RATE_UPDATE_INTERVAL=30
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - crypto-bank-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=crypto_bank_exchange
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - crypto-bank-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - crypto-bank-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - crypto-bank-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  crypto-bank-network:
+    external: true

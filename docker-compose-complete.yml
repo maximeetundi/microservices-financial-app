@@ -1,0 +1,323 @@
+version: '3.8'
+
+services:
+  # Bases de données et infrastructure
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: crypto_bank
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d crypto_bank"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secure_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Services Backend
+  api-gateway:
+    build: 
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - WALLET_SERVICE_URL=http://wallet-service:8083
+      - TRANSFER_SERVICE_URL=http://transfer-service:8084
+      - EXCHANGE_SERVICE_URL=http://exchange-service:8085
+      - CARD_SERVICE_URL=http://card-service:8086
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  wallet-service:
+    build:
+      context: ./services/wallet-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - ENCRYPTION_KEY=32-byte-encryption-key-for-crypto
+      - INFURA_API_KEY=${INFURA_API_KEY:-}
+      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY:-}
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  transfer-service:
+    build:
+      context: ./services/transfer-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - MTN_API_KEY=${MTN_API_KEY:-}
+      - AIRTEL_API_KEY=${AIRTEL_API_KEY:-}
+      - MPESA_API_KEY=${MPESA_API_KEY:-}
+      - WISE_API_KEY=${WISE_API_KEY:-}
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  exchange-service:
+    build:
+      context: ./services/exchange-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - COINBASE_API_KEY=${COINBASE_API_KEY:-}
+      - BINANCE_API_KEY=${BINANCE_API_KEY:-}
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  card-service:
+    build:
+      context: ./services/card-service
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - MARQETA_API_KEY=${MARQETA_API_KEY:-}
+      - MARQETA_API_SECRET=${MARQETA_API_SECRET:-}
+      - WALLET_SERVICE_URL=http://wallet-service:8083
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "8087:8087"
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    environment:
+      - API_BASE_URL=http://api-gateway:8080/api/v1
+      - NUXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring et observabilité
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - crypto-bank-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - crypto-bank-network
+
+  # Message Queue UI
+  rabbitmq-ui:
+    image: rabbitmq:3-management
+    ports:
+      - "15673:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=secure_password
+    networks:
+      - crypto-bank-network
+
+  # Service de sauvegarde automatique
+  backup-service:
+    image: postgres:15
+    volumes:
+      - postgres_data:/source_data
+      - ./backups:/backup
+    environment:
+      - PGPASSWORD=secure_password
+    command: >
+      sh -c "
+        while true; do
+          sleep 86400;
+          pg_dump -h postgres -U admin crypto_bank > /backup/backup_$$(date +%Y%m%d_%H%M%S).sql;
+          find /backup -name '*.sql' -mtime +7 -delete;
+        done
+      "
+    depends_on:
+      - postgres
+    networks:
+      - crypto-bank-network
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  crypto-bank-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
