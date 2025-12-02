@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crypto-bank/wallet-service/internal/models"
-	"github.com/crypto-bank/wallet-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
 	"github.com/streadway/amqp"
 )
 

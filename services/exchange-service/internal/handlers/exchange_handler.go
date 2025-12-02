@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/exchange-service/internal/models"
-	"github.com/crypto-bank/exchange-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/services"
 )
 
 type ExchangeHandler struct {

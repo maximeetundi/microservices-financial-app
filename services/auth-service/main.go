@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/auth-service/internal/config"
-	"github.com/crypto-bank/auth-service/internal/database"
-	"github.com/crypto-bank/auth-service/internal/handlers"
-	"github.com/crypto-bank/auth-service/internal/middleware"
-	"github.com/crypto-bank/auth-service/internal/repository"
-	"github.com/crypto-bank/auth-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
 )
 
 func main() {

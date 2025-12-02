@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crypto-bank/auth-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

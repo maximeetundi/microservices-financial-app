@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/crypto-bank/wallet-service/internal/config"
-	"github.com/crypto-bank/wallet-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 )
 
 type CryptoService struct {

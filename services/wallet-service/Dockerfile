@@ -1,22 +1,20 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
 # Install dependencies
 RUN apk add --no-cache git
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
+# Copy all source code from the 'services' directory
 COPY . .
 
+# Run go work sync and vendor from the workspace root
+RUN for d in $(cat go.work | grep -E '^\\s*\\./' | awk '{print $1}'); do (cd "$d" && /usr/local/go/bin/go mod tidy -e); done
+RUN /usr/local/go/bin/go work vendor
+
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -installsuffix cgo -o main ./wallet-service
 
 # Final stage
 FROM alpine:latest

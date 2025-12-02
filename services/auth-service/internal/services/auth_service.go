@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/crypto-bank/auth-service/internal/config"
-	"github.com/crypto-bank/auth-service/internal/models"
-	"github.com/crypto-bank/auth-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
 )
 
 type AuthService struct {

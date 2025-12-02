@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/api-gateway/internal/config"
-	"github.com/crypto-bank/api-gateway/internal/middleware"
-	"github.com/crypto-bank/api-gateway/internal/routes"
-	"github.com/crypto-bank/api-gateway/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/routes"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/services"
 )
 
 func main() {

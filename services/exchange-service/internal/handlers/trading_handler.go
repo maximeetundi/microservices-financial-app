@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/crypto-bank/exchange-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/services"
 	"github.com/gin-gonic/gin"
 )
 

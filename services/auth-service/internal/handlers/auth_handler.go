@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/auth-service/internal/models"
-	"github.com/crypto-bank/auth-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
 )
 
 type AuthHandler struct {

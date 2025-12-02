@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/crypto-bank/auth-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
 )
 
 type SMSService struct {

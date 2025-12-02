@@ -38,8 +38,8 @@ services:
   # API Gateway
   api-gateway:
     build: 
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./api-gateway/Dockerfile
     ports:
       - "8080:8080"
     depends_on:
@@ -54,8 +54,8 @@ services:
   # Auth Service
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./auth-service/Dockerfile
     ports:
       - "8081:8081"
     depends_on:
@@ -87,8 +87,8 @@ services:
   # Wallet Service
   wallet-service:
     build:
-      context: ./services/wallet-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./wallet-service/Dockerfile
     ports:
       - "8083:8083"
     depends_on:
@@ -105,8 +105,8 @@ services:
   # Transfer Service
   transfer-service:
     build:
-      context: ./services/transfer-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./transfer-service/Dockerfile
     ports:
       - "8084:8084"
     depends_on:
@@ -121,8 +121,8 @@ services:
   # Exchange Service
   exchange-service:
     build:
-      context: ./services/exchange-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./exchange-service/Dockerfile
     ports:
       - "8085:8085"
     depends_on:
@@ -137,8 +137,8 @@ services:
   # Card Service
   card-service:
     build:
-      context: ./services/card-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ./card-service/Dockerfile
     ports:
       - "8086:8086"
     depends_on:

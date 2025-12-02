@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/crypto-bank/exchange-service/internal/config"
-	"github.com/crypto-bank/exchange-service/internal/database"
-	"github.com/crypto-bank/exchange-service/internal/handlers"
-	"github.com/crypto-bank/exchange-service/internal/middleware"
-	"github.com/crypto-bank/exchange-service/internal/repository"
-	"github.com/crypto-bank/exchange-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/services"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )

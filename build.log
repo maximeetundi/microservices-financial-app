@@ -1,0 +1,232 @@
+time="2025-12-02T06:12:40Z" level=warning msg="/home/premuimgemini8/microservices-financial-app/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+#1 [internal] load local bake definitions
+#1 reading from stdin 4.08kB done
+#1 DONE 0.0s
+
+#2 [card-service internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 774B 0.0s done
+#2 DONE 0.1s
+
+#3 [frontend internal] load build definition from Dockerfile
+#3 transferring dockerfile: 767B done
+#3 DONE 0.0s
+
+#4 [api-gateway internal] load metadata for docker.io/library/golang:1.23-alpine
+#4 DONE 0.3s
+
+#5 [wallet-service internal] load metadata for docker.io/library/alpine:latest
+#5 DONE 0.2s
+
+#6 [frontend internal] load metadata for docker.io/library/node:18-alpine
+#6 DONE 0.3s
+
+#7 [card-service internal] load .dockerignore
+#7 transferring context: 2B 0.0s done
+#7 DONE 0.0s
+
+#8 [frontend internal] load .dockerignore
+#8 transferring context: 2B done
+#8 DONE 0.0s
+
+#9 [transfer-service internal] load build context
+#9 DONE 0.0s
+
+#10 [transfer-service stage-1 1/4] FROM docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+#10 resolve docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+#10 ...
+
+#9 [card-service internal] load build context
+#9 DONE 0.0s
+
+#11 [frontend internal] load build context
+#11 DONE 0.0s
+
+#10 [card-service stage-1 1/4] FROM docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+#10 resolve docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 0.1s done
+#10 CACHED
+
+#12 [wallet-service builder 1/7] FROM docker.io/library/golang:1.23-alpine@sha256:383395b794dffa5b53012a212365d40c8e37109a626ca30d6151c8348d380b5f
+#12 resolve docker.io/library/golang:1.23-alpine@sha256:383395b794dffa5b53012a212365d40c8e37109a626ca30d6151c8348d380b5f 0.1s done
+#12 DONE 0.1s
+
+#13 [transfer-service builder 2/7] WORKDIR /app
+#13 CACHED
+
+#14 [frontend builder 1/6] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#14 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.1s done
+#14 DONE 0.1s
+
+#15 [frontend builder 2/6] WORKDIR /app
+#15 CACHED
+
+#9 [wallet-service internal] load build context
+#9 transferring context: 6.44kB 0.0s done
+#9 DONE 0.1s
+
+#11 [frontend internal] load build context
+#11 transferring context: 953B 0.0s done
+#11 DONE 0.1s
+
+#16 [wallet-service builder 3/7] COPY . .
+#16 ...
+
+#17 [frontend builder 3/6] COPY package*.json ./
+#17 DONE 0.1s
+
+#16 [auth-service builder 3/7] COPY . .
+#16 DONE 0.2s
+
+#18 [card-service builder 4/7] RUN for d in $(cat go.work | grep -E '^\./' | awk '{print $1}'); do (cd "$d" && go mod tidy -e); done
+#18 DONE 1.3s
+
+#19 [wallet-service builder 5/7] RUN go work vendor
+#19 ...
+
+#20 [frontend runner 3/6] RUN apk add --no-cache dumb-init
+#20 0.883 fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+#20 1.283 fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+#20 4.160 (1/1) Installing dumb-init (1.2.5-r3)
+#20 4.166 Executing busybox-1.37.0-r12.trigger
+#20 4.195 OK: 10 MiB in 18 packages
+#20 DONE 4.9s
+
+#21 [frontend runner 4/6] RUN addgroup --system --gid 1001 nodejs
+#21 ...
+
+#22 [api-gateway stage-1 2/4] RUN apk --no-cache add ca-certificates tzdata
+#22 0.897 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/APKINDEX.tar.gz
+#22 1.264 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/APKINDEX.tar.gz
+#22 4.459 (1/2) Installing ca-certificates (20250911-r0)
+#22 4.549 (2/2) Installing tzdata (2025b-r0)
+#22 4.882 Executing busybox-1.37.0-r19.trigger
+#22 4.927 Executing ca-certificates-20250911-r0.trigger
+#22 5.091 OK: 8 MiB in 18 packages
+#22 DONE 5.6s
+
+#23 [transfer-service stage-1 3/4] WORKDIR /app
+#23 DONE 0.2s
+
+#19 [wallet-service builder 5/7] RUN go work vendor
+#19 4.227 go: downloading github.com/gin-gonic/gin v1.9.1
+#19 4.227 go: downloading github.com/golang-jwt/jwt/v5 v5.2.0
+#19 4.471 go: downloading golang.org/x/time v0.5.0
+#19 4.613 go: downloading github.com/gin-contrib/cors v1.5.0
+#19 ...
+
+#21 [frontend runner 4/6] RUN addgroup --system --gid 1001 nodejs
+#21 DONE 1.4s
+
+#19 [wallet-service builder 5/7] RUN go work vendor
+#19 4.721 go: downloading github.com/go-redis/redis/v8 v8.11.5
+#19 4.732 go: downloading github.com/lib/pq v1.10.9
+#19 4.930 go: downloading github.com/pquerna/otp v1.4.0
+#19 5.018 go: downloading golang.org/x/crypto v0.17.0
+#19 5.041 go: downloading github.com/streadway/amqp v1.1.0
+#19 ...
+
+#24 [frontend runner 5/6] RUN adduser --system --uid 1001 nuxtjs
+#24 DONE 1.1s
+
+#25 [frontend builder 4/6] RUN npm install
+#25 ...
+
+#19 [wallet-service builder 5/7] RUN go work vendor
+#19 6.284 go: downloading github.com/gin-contrib/sse v0.1.0
+#19 6.311 go: downloading github.com/mattn/go-isatty v0.0.19
+#19 6.326 go: downloading golang.org/x/net v0.19.0
+#19 7.207 go: downloading github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc
+#19 7.309 go: downloading github.com/cespare/xxhash/v2 v2.1.2
+#19 7.316 go: downloading github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
+#19 7.457 go: downloading github.com/go-playground/validator/v10 v10.15.5
+#19 7.471 go: downloading github.com/pelletier/go-toml/v2 v2.1.0
+#19 7.644 go: downloading github.com/ugorji/go/codec v1.2.11
+#19 7.664 go: downloading google.golang.org/protobuf v1.31.0
+#19 7.840 go: downloading gopkg.in/yaml.v3 v3.0.1
+#19 7.913 go: downloading github.com/bytedance/sonic v1.10.1
+#19 8.870 go: downloading github.com/goccy/go-json v0.10.2
+#19 8.906 go: downloading github.com/json-iterator/go v1.1.12
+#19 9.112 go: downloading golang.org/x/sys v0.15.0
+#19 9.237 go: downloading github.com/gabriel-vasile/mimetype v1.4.2
+#19 9.624 go: downloading github.com/go-playground/universal-translator v0.18.1
+#19 9.663 go: downloading github.com/leodido/go-urn v1.2.4
+#19 9.834 go: downloading golang.org/x/text v0.14.0
+#19 13.86 go: downloading github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+#19 13.89 go: downloading github.com/modern-go/reflect2 v1.0.2
+#19 13.98 go: downloading github.com/go-playground/locales v0.14.1
+#19 14.86 go: downloading github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d
+#19 14.90 go: downloading golang.org/x/arch v0.5.0
+#19 15.60 go: downloading github.com/klauspost/cpuid/v2 v2.2.5
+#19 15.65 go: downloading github.com/twitchyliquid64/golang-asm v0.15.1
+#19 16.09 go: downloading github.com/chenzhuoyu/iasm v0.9.0
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/card-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config: no required module provides package github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config; to add it:
+#19 17.58 	cd /app/card-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/card-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/card-service/internal/database: no required module provides package github.com/crypto-bank/microservices-financial-app/services/card-service/internal/database; to add it:
+#19 17.58 	cd /app/card-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/card-service/internal/database
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/card-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/card-service/internal/middleware: no required module provides package github.com/crypto-bank/microservices-financial-app/services/card-service/internal/middleware; to add it:
+#19 17.58 	cd /app/card-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/card-service/internal/middleware
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/card-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository: no required module provides package github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository; to add it:
+#19 17.58 	cd /app/card-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database; to add it:
+#19 17.58 	cd /app/transfer-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/handlers: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/handlers; to add it:
+#19 17.58 	cd /app/transfer-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/handlers
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware; to add it:
+#19 17.58 	cd /app/transfer-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository; to add it:
+#19 17.58 	cd /app/transfer-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository
+#19 17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+#19 17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services; to add it:
+#19 17.58 	cd /app/transfer-service
+#19 17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services
+#19 ERROR: process "/bin/sh -c go work vendor" did not complete successfully: exit code: 1
+
+#25 [frontend builder 4/6] RUN npm install
+#25 CANCELED
+------
+ > [api-gateway builder 5/7] RUN go work vendor:
+17.58 	cd /app/transfer-service
+17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware
+17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository; to add it:
+17.58 	cd /app/transfer-service
+17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository
+17.58 go: github.com/crypto-bank/microservices-financial-app/services/transfer-service imports
+17.58 	github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services: no required module provides package github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services; to add it:
+17.58 	cd /app/transfer-service
+17.58 	go get github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services
+------
+Dockerfile:11
+
+--------------------
+
+   9 |     # Tidy and vendor modules
+
+  10 |     RUN for d in $(cat go.work | grep -E '^\./' | awk '{print $1}'); do (cd "$d" && go mod tidy -e); done
+
+  11 | >>> RUN go work vendor
+
+  12 |     
+
+  13 |     # Build all services
+
+--------------------
+
+target wallet-service: failed to solve: process "/bin/sh -c go work vendor" did not complete successfully: exit code: 1
+

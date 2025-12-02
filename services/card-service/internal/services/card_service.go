@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crypto-bank/card-service/internal/config"
-	"github.com/crypto-bank/card-service/internal/models"
-	"github.com/crypto-bank/card-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository"
 	"github.com/streadway/amqp"
 	"golang.org/x/crypto/bcrypt"
 )

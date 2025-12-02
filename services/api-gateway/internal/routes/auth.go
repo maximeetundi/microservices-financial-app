@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/api-gateway/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/services"
 )
 
 func SetupAuthRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {

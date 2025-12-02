@@ -1,22 +1,17 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
-WORKDIR /app
+WORKDIR /app/api-gateway
 
-# Install dependencies
-RUN apk add --no-cache git
+# Copy service source code
+COPY ./api-gateway .
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
+# Tidy and vendor modules
+RUN go mod tidy -e
+RUN go mod vendor
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/api-gateway/main .
 
 # Final stage
 FROM alpine:latest
@@ -26,7 +21,7 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 
 # Copy the binary from builder stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/api-gateway/main .
 
 # Expose port
 EXPOSE 8080

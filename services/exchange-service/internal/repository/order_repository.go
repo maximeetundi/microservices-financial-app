@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/crypto-bank/exchange-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 )
 
 type OrderRepository struct {

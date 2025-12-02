@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/transfer-service/internal/config"
-	"github.com/crypto-bank/transfer-service/internal/database"
-	"github.com/crypto-bank/transfer-service/internal/handlers"
-	"github.com/crypto-bank/transfer-service/internal/middleware"
-	"github.com/crypto-bank/transfer-service/internal/repository"
-	"github.com/crypto-bank/transfer-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 )
 
 func main() {

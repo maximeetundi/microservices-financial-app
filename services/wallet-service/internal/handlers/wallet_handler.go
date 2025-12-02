@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/wallet-service/internal/models"
-	"github.com/crypto-bank/wallet-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/services"
 )
 
 type WalletHandler struct {

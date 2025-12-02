@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crypto-bank/wallet-service/internal/models"
-	"github.com/crypto-bank/wallet-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
 	"github.com/go-redis/redis/v8"
 )
 

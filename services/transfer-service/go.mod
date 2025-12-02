@@ -1,6 +1,8 @@
-module github.com/crypto-bank/transfer-service
+module github.com/crypto-bank/microservices-financial-app/services/transfer-service
 
 go 1.21
+
+
 
 require (
 	github.com/gin-gonic/gin v1.9.1
@@ -34,4 +36,12 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+
+replace (
+    github.com/crypto-bank/microservices-financial-app/services/api-gateway => ../api-gateway
+    github.com/crypto-bank/microservices-financial-app/services/auth-service => ../auth-service
+    github.com/crypto-bank/microservices-financial-app/services/card-service => ../card-service
+    github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
+    github.com/crypto-bank/microservices-financial-app/services/wallet-service => ../wallet-service
+)
 )

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crypto-bank/exchange-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 	"github.com/go-redis/redis/v8"
 )
 

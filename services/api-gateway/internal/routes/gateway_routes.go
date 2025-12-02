@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/crypto-bank/api-gateway/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/services"
 )
 
 // Configuration des routes par service avec préfixe

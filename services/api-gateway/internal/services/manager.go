@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/crypto-bank/api-gateway/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/api-gateway/internal/config"
 )
 
 type ServiceManager struct {
