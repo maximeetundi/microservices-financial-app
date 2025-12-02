@@ -6,12 +6,11 @@ WORKDIR /app/card-service
 # Copy service source code
 COPY ./card-service .
 
-# Tidy and vendor modules
-RUN go mod tidy -e
-RUN go mod vendor
+# Download dependencies
+RUN go mod download
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/card-service/main .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/card-service/main .
 
 # Final stage
 FROM alpine:latest

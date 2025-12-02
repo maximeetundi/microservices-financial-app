@@ -6,12 +6,11 @@ WORKDIR /app/api-gateway
 # Copy service source code
 COPY ./api-gateway .
 
-# Tidy and vendor modules
-RUN go mod tidy -e
-RUN go mod vendor
+# Download dependencies
+RUN go mod download
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/api-gateway/main .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api-gateway/main .
 
 # Final stage
 FROM alpine:latest
