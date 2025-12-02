@@ -42,11 +42,12 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 
+)
+
 replace (
     github.com/crypto-bank/microservices-financial-app/services/api-gateway => ../api-gateway
     github.com/crypto-bank/microservices-financial-app/services/card-service => ../card-service
     github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
     github.com/crypto-bank/microservices-financial-app/services/transfer-service => ../transfer-service
     github.com/crypto-bank/microservices-financial-app/services/wallet-service => ../wallet-service
-)
 )
