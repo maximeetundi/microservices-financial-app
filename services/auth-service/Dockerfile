@@ -7,7 +7,7 @@ WORKDIR /app/auth-service
 COPY ./auth-service .
 
 # Download dependencies
-RUN go mod download
+RUN go mod tidy && go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/auth-service/main .
