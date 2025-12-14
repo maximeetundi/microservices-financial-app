@@ -52,11 +52,14 @@ func InitializeRabbitMQ(rabbitMQURL string) (*amqp.Channel, error) {
 		return nil, fmt.Errorf("failed to open channel: %w", err)
 	}
 
-	// Declare exchanges
+	// Declare exchanges - all services use these
 	exchanges := []string{
 		"wallet.events",
 		"transaction.events",
 		"transfer.events",
+		"exchange.events",
+		"card.events",
+		"notification.events",
 	}
 
 	for _, exchange := range exchanges {
@@ -71,6 +74,40 @@ func InitializeRabbitMQ(rabbitMQURL string) (*amqp.Channel, error) {
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to declare exchange %s: %w", exchange, err)
+		}
+	}
+
+	// Declare queues for consuming events from other services
+	queues := map[string]string{
+		"wallet.transfer_completed": "transfer.events",
+		"wallet.exchange_completed": "exchange.events",
+		"wallet.card_loaded":        "card.events",
+	}
+
+	for queue, exchange := range queues {
+		_, err = channel.QueueDeclare(
+			queue, // name
+			true,  // durable
+			false, // delete when unused
+			false, // exclusive
+			false, // no-wait
+			nil,   // arguments
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to declare queue %s: %w", queue, err)
+		}
+
+		// Bind queue to exchange with routing key
+		routingKey := queue[7:] // Remove "wallet." prefix
+		err = channel.QueueBind(
+			queue,      // queue name
+			routingKey, // routing key
+			exchange,   // exchange
+			false,      // no-wait
+			nil,        // arguments
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to bind queue %s: %w", queue, err)
 		}
 	}
 

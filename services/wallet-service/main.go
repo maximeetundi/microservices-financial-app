@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialize RabbitMQ:", err)
 	}
-	defer mqClient.Close()
+	// Note: mqClient is the channel for wallet-service since InitializeRabbitMQ returns *amqp.Channel
 
 	// Initialize repositories
 	walletRepo := repository.NewWalletRepository(db)
@@ -45,6 +45,12 @@ func main() {
 	cryptoService := services.NewCryptoService(cfg)
 	balanceService := services.NewBalanceService(walletRepo, redisClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, mqClient)
+	
+	// Start RabbitMQ consumer for inter-service communication
+	consumer := services.NewConsumer(mqClient, walletService)
+	if err := consumer.Start(); err != nil {
+		log.Printf("Warning: Failed to start RabbitMQ consumer: %v", err)
+	}
 	
 	// Initialize handlers
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
