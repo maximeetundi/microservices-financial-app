@@ -1,6 +1,6 @@
 module github.com/crypto-bank/microservices-financial-app/services/api-gateway
 
-go 1.21
+go 1.23
 
 
 
