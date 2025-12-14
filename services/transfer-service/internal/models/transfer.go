@@ -164,3 +164,59 @@ type ComplianceCheck struct {
 	ReviewedAt   *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 }
+
+// Wallet represents a user wallet
+type Wallet struct {
+	ID            string  `json:"id" db:"id"`
+	UserID        string  `json:"user_id" db:"user_id"`
+	Currency      string  `json:"currency" db:"currency"`
+	WalletType    string  `json:"wallet_type" db:"wallet_type"`
+	Balance       float64 `json:"balance" db:"balance"`
+	FrozenBalance float64 `json:"frozen_balance" db:"frozen_balance"`
+	IsActive      bool    `json:"is_active" db:"is_active"`
+}
+
+// MobileMoneyRequest for mobile money operations
+type MobileMoneyRequest struct {
+	Provider   string  `json:"provider" binding:"required"`
+	Phone      string  `json:"phone" binding:"required"`
+	Amount     float64 `json:"amount" binding:"required,gt=0"`
+	Currency   string  `json:"currency" binding:"required"`
+	WalletID   string  `json:"wallet_id" binding:"required"`
+}
+
+// MobileMoneyResponse for mobile money operations
+type MobileMoneyResponse struct {
+	TransactionID string `json:"transaction_id"`
+	Status        string `json:"status"`
+	Provider      string `json:"provider"`
+	Message       string `json:"message,omitempty"`
+}
+
+// ComplianceResult represents compliance check result
+type ComplianceResult struct {
+	Passed      bool     `json:"passed"`
+	RiskScore   int      `json:"risk_score"`
+	Checks      []string `json:"checks"`
+	RequiresKYC bool     `json:"requires_kyc"`
+	Message     string   `json:"message,omitempty"`
+}
+
+// Type alias for backward compatibility
+func (t *Transfer) GetType() string {
+	if t.TransferType != "" {
+		return t.TransferType
+	}
+	return "domestic"
+}
+
+// Metadata field for JSON storage
+type Metadata map[string]interface{}
+
+// ReferenceID getter
+func (t *Transfer) GetReferenceID() string {
+	if t.Reference != nil {
+		return *t.Reference
+	}
+	return ""
+}
