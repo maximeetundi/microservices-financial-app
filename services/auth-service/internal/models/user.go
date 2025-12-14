@@ -15,6 +15,7 @@ type User struct {
 	Country       string     `json:"country" db:"country"`
 	KYCStatus     string     `json:"kyc_status" db:"kyc_status"`
 	KYCLevel      int        `json:"kyc_level" db:"kyc_level"`
+	Role          string     `json:"role" db:"role"` // user, admin, support
 	IsActive      bool       `json:"is_active" db:"is_active"`
 	TwoFAEnabled  bool       `json:"two_fa_enabled" db:"two_fa_enabled"`
 	TwoFASecret   string     `json:"-" db:"two_fa_secret"`
@@ -103,4 +104,32 @@ type Enable2FAResponse struct {
 
 type Verify2FARequest struct {
 	Code string `json:"code" binding:"required"`
+}
+
+// BackupCode represents a one-time backup code for 2FA recovery
+type BackupCode struct {
+	ID        string    `json:"id" db:"id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	Code      string    `json:"-" db:"code"`       // Hashed code
+	Used      bool      `json:"used" db:"used"`
+	UsedAt    *time.Time `json:"used_at,omitempty" db:"used_at"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// AuditLog represents a security audit log entry
+type AuditLog struct {
+	ID        string    `json:"id" db:"id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	EventType string    `json:"event_type" db:"event_type"` // login, logout, password_change, 2fa_enable, etc.
+	IPAddress string    `json:"ip_address" db:"ip_address"`
+	UserAgent string    `json:"user_agent" db:"user_agent"`
+	Success   bool      `json:"success" db:"success"`
+	Details   *string   `json:"details,omitempty" db:"details"` // JSON
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// ChangePasswordRequest for password changes
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
 }

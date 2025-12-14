@@ -11,18 +11,20 @@ import (
 )
 
 type AuthHandler struct {
-	authService *services.AuthService
+	authService  *services.AuthService
 	emailService *services.EmailService
-	smsService *services.SMSService
-	totpService *services.TOTPService
+	smsService   *services.SMSService
+	totpService  *services.TOTPService
+	auditService *services.AuditService
 }
 
-func NewAuthHandler(authService *services.AuthService, emailService *services.EmailService, smsService *services.SMSService, totpService *services.TOTPService) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, emailService *services.EmailService, smsService *services.SMSService, totpService *services.TOTPService, auditService *services.AuditService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:  authService,
 		emailService: emailService,
-		smsService: smsService,
-		totpService: totpService,
+		smsService:   smsService,
+		totpService:  totpService,
+		auditService: auditService,
 	}
 }
 

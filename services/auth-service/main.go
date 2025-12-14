@@ -30,6 +30,12 @@ func main() {
 		log.Fatal("Failed to initialize Redis:", err)
 	}
 
+	// Initialize RabbitMQ for audit events
+	mqChannel, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize RabbitMQ: %v (audit logging disabled)", err)
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db, redisClient)
@@ -39,9 +45,10 @@ func main() {
 	emailService := services.NewEmailService(cfg)
 	smsService := services.NewSMSService(cfg)
 	totpService := services.NewTOTPService()
+	auditService := services.NewAuditService(mqChannel)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService)
+	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {

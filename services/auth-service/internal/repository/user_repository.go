@@ -240,3 +240,76 @@ func (r *UserRepository) MarkTokenAsUsed(tokenID string) error {
 	_, err := r.db.Exec(query, tokenID)
 	return err
 }
+
+// Backup codes methods
+
+func (r *UserRepository) CreateBackupCodes(userID string, hashedCodes []string) error {
+	// Delete existing backup codes
+	_, err := r.db.Exec(`DELETE FROM backup_codes WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete old backup codes: %w", err)
+	}
+
+	// Insert new backup codes
+	for _, hashedCode := range hashedCodes {
+		query := `INSERT INTO backup_codes (user_id, code) VALUES ($1, $2)`
+		_, err := r.db.Exec(query, userID, hashedCode)
+		if err != nil {
+			return fmt.Errorf("failed to create backup code: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *UserRepository) GetUnusedBackupCodes(userID string) ([]models.BackupCode, error) {
+	query := `
+		SELECT id, user_id, code, used, used_at, created_at
+		FROM backup_codes
+		WHERE user_id = $1 AND used = false
+		ORDER BY created_at
+	`
+	
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup codes: %w", err)
+	}
+	defer rows.Close()
+
+	var codes []models.BackupCode
+	for rows.Next() {
+		var code models.BackupCode
+		err := rows.Scan(&code.ID, &code.UserID, &code.Code, &code.Used, &code.UsedAt, &code.CreatedAt)
+		if err != nil {
+			continue
+		}
+		codes = append(codes, code)
+	}
+
+	return codes, nil
+}
+
+func (r *UserRepository) UseBackupCode(userID, codeID string) error {
+	query := `UPDATE backup_codes SET used = true, used_at = NOW() WHERE id = $1 AND user_id = $2`
+	result, err := r.db.Exec(query, codeID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to use backup code: %w", err)
+	}
+	
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("backup code not found")
+	}
+	
+	return nil
+}
+
+func (r *UserRepository) GetUserRole(userID string) (string, error) {
+	var role string
+	query := `SELECT COALESCE(role, 'user') FROM users WHERE id = $1`
+	err := r.db.QueryRow(query, userID).Scan(&role)
+	if err != nil {
+		return "user", err
+	}
+	return role, nil
+}

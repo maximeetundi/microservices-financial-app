@@ -11,6 +11,7 @@ type Config struct {
 	Port        string
 	DBUrl       string
 	RedisURL    string
+	RabbitMQURL string
 	JWTSecret   string
 	
 	// JWT settings
@@ -62,6 +63,7 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8081"),
 		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
+		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
 		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 
 		// JWT settings

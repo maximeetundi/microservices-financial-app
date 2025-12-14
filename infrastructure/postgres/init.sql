@@ -12,11 +12,38 @@ CREATE TABLE users (
     country VARCHAR(3) NOT NULL, -- ISO country code
     kyc_status VARCHAR(20) DEFAULT 'pending', -- pending, verified, rejected
     kyc_level INTEGER DEFAULT 1, -- 1, 2, 3 (verification levels)
+    role VARCHAR(20) DEFAULT 'user', -- user, admin, support
     is_active BOOLEAN DEFAULT true,
     two_fa_enabled BOOLEAN DEFAULT false,
-    two_fa_secret VARCHAR(32),
+    two_fa_secret VARCHAR(64),
+    email_verified BOOLEAN DEFAULT false,
+    phone_verified BOOLEAN DEFAULT false,
+    last_login_at TIMESTAMP,
+    failed_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Backup codes for 2FA recovery
+CREATE TABLE backup_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code VARCHAR(255) NOT NULL, -- Hashed backup code
+    used BOOLEAN DEFAULT false,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Verification tokens for email/phone/password reset
+CREATE TABLE verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    type VARCHAR(50) NOT NULL, -- email_verification, phone_verification, password_reset
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Wallets table
@@ -65,18 +92,110 @@ CREATE TABLE exchange_rates (
     UNIQUE(from_currency, to_currency, source)
 );
 
--- Cards table
+-- Cards table (enhanced for card-service)
 CREATE TABLE cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     card_number VARCHAR(19) NOT NULL, -- Masked: ****-****-****-1234
-    card_type VARCHAR(20) NOT NULL, -- prepaid, virtual
+    card_number_full VARCHAR(255), -- Encrypted full number
+    card_type VARCHAR(20) NOT NULL, -- prepaid, virtual, gift
+    card_category VARCHAR(20) DEFAULT 'personal', -- personal, business
     currency VARCHAR(10) NOT NULL,
+    cardholder_name VARCHAR(100),
     balance DECIMAL(20,8) DEFAULT 0,
+    available_balance DECIMAL(20,8) DEFAULT 0,
+    expiry_month INTEGER,
+    expiry_year INTEGER,
+    cvv VARCHAR(255), -- Encrypted
+    pin_hash VARCHAR(255),
+    status VARCHAR(20) DEFAULT 'inactive', -- active, inactive, blocked, expired
+    is_virtual BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    activated_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    
+    -- Limits
     daily_limit DECIMAL(20,8) DEFAULT 1000,
     monthly_limit DECIMAL(20,8) DEFAULT 10000,
-    is_active BOOLEAN DEFAULT true,
-    expires_at DATE,
+    single_tx_limit DECIMAL(20,8) DEFAULT 500,
+    atm_daily_limit DECIMAL(20,8) DEFAULT 300,
+    online_tx_limit DECIMAL(20,8) DEFAULT 2000,
+    
+    -- Current usage
+    daily_spent DECIMAL(20,8) DEFAULT 0,
+    monthly_spent DECIMAL(20,8) DEFAULT 0,
+    atm_daily_spent DECIMAL(20,8) DEFAULT 0,
+    
+    -- Settings
+    allow_atm BOOLEAN DEFAULT true,
+    allow_online BOOLEAN DEFAULT true,
+    allow_international BOOLEAN DEFAULT false,
+    allow_contactless BOOLEAN DEFAULT true,
+    
+    -- Auto-reload
+    auto_reload_enabled BOOLEAN DEFAULT false,
+    auto_reload_amount DECIMAL(20,8),
+    auto_reload_threshold DECIMAL(20,8),
+    reload_wallet_id UUID,
+    
+    -- Physical card shipping
+    shipping_address TEXT,
+    shipping_status VARCHAR(20),
+    tracking_number VARCHAR(100),
+    shipped_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    
+    -- External processor
+    external_card_id VARCHAR(100),
+    issuer_id VARCHAR(50) DEFAULT 'internal',
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Gift cards table
+CREATE TABLE gift_cards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(32) UNIQUE NOT NULL,
+    sender_id UUID NOT NULL REFERENCES users(id),
+    recipient_email VARCHAR(255),
+    recipient_phone VARCHAR(20),
+    amount DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    message TEXT,
+    design VARCHAR(50) DEFAULT 'default', -- birthday, christmas, etc.
+    status VARCHAR(20) DEFAULT 'pending', -- pending, sent, redeemed, expired
+    redeemed_by UUID REFERENCES users(id),
+    redeemed_at TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Card transactions table
+CREATE TABLE card_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    card_id UUID NOT NULL REFERENCES cards(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    transaction_type VARCHAR(20) NOT NULL, -- purchase, withdrawal, load, refund
+    amount DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    original_amount DECIMAL(20,8),
+    original_currency VARCHAR(10),
+    exchange_rate DECIMAL(20,8),
+    fee DECIMAL(20,8) DEFAULT 0,
+    merchant_name VARCHAR(255),
+    merchant_category VARCHAR(100),
+    merchant_city VARCHAR(100),
+    merchant_country VARCHAR(3),
+    authorization_code VARCHAR(50),
+    reference_number VARCHAR(100),
+    external_transaction_id VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, declined, reversed
+    decline_reason TEXT,
+    is_online BOOLEAN DEFAULT false,
+    is_international BOOLEAN DEFAULT false,
+    is_contactless BOOLEAN DEFAULT false,
+    processed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -156,6 +275,16 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX idx_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_sessions_token ON user_sessions(session_token);
+CREATE INDEX idx_backup_codes_user_id ON backup_codes(user_id);
+CREATE INDEX idx_verification_tokens_user_id ON verification_tokens(user_id);
+CREATE INDEX idx_verification_tokens_token ON verification_tokens(token);
+CREATE INDEX idx_cards_user_id ON cards(user_id);
+CREATE INDEX idx_cards_status ON cards(status);
+CREATE INDEX idx_gift_cards_code ON gift_cards(code);
+CREATE INDEX idx_gift_cards_sender_id ON gift_cards(sender_id);
+CREATE INDEX idx_card_transactions_card_id ON card_transactions(card_id);
+CREATE INDEX idx_card_transactions_user_id ON card_transactions(user_id);
+CREATE INDEX idx_card_transactions_created_at ON card_transactions(created_at);
 
 -- Supported currencies
 INSERT INTO exchange_rates (from_currency, to_currency, rate, source, valid_until) VALUES

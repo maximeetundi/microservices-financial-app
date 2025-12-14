@@ -3,7 +3,7 @@ package services
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/base32"
+	"encoding/base64"
 	"fmt"
 	"image/png"
 	"time"
@@ -49,7 +49,7 @@ func (s *TOTPService) GenerateSecret(email, issuer string) (*TOTPSetup, error) {
 		return nil, fmt.Errorf("failed to encode QR code image: %w", err)
 	}
 
-	qrCodeBase64 := fmt.Sprintf("data:image/png;base64,%s", base32.StdEncoding.EncodeToString(buf.Bytes()))
+	qrCodeBase64 := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 
 	return &TOTPSetup{
 		Secret: key.Secret(),
