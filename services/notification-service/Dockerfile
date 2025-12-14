@@ -6,8 +6,8 @@ WORKDIR /app/notification-service
 # Copy service source code
 COPY ./notification-service .
 
-# Download dependencies
-RUN go mod download
+# Download dependencies (go mod tidy generates go.sum if missing)
+RUN go mod tidy && go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/notification-service/main .
