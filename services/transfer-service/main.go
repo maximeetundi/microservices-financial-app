@@ -71,32 +71,31 @@ func main() {
 	// Transfer routes
 	api := router.Group("/api/v1")
 	{
-		// Protected routes
-		protected := api.Use(middleware.JWTAuth(cfg.JWTSecret))
+		// Protected routes - apply JWT auth middleware
+		api.POST("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateTransfer)
+		api.GET("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransferHistory)
+		api.GET("/transfers/:transfer_id", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransfer)
+		api.POST("/transfers/:transfer_id/cancel", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CancelTransfer)
+
+		// International transfers
+		api.POST("/international", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateInternationalTransfer)
+
+		// Mobile money
+		mobile := api.Group("/mobile")
+		mobile.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{
-			protected.POST("/transfers", transferHandler.CreateTransfer)
-			protected.GET("/transfers", transferHandler.GetTransferHistory)
-			protected.GET("/transfers/:transfer_id", transferHandler.GetTransfer)
-			protected.POST("/transfers/:transfer_id/cancel", transferHandler.CancelTransfer)
+			mobile.POST("/send", transferHandler.SendMobileMoney)
+			mobile.POST("/receive", transferHandler.ReceiveMobileMoney)
+			mobile.GET("/providers", transferHandler.GetMobileProviders)
+		}
 
-			// International transfers
-			protected.POST("/international", transferHandler.CreateInternationalTransfer)
-
-			// Mobile money
-			mobile := protected.Group("/mobile")
-			{
-				mobile.POST("/send", transferHandler.SendMobileMoney)
-				mobile.POST("/receive", transferHandler.ReceiveMobileMoney)
-				mobile.GET("/providers", transferHandler.GetMobileProviders)
-			}
-
-			// Bulk transfers
-			bulk := protected.Group("/bulk")
-			{
-				bulk.POST("/", transferHandler.CreateBulkTransfer)
-				bulk.GET("/:batch_id", transferHandler.GetBulkTransferStatus)
-				bulk.POST("/:batch_id/approve", transferHandler.ApproveBulkTransfer)
-			}
+		// Bulk transfers
+		bulk := api.Group("/bulk")
+		bulk.Use(middleware.JWTAuth(cfg.JWTSecret))
+		{
+			bulk.POST("/", transferHandler.CreateBulkTransfer)
+			bulk.GET("/:batch_id", transferHandler.GetBulkTransferStatus)
+			bulk.POST("/:batch_id/approve", transferHandler.ApproveBulkTransfer)
 		}
 
 		// Webhook endpoints
