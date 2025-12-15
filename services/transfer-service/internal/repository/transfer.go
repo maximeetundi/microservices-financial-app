@@ -17,21 +17,20 @@ func NewTransferRepository(db *sql.DB) *TransferRepository {
 
 func (r *TransferRepository) Create(transfer *models.Transfer) error {
 	query := `
-		INSERT INTO transactions (id, from_wallet_id, to_wallet_id, transaction_type, amount, fee, currency, status, reference_id, description, metadata, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO transactions (id, from_wallet_id, to_wallet_id, transaction_type, amount, fee, currency, status, reference_id, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := r.db.Exec(query,
 		transfer.ID,
 		transfer.FromWalletID,
 		transfer.ToWalletID,
-		transfer.Type,
+		transfer.TransferType,
 		transfer.Amount,
 		transfer.Fee,
 		transfer.Currency,
 		transfer.Status,
-		transfer.ReferenceID,
+		transfer.Reference,
 		transfer.Description,
-		transfer.Metadata,
 		time.Now(),
 		time.Now(),
 	)
@@ -40,7 +39,7 @@ func (r *TransferRepository) Create(transfer *models.Transfer) error {
 
 func (r *TransferRepository) GetByID(id string) (*models.Transfer, error) {
 	query := `
-		SELECT id, from_wallet_id, to_wallet_id, transaction_type, amount, fee, currency, status, reference_id, description, metadata, created_at, updated_at
+		SELECT id, from_wallet_id, to_wallet_id, transaction_type, amount, fee, currency, status, reference_id, description, created_at, updated_at
 		FROM transactions WHERE id = $1
 	`
 	var transfer models.Transfer
@@ -48,14 +47,13 @@ func (r *TransferRepository) GetByID(id string) (*models.Transfer, error) {
 		&transfer.ID,
 		&transfer.FromWalletID,
 		&transfer.ToWalletID,
-		&transfer.Type,
+		&transfer.TransferType,
 		&transfer.Amount,
 		&transfer.Fee,
 		&transfer.Currency,
 		&transfer.Status,
-		&transfer.ReferenceID,
+		&transfer.Reference,
 		&transfer.Description,
-		&transfer.Metadata,
 		&transfer.CreatedAt,
 		&transfer.UpdatedAt,
 	)
@@ -67,7 +65,7 @@ func (r *TransferRepository) GetByID(id string) (*models.Transfer, error) {
 
 func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]models.Transfer, error) {
 	query := `
-		SELECT t.id, t.from_wallet_id, t.to_wallet_id, t.transaction_type, t.amount, t.fee, t.currency, t.status, t.reference_id, t.description, t.metadata, t.created_at, t.updated_at
+		SELECT t.id, t.from_wallet_id, t.to_wallet_id, t.transaction_type, t.amount, t.fee, t.currency, t.status, t.reference_id, t.description, t.created_at, t.updated_at
 		FROM transactions t
 		JOIN wallets w ON (t.from_wallet_id = w.id OR t.to_wallet_id = w.id)
 		WHERE w.user_id = $1
@@ -84,8 +82,8 @@ func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]mo
 	for rows.Next() {
 		var t models.Transfer
 		err := rows.Scan(
-			&t.ID, &t.FromWalletID, &t.ToWalletID, &t.Type, &t.Amount, &t.Fee,
-			&t.Currency, &t.Status, &t.ReferenceID, &t.Description, &t.Metadata,
+			&t.ID, &t.FromWalletID, &t.ToWalletID, &t.TransferType, &t.Amount, &t.Fee,
+			&t.Currency, &t.Status, &t.Reference, &t.Description,
 			&t.CreatedAt, &t.UpdatedAt,
 		)
 		if err != nil {

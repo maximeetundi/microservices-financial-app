@@ -185,17 +185,19 @@ func NewCardTransactionRepository(db *sql.DB) *CardTransactionRepository {
 
 func (r *CardTransactionRepository) Create(tx *models.CardTransaction) error {
 	query := `
-		INSERT INTO transactions (id, from_wallet_id, transaction_type, amount, currency, status, description, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO card_transactions (id, card_id, user_id, transaction_type, amount, currency, fee, status, merchant_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err := r.db.Exec(query,
 		tx.ID,
 		tx.CardID,
-		"card_transaction",
+		tx.UserID,
+		tx.TransactionType,
 		tx.Amount,
 		tx.Currency,
+		tx.Fee,
 		tx.Status,
-		tx.Description,
+		tx.MerchantName,
 		time.Now(),
 		time.Now(),
 	)
@@ -203,16 +205,16 @@ func (r *CardTransactionRepository) Create(tx *models.CardTransaction) error {
 }
 
 func (r *CardTransactionRepository) UpdateStatus(transactionID, status string) error {
-	query := `UPDATE transactions SET status = $1, updated_at = $2 WHERE id = $3`
+	query := `UPDATE card_transactions SET status = $1, updated_at = $2 WHERE id = $3`
 	_, err := r.db.Exec(query, status, time.Now(), transactionID)
 	return err
 }
 
 func (r *CardTransactionRepository) GetByCardID(cardID string, limit, offset int) ([]models.CardTransaction, error) {
 	query := `
-		SELECT id, from_wallet_id, amount, currency, status, description, created_at
-		FROM transactions 
-		WHERE from_wallet_id = $1 AND transaction_type = 'card_transaction'
+		SELECT id, card_id, user_id, transaction_type, amount, currency, fee, status, merchant_name, created_at
+		FROM card_transactions 
+		WHERE card_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -225,7 +227,7 @@ func (r *CardTransactionRepository) GetByCardID(cardID string, limit, offset int
 	var transactions []models.CardTransaction
 	for rows.Next() {
 		var t models.CardTransaction
-		err := rows.Scan(&t.ID, &t.CardID, &t.Amount, &t.Currency, &t.Status, &t.Description, &t.CreatedAt)
+		err := rows.Scan(&t.ID, &t.CardID, &t.UserID, &t.TransactionType, &t.Amount, &t.Currency, &t.Fee, &t.Status, &t.MerchantName, &t.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
