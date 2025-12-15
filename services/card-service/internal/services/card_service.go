@@ -436,7 +436,7 @@ func (s *CardService) RedeemGiftCard(userID, code, targetWalletID string) error 
 }
 
 // GetUserCards returns all cards for a user
-func (s *CardService) GetUserCards(userID string) ([]*models.Card, error) {
+func (s *CardService) GetUserCards(userID string) ([]models.Card, error) {
 	return s.cardRepo.GetUserCards(userID)
 }
 
@@ -616,8 +616,8 @@ func (s *CardService) CancelAutoLoad(userID, cardID string) error {
 	}
 	
 	card.AutoReloadEnabled = false
-	card.AutoReloadAmount = nil
-	card.AutoReloadThreshold = nil
+	card.AutoReloadAmount = 0
+	card.AutoReloadThreshold = 0
 	card.AutoReloadWalletID = nil
 	
 	if err := s.cardRepo.Update(card); err != nil {

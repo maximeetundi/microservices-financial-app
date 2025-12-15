@@ -19,11 +19,17 @@ type Card struct {
 	ExpiryYear        int        `json:"expiry_year" db:"expiry_year"`
 	CVV               string     `json:"-" db:"cvv"`                             // Chiffré
 	PINHash           string     `json:"-" db:"pin_hash"`                        // Haché
-	Status            string     `json:"status" db:"status"`                     // active, inactive, blocked, expired
+	Status            string     `json:"status" db:"status"`                     // active, inactive, blocked, expired, frozen
 	IsVirtual         bool       `json:"is_virtual" db:"is_virtual"`
 	IsActive          bool       `json:"is_active" db:"is_active"`
 	ActivatedAt       *time.Time `json:"activated_at,omitempty" db:"activated_at"`
 	ExpiresAt         time.Time  `json:"expires_at" db:"expires_at"`
+	
+	// Freeze/Block info
+	FreezeReason      *string    `json:"freeze_reason,omitempty" db:"freeze_reason"`
+	FrozenAt          *time.Time `json:"frozen_at,omitempty" db:"frozen_at"`
+	BlockReason       *string    `json:"block_reason,omitempty" db:"block_reason"`
+	BlockedAt         *time.Time `json:"blocked_at,omitempty" db:"blocked_at"`
 	
 	// Limites
 	DailyLimit        float64 `json:"daily_limit" db:"daily_limit"`
@@ -44,10 +50,11 @@ type Card struct {
 	AllowContactless  bool `json:"allow_contactless" db:"allow_contactless"`
 	
 	// Auto-reload
-	AutoReloadEnabled  bool     `json:"auto_reload_enabled" db:"auto_reload_enabled"`
-	AutoReloadAmount   float64  `json:"auto_reload_amount" db:"auto_reload_amount"`
-	AutoReloadThreshold float64 `json:"auto_reload_threshold" db:"auto_reload_threshold"`
-	ReloadWalletID     *string  `json:"reload_wallet_id,omitempty" db:"reload_wallet_id"`
+	AutoReloadEnabled   bool     `json:"auto_reload_enabled" db:"auto_reload_enabled"`
+	AutoReloadAmount    float64  `json:"auto_reload_amount" db:"auto_reload_amount"`
+	AutoReloadThreshold float64  `json:"auto_reload_threshold" db:"auto_reload_threshold"`
+	ReloadWalletID      *string  `json:"reload_wallet_id,omitempty" db:"reload_wallet_id"`
+	AutoReloadWalletID  *string  `json:"auto_reload_wallet_id,omitempty" db:"auto_reload_wallet_id"`
 	
 	// Carte physique
 	ShippingAddress   *string    `json:"shipping_address,omitempty" db:"shipping_address"`
