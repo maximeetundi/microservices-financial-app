@@ -220,7 +220,7 @@ func (h *AuthHandler) VerifyPhone(c *gin.Context) {
 }
 
 func (h *AuthHandler) Enable2FA(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -252,7 +252,7 @@ func (h *AuthHandler) Verify2FA(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -271,7 +271,7 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
