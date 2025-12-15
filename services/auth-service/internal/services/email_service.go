@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"net/smtp"
-	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
 )
