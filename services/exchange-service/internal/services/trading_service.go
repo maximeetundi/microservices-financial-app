@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
@@ -23,6 +24,15 @@ func NewTradingService(orderRepo *repository.OrderRepository, exchangeService *E
 	}
 }
 
+// parsePair splits a trading pair like "BTC/USD" into fromCurrency and toCurrency
+func parsePair(pair string) (string, string) {
+	parts := strings.Split(pair, "/")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return pair, "USD"
+}
+
 func (s *TradingService) PlaceMarketOrder(userID, pair, side string, amount float64) (*models.TradingOrder, error) {
 	if amount <= 0 {
 		return nil, fmt.Errorf("amount must be greater than 0")
@@ -32,13 +42,17 @@ func (s *TradingService) PlaceMarketOrder(userID, pair, side string, amount floa
 		return nil, fmt.Errorf("side must be 'buy' or 'sell'")
 	}
 
+	fromCurrency, toCurrency := parsePair(pair)
+
 	order := &models.TradingOrder{
-		UserID:    userID,
-		OrderType: "market",
-		Pair:      pair,
-		Side:      side,
-		Amount:    amount,
-		Status:    "pending",
+		UserID:          userID,
+		OrderType:       "market",
+		FromCurrency:    fromCurrency,
+		ToCurrency:      toCurrency,
+		Side:            side,
+		Amount:          amount,
+		RemainingAmount: amount,
+		Status:          "open",
 	}
 
 	err := s.orderRepo.CreateOrder(order)
@@ -57,14 +71,18 @@ func (s *TradingService) PlaceLimitOrder(userID, pair, side string, amount, pric
 		return nil, fmt.Errorf("amount and price must be greater than 0")
 	}
 
+	fromCurrency, toCurrency := parsePair(pair)
+
 	order := &models.TradingOrder{
-		UserID:    userID,
-		OrderType: "limit",
-		Pair:      pair,
-		Side:      side,
-		Amount:    amount,
-		Price:     &price,
-		Status:    "pending",
+		UserID:          userID,
+		OrderType:       "limit",
+		FromCurrency:    fromCurrency,
+		ToCurrency:      toCurrency,
+		Side:            side,
+		Amount:          amount,
+		Price:           &price,
+		RemainingAmount: amount,
+		Status:          "open",
 	}
 
 	err := s.orderRepo.CreateOrder(order)
@@ -81,14 +99,18 @@ func (s *TradingService) PlaceStopLossOrder(userID, pair, side string, amount, s
 		return nil, fmt.Errorf("amount and stop price must be greater than 0")
 	}
 
+	fromCurrency, toCurrency := parsePair(pair)
+
 	order := &models.TradingOrder{
-		UserID:    userID,
-		OrderType: "stop_loss",
-		Pair:      pair,
-		Side:      side,
-		Amount:    amount,
-		StopPrice: &stopPrice,
-		Status:    "pending",
+		UserID:          userID,
+		OrderType:       "stop_loss",
+		FromCurrency:    fromCurrency,
+		ToCurrency:      toCurrency,
+		Side:            side,
+		Amount:          amount,
+		StopPrice:       &stopPrice,
+		RemainingAmount: amount,
+		Status:          "open",
 	}
 
 	err := s.orderRepo.CreateOrder(order)
@@ -103,8 +125,8 @@ func (s *TradingService) GetUserOrders(userID string) ([]*models.TradingOrder, e
 	return s.orderRepo.GetOrdersByUser(userID)
 }
 
-func (s *TradingService) GetActiveOrders(pair string) ([]*models.TradingOrder, error) {
-	return s.orderRepo.GetActiveOrders(pair)
+func (s *TradingService) GetActiveOrders(fromCurrency, toCurrency string) ([]*models.TradingOrder, error) {
+	return s.orderRepo.GetActiveOrders(fromCurrency, toCurrency)
 }
 
 func (s *TradingService) CancelOrder(orderID string) error {
@@ -116,55 +138,64 @@ func (s *TradingService) GetPortfolio(userID string) (*models.Portfolio, error) 
 	// In a real system, this would aggregate from wallet service
 	
 	portfolio := &models.Portfolio{
-		UserID:       userID,
 		TotalValue:   0,
-		BaseCurrency: "USD",
-		Holdings:     []models.PortfolioHolding{},
-		Performance: models.PortfolioPerformance{
-			TotalReturn:      5.2,  // 5.2%
-			TotalReturnValue: 520.0,
-			DayReturn:        0.8,   // 0.8%
-			DayReturnValue:   80.0,
-			WeekReturn:       2.1,   // 2.1%
-			MonthReturn:      8.5,   // 8.5%
-			YearReturn:       45.2,  // 45.2%
+		TotalPnL:     0,
+		TotalPnLPerc: 0,
+		Holdings:     []models.Holding{},
+		Performance: models.PerformanceMetrics{
+			TotalTrades:   10,
+			WinningTrades: 7,
+			LosingTrades:  3,
+			WinRate:       70.0,
+			TotalVolume:   50000.0,
+			TotalFees:     75.0,
+			BestTrade:     1250.0,
+			WorstTrade:    -320.0,
+			ProfitFactor:  2.5,
 		},
-		LastUpdated: time.Now(),
 	}
 
 	// Simulate some holdings
-	holdings := []models.PortfolioHolding{
+	holdings := []models.Holding{
 		{
-			Currency:       "BTC",
-			Amount:         0.5,
-			Value:          21750.0,
-			Percentage:     43.5,
-			Change24h:      2.3,
-			ChangeValue24h: 500.25,
+			Currency:      "BTC",
+			Amount:        0.5,
+			Value:         21750.0,
+			AvgBuyPrice:   40000.0,
+			CurrentPrice:  43500.0,
+			PnL:           1750.0,
+			PnLPercentage: 8.75,
 		},
 		{
-			Currency:       "ETH",
-			Amount:         10.0,
-			Value:          24500.0,
-			Percentage:     49.0,
-			Change24h:      -1.2,
-			ChangeValue24h: -294.0,
+			Currency:      "ETH",
+			Amount:        10.0,
+			Value:         24500.0,
+			AvgBuyPrice:   2200.0,
+			CurrentPrice:  2450.0,
+			PnL:           2500.0,
+			PnLPercentage: 11.36,
 		},
 		{
-			Currency:       "USD",
-			Amount:         3750.0,
-			Value:          3750.0,
-			Percentage:     7.5,
-			Change24h:      0.0,
-			ChangeValue24h: 0.0,
+			Currency:      "USD",
+			Amount:        3750.0,
+			Value:         3750.0,
+			AvgBuyPrice:   1.0,
+			CurrentPrice:  1.0,
+			PnL:           0.0,
+			PnLPercentage: 0.0,
 		},
 	}
 
 	portfolio.Holdings = holdings
 	
-	// Calculate total value
+	// Calculate total value and PnL
 	for _, holding := range holdings {
 		portfolio.TotalValue += holding.Value
+		portfolio.TotalPnL += holding.PnL
+	}
+	
+	if portfolio.TotalValue > 0 {
+		portfolio.TotalPnLPerc = (portfolio.TotalPnL / (portfolio.TotalValue - portfolio.TotalPnL)) * 100
 	}
 
 	return portfolio, nil
@@ -176,10 +207,11 @@ func (s *TradingService) processMarketOrder(order *models.TradingOrder) {
 
 	// Update order as filled
 	s.orderRepo.UpdateOrderStatus(order.ID, "filled")
-	s.orderRepo.UpdateFilledAmount(order.ID, order.Amount)
+	s.orderRepo.UpdateFilledAmount(order.ID, order.Amount, 0)
 
 	order.Status = "filled"
 	order.FilledAmount = order.Amount
+	order.RemainingAmount = 0
 	now := time.Now()
-	order.FilledAt = &now
+	order.ExecutedAt = &now
 }
