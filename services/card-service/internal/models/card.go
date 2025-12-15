@@ -178,6 +178,14 @@ type SetupAutoLoadRequest struct {
 	MaxReloadsPerDay *int    `json:"max_reloads_per_day,omitempty"`
 }
 
+type UpdateCardRequest struct {
+	Name               *string `json:"name,omitempty"`
+	AllowATM           *bool   `json:"allow_atm,omitempty"`
+	AllowOnline        *bool   `json:"allow_online,omitempty"`
+	AllowInternational *bool   `json:"allow_international,omitempty"`
+	AllowContactless   *bool   `json:"allow_contactless,omitempty"`
+}
+
 type UpdateCardLimitsRequest struct {
 	DailyLimit        *float64 `json:"daily_limit,omitempty"`
 	MonthlyLimit      *float64 `json:"monthly_limit,omitempty"`

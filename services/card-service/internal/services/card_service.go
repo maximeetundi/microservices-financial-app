@@ -435,6 +435,262 @@ func (s *CardService) RedeemGiftCard(userID, code, targetWalletID string) error 
 	return nil
 }
 
+// GetUserCards returns all cards for a user
+func (s *CardService) GetUserCards(userID string) ([]*models.Card, error) {
+	return s.cardRepo.GetUserCards(userID)
+}
+
+// GetCard returns a specific card by ID
+func (s *CardService) GetCard(userID, cardID string) (*models.Card, error) {
+	card, err := s.cardRepo.GetByID(cardID)
+	if err != nil {
+		return nil, err
+	}
+	if card.UserID != userID {
+		return nil, fmt.Errorf("unauthorized access to card")
+	}
+	return card, nil
+}
+
+// UpdateCard updates card details
+func (s *CardService) UpdateCard(userID, cardID string, req *models.UpdateCardRequest) (*models.Card, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	if req.Name != nil {
+		card.CardholderName = *req.Name
+	}
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return nil, fmt.Errorf("failed to update card: %w", err)
+	}
+	
+	s.publishCardEvent("card.updated", card)
+	return card, nil
+}
+
+// DeleteCard soft deletes a card
+func (s *CardService) DeleteCard(userID, cardID string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	card.Status = "deleted"
+	card.IsActive = false
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to delete card: %w", err)
+	}
+	
+	s.publishCardEvent("card.deleted", card)
+	return nil
+}
+
+// ActivateCard activates a card
+func (s *CardService) ActivateCard(userID, cardID string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	if card.Status == "blocked" {
+		return fmt.Errorf("cannot activate blocked card")
+	}
+	
+	card.Status = "active"
+	card.IsActive = true
+	now := time.Now()
+	card.ActivatedAt = &now
+	
+	if card.ExternalCardID != nil {
+		if err := s.cardIssuer.ActivateCard(*card.ExternalCardID); err != nil {
+			return fmt.Errorf("failed to activate card with issuer: %w", err)
+		}
+	}
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to update card: %w", err)
+	}
+	
+	s.publishCardEvent("card.activated", card)
+	return nil
+}
+
+// DeactivateCard deactivates a card
+func (s *CardService) DeactivateCard(userID, cardID string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	card.Status = "inactive"
+	card.IsActive = false
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to update card: %w", err)
+	}
+	
+	s.publishCardEvent("card.deactivated", card)
+	return nil
+}
+
+// FreezeCard temporarily freezes a card
+func (s *CardService) FreezeCard(userID, cardID, reason string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	card.Status = "frozen"
+	card.FreezeReason = &reason
+	now := time.Now()
+	card.FrozenAt = &now
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to freeze card: %w", err)
+	}
+	
+	s.publishCardEvent("card.frozen", card)
+	return nil
+}
+
+// UnfreezeCard unfreezes a frozen card
+func (s *CardService) UnfreezeCard(userID, cardID string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	if card.Status != "frozen" {
+		return fmt.Errorf("card is not frozen")
+	}
+	
+	card.Status = "active"
+	card.IsActive = true
+	card.FreezeReason = nil
+	card.FrozenAt = nil
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to unfreeze card: %w", err)
+	}
+	
+	s.publishCardEvent("card.unfrozen", card)
+	return nil
+}
+
+// BlockCard permanently blocks a card
+func (s *CardService) BlockCard(userID, cardID, reason string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	card.Status = "blocked"
+	card.IsActive = false
+	card.BlockReason = &reason
+	now := time.Now()
+	card.BlockedAt = &now
+	
+	if card.ExternalCardID != nil {
+		if err := s.cardIssuer.BlockCard(*card.ExternalCardID, reason); err != nil {
+			return fmt.Errorf("failed to block card with issuer: %w", err)
+		}
+	}
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to block card: %w", err)
+	}
+	
+	s.publishCardEvent("card.blocked", card)
+	return nil
+}
+
+// CancelAutoLoad cancels auto-load for a card
+func (s *CardService) CancelAutoLoad(userID, cardID string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	card.AutoReloadEnabled = false
+	card.AutoReloadAmount = nil
+	card.AutoReloadThreshold = nil
+	card.AutoReloadWalletID = nil
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to cancel auto-load: %w", err)
+	}
+	
+	s.publishCardEvent("card.autoload_cancelled", card)
+	return nil
+}
+
+// GetCardLimits returns the current limits for a card
+func (s *CardService) GetCardLimits(userID, cardID string) (*models.CardLimits, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &models.CardLimits{
+		DailyLimit:    card.DailyLimit,
+		MonthlyLimit:  card.MonthlyLimit,
+		SingleTxLimit: card.SingleTxLimit,
+		ATMDailyLimit: card.ATMDailyLimit,
+		Currency:      card.Currency,
+	}, nil
+}
+
+// UpdateCardLimits updates the limits for a card
+func (s *CardService) UpdateCardLimits(userID, cardID string, req *models.UpdateCardLimitsRequest) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	if req.DailyLimit != nil {
+		card.DailyLimit = *req.DailyLimit
+	}
+	if req.MonthlyLimit != nil {
+		card.MonthlyLimit = *req.MonthlyLimit
+	}
+	if req.SingleTxLimit != nil {
+		card.SingleTxLimit = *req.SingleTxLimit
+	}
+	if req.ATMDailyLimit != nil {
+		card.ATMDailyLimit = *req.ATMDailyLimit
+	}
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return fmt.Errorf("failed to update card limits: %w", err)
+	}
+	
+	s.publishCardEvent("card.limits_updated", card)
+	return nil
+}
+
+// GetCardTransactions returns transactions for a card
+func (s *CardService) GetCardTransactions(userID, cardID string, limit, offset int) ([]models.CardTransaction, error) {
+	_, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	return s.transactionRepo.GetByCardID(cardID, limit, offset)
+}
+
+// GetCardBalance returns the current balance of a card
+func (s *CardService) GetCardBalance(userID, cardID string) (float64, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return 0, err
+	}
+	return card.Balance, nil
+}
+
 // Méthodes privées
 
 func (s *CardService) generateCardDetails() (cardNumber, cvv string, err error) {
