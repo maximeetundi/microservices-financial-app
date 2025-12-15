@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
+	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/services"
 	"github.com/gin-gonic/gin"
@@ -162,7 +162,18 @@ func (h *TradingHandler) GetOrderBook(c *gin.Context) {
 		return
 	}
 
-	orders, err := h.tradingService.GetActiveOrders(pair)
+	// Parse pair like "BTC/USD" to fromCurrency and toCurrency
+	parts := strings.Split(pair, "/")
+	var fromCurrency, toCurrency string
+	if len(parts) == 2 {
+		fromCurrency = parts[0]
+		toCurrency = parts[1]
+	} else {
+		fromCurrency = pair
+		toCurrency = "USD"
+	}
+
+	orders, err := h.tradingService.GetActiveOrders(fromCurrency, toCurrency)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
