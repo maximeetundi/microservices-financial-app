@@ -308,6 +308,81 @@ func (s *WalletService) GetWalletStats(userID string) (*models.WalletStats, erro
 	return stats, nil
 }
 
+// Transfer performs an internal wallet-to-wallet transfer
+func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*models.Transaction, error) {
+	// Validate source wallet ownership
+	fromWallet, err := s.walletRepo.GetByID(req.FromWalletID)
+	if err != nil {
+		return nil, fmt.Errorf("source wallet not found")
+	}
+	if fromWallet.UserID != userID {
+		return nil, fmt.Errorf("not authorized to transfer from this wallet")
+	}
+	if !fromWallet.IsActive {
+		return nil, fmt.Errorf("source wallet is frozen")
+	}
+
+	// Validate destination wallet
+	toWallet, err := s.walletRepo.GetByID(req.ToWalletID)
+	if err != nil {
+		return nil, fmt.Errorf("destination wallet not found")
+	}
+	if !toWallet.IsActive {
+		return nil, fmt.Errorf("destination wallet is frozen")
+	}
+
+	// Validate same currency
+	if fromWallet.Currency != toWallet.Currency {
+		return nil, fmt.Errorf("currency mismatch: %s vs %s", fromWallet.Currency, toWallet.Currency)
+	}
+
+	// Check balance
+	if fromWallet.Balance < req.Amount {
+		return nil, fmt.Errorf("insufficient balance: %.2f available, %.2f required", fromWallet.Balance, req.Amount)
+	}
+
+	// Deduct from source
+	if err := s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, req.Amount, "send"); err != nil {
+		return nil, fmt.Errorf("failed to deduct from source: %w", err)
+	}
+
+	// Add to destination
+	if err := s.walletRepo.UpdateBalanceWithTransaction(req.ToWalletID, req.Amount, "receive"); err != nil {
+		// Rollback source
+		s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, req.Amount, "receive")
+		return nil, fmt.Errorf("failed to credit destination: %w", err)
+	}
+
+	// Create transaction record
+	description := req.Description
+	if description == "" {
+		description = "Internal transfer"
+	}
+	
+	transaction := &models.Transaction{
+		ID:              fmt.Sprintf("tx_%d", time.Now().UnixNano()),
+		FromWalletID:    &req.FromWalletID,
+		ToWalletID:      &req.ToWalletID,
+		TransactionType: "transfer",
+		Amount:          req.Amount,
+		Fee:             0,
+		Currency:        fromWallet.Currency,
+		Status:          "completed",
+		Description:     &description,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := s.transactionRepo.Create(transaction); err != nil {
+		return nil, fmt.Errorf("failed to create transaction record: %w", err)
+	}
+
+	// Publish event
+	s.publishTransactionEvent("transaction.completed", transaction)
+
+	return transaction, nil
+}
+
 // Private methods
 
 func (s *WalletService) monitorTransactionConfirmations(transactionID, txHash, currency string) {

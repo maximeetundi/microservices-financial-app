@@ -94,3 +94,12 @@ type WalletStats struct {
 	BalanceByType    map[string]float64 `json:"balance_by_type"`
 	RecentActivity   []Transaction      `json:"recent_activity"`
 }
+
+// TransferRequest for internal wallet-to-wallet transfers
+type TransferRequest struct {
+	FromWalletID string  `json:"from_wallet_id" binding:"required"`
+	ToWalletID   string  `json:"to_wallet_id" binding:"required"`
+	Amount       float64 `json:"amount" binding:"required,gt=0"`
+	Currency     string  `json:"currency" binding:"required"`
+	Description  string  `json:"description,omitempty"`
+}

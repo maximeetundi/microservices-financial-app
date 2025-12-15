@@ -79,6 +79,7 @@ export const userAPI = {
 // ========== Wallets ==========
 export const walletAPI = {
     getAll: () => api.get('/wallets'),
+    getWallets: () => api.get('/wallets'), // Alias for consistency
     get: (id: string) => api.get(`/wallets/${id}`),
     create: (currency: string, type: string) => api.post('/wallets', { currency, type }),
     getBalance: (id: string) => api.get(`/wallets/${id}/balance`),
