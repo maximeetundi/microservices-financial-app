@@ -117,6 +117,19 @@ services:
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      # Flutterwave (Africa) - https://dashboard.flutterwave.com/settings/api
+      - FLUTTERWAVE_SECRET_KEY=${FLUTTERWAVE_SECRET_KEY:-}
+      - FLUTTERWAVE_PUBLIC_KEY=${FLUTTERWAVE_PUBLIC_KEY:-}
+      - FLUTTERWAVE_ENCRYPT_KEY=${FLUTTERWAVE_ENCRYPT_KEY:-}
+      - FLUTTERWAVE_CALLBACK_URL=${FLUTTERWAVE_CALLBACK_URL:-http://localhost:8084/api/v1/webhooks/flutterwave}
+      # Thunes (Global) - https://portal.thunes.com
+      - THUNES_API_KEY=${THUNES_API_KEY:-}
+      - THUNES_API_SECRET=${THUNES_API_SECRET:-}
+      - THUNES_CALLBACK_URL=${THUNES_CALLBACK_URL:-http://localhost:8084/api/v1/webhooks/thunes}
+      # Stripe (Europe/US) - https://dashboard.stripe.com/apikeys
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     networks:
       - crypto-bank-network
 
