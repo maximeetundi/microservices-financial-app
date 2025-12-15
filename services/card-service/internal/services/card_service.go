@@ -205,7 +205,7 @@ func (s *CardService) OrderPhysicalCard(userID string, req *models.OrderPhysical
 
 	// Organiser la production et livraison
 	shippingMap := map[string]string{
-		"street":      req.ShippingAddress.Street,
+		"street":      req.ShippingAddress.AddressLine1,
 		"city":        req.ShippingAddress.City,
 		"postal_code": req.ShippingAddress.PostalCode,
 		"country":     req.ShippingAddress.Country,

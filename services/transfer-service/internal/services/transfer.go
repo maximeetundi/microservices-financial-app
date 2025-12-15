@@ -45,19 +45,21 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	}
 
 	// Calculate fee
-	fee := s.calculateFee(req.Type, req.Amount)
+	transferType := "domestic" // default type
+	fee := s.calculateFee(transferType, req.Amount)
 
 	// Create transfer record
+	ref := generateReferenceID()
 	transfer := &models.Transfer{
 		ID:           generateID(),
 		FromWalletID: req.FromWalletID,
 		ToWalletID:   req.ToWalletID,
-		Type:         req.Type,
+		TransferType: transferType,
 		Amount:       req.Amount,
 		Fee:          fee,
 		Currency:     req.Currency,
 		Status:       "pending",
-		ReferenceID:  generateReferenceID(),
+		Reference:    &ref,
 		Description:  req.Description,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -153,14 +155,15 @@ func NewInternationalTransferService(config *config.Config) *InternationalTransf
 }
 
 func (s *InternationalTransferService) CreateTransfer(req *models.InternationalTransferRequest) (*models.Transfer, error) {
+	ref := generateReferenceID()
 	transfer := &models.Transfer{
 		ID:           generateID(),
 		FromWalletID: req.FromWalletID,
-		Type:         "international",
+		TransferType: "international",
 		Amount:       req.Amount,
 		Currency:     req.Currency,
 		Status:       "pending",
-		ReferenceID:  generateReferenceID(),
+		Reference:    &ref,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

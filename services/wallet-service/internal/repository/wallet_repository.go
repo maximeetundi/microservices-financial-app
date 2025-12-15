@@ -3,8 +3,6 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"encoding/json"
-	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 )
