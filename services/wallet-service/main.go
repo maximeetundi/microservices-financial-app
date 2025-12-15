@@ -77,8 +77,9 @@ func main() {
 	// Wallet routes
 	api := router.Group("/api/v1")
 	{
-		// Protected routes
-		protected := api.Use(middleware.JWTAuth(cfg.JWTSecret))
+		// Protected routes - use Group to get RouterGroup type
+		protected := api.Group("")
+		protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{
 			protected.GET("/wallets", walletHandler.GetWallets)
 			protected.POST("/wallets", walletHandler.CreateWallet)
