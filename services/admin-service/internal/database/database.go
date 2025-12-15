@@ -265,6 +265,52 @@ func seedDefaultData(db *sql.DB) error {
 		}
 	}
 
+	// Create default super admin
+	if err := createDefaultSuperAdmin(db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createDefaultSuperAdmin(db *sql.DB) error {
+	// Check if any admin exists
+	var adminCount int
+	db.QueryRow("SELECT COUNT(*) FROM admin_users").Scan(&adminCount)
+	if adminCount > 0 {
+		return nil // Admin already exists
+	}
+
+	// Get Super Admin role ID
+	var roleID string
+	err := db.QueryRow("SELECT id FROM admin_roles WHERE name = 'Super Admin'").Scan(&roleID)
+	if err != nil {
+		return fmt.Errorf("failed to get Super Admin role: %w", err)
+	}
+
+	// Default password: Admin123!
+	// This is a pre-computed bcrypt hash for "Admin123!"
+	// In production, change this immediately after first login!
+	defaultPasswordHash := "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+	
+	// Create default super admin
+	_, err = db.Exec(`
+		INSERT INTO admin_users (email, password_hash, first_name, last_name, role_id, is_active)
+		VALUES ($1, $2, $3, $4, $5, TRUE)
+		ON CONFLICT (email) DO NOTHING
+	`, "admin@cryptobank.com", defaultPasswordHash, "Super", "Admin", roleID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to create default admin: %w", err)
+	}
+
+	fmt.Println("===========================================")
+	fmt.Println("DEFAULT SUPER ADMIN CREATED")
+	fmt.Println("Email: admin@cryptobank.com")
+	fmt.Println("Password: Admin123!")
+	fmt.Println("⚠️  CHANGE THIS PASSWORD IMMEDIATELY!")
+	fmt.Println("===========================================")
+
 	return nil
 }
 
