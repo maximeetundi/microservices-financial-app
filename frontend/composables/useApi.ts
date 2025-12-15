@@ -157,4 +157,72 @@ export const dashboardAPI = {
     getStats: (period: string) => api.get(`/dashboard/stats?period=${period}`),
 }
 
+// ========== Merchant Payments ==========
+export const merchantAPI = {
+    // Create a payment request
+    createPayment: (data: {
+        type: 'fixed' | 'variable' | 'invoice'
+        wallet_id: string
+        amount?: number
+        min_amount?: number
+        max_amount?: number
+        currency: string
+        title: string
+        description?: string
+        expires_in_minutes?: number
+        reusable?: boolean
+    }) => api.post('/merchant/payments', data),
+
+    // Get all payment requests
+    getPayments: (limit = 20, offset = 0) =>
+        api.get(`/merchant/payments?limit=${limit}&offset=${offset}`),
+
+    // Get payment history
+    getHistory: (limit = 20, offset = 0) =>
+        api.get(`/merchant/payments/history?limit=${limit}&offset=${offset}`),
+
+    // Cancel a payment request
+    cancelPayment: (id: string) => api.delete(`/merchant/payments/${id}`),
+
+    // Get QR code for a payment
+    getQRCode: (id: string) => api.get(`/payments/${id}/qr`),
+
+    // Quick payment (simplified)
+    quickPay: (data: {
+        wallet_id: string
+        amount?: number
+        currency: string
+        description?: string
+        never_expires?: boolean
+    }) => api.post('/merchant/quick-pay', data),
+}
+
+// ========== Payment (for customers) ==========
+export const paymentAPI = {
+    // Get payment details (public - for scanning)
+    getPaymentDetails: (id: string) => api.get(`/pay/${id}`),
+
+    // Pay a payment request
+    payPayment: (id: string, data: {
+        from_wallet_id: string
+        amount?: number
+    }) => api.post(`/payments/${id}/pay`, data),
+}
+
+// ========== Composable ==========
+export function useApi() {
+    return {
+        authApi: authAPI,
+        userApi: userAPI,
+        walletApi: walletAPI,
+        transferApi: transferAPI,
+        cardApi: cardAPI,
+        exchangeApi: exchangeAPI,
+        dashboardApi: dashboardAPI,
+        merchantApi: merchantAPI,
+        paymentApi: paymentAPI,
+    }
+}
+
 export default api
+

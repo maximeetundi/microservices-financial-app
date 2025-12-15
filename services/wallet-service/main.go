@@ -40,11 +40,18 @@ func main() {
 	// Initialize repositories
 	walletRepo := repository.NewWalletRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
+	paymentRepo := repository.NewPaymentRequestRepository(db)
+	
+	// Initialize payment tables
+	if err := paymentRepo.InitTable(); err != nil {
+		log.Printf("Warning: Failed to initialize payment tables: %v", err)
+	}
 
 	// Initialize services
 	cryptoService := services.NewCryptoService(cfg)
 	balanceService := services.NewBalanceService(walletRepo, redisClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, mqClient)
+	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, cfg, mqClient)
 	
 	// Start RabbitMQ consumer for inter-service communication
 	consumer := services.NewConsumer(mqClient, walletService)
@@ -54,6 +61,7 @@ func main() {
 	
 	// Initialize handlers
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
+	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -99,7 +107,28 @@ func main() {
 				crypto.GET("/:wallet_id/pending", walletHandler.GetPendingTransactions)
 				crypto.POST("/:wallet_id/estimate-fee", walletHandler.EstimateTransactionFee)
 			}
+
+			// Merchant payment routes
+			merchant := protected.Group("/merchant")
+			{
+				merchant.POST("/payments", merchantHandler.CreatePaymentRequest)
+				merchant.GET("/payments", merchantHandler.GetMerchantPayments)
+				merchant.GET("/payments/history", merchantHandler.GetMerchantHistory)
+				merchant.DELETE("/payments/:id", merchantHandler.CancelPaymentRequest)
+				merchant.POST("/quick-pay", merchantHandler.QuickPaymentRequest)
+			}
+
+			// Payment routes (for paying)
+			payments := protected.Group("/payments")
+			{
+				payments.GET("/:id", merchantHandler.GetPaymentRequest)
+				payments.GET("/:id/qr", merchantHandler.GetPaymentQRCode)
+				payments.POST("/:id/pay", merchantHandler.PayPaymentRequest)
+			}
 		}
+
+		// Public payment scan endpoint (no auth required)
+		api.GET("/pay/:id", merchantHandler.ScanPayment)
 
 		// Webhook endpoints for blockchain notifications
 		webhooks := api.Group("/webhooks")

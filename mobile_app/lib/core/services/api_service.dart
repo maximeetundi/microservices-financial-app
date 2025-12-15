@@ -18,6 +18,9 @@
 /// 
 /// // Exchange
 /// final rate = await api.exchange.getExchangeRate('BTC', 'USD');
+/// 
+/// // Merchant
+/// await api.merchant.createPayment(...);
 /// ```
 
 export 'auth_api_service.dart';
@@ -25,12 +28,14 @@ export 'wallet_api_service.dart';
 export 'transfer_api_service.dart';
 export 'card_api_service.dart';
 export 'exchange_api_service.dart';
+export 'merchant_api_service.dart';
 
 import 'auth_api_service.dart';
 import 'wallet_api_service.dart';
 import 'transfer_api_service.dart';
 import 'card_api_service.dart';
 import 'exchange_api_service.dart';
+import 'merchant_api_service.dart';
 
 /// Service API unifié regroupant tous les microservices
 class ApiService {
@@ -53,4 +58,30 @@ class ApiService {
   
   /// Service d'échange
   final ExchangeApiService exchange = ExchangeApiService();
+  
+  /// Service des paiements marchands
+  final MerchantApiService merchant = MerchantApiService();
+  
+  // ========== Static methods for easy access ==========
+  
+  static Future<List<dynamic>> getWallets() async {
+    return await _instance.wallet.getWallets();
+  }
+  
+  static Future<Map<String, dynamic>> getMerchantPayments() async {
+    return await _instance.merchant.getPayments();
+  }
+  
+  static Future<Map<String, dynamic>> createMerchantPayment(Map<String, dynamic> data) async {
+    return await _instance.merchant.createPayment(data);
+  }
+  
+  static Future<Map<String, dynamic>> getPaymentDetails(String id) async {
+    return await _instance.merchant.getPaymentDetails(id);
+  }
+  
+  static Future<Map<String, dynamic>> payPayment(String id, String walletId, double amount) async {
+    return await _instance.merchant.payPayment(id, walletId, amount);
+  }
 }
+
