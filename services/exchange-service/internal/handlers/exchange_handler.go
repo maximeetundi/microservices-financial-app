@@ -117,10 +117,8 @@ func (h *ExchangeHandler) GetExchangeHistory(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	status := c.Query("status")
 
-	exchanges, err := h.exchangeService.GetUserExchanges(userID.(string), status, limit, offset)
+	exchanges, err := h.exchangeService.GetUserExchanges(userID.(string), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get exchange history"})
 		return
@@ -130,10 +128,9 @@ func (h *ExchangeHandler) GetExchangeHistory(c *gin.Context) {
 }
 
 func (h *ExchangeHandler) GetExchange(c *gin.Context) {
-	userID, _ := c.Get("user_id")
 	exchangeID := c.Param("exchange_id")
 
-	exchange, err := h.exchangeService.GetExchange(userID.(string), exchangeID)
+	exchange, err := h.exchangeService.GetExchange(exchangeID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
 		return
@@ -242,8 +239,6 @@ func (h *ExchangeHandler) CreateLimitOrder(c *gin.Context) {
 }
 
 func (h *ExchangeHandler) CreateStopLoss(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	
 	var req models.StopLossRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -259,12 +254,8 @@ func (h *ExchangeHandler) CreateStopLoss(c *gin.Context) {
 
 func (h *ExchangeHandler) GetUserOrders(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	status := c.Query("status")
 
-	orders, err := h.exchangeService.GetUserOrders(userID.(string), status, limit, offset)
+	orders, err := h.exchangeService.GetUserOrders(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get orders"})
 		return
@@ -276,7 +267,7 @@ func (h *ExchangeHandler) GetUserOrders(c *gin.Context) {
 func (h *ExchangeHandler) GetActiveOrders(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	
-	orders, err := h.exchangeService.GetUserOrders(userID.(string), "open", 100, 0)
+	orders, err := h.exchangeService.GetUserOrders(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get active orders"})
 		return
@@ -334,9 +325,8 @@ func (h *ExchangeHandler) GetOrderBook(c *gin.Context) {
 
 func (h *ExchangeHandler) GetRecentTrades(c *gin.Context) {
 	pair := c.Param("pair")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	trades, err := h.tradingService.GetRecentTrades(pair, limit)
+	trades, err := h.tradingService.GetRecentTrades(pair)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get trades"})
 		return

@@ -129,6 +129,51 @@ func (s *TradingService) GetActiveOrders(fromCurrency, toCurrency string) ([]*mo
 	return s.orderRepo.GetActiveOrders(fromCurrency, toCurrency)
 }
 
+func (s *TradingService) GetOrderBook(pair string) (*models.OrderBook, error) {
+	fromCurrency, toCurrency := parsePair(pair)
+	
+	// Simulated order book
+	orderBook := &models.OrderBook{
+		Symbol: pair,
+		Bids: []models.OrderLevel{
+			{Price: 43480.0, Amount: 1.5, Count: 3},
+			{Price: 43470.0, Amount: 2.3, Count: 5},
+			{Price: 43460.0, Amount: 0.8, Count: 2},
+			{Price: 43450.0, Amount: 4.2, Count: 8},
+			{Price: 43440.0, Amount: 1.1, Count: 2},
+		},
+		Asks: []models.OrderLevel{
+			{Price: 43520.0, Amount: 1.2, Count: 2},
+			{Price: 43530.0, Amount: 2.0, Count: 4},
+			{Price: 43540.0, Amount: 0.6, Count: 1},
+			{Price: 43550.0, Amount: 3.5, Count: 6},
+			{Price: 43560.0, Amount: 1.8, Count: 3},
+		},
+		UpdatedAt: time.Now(),
+	}
+	
+	// Use currencies to avoid unused variable warning
+	_ = fromCurrency
+	_ = toCurrency
+	
+	return orderBook, nil
+}
+
+func (s *TradingService) GetRecentTrades(pair string) ([]*models.Trade, error) {
+	fromCurrency, toCurrency := parsePair(pair)
+	
+	// Simulated recent trades
+	trades := []*models.Trade{
+		{ID: "t1", FromCurrency: fromCurrency, ToCurrency: toCurrency, Amount: 0.5, Price: 43500.0, Fee: 10.88, ExecutedAt: time.Now().Add(-1 * time.Minute)},
+		{ID: "t2", FromCurrency: fromCurrency, ToCurrency: toCurrency, Amount: 1.2, Price: 43510.0, Fee: 26.11, ExecutedAt: time.Now().Add(-2 * time.Minute)},
+		{ID: "t3", FromCurrency: fromCurrency, ToCurrency: toCurrency, Amount: 0.3, Price: 43495.0, Fee: 6.52, ExecutedAt: time.Now().Add(-3 * time.Minute)},
+		{ID: "t4", FromCurrency: fromCurrency, ToCurrency: toCurrency, Amount: 2.0, Price: 43520.0, Fee: 43.52, ExecutedAt: time.Now().Add(-5 * time.Minute)},
+		{ID: "t5", FromCurrency: fromCurrency, ToCurrency: toCurrency, Amount: 0.8, Price: 43480.0, Fee: 17.39, ExecutedAt: time.Now().Add(-7 * time.Minute)},
+	}
+	
+	return trades, nil
+}
+
 func (s *TradingService) CancelOrder(orderID string) error {
 	return s.orderRepo.UpdateOrderStatus(orderID, "cancelled")
 }

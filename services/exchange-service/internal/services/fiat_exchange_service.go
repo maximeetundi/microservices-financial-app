@@ -57,7 +57,7 @@ func (s *FiatExchangeService) ConvertFiat(userID, fromCurrency, toCurrency strin
 	convertedAmount := amount * exchangeRate.Rate
 
 	// Calculer les frais (plus faibles pour fiat-to-fiat)
-	feePercentage := s.calculateFiatExchangeFee(fromCurrency, toCurrency, amount)
+	feePercentage := s.CalculateFiatExchangeFee(fromCurrency, toCurrency, amount)
 	fee := amount * feePercentage / 100
 	finalAmount := convertedAmount - (fee * exchangeRate.Rate)
 
@@ -106,7 +106,7 @@ func (s *FiatExchangeService) GetFiatQuote(userID, fromCurrency, toCurrency stri
 
 	// Calculer les montants
 	convertedAmount := amount * rate.Rate
-	feePercentage := s.calculateFiatExchangeFee(fromCurrency, toCurrency, amount)
+	feePercentage := s.CalculateFiatExchangeFee(fromCurrency, toCurrency, amount)
 	fee := amount * feePercentage / 100
 	finalAmount := convertedAmount - (fee * rate.Rate)
 
@@ -246,7 +246,7 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 }
 
 // Calculer les frais pour échange fiat (plus bas que crypto)
-func (s *FiatExchangeService) calculateFiatExchangeFee(fromCurrency, toCurrency string, amount float64) float64 {
+func (s *FiatExchangeService) CalculateFiatExchangeFee(fromCurrency, toCurrency string, amount float64) float64 {
 	baseFee := 0.25 // 0.25% pour fiat-to-fiat (moins cher que crypto)
 
 	// Frais préférentiels pour certaines paires populaires

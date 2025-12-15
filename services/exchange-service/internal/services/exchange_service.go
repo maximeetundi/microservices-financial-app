@@ -272,6 +272,14 @@ func (s *ExchangeService) GetUserOrders(userID string) ([]*models.TradingOrder, 
 	return s.orderRepo.GetOrdersByUser(userID)
 }
 
+func (s *ExchangeService) GetUserExchanges(userID string, limit int) ([]*models.Exchange, error) {
+	return s.exchangeRepo.GetByUserID(userID, limit)
+}
+
+func (s *ExchangeService) GetExchange(exchangeID string) (*models.Exchange, error) {
+	return s.exchangeRepo.GetByID(exchangeID)
+}
+
 func (s *ExchangeService) CancelOrder(userID, orderID string) error {
 	// Récupérer l'ordre
 	order, err := s.orderRepo.GetOrderByID(orderID)

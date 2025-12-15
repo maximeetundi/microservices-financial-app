@@ -36,6 +36,19 @@ func (s *RateService) InvalidateCache(fromCurrency, toCurrency string) {
 	s.rateRepo.InvalidateCache(fromCurrency, toCurrency)
 }
 
+func (s *RateService) GetMarkets() ([]*models.Market, error) {
+	// Return available trading markets
+	markets := []*models.Market{
+		{Symbol: "BTC/USD", BaseAsset: "BTC", QuoteAsset: "USD", Price: 43500.0, Change24h: 2.3, Volume24h: 1500000000, High24h: 44000.0, Low24h: 42800.0, BidPrice: 43490.0, AskPrice: 43510.0, LastUpdated: time.Now()},
+		{Symbol: "ETH/USD", BaseAsset: "ETH", QuoteAsset: "USD", Price: 2450.0, Change24h: -1.2, Volume24h: 850000000, High24h: 2500.0, Low24h: 2400.0, BidPrice: 2448.0, AskPrice: 2452.0, LastUpdated: time.Now()},
+		{Symbol: "BTC/EUR", BaseAsset: "BTC", QuoteAsset: "EUR", Price: 40100.0, Change24h: 2.1, Volume24h: 500000000, High24h: 40500.0, Low24h: 39500.0, BidPrice: 40090.0, AskPrice: 40110.0, LastUpdated: time.Now()},
+		{Symbol: "ETH/EUR", BaseAsset: "ETH", QuoteAsset: "EUR", Price: 2260.0, Change24h: -1.0, Volume24h: 300000000, High24h: 2300.0, Low24h: 2220.0, BidPrice: 2258.0, AskPrice: 2262.0, LastUpdated: time.Now()},
+		{Symbol: "LTC/USD", BaseAsset: "LTC", QuoteAsset: "USD", Price: 72.0, Change24h: 0.8, Volume24h: 50000000, High24h: 73.0, Low24h: 71.0, BidPrice: 71.9, AskPrice: 72.1, LastUpdated: time.Now()},
+		{Symbol: "XRP/USD", BaseAsset: "XRP", QuoteAsset: "USD", Price: 0.63, Change24h: 1.5, Volume24h: 80000000, High24h: 0.65, Low24h: 0.61, BidPrice: 0.629, AskPrice: 0.631, LastUpdated: time.Now()},
+	}
+	return markets, nil
+}
+
 // StartRateUpdater starts a background goroutine that periodically updates exchange rates
 func (s *RateService) StartRateUpdater() {
 	go func() {
