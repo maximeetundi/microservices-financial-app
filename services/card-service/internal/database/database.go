@@ -90,6 +90,10 @@ func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
 	return &RabbitMQClient{conn: conn, channel: ch}, nil
 }
 
+func (r *RabbitMQClient) GetChannel() *amqp.Channel {
+	return r.channel
+}
+
 func (r *RabbitMQClient) Close() {
 	if r.channel != nil {
 		r.channel.Close()

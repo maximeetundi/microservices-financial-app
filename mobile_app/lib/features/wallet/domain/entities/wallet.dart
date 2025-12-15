@@ -36,6 +36,58 @@ class Wallet extends Equatable {
     this.dailyChange = 0.0,
     required this.networkInfo,
   });
+  
+  factory Wallet.fromJson(Map<String, dynamic> json) {
+    return Wallet(
+      id: json['id'] ?? json['wallet_id'] ?? '',
+      userId: json['user_id'] ?? '',
+      currency: json['currency'] ?? '',
+      name: json['name'],
+      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
+      availableBalance: (json['available_balance'] as num?)?.toDouble() ?? 
+          (json['balance'] as num?)?.toDouble() ?? 0.0,
+      pendingBalance: (json['pending_balance'] as num?)?.toDouble() ?? 0.0,
+      address: json['address'] ?? '',
+      privateKey: json['private_key'],
+      type: _parseWalletType(json['wallet_type'] ?? json['type']),
+      status: _parseWalletStatus(json['status']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']) 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']) 
+          : DateTime.now(),
+      usdRate: (json['usd_rate'] as num?)?.toDouble() ?? 1.0,
+      dailyChange: (json['daily_change'] as num?)?.toDouble() ?? 0.0,
+      networkInfo: json['network_info'] != null 
+          ? WalletNetworkInfo.fromJson(json['network_info'])
+          : const WalletNetworkInfo(network: 'mainnet'),
+    );
+  }
+  
+  static WalletType _parseWalletType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'fiat':
+        return WalletType.fiat;
+      case 'stablecoin':
+        return WalletType.stablecoin;
+      default:
+        return WalletType.crypto;
+    }
+  }
+  
+  static WalletStatus _parseWalletStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'frozen':
+        return WalletStatus.frozen;
+      case 'suspended':
+        return WalletStatus.suspended;
+      case 'closed':
+        return WalletStatus.closed;
+      default:
+        return WalletStatus.active;
+    }
+  }
 
   String get displayName => name ?? '${currency} Wallet';
 
@@ -155,6 +207,20 @@ class WalletNetworkInfo extends Equatable {
     this.blockHeight = 0,
     this.averageBlockTime = const Duration(minutes: 10),
   });
+  
+  factory WalletNetworkInfo.fromJson(Map<String, dynamic> json) {
+    return WalletNetworkInfo(
+      network: json['network'] ?? 'mainnet',
+      contractAddress: json['contract_address'],
+      confirmations: json['confirmations'] ?? 1,
+      networkFee: (json['network_fee'] as num?)?.toDouble() ?? 0.0,
+      feeUnit: json['fee_unit'] ?? '',
+      blockHeight: json['block_height'] ?? 0,
+      averageBlockTime: Duration(
+        seconds: json['average_block_time_seconds'] ?? 600,
+      ),
+    );
+  }
 
   @override
   List<Object?> get props => [

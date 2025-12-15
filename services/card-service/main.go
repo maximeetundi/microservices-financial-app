@@ -37,7 +37,7 @@ func main() {
 
 	// Initialize services
 	cardIssuer := services.NewCardIssuerService(cfg)
-	cardService := services.NewCardService(cardRepo, transactionRepo, cardIssuer, mqClient, cfg)
+	cardService := services.NewCardService(cardRepo, transactionRepo, cardIssuer, mqClient.GetChannel(), cfg)
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
 	
 	// Initialize handlers
@@ -64,86 +64,86 @@ func main() {
 
 	// Card routes
 	api := router.Group("/api/v1")
+	
+	// Protected routes - use Group with middleware
+	protected := api.Group("")
+	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
-		// Protected routes
-		protected := api.Use(middleware.JWTAuth(cfg.JWTSecret))
+		// Card management
+		protected.GET("/cards", cardHandler.GetUserCards)
+		protected.POST("/cards", cardHandler.CreateCard)
+		protected.GET("/cards/:card_id", cardHandler.GetCard)
+		protected.PUT("/cards/:card_id", cardHandler.UpdateCard)
+		protected.DELETE("/cards/:card_id", cardHandler.DeleteCard)
+
+		// Card operations
+		protected.POST("/cards/:card_id/activate", cardHandler.ActivateCard)
+		protected.POST("/cards/:card_id/deactivate", cardHandler.DeactivateCard)
+		protected.POST("/cards/:card_id/freeze", cardHandler.FreezeCard)
+		protected.POST("/cards/:card_id/unfreeze", cardHandler.UnfreezeCard)
+		protected.POST("/cards/:card_id/block", cardHandler.BlockCard)
+
+		// Card loading (recharge)
+		protected.POST("/cards/:card_id/load", cardHandler.LoadCard)
+		protected.POST("/cards/:card_id/auto-load", cardHandler.SetupAutoLoad)
+		protected.DELETE("/cards/:card_id/auto-load", cardHandler.CancelAutoLoad)
+
+		// Card limits
+		protected.GET("/cards/:card_id/limits", cardHandler.GetCardLimits)
+		protected.PUT("/cards/:card_id/limits", cardHandler.UpdateCardLimits)
+
+		// Card transactions
+		protected.GET("/cards/:card_id/transactions", cardHandler.GetCardTransactions)
+		protected.GET("/cards/:card_id/balance", cardHandler.GetCardBalance)
+
+		// Card details and security
+		protected.GET("/cards/:card_id/details", cardHandler.GetCardDetails)
+		protected.POST("/cards/:card_id/pin", cardHandler.SetCardPIN)
+		protected.PUT("/cards/:card_id/pin", cardHandler.ChangeCardPIN)
+		protected.POST("/cards/:card_id/reset-pin", cardHandler.ResetCardPIN)
+
+		// Virtual card specific
+		virtual := protected.Group("/cards/virtual")
 		{
-			// Card management
-			protected.GET("/cards", cardHandler.GetUserCards)
-			protected.POST("/cards", cardHandler.CreateCard)
-			protected.GET("/cards/:card_id", cardHandler.GetCard)
-			protected.PUT("/cards/:card_id", cardHandler.UpdateCard)
-			protected.DELETE("/cards/:card_id", cardHandler.DeleteCard)
-
-			// Card operations
-			protected.POST("/cards/:card_id/activate", cardHandler.ActivateCard)
-			protected.POST("/cards/:card_id/deactivate", cardHandler.DeactivateCard)
-			protected.POST("/cards/:card_id/freeze", cardHandler.FreezeCard)
-			protected.POST("/cards/:card_id/unfreeze", cardHandler.UnfreezeCard)
-			protected.POST("/cards/:card_id/block", cardHandler.BlockCard)
-
-			// Card loading (recharge)
-			protected.POST("/cards/:card_id/load", cardHandler.LoadCard)
-			protected.POST("/cards/:card_id/auto-load", cardHandler.SetupAutoLoad)
-			protected.DELETE("/cards/:card_id/auto-load", cardHandler.CancelAutoLoad)
-
-			// Card limits
-			protected.GET("/cards/:card_id/limits", cardHandler.GetCardLimits)
-			protected.PUT("/cards/:card_id/limits", cardHandler.UpdateCardLimits)
-
-			// Card transactions
-			protected.GET("/cards/:card_id/transactions", cardHandler.GetCardTransactions)
-			protected.GET("/cards/:card_id/balance", cardHandler.GetCardBalance)
-
-			// Card details and security
-			protected.GET("/cards/:card_id/details", cardHandler.GetCardDetails)
-			protected.POST("/cards/:card_id/pin", cardHandler.SetCardPIN)
-			protected.PUT("/cards/:card_id/pin", cardHandler.ChangeCardPIN)
-			protected.POST("/cards/:card_id/reset-pin", cardHandler.ResetCardPIN)
-
-			// Virtual card specific
-			virtual := protected.Group("/cards/virtual")
-			{
-				virtual.POST("/", cardHandler.CreateVirtualCard)
-				virtual.POST("/:card_id/regenerate", cardHandler.RegenerateVirtualCard)
-				virtual.GET("/:card_id/qr", cardHandler.GetCardQR)
-			}
-
-			// Physical card specific
-			physical := protected.Group("/cards/physical")
-			{
-				physical.POST("/", cardHandler.OrderPhysicalCard)
-				physical.GET("/:card_id/shipping", cardHandler.GetShippingStatus)
-				physical.POST("/:card_id/activate-physical", cardHandler.ActivatePhysicalCard)
-				physical.POST("/:card_id/report-lost", cardHandler.ReportLostCard)
-				physical.POST("/:card_id/replacement", cardHandler.RequestReplacement)
-			}
-
-			// Gift cards
-			gift := protected.Group("/cards/gift")
-			{
-				gift.POST("/", cardHandler.CreateGiftCard)
-				gift.POST("/send", cardHandler.SendGiftCard)
-				gift.POST("/redeem", cardHandler.RedeemGiftCard)
-				gift.GET("/", cardHandler.GetGiftCards)
-			}
+			virtual.POST("/", cardHandler.CreateVirtualCard)
+			virtual.POST("/:card_id/regenerate", cardHandler.RegenerateVirtualCard)
+			virtual.GET("/:card_id/qr", cardHandler.GetCardQR)
 		}
 
-		// Webhook endpoints for card processors
-		webhooks := api.Group("/webhooks")
+		// Physical card specific
+		physical := protected.Group("/cards/physical")
 		{
-			webhooks.POST("/marqeta/transaction", cardHandler.HandleMarqetaTransaction)
-			webhooks.POST("/marqeta/auth", cardHandler.HandleMarqetaAuth)
-			webhooks.POST("/issuer/callback", cardHandler.HandleIssuerCallback)
+			physical.POST("/", cardHandler.OrderPhysicalCard)
+			physical.GET("/:card_id/shipping", cardHandler.GetShippingStatus)
+			physical.POST("/:card_id/activate-physical", cardHandler.ActivatePhysicalCard)
+			physical.POST("/:card_id/report-lost", cardHandler.ReportLostCard)
+			physical.POST("/:card_id/replacement", cardHandler.RequestReplacement)
 		}
 
-		// Public endpoints
-		public := api.Group("/public")
+		// Gift cards
+		gift := protected.Group("/cards/gift")
 		{
-			public.GET("/supported-currencies", cardHandler.GetSupportedCurrencies)
-			public.GET("/fees", cardHandler.GetCardFees)
-			public.GET("/limits", cardHandler.GetCardLimits)
+			gift.POST("/", cardHandler.CreateGiftCard)
+			gift.POST("/send", cardHandler.SendGiftCard)
+			gift.POST("/redeem", cardHandler.RedeemGiftCard)
+			gift.GET("/", cardHandler.GetGiftCards)
 		}
+	}
+
+	// Webhook endpoints for card processors
+	webhooks := api.Group("/webhooks")
+	{
+		webhooks.POST("/marqeta/transaction", cardHandler.HandleMarqetaTransaction)
+		webhooks.POST("/marqeta/auth", cardHandler.HandleMarqetaAuth)
+		webhooks.POST("/issuer/callback", cardHandler.HandleIssuerCallback)
+	}
+
+	// Public endpoints
+	public := api.Group("/public")
+	{
+		public.GET("/supported-currencies", cardHandler.GetSupportedCurrencies)
+		public.GET("/fees", cardHandler.GetCardFees)
+		public.GET("/limits", cardHandler.GetCardLimits)
 	}
 
 	port := os.Getenv("PORT")

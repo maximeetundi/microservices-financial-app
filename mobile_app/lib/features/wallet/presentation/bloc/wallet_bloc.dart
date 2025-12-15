@@ -1,12 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/services/api_service.dart';
 import '../../domain/entities/wallet.dart';
 import '../../domain/entities/transaction.dart';
-import '../../domain/usecases/get_wallets_usecase.dart';
-import '../../domain/usecases/create_wallet_usecase.dart';
-import '../../domain/usecases/send_transaction_usecase.dart';
-import '../../domain/usecases/get_wallet_transactions_usecase.dart';
 
 // Events
 abstract class WalletEvent extends Equatable {
@@ -22,15 +19,17 @@ class LoadWalletsEvent extends WalletEvent {
 
 class CreateWalletEvent extends WalletEvent {
   final String currency;
+  final String walletType;
   final String? name;
 
   const CreateWalletEvent({
     required this.currency,
+    this.walletType = 'crypto',
     this.name,
   });
 
   @override
-  List<Object?> get props => [currency, name];
+  List<Object?> get props => [currency, walletType, name];
 }
 
 class SendTransactionEvent extends WalletEvent {
@@ -50,19 +49,34 @@ class SendTransactionEvent extends WalletEvent {
   List<Object?> get props => [walletId, toAddress, amount, memo];
 }
 
-class LoadWalletTransactionsEvent extends WalletEvent {
+class DepositEvent extends WalletEvent {
   final String walletId;
-  final int page;
-  final int limit;
+  final double amount;
+  final String? paymentMethod;
 
-  const LoadWalletTransactionsEvent({
+  const DepositEvent({
     required this.walletId,
-    this.page = 1,
-    this.limit = 20,
+    required this.amount,
+    this.paymentMethod,
   });
 
   @override
-  List<Object> get props => [walletId, page, limit];
+  List<Object?> get props => [walletId, amount, paymentMethod];
+}
+
+class LoadWalletTransactionsEvent extends WalletEvent {
+  final String walletId;
+  final int limit;
+  final int offset;
+
+  const LoadWalletTransactionsEvent({
+    required this.walletId,
+    this.limit = 50,
+    this.offset = 0,
+  });
+
+  @override
+  List<Object> get props => [walletId, limit, offset];
 }
 
 class RefreshWalletEvent extends WalletEvent {
@@ -131,12 +145,12 @@ class WalletErrorState extends WalletState {
 }
 
 class WalletTransactionSentState extends WalletState {
-  final Transaction transaction;
+  final String transactionId;
 
-  const WalletTransactionSentState({required this.transaction});
+  const WalletTransactionSentState({required this.transactionId});
 
   @override
-  List<Object> get props => [transaction];
+  List<Object> get props => [transactionId];
 }
 
 class WalletCreatedState extends WalletState {
@@ -150,24 +164,16 @@ class WalletCreatedState extends WalletState {
 
 // BLoC
 class WalletBloc extends Bloc<WalletEvent, WalletState> {
-  final GetWalletsUseCase _getWalletsUseCase;
-  final CreateWalletUseCase _createWalletUseCase;
-  final SendTransactionUseCase _sendTransactionUseCase;
-  final GetWalletTransactionsUseCase _getWalletTransactionsUseCase;
+  final ApiService _apiService;
 
   WalletBloc({
-    required GetWalletsUseCase getWalletsUseCase,
-    required CreateWalletUseCase createWalletUseCase,
-    required SendTransactionUseCase sendTransactionUseCase,
-    required GetWalletTransactionsUseCase getWalletTransactionsUseCase,
-  })  : _getWalletsUseCase = getWalletsUseCase,
-        _createWalletUseCase = createWalletUseCase,
-        _sendTransactionUseCase = sendTransactionUseCase,
-        _getWalletTransactionsUseCase = getWalletTransactionsUseCase,
+    required ApiService apiService,
+  })  : _apiService = apiService,
         super(const WalletInitialState()) {
     on<LoadWalletsEvent>(_onLoadWallets);
     on<CreateWalletEvent>(_onCreateWallet);
     on<SendTransactionEvent>(_onSendTransaction);
+    on<DepositEvent>(_onDeposit);
     on<LoadWalletTransactionsEvent>(_onLoadWalletTransactions);
     on<RefreshWalletEvent>(_onRefreshWallet);
   }
@@ -179,27 +185,34 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     emit(const WalletLoadingState());
 
     try {
-      final result = await _getWalletsUseCase(NoParams());
-
-      result.fold(
-        (failure) => emit(WalletErrorState(message: failure.message)),
-        (walletsData) {
-          final totalValue = walletsData.wallets
-              .fold<double>(0, (sum, wallet) => sum + wallet.balance * wallet.usdRate);
-          
-          // Calculate daily change (mock calculation)
-          final dailyChange = 2.3; // This should come from the API
-          
-          emit(WalletLoadedState(
-            wallets: walletsData.wallets,
-            totalValue: totalValue,
-            dailyChange: dailyChange,
-            recentTransactions: walletsData.recentTransactions,
-          ));
-        },
+      final walletsData = await _apiService.wallet.getWallets();
+      final wallets = walletsData.map((w) => Wallet.fromJson(w)).toList();
+      
+      final totalValue = wallets.fold<double>(
+        0, 
+        (sum, wallet) => sum + (wallet.balance * wallet.usdRate),
       );
+      
+      // Get recent transactions from first wallet (or empty)
+      List<Transaction> recentTransactions = [];
+      if (wallets.isNotEmpty) {
+        try {
+          final txData = await _apiService.wallet.getTransactions(
+            wallets.first.id,
+            limit: 10,
+          );
+          recentTransactions = txData.map((t) => Transaction.fromJson(t)).toList();
+        } catch (_) {}
+      }
+      
+      emit(WalletLoadedState(
+        wallets: wallets,
+        totalValue: totalValue,
+        dailyChange: 0, // TODO: Calculate from API
+        recentTransactions: recentTransactions,
+      ));
     } catch (e) {
-      emit(WalletErrorState(message: e.toString()));
+      emit(WalletErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -208,21 +221,19 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      final result = await _createWalletUseCase(CreateWalletParams(
+      final walletData = await _apiService.wallet.createWallet(
         currency: event.currency,
+        walletType: event.walletType,
         name: event.name,
-      ));
-
-      result.fold(
-        (failure) => emit(WalletErrorState(message: failure.message)),
-        (wallet) {
-          emit(WalletCreatedState(wallet: wallet));
-          // Reload wallets to show the new one
-          add(const LoadWalletsEvent());
-        },
       );
+      
+      final wallet = Wallet.fromJson(walletData);
+      emit(WalletCreatedState(wallet: wallet));
+      
+      // Reload wallets
+      add(const LoadWalletsEvent());
     } catch (e) {
-      emit(WalletErrorState(message: e.toString()));
+      emit(WalletErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -231,23 +242,38 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      final result = await _sendTransactionUseCase(SendTransactionParams(
+      final result = await _apiService.wallet.withdraw(
         walletId: event.walletId,
-        toAddress: event.toAddress,
         amount: event.amount,
-        memo: event.memo,
-      ));
-
-      result.fold(
-        (failure) => emit(WalletErrorState(message: failure.message)),
-        (transaction) {
-          emit(WalletTransactionSentState(transaction: transaction));
-          // Reload wallets to update balances
-          add(const LoadWalletsEvent());
-        },
+        destinationAddress: event.toAddress,
       );
+      
+      emit(WalletTransactionSentState(
+        transactionId: result['transaction_id'] ?? '',
+      ));
+      
+      // Reload wallets
+      add(const LoadWalletsEvent());
     } catch (e) {
-      emit(WalletErrorState(message: e.toString()));
+      emit(WalletErrorState(message: _getErrorMessage(e)));
+    }
+  }
+  
+  Future<void> _onDeposit(
+    DepositEvent event,
+    Emitter<WalletState> emit,
+  ) async {
+    try {
+      await _apiService.wallet.deposit(
+        walletId: event.walletId,
+        amount: event.amount,
+        paymentMethod: event.paymentMethod,
+      );
+      
+      // Reload wallets
+      add(const LoadWalletsEvent());
+    } catch (e) {
+      emit(WalletErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -256,27 +282,21 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     Emitter<WalletState> emit,
   ) async {
     try {
-      final result = await _getWalletTransactionsUseCase(
-        GetWalletTransactionsParams(
-          walletId: event.walletId,
-          page: event.page,
-          limit: event.limit,
-        ),
+      final txData = await _apiService.wallet.getTransactions(
+        event.walletId,
+        limit: event.limit,
+        offset: event.offset,
       );
-
-      result.fold(
-        (failure) => emit(WalletErrorState(message: failure.message)),
-        (transactions) {
-          // Update the current state with new transactions
-          if (state is WalletLoadedState) {
-            emit((state as WalletLoadedState).copyWith(
-              recentTransactions: transactions,
-            ));
-          }
-        },
-      );
+      
+      final transactions = txData.map((t) => Transaction.fromJson(t)).toList();
+      
+      if (state is WalletLoadedState) {
+        emit((state as WalletLoadedState).copyWith(
+          recentTransactions: transactions,
+        ));
+      }
     } catch (e) {
-      emit(WalletErrorState(message: e.toString()));
+      emit(WalletErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -284,58 +304,17 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     RefreshWalletEvent event,
     Emitter<WalletState> emit,
   ) async {
-    // Just reload all wallets for now
     add(const LoadWalletsEvent());
   }
-}
-
-// Use Case Parameters
-class CreateWalletParams extends Equatable {
-  final String currency;
-  final String? name;
-
-  const CreateWalletParams({
-    required this.currency,
-    this.name,
-  });
-
-  @override
-  List<Object?> get props => [currency, name];
-}
-
-class SendTransactionParams extends Equatable {
-  final String walletId;
-  final String toAddress;
-  final double amount;
-  final String? memo;
-
-  const SendTransactionParams({
-    required this.walletId,
-    required this.toAddress,
-    required this.amount,
-    this.memo,
-  });
-
-  @override
-  List<Object?> get props => [walletId, toAddress, amount, memo];
-}
-
-class GetWalletTransactionsParams extends Equatable {
-  final String walletId;
-  final int page;
-  final int limit;
-
-  const GetWalletTransactionsParams({
-    required this.walletId,
-    this.page = 1,
-    this.limit = 20,
-  });
-
-  @override
-  List<Object> get props => [walletId, page, limit];
-}
-
-class NoParams extends Equatable {
-  @override
-  List<Object> get props => [];
+  
+  String _getErrorMessage(dynamic error) {
+    if (error is Exception) {
+      final message = error.toString();
+      if (message.contains('Exception: ')) {
+        return message.replaceFirst('Exception: ', '');
+      }
+      return message;
+    }
+    return 'Une erreur est survenue';
+  }
 }

@@ -30,6 +30,47 @@ class User extends Equatable {
     this.kycLevel = 'none',
     this.preferences = const UserPreferences(),
   });
+  
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? json['user_id'] ?? '',
+      email: json['email'] ?? '',
+      firstName: json['first_name'] ?? json['firstName'],
+      lastName: json['last_name'] ?? json['lastName'],
+      phoneNumber: json['phone_number'] ?? json['phone'],
+      profilePictureUrl: json['profile_picture_url'] ?? json['avatar'],
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']) 
+          : DateTime.now(),
+      lastLoginAt: json['last_login_at'] != null 
+          ? DateTime.parse(json['last_login_at']) 
+          : null,
+      isEmailVerified: json['is_email_verified'] ?? json['email_verified'] ?? false,
+      isPhoneVerified: json['is_phone_verified'] ?? json['phone_verified'] ?? false,
+      isTwoFactorEnabled: json['is_two_factor_enabled'] ?? json['two_factor_enabled'] ?? false,
+      kycLevel: json['kyc_level'] ?? 'none',
+      preferences: json['preferences'] != null 
+          ? UserPreferences.fromJson(json['preferences']) 
+          : const UserPreferences(),
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+      'phone_number': phoneNumber,
+      'profile_picture_url': profilePictureUrl,
+      'created_at': createdAt.toIso8601String(),
+      'last_login_at': lastLoginAt?.toIso8601String(),
+      'is_email_verified': isEmailVerified,
+      'is_phone_verified': isPhoneVerified,
+      'is_two_factor_enabled': isTwoFactorEnabled,
+      'kyc_level': kycLevel,
+    };
+  }
 
   String get fullName {
     if (firstName != null && lastName != null) {
@@ -121,6 +162,19 @@ class UserPreferences extends Equatable {
     this.pushNotificationsEnabled = true,
     this.theme = 'system',
   });
+  
+  factory UserPreferences.fromJson(Map<String, dynamic> json) {
+    return UserPreferences(
+      preferredCurrency: json['preferred_currency'] ?? 'USD',
+      language: json['language'] ?? 'en',
+      timezone: json['timezone'] ?? 'UTC',
+      notificationsEnabled: json['notifications_enabled'] ?? true,
+      biometricsEnabled: json['biometrics_enabled'] ?? false,
+      marketingEmailsEnabled: json['marketing_emails_enabled'] ?? false,
+      pushNotificationsEnabled: json['push_notifications_enabled'] ?? true,
+      theme: json['theme'] ?? 'system',
+    );
+  }
 
   UserPreferences copyWith({
     String? preferredCurrency,

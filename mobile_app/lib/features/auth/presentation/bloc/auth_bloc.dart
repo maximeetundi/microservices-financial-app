@@ -1,12 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/services/api_service.dart';
+import '../../../../core/services/secure_storage_service.dart';
 import '../../domain/entities/user.dart';
-import '../../domain/usecases/sign_in_usecase.dart';
-import '../../domain/usecases/sign_up_usecase.dart';
-import '../../domain/usecases/sign_out_usecase.dart';
-import '../../domain/usecases/check_auth_status_usecase.dart';
-import '../../domain/usecases/biometric_auth_usecase.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
@@ -152,23 +149,14 @@ class PasswordResetSuccessState extends AuthState {
 
 // BLoC
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final SignInUseCase _signInUseCase;
-  final SignUpUseCase _signUpUseCase;
-  final SignOutUseCase _signOutUseCase;
-  final CheckAuthStatusUseCase _checkAuthStatusUseCase;
-  final BiometricAuthUseCase _biometricAuthUseCase;
+  final ApiService _apiService;
+  final SecureStorageService _secureStorage;
 
   AuthBloc({
-    required SignInUseCase signInUseCase,
-    required SignUpUseCase signUpUseCase,
-    required SignOutUseCase signOutUseCase,
-    required CheckAuthStatusUseCase checkAuthStatusUseCase,
-    required BiometricAuthUseCase biometricAuthUseCase,
-  })  : _signInUseCase = signInUseCase,
-        _signUpUseCase = signUpUseCase,
-        _signOutUseCase = signOutUseCase,
-        _checkAuthStatusUseCase = checkAuthStatusUseCase,
-        _biometricAuthUseCase = biometricAuthUseCase,
+    required ApiService apiService,
+    required SecureStorageService secureStorage,
+  })  : _apiService = apiService,
+        _secureStorage = secureStorage,
         super(const AuthInitialState()) {
     on<SignInEvent>(_onSignIn);
     on<SignUpEvent>(_onSignUp);
@@ -183,28 +171,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      final result = await _signInUseCase(SignInParams(
-        email: event.email,
-        password: event.password,
-        totpCode: event.totpCode,
-        rememberMe: event.rememberMe,
-      ));
-
-      result.fold(
-        (failure) => emit(AuthErrorState(message: failure.message)),
-        (authResult) {
-          if (authResult.requires2FA && event.totpCode == null) {
-            emit(Auth2FARequiredState(tempToken: authResult.tempToken!));
-          } else {
-            emit(AuthenticatedState(
-              user: authResult.user!,
-              token: authResult.token!,
-            ));
-          }
-        },
-      );
+      final result = await _apiService.auth.login(event.email, event.password);
+      
+      // Check if 2FA is required
+      if (result['requires_2fa'] == true && event.totpCode == null) {
+        emit(Auth2FARequiredState(tempToken: result['temp_token'] ?? ''));
+        return;
+      }
+      
+      final userData = result['user'] as Map<String, dynamic>;
+      final user = User.fromJson(userData);
+      final token = result['access_token'] as String;
+      
+      // Save user ID
+      await _secureStorage.saveUserId(user.id);
+      
+      emit(AuthenticatedState(user: user, token: token));
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -212,23 +196,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      final result = await _signUpUseCase(SignUpParams(
+      final result = await _apiService.auth.register(
         email: event.email,
         password: event.password,
         firstName: event.firstName,
         lastName: event.lastName,
-        phoneNumber: event.phoneNumber,
-      ));
-
-      result.fold(
-        (failure) => emit(AuthErrorState(message: failure.message)),
-        (authResult) => emit(AuthenticatedState(
-          user: authResult.user!,
-          token: authResult.token!,
-        )),
+        phone: event.phoneNumber,
       );
+      
+      // Auto-login after registration
+      final loginResult = await _apiService.auth.login(event.email, event.password);
+      
+      final userData = loginResult['user'] as Map<String, dynamic>;
+      final user = User.fromJson(userData);
+      final token = loginResult['access_token'] as String;
+      
+      await _secureStorage.saveUserId(user.id);
+      
+      emit(AuthenticatedState(user: user, token: token));
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -236,10 +223,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      await _signOutUseCase(NoParams());
+      await _apiService.auth.logout();
+      await _secureStorage.clearAll();
       emit(const UnauthenticatedState());
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      // Even if logout fails on server, clear local data
+      await _secureStorage.clearAll();
+      emit(const UnauthenticatedState());
     }
   }
 
@@ -248,21 +238,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
-      final result = await _checkAuthStatusUseCase(NoParams());
-
-      result.fold(
-        (failure) => emit(const UnauthenticatedState()),
-        (authResult) {
-          if (authResult.user != null && authResult.token != null) {
-            emit(AuthenticatedState(
-              user: authResult.user!,
-              token: authResult.token!,
-            ));
-          } else {
-            emit(const UnauthenticatedState());
-          }
-        },
-      );
+      final isAuthenticated = await _apiService.auth.isAuthenticated();
+      
+      if (isAuthenticated) {
+        final profileData = await _apiService.auth.getProfile();
+        final user = User.fromJson(profileData);
+        
+        emit(AuthenticatedState(user: user, token: ''));
+      } else {
+        emit(const UnauthenticatedState());
+      }
     } catch (e) {
       emit(const UnauthenticatedState());
     }
@@ -275,17 +260,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      final result = await _biometricAuthUseCase(NoParams());
-
-      result.fold(
-        (failure) => emit(AuthErrorState(message: failure.message)),
-        (authResult) => emit(AuthenticatedState(
-          user: authResult.user!,
-          token: authResult.token!,
-        )),
+      // Check if biometric is available and enabled
+      final isAvailable = await _secureStorage.isBiometricAvailable();
+      final isEnabled = await _secureStorage.isBiometricEnabled();
+      
+      if (!isAvailable || !isEnabled) {
+        emit(const AuthErrorState(message: 'L\'authentification biométrique n\'est pas disponible'));
+        return;
+      }
+      
+      // Authenticate with biometrics
+      final authenticated = await _secureStorage.authenticateWithBiometrics(
+        reason: 'Authentifiez-vous pour accéder à votre compte',
       );
+      
+      if (authenticated) {
+        // Get stored session
+        final hasSession = await _secureStorage.hasValidSession();
+        
+        if (hasSession) {
+          final profileData = await _apiService.auth.getProfile();
+          final user = User.fromJson(profileData);
+          
+          emit(AuthenticatedState(user: user, token: ''));
+        } else {
+          emit(const AuthErrorState(message: 'Session expirée, veuillez vous reconnecter'));
+        }
+      } else {
+        emit(const AuthErrorState(message: 'Authentification biométrique échouée'));
+      }
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -296,11 +301,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      // Implement forgot password logic
-      // For now, just emit success
+      await _apiService.auth.forgotPassword(event.email);
       emit(PasswordResetEmailSentState(email: event.email));
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     }
   }
 
@@ -311,53 +315,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      // Implement reset password logic
-      // For now, just emit success
+      // TODO: Implement reset password with token
       emit(const PasswordResetSuccessState());
     } catch (e) {
-      emit(AuthErrorState(message: e.toString()));
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     }
   }
-}
-
-// Use Case Parameters
-class SignInParams extends Equatable {
-  final String email;
-  final String password;
-  final String? totpCode;
-  final bool rememberMe;
-
-  const SignInParams({
-    required this.email,
-    required this.password,
-    this.totpCode,
-    this.rememberMe = false,
-  });
-
-  @override
-  List<Object?> get props => [email, password, totpCode, rememberMe];
-}
-
-class SignUpParams extends Equatable {
-  final String email;
-  final String password;
-  final String firstName;
-  final String lastName;
-  final String? phoneNumber;
-
-  const SignUpParams({
-    required this.email,
-    required this.password,
-    required this.firstName,
-    required this.lastName,
-    this.phoneNumber,
-  });
-
-  @override
-  List<Object?> get props => [email, password, firstName, lastName, phoneNumber];
-}
-
-class NoParams extends Equatable {
-  @override
-  List<Object> get props => [];
+  
+  String _getErrorMessage(dynamic error) {
+    if (error is Exception) {
+      final message = error.toString();
+      if (message.contains('Exception: ')) {
+        return message.replaceFirst('Exception: ', '');
+      }
+      return message;
+    }
+    return 'Une erreur est survenue';
+  }
 }
