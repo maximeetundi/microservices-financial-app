@@ -1,7 +1,6 @@
 package services
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
