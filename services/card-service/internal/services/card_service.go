@@ -201,11 +201,20 @@ func (s *CardService) OrderPhysicalCard(userID string, req *models.OrderPhysical
 	if req.ExpressShipping {
 		shippingFee = s.config.CardFees["express_shipping"]
 	}
+	_ = shippingFee // TODO: use this for billing
 
-	// Déduire les frais de livraison (à implémenter)
-	
 	// Organiser la production et livraison
-	trackingNumber, err := s.cardIssuer.OrderPhysicalCard(card, req.ShippingAddress, req.ExpressShipping)
+	shippingMap := map[string]string{
+		"street":      req.ShippingAddress.Street,
+		"city":        req.ShippingAddress.City,
+		"postal_code": req.ShippingAddress.PostalCode,
+		"country":     req.ShippingAddress.Country,
+	}
+	externalID := ""
+	if card.ExternalCardID != nil {
+		externalID = *card.ExternalCardID
+	}
+	trackingNumber, err := s.cardIssuer.OrderPhysicalCard(externalID, shippingMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to order physical card: %w", err)
 	}
@@ -568,8 +577,8 @@ func (s *CardService) processCardLoad(cardID string, amount, fee float64, transa
 	s.publishEvent("card.events", event)
 }
 
-func (s *CardService) isNumeric(s string) bool {
-	for _, char := range s {
+func (s *CardService) isNumeric(str string) bool {
+	for _, char := range str {
 		if char < '0' || char > '9' {
 			return false
 		}

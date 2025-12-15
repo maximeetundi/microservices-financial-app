@@ -242,6 +242,7 @@ type CardLimits struct {
 	SingleTxLimit     float64 `json:"single_tx_limit"`
 	ATMDailyLimit     float64 `json:"atm_daily_limit"`
 	ATMDailyRemaining float64 `json:"atm_daily_remaining"`
+	OnlineTxLimit     float64 `json:"online_tx_limit"`
 	Currency          string  `json:"currency"`
 }
 

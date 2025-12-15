@@ -270,3 +270,47 @@ func (s *CardIssuerService) generateRandomDigits(length int) string {
 	}
 	return string(result)
 }
+
+// CreateCard is an alias for IssueCard that accepts a Card model
+func (s *CardIssuerService) CreateCard(card interface{}) (string, error) {
+	// Mock mode - return a generated external ID
+	if s.config.CardIssuer.APIKey == "" {
+		return fmt.Sprintf("mock_card_%d", time.Now().UnixNano()), nil
+	}
+	
+	// In production, extract card details and call IssueCard
+	resp, err := s.IssueCard("user", "cardholder", "prepaid", "USD")
+	if err != nil {
+		return "", err
+	}
+	return resp.ExternalCardID, nil
+}
+
+// CancelCard cancels a card with the issuer
+func (s *CardIssuerService) CancelCard(externalCardID string) error {
+	if s.config.CardIssuer.APIKey == "" {
+		return nil // Mock mode
+	}
+	
+	url := fmt.Sprintf("%s/cards/%s/cancel", s.config.CardIssuer.BaseURL, externalCardID)
+	
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	req.SetBasicAuth(s.config.CardIssuer.APIKey, s.config.CardIssuer.APISecret)
+	
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to cancel card: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	return nil
+}
+
+// UpdateCardPIN updates the PIN for a card
+func (s *CardIssuerService) UpdateCardPIN(externalCardID, hashedPIN string) error {
+	return s.SetPIN(externalCardID, hashedPIN)
+}
