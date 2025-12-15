@@ -175,6 +175,72 @@ func (r *CardRepository) UpdateGiftCard(giftCard *models.GiftCard) error {
 	return err
 }
 
+func (r *CardRepository) GetGiftCardByID(id string) (*models.GiftCard, error) {
+	query := `
+		SELECT id, code, sender_id, recipient_email, recipient_phone, amount, currency, message, design, status, redeemed_by, redeemed_at, expires_at, created_at
+		FROM gift_cards WHERE id = $1
+	`
+	var gc models.GiftCard
+	err := r.db.QueryRow(query, id).Scan(
+		&gc.ID,
+		&gc.Code,
+		&gc.SenderID,
+		&gc.RecipientEmail,
+		&gc.RecipientPhone,
+		&gc.Amount,
+		&gc.Currency,
+		&gc.Message,
+		&gc.Design,
+		&gc.Status,
+		&gc.RedeemedBy,
+		&gc.RedeemedAt,
+		&gc.ExpiresAt,
+		&gc.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &gc, nil
+}
+
+func (r *CardRepository) GetUserGiftCards(userID string) ([]models.GiftCard, error) {
+	query := `
+		SELECT id, code, sender_id, recipient_email, recipient_phone, amount, currency, message, design, status, redeemed_by, redeemed_at, expires_at, created_at
+		FROM gift_cards WHERE sender_id = $1 ORDER BY created_at DESC
+	`
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var giftCards []models.GiftCard
+	for rows.Next() {
+		var gc models.GiftCard
+		err := rows.Scan(
+			&gc.ID,
+			&gc.Code,
+			&gc.SenderID,
+			&gc.RecipientEmail,
+			&gc.RecipientPhone,
+			&gc.Amount,
+			&gc.Currency,
+			&gc.Message,
+			&gc.Design,
+			&gc.Status,
+			&gc.RedeemedBy,
+			&gc.RedeemedAt,
+			&gc.ExpiresAt,
+			&gc.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		giftCards = append(giftCards, gc)
+	}
+	return giftCards, nil
+}
+
 type CardTransactionRepository struct {
 	db *sql.DB
 }

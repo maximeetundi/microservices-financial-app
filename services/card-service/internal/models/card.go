@@ -215,6 +215,15 @@ type ChangeCardPINRequest struct {
 	NewPIN     string `json:"new_pin" binding:"required,len=4"`
 }
 
+type ShippingStatus struct {
+	Status         string     `json:"status"`
+	TrackingNumber *string    `json:"tracking_number,omitempty"`
+	Carrier        string     `json:"carrier,omitempty"`
+	ShippedAt      *time.Time `json:"shipped_at,omitempty"`
+	DeliveredAt    *time.Time `json:"delivered_at,omitempty"`
+	EstimatedDelivery *time.Time `json:"estimated_delivery,omitempty"`
+}
+
 type CreateGiftCardRequest struct {
 	Amount         float64 `json:"amount" binding:"required,gt=0"`
 	Currency       string  `json:"currency" binding:"required"`

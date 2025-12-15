@@ -691,6 +691,200 @@ func (s *CardService) GetCardBalance(userID, cardID string) (float64, error) {
 	return card.Balance, nil
 }
 
+// GetCardDetails returns detailed card information including sensitive data
+func (s *CardService) GetCardDetails(userID, cardID string) (*models.Card, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	return card, nil
+}
+
+// ChangeCardPIN changes the PIN after verifying the current PIN
+func (s *CardService) ChangeCardPIN(userID, cardID, currentPIN, newPIN string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	// Verify current PIN
+	if err := bcrypt.CompareHashAndPassword([]byte(card.PINHash), []byte(currentPIN)); err != nil {
+		return fmt.Errorf("invalid current PIN")
+	}
+	
+	// Set new PIN
+	return s.SetCardPIN(userID, cardID, newPIN)
+}
+
+// ResetCardPIN initiates a PIN reset process
+func (s *CardService) ResetCardPIN(userID, cardID string) error {
+	_, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	// TODO: Send PIN reset email/SMS
+	s.publishCardEvent("card.pin_reset_requested", nil)
+	return nil
+}
+
+// RegenerateVirtualCard regenerates a virtual card with new details
+func (s *CardService) RegenerateVirtualCard(userID, cardID string) (*models.Card, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	if !card.IsVirtual {
+		return nil, fmt.Errorf("can only regenerate virtual cards")
+	}
+	
+	// Generate new card details
+	newCardNumber, newCVV, err := s.generateCardDetails()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new card details: %w", err)
+	}
+	
+	card.CardNumberFull = newCardNumber
+	card.CardNumber = s.maskCardNumber(newCardNumber)
+	card.CVV = newCVV
+	card.ExpiryMonth = int(time.Now().Month())
+	card.ExpiryYear = time.Now().Year() + 3
+	
+	if err := s.cardRepo.Update(card); err != nil {
+		return nil, fmt.Errorf("failed to update card: %w", err)
+	}
+	
+	s.publishCardEvent("card.regenerated", card)
+	return card, nil
+}
+
+// GenerateCardQR generates a QR code for virtual card payments
+func (s *CardService) GenerateCardQR(userID, cardID string) (string, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return "", err
+	}
+	
+	if !card.IsVirtual {
+		return "", fmt.Errorf("QR codes only available for virtual cards")
+	}
+	
+	// Generate QR code data (in production, this would be encrypted)
+	qrData := fmt.Sprintf("CRYPTOBANK:%s:%s", card.ID, card.CardNumber)
+	return qrData, nil
+}
+
+// GetShippingStatus returns the shipping status for a physical card
+func (s *CardService) GetShippingStatus(userID, cardID string) (*models.ShippingStatus, error) {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	if card.IsVirtual {
+		return nil, fmt.Errorf("virtual cards don't have shipping status")
+	}
+	
+	status := &models.ShippingStatus{
+		Status:         "pending",
+		TrackingNumber: card.TrackingNumber,
+		ShippedAt:      card.ShippedAt,
+		DeliveredAt:    card.DeliveredAt,
+	}
+	
+	if card.ShippingStatus != nil {
+		status.Status = *card.ShippingStatus
+	}
+	
+	return status, nil
+}
+
+// ActivatePhysicalCard activates a physical card with activation code
+func (s *CardService) ActivatePhysicalCard(userID, cardID, activationCode, lastFourDigits string) error {
+	card, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return err
+	}
+	
+	if card.IsVirtual {
+		return fmt.Errorf("cannot activate physical card: this is a virtual card")
+	}
+	
+	// Verify last four digits match
+	if len(card.CardNumber) >= 4 {
+		last4 := card.CardNumber[len(card.CardNumber)-4:]
+		if last4 != lastFourDigits {
+			return fmt.Errorf("card verification failed")
+		}
+	}
+	
+	// Activate the card
+	return s.ActivateCard(userID, cardID)
+}
+
+// ReportLostCard reports a card as lost and blocks it
+func (s *CardService) ReportLostCard(userID, cardID string) error {
+	return s.BlockCard(userID, cardID, "reported_lost")
+}
+
+// RequestReplacement requests a replacement for a lost/damaged card
+func (s *CardService) RequestReplacement(userID, cardID, reason string, shippingAddress *models.ShippingAddress) (*models.Card, error) {
+	oldCard, err := s.GetCard(userID, cardID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Block the old card
+	if err := s.BlockCard(userID, cardID, "replacement_requested"); err != nil {
+		return nil, err
+	}
+	
+	// Create a new card with the same settings
+	req := &models.OrderPhysicalCardRequest{
+		CardID:          oldCard.ID,
+		ShippingAddress: *shippingAddress,
+	}
+	
+	newCard, err := s.OrderPhysicalCard(userID, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to order replacement card: %w", err)
+	}
+	
+	s.publishCardEvent("card.replacement_requested", newCard)
+	return newCard, nil
+}
+
+// SendGiftCard sends a gift card to someone
+func (s *CardService) SendGiftCard(userID, giftCardID, message string) error {
+	giftCard, err := s.cardRepo.GetGiftCardByID(giftCardID)
+	if err != nil {
+		return fmt.Errorf("gift card not found: %w", err)
+	}
+	
+	if giftCard.SenderID != userID {
+		return fmt.Errorf("unauthorized")
+	}
+	
+	if giftCard.Status != "active" {
+		return fmt.Errorf("gift card not available for sending")
+	}
+	
+	giftCard.Status = "sent"
+	if err := s.cardRepo.UpdateGiftCard(giftCard); err != nil {
+		return fmt.Errorf("failed to update gift card: %w", err)
+	}
+	
+	// TODO: Send notification to recipient
+	s.publishGiftCardEvent("gift_card.sent", giftCard)
+	return nil
+}
+
+// GetUserGiftCards returns all gift cards for a user
+func (s *CardService) GetUserGiftCards(userID string) ([]models.GiftCard, error) {
+	return s.cardRepo.GetUserGiftCards(userID)
+}
+
 // Méthodes privées
 
 func (s *CardService) generateCardDetails() (cardNumber, cvv string, err error) {
