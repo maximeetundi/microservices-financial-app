@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"strings"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
@@ -268,7 +268,7 @@ func (s *CryptoService) generateTransactionHash(fromAddress, toAddress *string, 
 	// Generate a mock transaction hash
 	data := fmt.Sprintf("%s-%s-%f-%s-%d", 
 		*fromAddress, *toAddress, amount, currency, 
-		rand.Int())
+		time.Now().UnixNano())
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
 }

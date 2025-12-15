@@ -1,5 +1,8 @@
 -- Crypto Bank Database Schema
 
+-- Create admin database
+CREATE DATABASE crypto_bank_admin;
+
 -- Users table
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,0 +1,364 @@
+package repository
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/models"
+)
+
+type AdminRepository struct {
+	adminDB *sql.DB
+	mainDB  *sql.DB
+}
+
+func NewAdminRepository(adminDB, mainDB *sql.DB) *AdminRepository {
+	return &AdminRepository{
+		adminDB: adminDB,
+		mainDB:  mainDB,
+	}
+}
+
+// ========== Admin Users ==========
+
+func (r *AdminRepository) CreateAdminUser(admin *models.AdminUser) error {
+	query := `
+		INSERT INTO admin_users (id, email, password_hash, first_name, last_name, role_id, is_active, created_at, updated_at, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`
+	_, err := r.adminDB.Exec(query,
+		admin.ID, admin.Email, admin.PasswordHash,
+		admin.FirstName, admin.LastName, admin.RoleID,
+		admin.IsActive, admin.CreatedAt, admin.UpdatedAt, admin.CreatedBy,
+	)
+	return err
+}
+
+func (r *AdminRepository) GetAdminByEmail(email string) (*models.AdminUser, error) {
+	admin := &models.AdminUser{}
+	query := `
+		SELECT id, email, password_hash, first_name, last_name, role_id, is_active, last_login_at, created_at, updated_at
+		FROM admin_users WHERE email = $1
+	`
+	err := r.adminDB.QueryRow(query, email).Scan(
+		&admin.ID, &admin.Email, &admin.PasswordHash,
+		&admin.FirstName, &admin.LastName, &admin.RoleID,
+		&admin.IsActive, &admin.LastLoginAt, &admin.CreatedAt, &admin.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return admin, nil
+}
+
+func (r *AdminRepository) GetAdminByID(id string) (*models.AdminUser, error) {
+	admin := &models.AdminUser{}
+	query := `
+		SELECT id, email, password_hash, first_name, last_name, role_id, is_active, last_login_at, created_at, updated_at
+		FROM admin_users WHERE id = $1
+	`
+	err := r.adminDB.QueryRow(query, id).Scan(
+		&admin.ID, &admin.Email, &admin.PasswordHash,
+		&admin.FirstName, &admin.LastName, &admin.RoleID,
+		&admin.IsActive, &admin.LastLoginAt, &admin.CreatedAt, &admin.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return admin, nil
+}
+
+func (r *AdminRepository) GetAllAdmins(limit, offset int) ([]models.AdminUser, error) {
+	query := `
+		SELECT a.id, a.email, a.first_name, a.last_name, a.role_id, r.name as role_name, a.is_active, a.last_login_at, a.created_at
+		FROM admin_users a
+		LEFT JOIN admin_roles r ON a.role_id = r.id
+		ORDER BY a.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.adminDB.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var admins []models.AdminUser
+	for rows.Next() {
+		var admin models.AdminUser
+		var roleName sql.NullString
+		err := rows.Scan(
+			&admin.ID, &admin.Email, &admin.FirstName, &admin.LastName,
+			&admin.RoleID, &roleName, &admin.IsActive, &admin.LastLoginAt, &admin.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if roleName.Valid {
+			admin.Role = &models.AdminRole{Name: roleName.String}
+		}
+		admins = append(admins, admin)
+	}
+	return admins, nil
+}
+
+func (r *AdminRepository) UpdateAdmin(id string, updates map[string]interface{}) error {
+	query := "UPDATE admin_users SET updated_at = $1"
+	args := []interface{}{time.Now()}
+	argCount := 2
+
+	for key, value := range updates {
+		query += fmt.Sprintf(", %s = $%d", key, argCount)
+		args = append(args, value)
+		argCount++
+	}
+	query += fmt.Sprintf(" WHERE id = $%d", argCount)
+	args = append(args, id)
+
+	_, err := r.adminDB.Exec(query, args...)
+	return err
+}
+
+func (r *AdminRepository) UpdateLastLogin(id string) error {
+	_, err := r.adminDB.Exec("UPDATE admin_users SET last_login_at = $1 WHERE id = $2", time.Now(), id)
+	return err
+}
+
+func (r *AdminRepository) DeleteAdmin(id string) error {
+	_, err := r.adminDB.Exec("DELETE FROM admin_users WHERE id = $1", id)
+	return err
+}
+
+// ========== Roles ==========
+
+func (r *AdminRepository) GetRoles() ([]models.AdminRole, error) {
+	query := `SELECT id, name, description, is_system, created_at FROM admin_roles ORDER BY name`
+	rows, err := r.adminDB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []models.AdminRole
+	for rows.Next() {
+		var role models.AdminRole
+		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &role.IsSystem, &role.CreatedAt); err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
+}
+
+func (r *AdminRepository) GetRoleByID(id string) (*models.AdminRole, error) {
+	role := &models.AdminRole{}
+	query := `SELECT id, name, description, is_system, created_at FROM admin_roles WHERE id = $1`
+	err := r.adminDB.QueryRow(query, id).Scan(&role.ID, &role.Name, &role.Description, &role.IsSystem, &role.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get permissions
+	permQuery := `
+		SELECT p.id, p.code, p.name, p.description, p.category
+		FROM admin_permissions p
+		JOIN admin_role_permissions rp ON p.id = rp.permission_id
+		WHERE rp.role_id = $1
+	`
+	rows, err := r.adminDB.Query(permQuery, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var perm models.AdminPermission
+		if err := rows.Scan(&perm.ID, &perm.Code, &perm.Name, &perm.Description, &perm.Category); err != nil {
+			return nil, err
+		}
+		role.Permissions = append(role.Permissions, perm)
+	}
+	
+	return role, nil
+}
+
+func (r *AdminRepository) GetAdminPermissions(adminID string) ([]string, error) {
+	query := `
+		SELECT p.code 
+		FROM admin_permissions p
+		JOIN admin_role_permissions rp ON p.id = rp.permission_id
+		JOIN admin_users u ON u.role_id = rp.role_id
+		WHERE u.id = $1
+	`
+	rows, err := r.adminDB.Query(query, adminID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var permissions []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		permissions = append(permissions, code)
+	}
+	return permissions, nil
+}
+
+// ========== Audit Logs ==========
+
+func (r *AdminRepository) CreateAuditLog(log *models.AdminAuditLog) error {
+	query := `
+		INSERT INTO admin_audit_logs (admin_id, admin_email, action, resource, resource_id, details, ip_address, user_agent)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+	_, err := r.adminDB.Exec(query,
+		log.AdminID, log.AdminEmail, log.Action, log.Resource,
+		log.ResourceID, log.Details, log.IPAddress, log.UserAgent,
+	)
+	return err
+}
+
+func (r *AdminRepository) GetAuditLogs(limit, offset int, filters map[string]string) ([]models.AdminAuditLog, error) {
+	query := `
+		SELECT id, admin_id, admin_email, action, resource, resource_id, details, ip_address, user_agent, created_at
+		FROM admin_audit_logs
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.adminDB.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []models.AdminAuditLog
+	for rows.Next() {
+		var log models.AdminAuditLog
+		if err := rows.Scan(
+			&log.ID, &log.AdminID, &log.AdminEmail, &log.Action,
+			&log.Resource, &log.ResourceID, &log.Details,
+			&log.IPAddress, &log.UserAgent, &log.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		logs = append(logs, log)
+	}
+	return logs, nil
+}
+
+// ========== Main DB Queries (Read-Only) ==========
+
+func (r *AdminRepository) GetUsersFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, email, first_name, last_name, phone, is_active, kyc_level, created_at
+		FROM users
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	return r.queryToMaps(r.mainDB, query, limit, offset)
+}
+
+func (r *AdminRepository) GetTransactionsFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, wallet_id, type, amount, currency, status, created_at
+		FROM transactions
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	return r.queryToMaps(r.mainDB, query, limit, offset)
+}
+
+func (r *AdminRepository) GetCardsFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, user_id, card_type, status, currency, balance, created_at
+		FROM cards
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	return r.queryToMaps(r.mainDB, query, limit, offset)
+}
+
+func (r *AdminRepository) GetWalletsFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, user_id, currency, balance, status, created_at
+		FROM wallets
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	return r.queryToMaps(r.mainDB, query, limit, offset)
+}
+
+func (r *AdminRepository) GetDashboardStats() (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+	
+	// Users count
+	var usersCount int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&usersCount)
+	stats["total_users"] = usersCount
+	
+	// Active users today
+	var activeToday int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE last_login_at > CURRENT_DATE").Scan(&activeToday)
+	stats["active_today"] = activeToday
+	
+	// Transactions today
+	var txToday int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at > CURRENT_DATE").Scan(&txToday)
+	stats["transactions_today"] = txToday
+	
+	// Total volume today
+	var volumeToday float64
+	r.mainDB.QueryRow("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at > CURRENT_DATE").Scan(&volumeToday)
+	stats["volume_today"] = volumeToday
+	
+	// Cards
+	var cardsCount int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM cards").Scan(&cardsCount)
+	stats["total_cards"] = cardsCount
+	
+	// Wallets
+	var walletsCount int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM wallets").Scan(&walletsCount)
+	stats["total_wallets"] = walletsCount
+	
+	// Pending KYC
+	var pendingKYC int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE kyc_level = 'pending'").Scan(&pendingKYC)
+	stats["pending_kyc"] = pendingKYC
+	
+	return stats, nil
+}
+
+func (r *AdminRepository) queryToMaps(db *sql.DB, query string, args ...interface{}) ([]map[string]interface{}, error) {
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns, _ := rows.Columns()
+	var results []map[string]interface{}
+
+	for rows.Next() {
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range columns {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		row := make(map[string]interface{})
+		for i, col := range columns {
+			row[col] = values[i]
+		}
+		results = append(results, row)
+	}
+
+	return results, nil
+}
