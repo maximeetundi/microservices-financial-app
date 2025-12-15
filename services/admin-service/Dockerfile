@@ -1,10 +1,21 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/admin-service
 
+# Install git for go mod
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY ./admin-service/go.mod ./admin-service/go.sum* ./
+
+# Download dependencies
+RUN go mod download || true
+
+# Copy service source code
 COPY ./admin-service .
 
+# Tidy and download dependencies (regenerates go.sum if needed)
 RUN go mod tidy && go mod download
 
 # Build the application
@@ -15,10 +26,13 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /app
+WORKDIR /root/
 
+# Copy the binary from builder stage
 COPY --from=builder /app/admin-service/main .
 
+# Expose port
 EXPOSE 8088
 
+# Command to run
 CMD ["./main"]

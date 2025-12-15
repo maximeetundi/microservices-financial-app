@@ -3,10 +3,19 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/notification-service
 
+# Install git for go mod
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY ./notification-service/go.mod ./notification-service/go.sum* ./
+
+# Download dependencies
+RUN go mod download || true
+
 # Copy service source code
 COPY ./notification-service .
 
-# Download dependencies (go mod tidy generates go.sum if missing)
+# Tidy and download dependencies (regenerates go.sum if needed)
 RUN go mod tidy && go mod download
 
 # Build the application
@@ -23,7 +32,7 @@ WORKDIR /root/
 COPY --from=builder /app/notification-service/main .
 
 # Expose port
-EXPOSE 8087
+EXPOSE 8086
 
 # Command to run
 CMD ["./main"]

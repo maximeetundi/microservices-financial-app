@@ -3,10 +3,19 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/card-service
 
+# Install git for go mod
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY ./card-service/go.mod ./card-service/go.sum* ./
+
+# Download dependencies
+RUN go mod download || true
+
 # Copy service source code
 COPY ./card-service .
 
-# Download dependencies
+# Tidy and download dependencies (regenerates go.sum if needed)
 RUN go mod tidy && go mod download
 
 # Build the application
@@ -23,7 +32,7 @@ WORKDIR /root/
 COPY --from=builder /app/card-service/main .
 
 # Expose port
-EXPOSE 8086
+EXPOSE 8085
 
 # Command to run
 CMD ["./main"]

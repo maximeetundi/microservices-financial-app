@@ -3,10 +3,19 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/auth-service
 
+# Install git for go mod
+RUN apk add --no-cache git
+
+# Copy go mod files
+COPY ./auth-service/go.mod ./auth-service/go.sum* ./
+
+# Download dependencies
+RUN go mod download || true
+
 # Copy service source code
 COPY ./auth-service .
 
-# Download dependencies
+# Tidy and download dependencies (regenerates go.sum if needed)
 RUN go mod tidy && go mod download
 
 # Build the application
