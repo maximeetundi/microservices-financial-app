@@ -75,8 +75,6 @@ func (s *FiatExchangeService) ConvertFiat(userID, fromCurrency, toCurrency strin
 		Fee:                 fee,
 		FeePercentage:       feePercentage,
 		Status:              "pending",
-		DestinationAmount:   &finalAmount,
-		DestinationCurrency: &toCurrency,
 	}
 
 	// Sauvegarder l'échange

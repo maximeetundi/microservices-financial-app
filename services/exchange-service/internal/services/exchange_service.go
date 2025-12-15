@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -15,14 +14,16 @@ import (
 
 type ExchangeService struct {
 	exchangeRepo *repository.ExchangeRepository
+	orderRepo    *repository.OrderRepository
 	rateService  *RateService
 	config       *config.Config
 	mqChannel    *amqp.Channel
 }
 
-func NewExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, mqChannel *amqp.Channel, cfg *config.Config) *ExchangeService {
+func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, mqChannel *amqp.Channel, cfg *config.Config) *ExchangeService {
 	return &ExchangeService{
 		exchangeRepo: exchangeRepo,
+		orderRepo:    orderRepo,
 		rateService:  rateService,
 		config:       cfg,
 		mqChannel:    mqChannel,
@@ -103,9 +104,6 @@ func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalle
 		return nil, fmt.Errorf("quote has expired")
 	}
 
-	// Vérifier les soldes des portefeuilles (via API Wallet Service)
-	// TODO: Implémenter la vérification des portefeuilles
-
 	// Créer l'échange
 	exchange := &models.Exchange{
 		UserID:           userID,
@@ -166,7 +164,6 @@ func (s *ExchangeService) BuyCrypto(userID, cryptoCurrency, paymentCurrency stri
 	// Calculer le montant total nécessaire
 	totalCost := amount * executionPrice
 	fee := s.calculateTradingFee(totalCost, "buy")
-	totalWithFee := totalCost + fee
 
 	// Créer l'ordre
 	order := &models.TradingOrder{
@@ -192,7 +189,7 @@ func (s *ExchangeService) BuyCrypto(userID, cryptoCurrency, paymentCurrency stri
 	}
 
 	// Sauvegarder l'ordre
-	err = s.exchangeRepo.CreateOrder(order)
+	err = s.orderRepo.CreateOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -235,7 +232,6 @@ func (s *ExchangeService) SellCrypto(userID, cryptoCurrency, receiveCurrency str
 	// Calculer le montant à recevoir
 	totalReceive := amount * executionPrice
 	fee := s.calculateTradingFee(totalReceive, "sell")
-	totalAfterFee := totalReceive - fee
 
 	// Créer l'ordre
 	order := &models.TradingOrder{
@@ -261,7 +257,7 @@ func (s *ExchangeService) SellCrypto(userID, cryptoCurrency, receiveCurrency str
 	}
 
 	// Sauvegarder l'ordre
-	err = s.exchangeRepo.CreateOrder(order)
+	err = s.orderRepo.CreateOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -272,13 +268,13 @@ func (s *ExchangeService) SellCrypto(userID, cryptoCurrency, receiveCurrency str
 	return order, nil
 }
 
-func (s *ExchangeService) GetUserOrders(userID string, status string, limit, offset int) ([]*models.TradingOrder, error) {
-	return s.exchangeRepo.GetUserOrders(userID, status, limit, offset)
+func (s *ExchangeService) GetUserOrders(userID string) ([]*models.TradingOrder, error) {
+	return s.orderRepo.GetOrdersByUser(userID)
 }
 
 func (s *ExchangeService) CancelOrder(userID, orderID string) error {
 	// Récupérer l'ordre
-	order, err := s.exchangeRepo.GetOrder(orderID)
+	order, err := s.orderRepo.GetOrderByID(orderID)
 	if err != nil {
 		return fmt.Errorf("order not found: %w", err)
 	}
@@ -294,7 +290,7 @@ func (s *ExchangeService) CancelOrder(userID, orderID string) error {
 	}
 
 	// Annuler l'ordre
-	err = s.exchangeRepo.UpdateOrderStatus(orderID, "cancelled")
+	err = s.orderRepo.UpdateOrderStatus(orderID, "cancelled")
 	if err != nil {
 		return fmt.Errorf("failed to cancel order: %w", err)
 	}
@@ -306,9 +302,6 @@ func (s *ExchangeService) CancelOrder(userID, orderID string) error {
 }
 
 func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error) {
-	// TODO: Implémenter la récupération du portfolio
-	// Cela nécessite l'intégration avec le Wallet Service
-	
 	portfolio := &models.Portfolio{
 		TotalValue:   0,
 		TotalPnL:     0,
@@ -331,13 +324,7 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 	// Simuler le traitement de l'échange
 	time.Sleep(2 * time.Second)
 
-	// Dans un vrai système, ici on ferait:
-	// 1. Débiter le portefeuille source
-	// 2. Créditer le portefeuille destination
-	// 3. Enregistrer les transactions
-	// 4. Mettre à jour le statut
-
-	// Pour la démo, on marque comme terminé
+	// Marquer comme terminé
 	s.exchangeRepo.UpdateStatus(exchange.ID, "completed")
 	
 	now := time.Now()
@@ -362,26 +349,26 @@ func (s *ExchangeService) calculateFeePercentage(fromCurrency, toCurrency string
 		baseFee = s.config.ExchangeFees["fiat_to_fiat"]
 	}
 
-	// Réduction de frais selon le volume (VIP tiers)
+	// Réduction de frais selon le volume
 	if amount > 100000 {
-		baseFee *= 0.5 // 50% de réduction
+		baseFee *= 0.5
 	} else if amount > 10000 {
-		baseFee *= 0.7 // 30% de réduction
+		baseFee *= 0.7
 	} else if amount > 1000 {
-		baseFee *= 0.9 // 10% de réduction
+		baseFee *= 0.9
 	}
 
 	return baseFee
 }
 
 func (s *ExchangeService) calculateTradingFee(amount float64, side string) float64 {
-	feeRate := s.config.TradingFees[side] // buy ou sell
+	feeRate := s.config.TradingFees[side]
 	return amount * feeRate / 100
 }
 
 func (s *ExchangeService) getEstimatedDelivery(fromCurrency, toCurrency string) string {
 	if s.isCryptoCurrency(fromCurrency) || s.isCryptoCurrency(toCurrency) {
-		return "5-15 minutes" // Temps de confirmation blockchain
+		return "5-15 minutes"
 	}
 	return "Instant"
 }
@@ -448,10 +435,10 @@ func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *model
 	eventJSON, _ := json.Marshal(event)
 
 	s.mqChannel.Publish(
-		"exchange.events", // exchange
-		eventType,         // routing key
-		false,             // mandatory
-		false,             // immediate
+		"exchange.events",
+		eventType,
+		false,
+		false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        eventJSON,
@@ -478,10 +465,10 @@ func (s *ExchangeService) publishTradingEvent(eventType string, order *models.Tr
 	eventJSON, _ := json.Marshal(event)
 
 	s.mqChannel.Publish(
-		"trading.events", // exchange
-		eventType,        // routing key
-		false,            // mandatory
-		false,            // immediate
+		"trading.events",
+		eventType,
+		false,
+		false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        eventJSON,

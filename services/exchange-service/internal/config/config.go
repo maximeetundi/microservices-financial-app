@@ -13,6 +13,7 @@ type Config struct {
 	JWTSecret          string
 	WalletServiceURL   string
 	ExchangeFees       map[string]float64
+	TradingFees        map[string]float64
 	RateUpdateInterval int
 	
 	// Binance configuration
@@ -35,6 +36,10 @@ func Load() *Config {
 			"crypto_to_fiat":   getEnvFloat("CRYPTO_TO_FIAT_FEE", 0.75),   // 0.75%
 			"fiat_to_crypto":   getEnvFloat("FIAT_TO_CRYPTO_FEE", 0.75),   // 0.75%
 			"fiat_to_fiat":     getEnvFloat("FIAT_TO_FIAT_FEE", 0.25),     // 0.25%
+		},
+		TradingFees: map[string]float64{
+			"buy":  getEnvFloat("TRADING_BUY_FEE", 0.1),   // 0.1%
+			"sell": getEnvFloat("TRADING_SELL_FEE", 0.1),  // 0.1%
 		},
 		RateUpdateInterval: getEnvInt("RATE_UPDATE_INTERVAL", 30), // 30 seconds
 		

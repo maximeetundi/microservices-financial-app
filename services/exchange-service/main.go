@@ -44,7 +44,7 @@ func main() {
 
 	// Initialize services
 	rateService := services.NewRateService(rateRepo, cfg)
-	exchangeService := services.NewExchangeService(exchangeRepo, rateService, mqClient, cfg)
+	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, mqClient, cfg)
 	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
 	
