@@ -842,7 +842,8 @@ func (s *CardService) RequestReplacement(userID, cardID, reason string, shipping
 	
 	// Create a new card with the same settings
 	req := &models.OrderPhysicalCardRequest{
-		CardID:          oldCard.ID,
+		Currency:        oldCard.Currency,
+		CardholderName:  oldCard.CardholderName,
 		ShippingAddress: *shippingAddress,
 	}
 	
