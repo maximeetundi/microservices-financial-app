@@ -86,8 +86,8 @@ func (r *SessionRepository) GetByToken(sessionToken string) (*models.Session, er
 	}
 
 	// Update Redis cache
-	sessionData, _ = json.Marshal(session)
-	r.redis.Set(ctx, "session:"+sessionToken, sessionData, time.Until(session.ExpiresAt))
+	sessionBytes, _ := json.Marshal(session)
+	r.redis.Set(ctx, "session:"+sessionToken, sessionBytes, time.Until(session.ExpiresAt))
 
 	return &session, nil
 }

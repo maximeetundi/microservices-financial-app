@@ -1,16 +1,23 @@
 package providers
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 // Config holds all provider configurations
 type Config struct {
 	Flutterwave FlutterwaveConfig
 	Thunes      ThunesConfig
 	Stripe      StripeConfig
+	CryptoRails CryptoRailsConfig
 }
 
 // LoadConfig loads provider configuration from environment variables
 func LoadConfig() *Config {
+	poolThreshold, _ := strconv.ParseFloat(getEnv("CRYPTO_POOL_THRESHOLD", "500"), 64)
+	poolEnabled, _ := strconv.ParseBool(getEnv("CRYPTO_POOL_ENABLED", "true"))
+	
 	return &Config{
 		Flutterwave: FlutterwaveConfig{
 			// Flutterwave API Keys - Get from https://dashboard.flutterwave.com/settings/api
@@ -33,6 +40,26 @@ func LoadConfig() *Config {
 			PublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY", ""),
 			WebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
 			BaseURL:        getEnv("STRIPE_BASE_URL", "https://api.stripe.com/v1"),
+		},
+		CryptoRails: CryptoRailsConfig{
+			// Circle USDC API - Get from https://developers.circle.com
+			CircleAPIKey:  getEnv("CIRCLE_API_KEY", ""),
+			CircleBaseURL: getEnv("CIRCLE_BASE_URL", "https://api.circle.com/v1"),
+			
+			// Binance API - Get from https://www.binance.com/en/my/settings/api-management
+			BinanceAPIKey:    getEnv("BINANCE_API_KEY", ""),
+			BinanceAPISecret: getEnv("BINANCE_API_SECRET", ""),
+			BinanceBaseURL:   getEnv("BINANCE_BASE_URL", "https://api.binance.com"),
+			
+			// Internal pool settings
+			UseInternalPoolThreshold: poolThreshold,
+			InternalPoolEnabled:      poolEnabled,
+			PreferredStablecoin:      getEnv("PREFERRED_STABLECOIN", "USDC"),
+			
+			// Wallet addresses for receiving crypto
+			EthereumWallet: getEnv("ETH_WALLET_ADDRESS", ""),
+			TronWallet:     getEnv("TRX_WALLET_ADDRESS", ""),
+			PolygonWallet:  getEnv("MATIC_WALLET_ADDRESS", ""),
 		},
 	}
 }
@@ -60,6 +87,18 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 	}
 	
 	return router
+}
+
+// InitializeCryptoRails creates the crypto rails provider
+func InitializeCryptoRails(cfg *Config) *CryptoRailsProvider {
+	return NewCryptoRailsProvider(cfg.CryptoRails)
+}
+
+// InitializeOrchestrator creates the full transfer orchestrator
+func InitializeOrchestrator(cfg *Config) *TransferOrchestrator {
+	cryptoRails := InitializeCryptoRails(cfg)
+	zoneRouter := InitializeRouter(cfg)
+	return NewTransferOrchestrator(cryptoRails, zoneRouter)
 }
 
 func getEnv(key, defaultValue string) string {

@@ -112,3 +112,18 @@ func (r *RabbitMQClient) Publish(queue string, message []byte) error {
 		},
 	)
 }
+
+// PublishToExchange publishes a message to a specific exchange with routing key
+func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
+	return r.channel.Publish(
+		exchange,
+		routingKey,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        message,
+		},
+	)
+}
+

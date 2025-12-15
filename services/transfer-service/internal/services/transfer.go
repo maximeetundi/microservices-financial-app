@@ -72,6 +72,9 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	// Publish to queue for async processing
 	msg, _ := json.Marshal(transfer)
 	s.mqClient.Publish("transfers", msg)
+	
+	// Publish event for notification service
+	s.publishTransferEvent("transfer.initiated", transfer, req.FromWalletID, "")
 
 	return transfer, nil
 }
@@ -109,6 +112,31 @@ func generateID() string {
 
 func generateReferenceID() string {
 	return fmt.Sprintf("REF%d", time.Now().UnixNano())
+}
+
+// publishTransferEvent publishes transfer events to RabbitMQ for notifications
+func (s *TransferService) publishTransferEvent(eventType string, transfer *models.Transfer, senderUserID, recipientUserID string) {
+	if s.mqClient == nil {
+		return
+	}
+
+	event := map[string]interface{}{
+		"type":         eventType,
+		"transfer_id":  transfer.ID,
+		"user_id":      senderUserID, // For sender notification
+		"sender":       senderUserID,
+		"recipient":    recipientUserID,
+		"amount":       transfer.Amount,
+		"currency":     transfer.Currency,
+		"status":       transfer.Status,
+		"reference":    transfer.Reference,
+		"timestamp":    time.Now(),
+	}
+
+	eventJSON, _ := json.Marshal(event)
+
+	// Publish to transfer.events exchange
+	s.mqClient.PublishToExchange("transfer.events", eventType, eventJSON)
 }
 
 // MobileMoneyService handles mobile money transfers
