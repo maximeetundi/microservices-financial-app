@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -71,24 +72,31 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(req.Email)
 	if err != nil {
+		log.Printf("Login failed: user not found for email %s - error: %v", req.Email, err)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+	log.Printf("Login: Found user %s with ID %s", user.Email, user.ID)
 
 	// Check if user is locked
 	locked, err := s.userRepo.IsLocked(user.ID)
 	if err != nil {
+		log.Printf("Login failed: error checking lock status for user %s - error: %v", user.ID, err)
 		return nil, fmt.Errorf("login check failed")
 	}
 	if locked {
+		log.Printf("Login failed: user %s is locked", user.ID)
 		return nil, fmt.Errorf("account temporarily locked due to failed login attempts")
 	}
 
 	// Verify password
+	log.Printf("Login: Verifying password for user %s, hash starts with: %s", user.Email, user.PasswordHash[:20])
 	if err := s.userRepo.VerifyPassword(user.PasswordHash, req.Password); err != nil {
 		// Increment failed attempts
+		log.Printf("Login failed: password verification failed for user %s - error: %v", user.Email, err)
 		s.userRepo.IncrementFailedAttempts(user.ID, s.config.MaxLoginAttempts, s.config.LockoutDuration)
 		return nil, fmt.Errorf("invalid credentials")
 	}
+	log.Printf("Login: Password verified successfully for user %s", user.Email)
 
 	// Check 2FA if enabled
 	if user.TwoFAEnabled {
