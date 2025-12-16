@@ -80,8 +80,9 @@ func main() {
 		api.GET("/orderbook/:pair", exchangeHandler.GetOrderBook)
 		api.GET("/trades/:pair", exchangeHandler.GetRecentTrades)
 
-		// Protected routes
-		protected := api.Use(middleware.JWTAuth(cfg.JWTSecret))
+		// Protected routes - using Group instead of Use to get RouterGroup
+		protected := api.Group("")
+		protected.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{
 			// Exchange operations
 			protected.POST("/quote", exchangeHandler.GetQuote)
