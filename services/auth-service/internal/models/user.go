@@ -18,7 +18,7 @@ type User struct {
 	Role          string     `json:"role" db:"role"` // user, admin, support
 	IsActive      bool       `json:"is_active" db:"is_active"`
 	TwoFAEnabled  bool       `json:"two_fa_enabled" db:"two_fa_enabled"`
-	TwoFASecret   string     `json:"-" db:"two_fa_secret"`
+	TwoFASecret   *string    `json:"-" db:"two_fa_secret"`
 	EmailVerified bool       `json:"email_verified" db:"email_verified"`
 	PhoneVerified bool       `json:"phone_verified" db:"phone_verified"`
 	LastLoginAt   *time.Time `json:"last_login_at" db:"last_login_at"`
