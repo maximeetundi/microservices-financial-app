@@ -315,8 +315,7 @@ const createWallet = async () => {
     }
   } catch (e) {
     console.error('Error creating wallet:', e)
-    const error = e as any
-    alert(error.response?.data?.error || 'Erreur lors de la création du portefeuille')
+    alert(e?.response?.data?.error || 'Erreur lors de la création du portefeuille')
   } finally {
     creatingWallet.value = false
   }
