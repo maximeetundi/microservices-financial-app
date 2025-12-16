@@ -78,9 +78,10 @@
                   {{ order.pair }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <span :class="order.side === 'buy' ? 'text-green-600' : 'text-red-600'"
-                        class="px-2 py-1 text-xs rounded-full bg-opacity-20"
-                        :class="order.side === 'buy' ? 'bg-green-100' : 'bg-red-100'">
+                  <span :class="[
+                    'px-2 py-1 text-xs rounded-full',
+                    order.side === 'buy' ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+                  ]">
                     {{ order.side.toUpperCase() }}
                   </span>
                 </td>
