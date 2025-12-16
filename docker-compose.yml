@@ -293,12 +293,14 @@ services:
     build:
       context: ./admin-dashboard
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-http://localhost:8088}
     ports:
       - "3002:3002"
     depends_on:
       - admin-service
     environment:
-      - NEXT_PUBLIC_API_URL=http://admin-service:8088
+      - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-http://localhost:8088}
     networks:
       - crypto-bank-network
 
