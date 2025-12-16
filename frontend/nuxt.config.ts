@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   modules: [
     '@pinia/nuxt',
     '@vueuse/nuxt'
@@ -20,6 +20,12 @@ export default defineNuxtConfig({
     }
   },
   ssr: true,
+  nitro: {
+    prerender: {
+      failOnError: false,
+      crawlLinks: false
+    }
+  },
   app: {
     head: {
       title: 'CryptoBank - Secure Digital Banking',
