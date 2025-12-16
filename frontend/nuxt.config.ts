@@ -21,9 +21,7 @@ export default defineNuxtConfig({
   },
   ssr: true,
   nitro: {
-    experimental: {
-      wasm: true
-    }
+    preset: 'node-server'
   },
   app: {
     head: {
