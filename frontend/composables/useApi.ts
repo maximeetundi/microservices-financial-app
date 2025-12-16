@@ -91,7 +91,8 @@ export const walletAPI = {
     getAll: () => api.get('/wallet-service/api/v1/wallets'),
     getWallets: () => api.get('/wallet-service/api/v1/wallets'),
     get: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}`),
-    create: (currency: string, type: string) => api.post('/wallet-service/api/v1/wallets', { currency, type }),
+    create: (data: { currency: string, wallet_type: string, name?: string, description?: string }) =>
+        api.post('/wallet-service/api/v1/wallets/', data),
     getBalance: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}/balance`),
     getTransactions: (id: string, limit = 50, offset = 0) =>
         api.get(`/wallet-service/api/v1/wallets/${id}/transactions?limit=${limit}&offset=${offset}`),

@@ -304,17 +304,18 @@ const createWallet = async () => {
     const response = await walletAPI.create({
       currency: newWallet.value.currency,
       name: newWallet.value.name || `Mon Portefeuille ${newWallet.value.currency}`,
-      type: newWallet.value.type
+      wallet_type: newWallet.value.type
     })
     if (response.data) {
-      wallets.value.push(response.data)
+      wallets.value.push(response.data.wallet || response.data)
       showCreateWallet.value = false
       newWallet.value = { type: 'fiat', currency: 'USD', name: '' }
       alert('Portefeuille créé avec succès!')
+      fetchWallets() // Refresh the list
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error creating wallet:', e)
-    alert('Erreur lors de la création du portefeuille')
+    alert(e.response?.data?.error || 'Erreur lors de la création du portefeuille')
   } finally {
     creatingWallet.value = false
   }
