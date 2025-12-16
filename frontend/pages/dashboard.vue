@@ -3,10 +3,10 @@
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
           Bonjour, {{ userName }} 👋
         </h1>
-        <p class="text-white/60">
+        <p class="text-gray-600">
           {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
         </p>
       </div>
@@ -263,23 +263,18 @@ const loading = ref(true)
 const refreshing = ref(false)
 const showQRModal = ref(false)
 
-// Stats
+// Stats - will be loaded from API
 const stats = ref({
-  totalBalance: 25750.80,
-  cryptoBalance: 12500.00,
-  cardsBalance: 3250.50,
-  activeCards: 4,
-  monthlyTransfers: 23,
-  monthlyVolume: 15750.00
+  totalBalance: 0,
+  cryptoBalance: 0,
+  cardsBalance: 0,
+  activeCards: 0,
+  monthlyTransfers: 0,
+  monthlyVolume: 0
 })
 
-// Market data
-const cryptoMarkets = ref([
-  { symbol: 'BTC', name: 'Bitcoin', price: 45125, change: 2.35, bgColor: 'bg-orange-500' },
-  { symbol: 'ETH', name: 'Ethereum', price: 3024, change: 1.87, bgColor: 'bg-blue-500' },
-  { symbol: 'BNB', name: 'BNB', price: 245, change: -0.52, bgColor: 'bg-yellow-500' },
-  { symbol: 'SOL', name: 'Solana', price: 98, change: 5.21, bgColor: 'bg-purple-500' },
-])
+// Market data - will be loaded from API
+const cryptoMarkets = ref([])
 
 const fiatRates = ref([
   { pair: 'EUR/USD', rate: 1.0856, change: 0.0023 },
@@ -290,12 +285,8 @@ const fiatRates = ref([
   { pair: 'USD/CHF', rate: 0.8912, change: 0.0067 }
 ])
 
-const recentActivities = ref([
-  { id: 1, icon: '₿', title: 'Achat Bitcoin', description: '0.02 BTC', amount: '$900.50', time: new Date(Date.now() - 2 * 60 * 60 * 1000), bgColor: 'bg-orange-500' },
-  { id: 2, icon: '💳', title: 'Rechargement carte', description: 'Carte virtuelle', amount: '$200.00', time: new Date(Date.now() - 4 * 60 * 60 * 1000), bgColor: 'bg-blue-500' },
-  { id: 3, icon: '💱', title: 'Conversion USD → EUR', description: '1000 USD', amount: '€845.60', time: new Date(Date.now() - 6 * 60 * 60 * 1000), bgColor: 'bg-green-500' },
-  { id: 4, icon: '💸', title: 'Transfert', description: 'Mobile Money', amount: '$50.00', time: new Date(Date.now() - 12 * 60 * 60 * 1000), bgColor: 'bg-purple-500' },
-])
+// Recent activities - will be loaded from API
+const recentActivities = ref([])
 
 // Methods
 const formatMoney = (amount) => {
