@@ -203,6 +203,7 @@ definePageMeta({
 })
 
 const router = useRouter()
+const config = useRuntimeConfig()
 
 const registerForm = ref({
   email: '',
@@ -238,7 +239,8 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
-    const response = await $fetch('/api/v1/auth/register', {
+    const apiUrl = config.public.apiBaseUrl || 'https://api.app.maximeetundi.store'
+    const response = await $fetch(`${apiUrl}/api/v1/auth/register`, {
       method: 'POST',
       body: {
         email: registerForm.value.email,
