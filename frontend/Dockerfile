@@ -30,6 +30,11 @@ RUN adduser --system --uid 1001 nuxtjs
 # Copy built application
 COPY --from=builder --chown=nuxtjs:nodejs /app/.output ./.output
 
+# Fix Nuxt bug: server looks in server/chunks/public but files are in public
+# Create symlink to fix the path resolution
+RUN mkdir -p .output/server/chunks && \
+    ln -s /app/.output/public .output/server/chunks/public
+
 USER nuxtjs
 
 # Expose port
@@ -41,3 +46,4 @@ ENV NODE_ENV=production
 # Start the application
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", ".output/server/index.mjs"]
+
