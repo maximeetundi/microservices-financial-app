@@ -105,18 +105,18 @@ func (sm *ServiceManager) Login(ctx context.Context, email, password string) (*S
 		"email":    email,
 		"password": password,
 	}
-	return sm.CallService(ctx, "auth", "POST", "/login", body, nil)
+	return sm.CallService(ctx, "auth", "POST", "/api/v1/login", body, nil)
 }
 
 func (sm *ServiceManager) Register(ctx context.Context, userData map[string]interface{}) (*ServiceResponse, error) {
-	return sm.CallService(ctx, "auth", "POST", "/register", userData, nil)
+	return sm.CallService(ctx, "auth", "POST", "/api/v1/register", userData, nil)
 }
 
 func (sm *ServiceManager) RefreshToken(ctx context.Context, refreshToken string) (*ServiceResponse, error) {
 	body := map[string]string{
 		"refresh_token": refreshToken,
 	}
-	return sm.CallService(ctx, "auth", "POST", "/refresh", body, nil)
+	return sm.CallService(ctx, "auth", "POST", "/api/v1/refresh", body, nil)
 }
 
 // User Service calls
