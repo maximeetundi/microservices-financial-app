@@ -1,6 +1,16 @@
 import axios from 'axios'
 
-const API_URL = process.env.API_BASE_URL || 'http://localhost:8080'
+// Use runtime config in Nuxt context, fallback to production API
+const getApiUrl = () => {
+    if (typeof window !== 'undefined') {
+        // Client-side: use the API URL
+        return 'https://api.app.maximeetundi.store'
+    }
+    // Server-side or fallback
+    return process.env.API_BASE_URL || 'http://api-gateway:8080'
+}
+
+const API_URL = getApiUrl()
 
 const api = axios.create({
     baseURL: `${API_URL}/api/v1`,
