@@ -257,7 +257,7 @@ import { dashboardAPI, exchangeAPI } from '~/composables/useApi'
 
 const authStore = useAuthStore()
 
-const userName = computed(() => authStore.user?.firstName || 'Utilisateur')
+const userName = computed(() => authStore.user?.first_name || 'Utilisateur')
 
 const loading = ref(true)
 const refreshing = ref(false)

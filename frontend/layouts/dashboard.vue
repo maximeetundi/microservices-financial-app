@@ -99,7 +99,7 @@ const authStore = useAuthStore()
 
 const userName = computed(() => {
   if (authStore.user) {
-    return `${authStore.user.firstName} ${authStore.user.lastName}`
+    return `${authStore.user.first_name || ''} ${authStore.user.last_name || ''}`
   }
   return 'Utilisateur'
 })
@@ -108,7 +108,7 @@ const userEmail = computed(() => authStore.user?.email || '')
 
 const userInitials = computed(() => {
   if (authStore.user) {
-    return `${authStore.user.firstName?.[0] || ''}${authStore.user.lastName?.[0] || ''}`
+    return `${authStore.user.first_name?.[0] || ''}${authStore.user.last_name?.[0] || ''}`
   }
   return 'U'
 })
