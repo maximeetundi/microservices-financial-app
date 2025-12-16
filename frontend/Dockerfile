@@ -28,6 +28,10 @@ RUN rm -rf /etc/nginx/conf.d/default.conf /usr/share/nginx/html/*
 # Copy generated static files to nginx html folder
 COPY --from=builder /app/.output/public /usr/share/nginx/html
 
+# Fix permissions for nginx
+RUN chmod -R 755 /usr/share/nginx/html && \
+    chown -R nginx:nginx /usr/share/nginx/html
+
 # Create custom nginx config
 RUN printf 'server {\n\
     listen 3000;\n\
