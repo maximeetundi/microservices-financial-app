@@ -207,7 +207,25 @@ services:
     networks:
       - crypto-bank-network
 
-  # Frontend Nuxt.js
+  # Support Service
+  support-service:
+    build:
+      context: ./services
+      dockerfile: ./support-service/Dockerfile
+    ports:
+      - "8089:8089"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    environment:
+      - DATABASE_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=your-super-secret-jwt-key-2024
+    networks:
+      - crypto-bank-network
+
   frontend:
     build:
       context: ./frontend
