@@ -3,6 +3,13 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments
+ARG API_URL=https://api.app.maximeetundi.store
+
+# Set environment for build
+ENV API_URL=$API_URL
+ENV API_BASE_URL=$API_URL
+
 # Copy package files
 COPY package*.json ./
 
