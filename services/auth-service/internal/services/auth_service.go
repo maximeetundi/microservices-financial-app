@@ -142,7 +142,7 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 
 	// Remove sensitive data
 	user.PasswordHash = ""
-	user.TwoFASecret = ""
+	user.TwoFASecret = nil
 
 	return &models.LoginResponse{
 		AccessToken:  accessToken,
@@ -192,7 +192,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (*models.LoginResponse, 
 
 	// Remove sensitive data
 	user.PasswordHash = ""
-	user.TwoFASecret = ""
+	user.TwoFASecret = nil
 
 	return &models.LoginResponse{
 		AccessToken:  newAccessToken,
