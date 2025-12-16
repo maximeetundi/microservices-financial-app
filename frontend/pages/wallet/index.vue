@@ -147,6 +147,76 @@
         </div>
       </div>
     </div>
+
+    <!-- Create Wallet Modal -->
+    <div v-if="showCreateWallet" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-xl">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-gray-900">Nouveau Portefeuille</h3>
+          <button @click="showCreateWallet = false" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <form @submit.prevent="createWallet" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Type de devise</label>
+            <select v-model="newWallet.type" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+              <option value="fiat">Devise Fiat (USD, EUR...)</option>
+              <option value="crypto">Crypto-monnaie (BTC, ETH...)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Devise</label>
+            <select v-model="newWallet.currency" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+              <template v-if="newWallet.type === 'fiat'">
+                <option value="USD">🇺🇸 Dollar US (USD)</option>
+                <option value="EUR">🇪🇺 Euro (EUR)</option>
+                <option value="GBP">🇬🇧 Livre Sterling (GBP)</option>
+                <option value="XOF">🇨🇮 Franc CFA (XOF)</option>
+                <option value="XAF">🇨🇲 Franc CFA (XAF)</option>
+              </template>
+              <template v-else>
+                <option value="BTC">₿ Bitcoin (BTC)</option>
+                <option value="ETH">Ξ Ethereum (ETH)</option>
+                <option value="USDT">💵 Tether (USDT)</option>
+                <option value="SOL">◎ Solana (SOL)</option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nom du portefeuille</label>
+            <input 
+              v-model="newWallet.name" 
+              type="text" 
+              placeholder="ex: Mon portefeuille principal"
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <button 
+              type="button" 
+              @click="showCreateWallet = false"
+              class="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+            <button 
+              type="submit" 
+              :disabled="creatingWallet"
+              class="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {{ creatingWallet ? 'Création...' : 'Créer le portefeuille' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </NuxtLayout>
 </template>
 
@@ -161,6 +231,14 @@ const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showDeposit = ref(false)
 const showSend = ref(false)
+const creatingWallet = ref(false)
+
+// New wallet form
+const newWallet = ref({
+  type: 'fiat',
+  currency: 'USD',
+  name: ''
+})
 
 // Transactions - will be loaded from API
 const transactions = ref([])
@@ -217,6 +295,28 @@ const fetchWallets = async () => {
     }
   } catch (e) {
     console.log('Using mock data')
+  }
+}
+
+const createWallet = async () => {
+  creatingWallet.value = true
+  try {
+    const response = await walletAPI.create({
+      currency: newWallet.value.currency,
+      name: newWallet.value.name || `Mon Portefeuille ${newWallet.value.currency}`,
+      type: newWallet.value.type
+    })
+    if (response.data) {
+      wallets.value.push(response.data)
+      showCreateWallet.value = false
+      newWallet.value = { type: 'fiat', currency: 'USD', name: '' }
+      alert('Portefeuille créé avec succès!')
+    }
+  } catch (e) {
+    console.error('Error creating wallet:', e)
+    alert('Erreur lors de la création du portefeuille')
+  } finally {
+    creatingWallet.value = false
   }
 }
 

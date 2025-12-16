@@ -28,20 +28,13 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	// CORS configuration
+	// CORS configuration - Allow all origins to fix 301 redirect CORS issues
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:3000",
-			"http://localhost:3002",
-			"https://app.maximeetundi.store",
-			"https://admin.maximeetundi.store",
-			"https://api.app.maximeetundi.store",
-			"https://api.admin.maximeetundi.store",
-		},
+		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
-		AllowCredentials: true,
+		AllowCredentials: false, // Must be false when AllowAllOrigins is true
 	}))
 
 	// Security middleware
