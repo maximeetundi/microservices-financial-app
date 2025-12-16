@@ -63,6 +63,7 @@ func main() {
 	walletService.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
 		routes.SetupWalletRoutes(walletService.Group("/wallets"), serviceManager)
+		routes.SetupDashboardRoutes(walletService.Group("/dashboard"), serviceManager)
 	}
 
 	// Transfer Service routes: /transfer-service/api/v1/...

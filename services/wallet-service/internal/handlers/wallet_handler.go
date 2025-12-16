@@ -371,3 +371,140 @@ func (h *WalletHandler) HandleCryptoDeposit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit processed"})
 }
+
+// GetDashboardSummary returns summary statistics for the user's dashboard
+func (h *WalletHandler) GetDashboardSummary(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Get all wallets for user
+	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	if err != nil {
+		// Return empty summary on error
+		c.JSON(http.StatusOK, gin.H{
+			"totalBalance":     0,
+			"cryptoBalance":    0,
+			"cardsBalance":     0,
+			"activeCards":      0,
+			"monthlyTransfers": 0,
+			"monthlyVolume":    0,
+		})
+		return
+	}
+
+	// Calculate totals
+	var totalBalance, cryptoBalance, fiatBalance float64
+	for _, wallet := range wallets {
+		if wallet.WalletType == "crypto" {
+			cryptoBalance += wallet.Balance
+		} else {
+			fiatBalance += wallet.Balance
+		}
+		totalBalance += wallet.Balance
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"totalBalance":     totalBalance,
+		"cryptoBalance":    cryptoBalance,
+		"cardsBalance":     0, // TODO: Integrate with card service
+		"activeCards":      0, // TODO: Integrate with card service
+		"monthlyTransfers": 0, // TODO: Calculate from transactions
+		"monthlyVolume":    0, // TODO: Calculate from transactions
+	})
+}
+
+// GetRecentActivity returns recent transactions/activity for the user
+func (h *WalletHandler) GetRecentActivity(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if limit > 50 {
+		limit = 50
+	}
+
+	// Get user wallets first
+	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	if err != nil || len(wallets) == 0 {
+		c.JSON(http.StatusOK, gin.H{"activities": []interface{}{}})
+		return
+	}
+
+	// Get transactions from all wallets
+	var activities []map[string]interface{}
+	for _, wallet := range wallets {
+		transactions, err := h.walletService.GetTransactionHistory(wallet.ID.String(), userID.(string), 5, 0, "", "")
+		if err == nil {
+			for _, tx := range transactions {
+				activities = append(activities, map[string]interface{}{
+					"id":          tx.ID,
+					"icon":        getTransactionIcon(tx.Type),
+					"title":       getTransactionTitle(tx.Type),
+					"description": tx.Description,
+					"amount":      tx.Amount,
+					"currency":    tx.Currency,
+					"time":        tx.CreatedAt,
+					"bgColor":     getTransactionBgColor(tx.Type),
+				})
+			}
+		}
+		if len(activities) >= limit {
+			break
+		}
+	}
+
+	// Limit results
+	if len(activities) > limit {
+		activities = activities[:limit]
+	}
+
+	c.JSON(http.StatusOK, gin.H{"activities": activities})
+}
+
+func getTransactionIcon(txType string) string {
+	icons := map[string]string{
+		"deposit":  "↓",
+		"withdraw": "↑",
+		"transfer": "💸",
+		"exchange": "💱",
+		"payment":  "💳",
+	}
+	if icon, ok := icons[txType]; ok {
+		return icon
+	}
+	return "💰"
+}
+
+func getTransactionTitle(txType string) string {
+	titles := map[string]string{
+		"deposit":  "Dépôt",
+		"withdraw": "Retrait",
+		"transfer": "Transfert",
+		"exchange": "Échange",
+		"payment":  "Paiement",
+	}
+	if title, ok := titles[txType]; ok {
+		return title
+	}
+	return "Transaction"
+}
+
+func getTransactionBgColor(txType string) string {
+	colors := map[string]string{
+		"deposit":  "bg-green-500",
+		"withdraw": "bg-red-500",
+		"transfer": "bg-purple-500",
+		"exchange": "bg-blue-500",
+		"payment":  "bg-orange-500",
+	}
+	if color, ok := colors[txType]; ok {
+		return color
+	}
+	return "bg-gray-500"
+}

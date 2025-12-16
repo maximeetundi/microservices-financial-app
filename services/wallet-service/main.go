@@ -108,6 +108,13 @@ func main() {
 				crypto.POST("/:wallet_id/estimate-fee", walletHandler.EstimateTransactionFee)
 			}
 
+			// Dashboard routes
+			dashboard := protected.Group("/dashboard")
+			{
+				dashboard.GET("/summary", walletHandler.GetDashboardSummary)
+				dashboard.GET("/activity", walletHandler.GetRecentActivity)
+			}
+
 			// Merchant payment routes
 			merchant := protected.Group("/merchant")
 			{
