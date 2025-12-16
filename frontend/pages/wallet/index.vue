@@ -313,9 +313,10 @@ const createWallet = async () => {
       alert('Portefeuille créé avec succès!')
       fetchWallets() // Refresh the list
     }
-  } catch (e: any) {
+  } catch (e) {
     console.error('Error creating wallet:', e)
-    alert(e.response?.data?.error || 'Erreur lors de la création du portefeuille')
+    const error = e as any
+    alert(error.response?.data?.error || 'Erreur lors de la création du portefeuille')
   } finally {
     creatingWallet.value = false
   }
