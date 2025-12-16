@@ -7,7 +7,7 @@
           <h1 class="text-2xl font-bold text-gray-900">Portfolio</h1>
           <div class="flex items-center space-x-4">
             <NuxtLink to="/exchange/trading" 
-                      class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                      class="bg-blue-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-blue-700">
               Trade
             </NuxtLink>
           </div>
@@ -125,7 +125,7 @@
               <tr v-for="holding in portfolio.holdings" :key="holding.currency" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
-                    <div class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                    <div class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-gray-900 text-sm font-bold"
                          :class="getCurrencyColor(holding.currency)">
                       {{ holding.currency.substring(0, 2) }}
                     </div>

@@ -89,7 +89,7 @@
                     </div>
 
                     <button type="submit" :disabled="!isValidBuyOrder" 
-                            class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50">
+                            class="w-full bg-green-600 text-gray-900 py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50">
                       {{ buyOrder.type === 'market' ? 'Buy Now' : 'Place Buy Order' }}
                     </button>
                   </div>
@@ -129,7 +129,7 @@
                     </div>
 
                     <button type="submit" :disabled="!isValidSellOrder" 
-                            class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50">
+                            class="w-full bg-red-600 text-gray-900 py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50">
                       {{ sellOrder.type === 'market' ? 'Sell Now' : 'Place Sell Order' }}
                     </button>
                   </div>

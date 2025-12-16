@@ -7,7 +7,7 @@
           <h1 class="text-2xl font-bold text-gray-900">Orders</h1>
           <div class="flex items-center space-x-4">
             <NuxtLink to="/exchange/trading" 
-                      class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                      class="bg-blue-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-blue-700">
               New Order
             </NuxtLink>
           </div>
@@ -131,7 +131,7 @@
         </div>
         <div class="flex space-x-2">
           <button class="px-3 py-1 text-sm border rounded hover:bg-gray-50">Previous</button>
-          <button class="px-3 py-1 text-sm bg-blue-600 text-white rounded">1</button>
+          <button class="px-3 py-1 text-sm bg-blue-600 text-gray-900 rounded">1</button>
           <button class="px-3 py-1 text-sm border rounded hover:bg-gray-50">2</button>
           <button class="px-3 py-1 text-sm border rounded hover:bg-gray-50">Next</button>
         </div>
@@ -198,7 +198,7 @@
         <div class="mt-6 flex space-x-3">
           <button v-if="selectedOrder.status === 'pending'" 
                   @click="cancelOrder(selectedOrder.id); selectedOrder = null"
-                  class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">
+                  class="flex-1 bg-red-600 text-gray-900 py-2 px-4 rounded-lg hover:bg-red-700">
             Cancel Order
           </button>
           <button @click="selectedOrder = null" 

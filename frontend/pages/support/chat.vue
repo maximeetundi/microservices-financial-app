@@ -5,7 +5,7 @@
       <div class="max-w-5xl mx-auto px-4 py-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <NuxtLink to="/support" class="text-white/60 hover:text-white transition">
+            <NuxtLink to="/support" class="text-gray-900/60 hover:text-gray-900 transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
@@ -18,7 +18,7 @@
                 <div class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900"></div>
               </div>
               <div>
-                <h1 class="text-white font-semibold text-sm">{{ conversation.agent_type === 'ai' ? 'Assistant IA' : agentName }}</h1>
+                <h1 class="text-gray-900 font-semibold text-sm">{{ conversation.agent_type === 'ai' ? 'Assistant IA' : agentName }}</h1>
                 <p class="text-green-400 text-xs flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                   En ligne
@@ -36,7 +36,7 @@
             </button>
             <button 
               @click="closeConversation"
-              class="px-3 py-1.5 bg-white/10 text-white/60 text-sm rounded-lg hover:bg-white/20 transition"
+              class="px-3 py-1.5 bg-white/10 text-gray-900/60 text-sm rounded-lg hover:bg-white/20 transition"
             >
               Fermer
             </button>
@@ -51,7 +51,7 @@
         <!-- Date Separator -->
         <div class="flex items-center justify-center">
           <div class="bg-white/10 px-3 py-1 rounded-full">
-            <span class="text-white/50 text-xs">{{ formatDateHeader(new Date()) }}</span>
+            <span class="text-gray-900/50 text-xs">{{ formatDateHeader(new Date()) }}</span>
           </div>
         </div>
 
@@ -69,9 +69,9 @@
             </div>
             <div>
               <div class="bg-white/10 backdrop-blur-lg rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-                <p class="text-white whitespace-pre-wrap">{{ message.content }}</p>
+                <p class="text-gray-900 whitespace-pre-wrap">{{ message.content }}</p>
               </div>
-              <p class="text-white/40 text-xs mt-1 ml-1">{{ formatTime(message.created_at) }}</p>
+              <p class="text-gray-900/40 text-xs mt-1 ml-1">{{ formatTime(message.created_at) }}</p>
             </div>
           </div>
 
@@ -79,9 +79,9 @@
           <div v-else class="flex items-start gap-3 max-w-[80%]">
             <div class="order-2">
               <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl rounded-tr-sm px-4 py-3">
-                <p class="text-white whitespace-pre-wrap">{{ message.content }}</p>
+                <p class="text-gray-900 whitespace-pre-wrap">{{ message.content }}</p>
               </div>
-              <p class="text-white/40 text-xs mt-1 mr-1 text-right">
+              <p class="text-gray-900/40 text-xs mt-1 mr-1 text-right">
                 {{ formatTime(message.created_at) }}
                 <span v-if="message.is_read" class="text-blue-400 ml-1">✓✓</span>
               </p>
@@ -113,7 +113,7 @@
             v-for="reply in quickReplies" 
             :key="reply"
             @click="sendQuickReply(reply)"
-            class="px-3 py-1.5 bg-white/10 text-white/80 text-sm rounded-full hover:bg-white/20 transition border border-white/10"
+            class="px-3 py-1.5 bg-white/10 text-gray-900/80 text-sm rounded-full hover:bg-white/20 transition border border-white/10"
           >
             {{ reply }}
           </button>
@@ -132,14 +132,14 @@
               @keydown.enter.exact.prevent="sendMessage"
               placeholder="Écrivez votre message..."
               rows="1"
-              class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none max-h-32"
+              class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none max-h-32"
               :disabled="sending"
             ></textarea>
           </div>
           <button 
             type="submit"
             :disabled="!newMessage.trim() || sending"
-            class="p-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-3 bg-gradient-to-r from-blue-500 to-purple-600 text-gray-900 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -152,7 +152,7 @@
     <!-- Satisfaction Modal -->
     <div v-if="showRatingModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div class="bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10">
-        <h3 class="text-xl font-bold text-white mb-4 text-center">Comment évaluez-vous cette conversation ?</h3>
+        <h3 class="text-xl font-bold text-gray-900 mb-4 text-center">Comment évaluez-vous cette conversation ?</h3>
         <div class="flex justify-center gap-2 mb-6">
           <button 
             v-for="star in 5" 
@@ -166,19 +166,19 @@
         <textarea
           v-model="feedback"
           placeholder="Commentaire (optionnel)"
-          class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none mb-4"
+          class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none mb-4"
           rows="3"
         ></textarea>
         <div class="flex gap-3">
           <button 
             @click="submitRating"
-            class="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl"
+            class="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-gray-900 rounded-xl"
           >
             Envoyer
           </button>
           <button 
             @click="showRatingModal = false; navigateToSupport()"
-            class="flex-1 py-3 bg-white/10 text-white rounded-xl"
+            class="flex-1 py-3 bg-white/10 text-gray-900 rounded-xl"
           >
             Passer
           </button>

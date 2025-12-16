@@ -3,8 +3,8 @@
     <div class="max-w-4xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">Envoyer de l'argent 💸</h1>
-        <p class="text-white/60">Transferts internationaux, Mobile Money, et virements bancaires</p>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Envoyer de l'argent 💸</h1>
+        <p class="text-gray-900/60">Transferts internationaux, Mobile Money, et virements bancaires</p>
       </div>
 
       <!-- Transfer Type Selector -->
@@ -15,8 +15,8 @@
           class="glass-card p-6 text-left transition-all"
           :class="selectedType === type.id ? 'ring-2 ring-indigo-500' : ''">
           <span class="text-3xl mb-3 block">{{ type.icon }}</span>
-          <h3 class="font-semibold text-white mb-1">{{ type.name }}</h3>
-          <p class="text-sm text-white/50">{{ type.description }}</p>
+          <h3 class="font-semibold text-gray-900 mb-1">{{ type.name }}</h3>
+          <p class="text-sm text-gray-900/50">{{ type.description }}</p>
         </button>
       </div>
 
@@ -25,7 +25,7 @@
         <form @submit.prevent="submitTransfer" class="space-y-6">
           <!-- Amount -->
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">Montant à envoyer</label>
+            <label class="block text-sm font-medium text-gray-900/80 mb-2">Montant à envoyer</label>
             <div class="flex gap-4">
               <input
                 v-model.number="form.amount"
@@ -48,7 +48,7 @@
 
           <!-- Recipient -->
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">
+            <label class="block text-sm font-medium text-gray-900/80 mb-2">
               {{ getRecipientLabel }}
             </label>
             <input
@@ -62,7 +62,7 @@
 
           <!-- Country (for Mobile Money) -->
           <div v-if="selectedType === 'mobile'">
-            <label class="block text-sm font-medium text-white/80 mb-2">Pays du destinataire</label>
+            <label class="block text-sm font-medium text-gray-900/80 mb-2">Pays du destinataire</label>
             <select v-model="form.country" class="input-premium">
               <option value="CI">🇨🇮 Côte d'Ivoire</option>
               <option value="SN">🇸🇳 Sénégal</option>
@@ -75,7 +75,7 @@
 
           <!-- Bank (for Wire) -->
           <div v-if="selectedType === 'wire'">
-            <label class="block text-sm font-medium text-white/80 mb-2">Banque du destinataire</label>
+            <label class="block text-sm font-medium text-gray-900/80 mb-2">Banque du destinataire</label>
             <input
               v-model="form.bankName"
               type="text"
@@ -86,7 +86,7 @@
 
           <!-- Description -->
           <div>
-            <label class="block text-sm font-medium text-white/80 mb-2">Motif du transfert</label>
+            <label class="block text-sm font-medium text-gray-900/80 mb-2">Motif du transfert</label>
             <input
               v-model="form.description"
               type="text"
@@ -97,19 +97,19 @@
 
           <!-- Summary -->
           <div class="p-6 rounded-xl bg-white/5">
-            <h4 class="font-semibold text-white mb-4">Résumé</h4>
+            <h4 class="font-semibold text-gray-900 mb-4">Résumé</h4>
             <div class="space-y-3 text-sm">
               <div class="flex justify-between">
-                <span class="text-white/60">Montant envoyé</span>
-                <span class="text-white font-medium">{{ formatMoney(form.amount || 0, form.currency) }}</span>
+                <span class="text-gray-900/60">Montant envoyé</span>
+                <span class="text-gray-900 font-medium">{{ formatMoney(form.amount || 0, form.currency) }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-white/60">Frais de transfert</span>
-                <span class="text-white font-medium">{{ formatMoney(fees, form.currency) }}</span>
+                <span class="text-gray-900/60">Frais de transfert</span>
+                <span class="text-gray-900 font-medium">{{ formatMoney(fees, form.currency) }}</span>
               </div>
               <div class="border-t border-white/10 pt-3 flex justify-between">
-                <span class="text-white font-semibold">Total débité</span>
-                <span class="text-white font-bold text-lg">{{ formatMoney((form.amount || 0) + fees, form.currency) }}</span>
+                <span class="text-gray-900 font-semibold">Total débité</span>
+                <span class="text-gray-900 font-bold text-lg">{{ formatMoney((form.amount || 0) + fees, form.currency) }}</span>
               </div>
               <div class="flex justify-between text-emerald-400">
                 <span>Le destinataire reçoit</span>
@@ -131,7 +131,7 @@
 
       <!-- Recent Transfers -->
       <div class="glass-card p-6 mt-8">
-        <h3 class="text-lg font-semibold text-white mb-6">Transferts récents</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-6">Transferts récents</h3>
         <div class="space-y-4">
           <div v-for="tx in recentTransfers" :key="tx.id" 
               class="flex items-center justify-between p-4 rounded-xl bg-white/5">
@@ -140,13 +140,13 @@
                 <span class="text-lg">💸</span>
               </div>
               <div>
-                <p class="font-medium text-white">{{ tx.recipient }}</p>
-                <p class="text-sm text-white/50">{{ tx.type }} • {{ formatDate(tx.date) }}</p>
+                <p class="font-medium text-gray-900">{{ tx.recipient }}</p>
+                <p class="text-sm text-gray-900/50">{{ tx.type }} • {{ formatDate(tx.date) }}</p>
               </div>
             </div>
             <div class="flex items-center gap-4">
               <span class="badge" :class="getStatusClass(tx.status)">{{ tx.status }}</span>
-              <p class="font-semibold text-white">{{ formatMoney(tx.amount, tx.currency) }}</p>
+              <p class="font-semibold text-gray-900">{{ formatMoney(tx.amount, tx.currency) }}</p>
             </div>
           </div>
         </div>
@@ -213,10 +213,8 @@ const getRecipientPlaceholder = computed(() => {
   return '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD'
 })
 
-const recentTransfers = ref([
-  { id: '1', recipient: '+225 07 12 34 56', amount: 100, currency: 'USD', type: 'Mobile Money', status: 'completed', date: new Date() },
-  { id: '2', recipient: 'FR76 1234...', amount: 500, currency: 'EUR', type: 'Virement', status: 'pending', date: new Date(Date.now() - 86400000) },
-])
+// Recent transfers - will be loaded from API
+const recentTransfers = ref([])
 
 const formatMoney = (amount, currency = 'USD') => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount)

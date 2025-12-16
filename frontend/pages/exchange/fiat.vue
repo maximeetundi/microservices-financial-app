@@ -47,7 +47,7 @@
           <div class="flex items-center justify-center">
             <button
               @click="swapCurrencies"
-              class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full transition-colors duration-200"
+              class="bg-blue-500 hover:bg-blue-600 text-gray-900 p-3 rounded-full transition-colors duration-200"
               :disabled="loading"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +116,7 @@
           <button
             @click="executeFiatConversion"
             :disabled="!canConvert || loading"
-            class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:scale-100"
+            class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-gray-900 font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:scale-100"
           >
             <span v-if="loading" class="flex items-center justify-center">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>

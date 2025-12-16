@@ -107,7 +107,7 @@
               <button v-for="period in chartPeriods" :key="period.value"
                       @click="selectedPeriod = period.value"
                       :class="selectedPeriod === period.value 
-                        ? 'bg-blue-600 text-white' 
+                        ? 'bg-blue-600 text-gray-900' 
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
                       class="px-3 py-1 text-sm rounded">
                 {{ period.label }}
@@ -126,7 +126,7 @@
             <div v-for="holding in topHoldings" :key="holding.currency" 
                  class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-gray-900 font-bold"
                      :class="getCurrencyColor(holding.currency)">
                   {{ getCurrencySymbol(holding.currency) }}
                 </div>
@@ -159,7 +159,7 @@
             <NuxtLink to="/wallet" 
                       class="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group">
               <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-3 group-hover:bg-blue-700">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                         d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                 </svg>
@@ -170,7 +170,7 @@
             <NuxtLink to="/exchange" 
                       class="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors group">
               <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-3 group-hover:bg-green-700">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                         d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                 </svg>
@@ -181,7 +181,7 @@
             <NuxtLink to="/transfer" 
                       class="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors group">
               <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-3 group-hover:bg-purple-700">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                         d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                 </svg>
@@ -192,7 +192,7 @@
             <NuxtLink to="/cards" 
                       class="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors group">
               <div class="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center mb-3 group-hover:bg-yellow-700">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
                         d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                 </svg>
@@ -225,7 +225,7 @@
                 <tr v-for="market in marketData" :key="market.symbol" class="border-b border-gray-50">
                   <td class="py-3">
                     <div class="flex items-center">
-                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3"
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-gray-900 text-sm font-bold mr-3"
                            :class="getCurrencyColor(market.symbol.split('/')[0])">
                         {{ getCurrencySymbol(market.symbol.split('/')[0]) }}
                       </div>

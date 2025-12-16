@@ -5,14 +5,14 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <NuxtLink to="/dashboard" class="text-white/60 hover:text-white transition">
+            <NuxtLink to="/dashboard" class="text-gray-900/60 hover:text-gray-900 transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
             </NuxtLink>
             <div>
-              <h1 class="text-2xl font-bold text-white">Centre d'Assistance</h1>
-              <p class="text-white/60 text-sm">Nous sommes là pour vous aider 24/7</p>
+              <h1 class="text-2xl font-bold text-gray-900">Centre d'Assistance</h1>
+              <p class="text-gray-900/60 text-sm">Nous sommes là pour vous aider 24/7</p>
             </div>
           </div>
         </div>
@@ -30,8 +30,8 @@
               </svg>
             </div>
             <div>
-              <p class="text-white/60 text-sm">Temps de réponse</p>
-              <p class="text-white text-xl font-bold">~2 min</p>
+              <p class="text-gray-900/60 text-sm">Temps de réponse</p>
+              <p class="text-gray-900 text-xl font-bold">~2 min</p>
             </div>
           </div>
         </div>
@@ -43,8 +43,8 @@
               </svg>
             </div>
             <div>
-              <p class="text-white/60 text-sm">Disponibilité</p>
-              <p class="text-white text-xl font-bold">24h/24 7j/7</p>
+              <p class="text-gray-900/60 text-sm">Disponibilité</p>
+              <p class="text-gray-900 text-xl font-bold">24h/24 7j/7</p>
             </div>
           </div>
         </div>
@@ -56,8 +56,8 @@
               </svg>
             </div>
             <div>
-              <p class="text-white/60 text-sm">Satisfaction</p>
-              <p class="text-white text-xl font-bold">98%</p>
+              <p class="text-gray-900/60 text-sm">Satisfaction</p>
+              <p class="text-gray-900 text-xl font-bold">98%</p>
             </div>
           </div>
         </div>
@@ -65,7 +65,7 @@
 
       <!-- Agent Selection -->
       <div class="mb-8" v-if="!selectedAgent && !activeConversation">
-        <h2 class="text-xl font-semibold text-white mb-4">Comment souhaitez-vous être aidé ?</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Comment souhaitez-vous être aidé ?</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- AI Agent Card -->
           <div 
@@ -77,22 +77,22 @@
               <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-6 text-4xl">
                 🤖
               </div>
-              <h3 class="text-2xl font-bold text-white mb-2">Assistant IA</h3>
-              <p class="text-white/70 mb-4">Réponses instantanées 24/7 pour les questions courantes. Idéal pour les demandes simples.</p>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">Assistant IA</h3>
+              <p class="text-gray-900/70 mb-4">Réponses instantanées 24/7 pour les questions courantes. Idéal pour les demandes simples.</p>
               <ul class="space-y-2">
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
                   Réponse instantanée
                 </li>
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
                   Disponible 24h/24
                 </li>
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
@@ -112,22 +112,22 @@
               <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-6 text-4xl">
                 👤
               </div>
-              <h3 class="text-2xl font-bold text-white mb-2">Conseiller Humain</h3>
-              <p class="text-white/70 mb-4">Pour les demandes complexes nécessitant une intervention ou une décision spécifique.</p>
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">Conseiller Humain</h3>
+              <p class="text-gray-900/70 mb-4">Pour les demandes complexes nécessitant une intervention ou une décision spécifique.</p>
               <ul class="space-y-2">
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
                   Analyse personnalisée
                 </li>
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
                   Peut prendre des actions
                 </li>
-                <li class="flex items-center gap-2 text-white/80">
+                <li class="flex items-center gap-2 text-gray-900/80">
                   <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
                   </svg>
@@ -143,7 +143,7 @@
       <div v-if="selectedAgent && !activeConversation" class="max-w-2xl mx-auto">
         <div class="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
           <div class="flex items-center gap-4 mb-6">
-            <button @click="selectedAgent = null" class="text-white/60 hover:text-white">
+            <button @click="selectedAgent = null" class="text-gray-900/60 hover:text-gray-900">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
@@ -153,29 +153,29 @@
                 {{ selectedAgent === 'ai' ? '🤖' : '👤' }}
               </div>
               <div>
-                <h3 class="text-white font-semibold">{{ selectedAgent === 'ai' ? 'Assistant IA' : 'Conseiller Humain' }}</h3>
-                <p class="text-white/60 text-sm">{{ selectedAgent === 'ai' ? 'Réponse instantanée' : 'Temps d\'attente: ~3 min' }}</p>
+                <h3 class="text-gray-900 font-semibold">{{ selectedAgent === 'ai' ? 'Assistant IA' : 'Conseiller Humain' }}</h3>
+                <p class="text-gray-900/60 text-sm">{{ selectedAgent === 'ai' ? 'Réponse instantanée' : 'Temps d\'attente: ~3 min' }}</p>
               </div>
             </div>
           </div>
 
           <form @submit.prevent="startConversation" class="space-y-6">
             <div>
-              <label class="block text-white/80 mb-2 text-sm font-medium">Sujet</label>
+              <label class="block text-gray-900/80 mb-2 text-sm font-medium">Sujet</label>
               <input 
                 v-model="newConversation.subject" 
                 type="text" 
                 placeholder="Ex: Problème avec mon transfert"
-                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition"
+                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition"
                 required
               />
             </div>
 
             <div>
-              <label class="block text-white/80 mb-2 text-sm font-medium">Catégorie</label>
+              <label class="block text-gray-900/80 mb-2 text-sm font-medium">Catégorie</label>
               <select 
                 v-model="newConversation.category"
-                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-500 transition"
+                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 focus:outline-none focus:border-blue-500 transition"
                 required
               >
                 <option value="" disabled class="text-gray-900">Sélectionner une catégorie</option>
@@ -189,12 +189,12 @@
             </div>
 
             <div>
-              <label class="block text-white/80 mb-2 text-sm font-medium">Décrivez votre demande</label>
+              <label class="block text-gray-900/80 mb-2 text-sm font-medium">Décrivez votre demande</label>
               <textarea 
                 v-model="newConversation.message"
                 rows="4"
                 placeholder="Expliquez votre problème ou question..."
-                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none"
+                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none"
                 required
               ></textarea>
             </div>
@@ -202,7 +202,7 @@
             <button 
               type="submit"
               :disabled="loading"
-              class="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
+              class="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-gray-900 font-semibold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
             >
               <span v-if="loading" class="flex items-center justify-center gap-2">
                 <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -219,7 +219,7 @@
 
       <!-- Existing Conversations -->
       <div v-if="!selectedAgent && !activeConversation && conversations.length > 0" class="mt-8">
-        <h2 class="text-xl font-semibold text-white mb-4">Vos conversations</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Vos conversations</h2>
         <div class="space-y-4">
           <div 
             v-for="conv in conversations" 
@@ -233,15 +233,15 @@
                   {{ conv.agent_type === 'ai' ? '🤖' : '👤' }}
                 </div>
                 <div>
-                  <h3 class="text-white font-medium">{{ conv.subject }}</h3>
-                  <p class="text-white/60 text-sm truncate max-w-md">{{ conv.last_message }}</p>
+                  <h3 class="text-gray-900 font-medium">{{ conv.subject }}</h3>
+                  <p class="text-gray-900/60 text-sm truncate max-w-md">{{ conv.last_message }}</p>
                 </div>
               </div>
               <div class="text-right">
                 <span :class="getStatusClass(conv.status)" class="px-2 py-1 rounded-full text-xs font-medium">
                   {{ getStatusLabel(conv.status) }}
                 </span>
-                <p class="text-white/40 text-xs mt-1">{{ formatDate(conv.updated_at) }}</p>
+                <p class="text-gray-900/40 text-xs mt-1">{{ formatDate(conv.updated_at) }}</p>
               </div>
             </div>
           </div>

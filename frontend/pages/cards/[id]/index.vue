@@ -21,7 +21,7 @@
               {{ card.status === 'frozen' ? 'Frozen' : 'Freeze Card' }}
             </button>
             <button @click="showTopUp = true" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    class="bg-blue-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-blue-700">
               Top Up
             </button>
           </div>
@@ -38,7 +38,7 @@
         <div class="bg-white rounded-xl shadow-lg p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-6">Your Card</h3>
           
-          <div class="relative rounded-xl p-6 text-white shadow-lg mb-6"
+          <div class="relative rounded-xl p-6 text-gray-900 shadow-lg mb-6"
                :class="getCardGradient(card.type)">
             
             <!-- Card Type Badge -->
@@ -93,7 +93,7 @@
               Change PIN
             </button>
             <button @click="showSettings = true" 
-                    class="bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium">
+                    class="bg-blue-600 text-gray-900 py-3 px-4 rounded-lg hover:bg-blue-700 font-medium">
               Card Settings
             </button>
           </div>
@@ -332,7 +332,7 @@
               Cancel
             </button>
             <button type="submit" 
-                    class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700">
+                    class="flex-1 bg-blue-600 text-gray-900 py-3 px-4 rounded-lg hover:bg-blue-700">
               Top Up Card
             </button>
           </div>
