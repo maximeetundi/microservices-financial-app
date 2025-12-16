@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string, twoFaCode?: string) {
       this.isLoading = true
       try {
-        const response = await api.post('/api/v1/auth/login', {
+        const response = await api.post('/auth-service/api/v1/auth/login', {
           email,
           password,
           two_fa_code: twoFaCode
@@ -83,7 +83,7 @@ export const useAuthStore = defineStore('auth', {
     async register(userData: any) {
       this.isLoading = true
       try {
-        const response = await api.post('/api/v1/auth/register', userData)
+        const response = await api.post('/auth-service/api/v1/auth/register', userData)
         return { success: true, data: response.data }
       } catch (error: any) {
         return {
@@ -98,7 +98,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         if (this.accessToken) {
-          await api.post('/api/v1/auth/logout', {}, {
+          await api.post('/auth-service/api/v1/auth/logout', {}, {
             headers: { Authorization: `Bearer ${this.accessToken}` }
           })
         }
@@ -124,7 +124,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       try {
-        const response = await api.post('/api/v1/auth/refresh', {
+        const response = await api.post('/auth-service/api/v1/auth/refresh', {
           refresh_token: this.refreshToken
         })
 
@@ -146,7 +146,7 @@ export const useAuthStore = defineStore('auth', {
       if (!this.accessToken) return
 
       try {
-        const response = await api.get('/api/v1/users/profile', {
+        const response = await api.get('/auth-service/api/v1/users/profile', {
           headers: { Authorization: `Bearer ${this.accessToken}` }
         })
 
@@ -159,7 +159,7 @@ export const useAuthStore = defineStore('auth', {
 
     async forgotPassword(email: string) {
       try {
-        await api.post('/api/v1/auth/forgot-password', { email })
+        await api.post('/auth-service/api/v1/auth/forgot-password', { email })
         return { success: true }
       } catch (error: any) {
         return {
@@ -171,7 +171,7 @@ export const useAuthStore = defineStore('auth', {
 
     async resetPassword(token: string, newPassword: string) {
       try {
-        await api.post('/api/v1/auth/reset-password', {
+        await api.post('/auth-service/api/v1/auth/reset-password', {
           token,
           new_password: newPassword
         })

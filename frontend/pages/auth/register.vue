@@ -309,7 +309,7 @@ const handleRegister = async () => {
     const apiUrl = config.public.apiBaseUrl || 'https://api.app.maximeetundi.store'
     // Format date as RFC3339
     const dateOfBirth = registerForm.value.date_of_birth ? `${registerForm.value.date_of_birth}T00:00:00Z` : ''
-    const response = await $fetch(`${apiUrl}/api/v1/auth/register`, {
+    const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {
       method: 'POST',
       body: {
         email: registerForm.value.email,
