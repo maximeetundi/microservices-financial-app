@@ -30,8 +30,15 @@ func main() {
 
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "https://*.cryptobank.app"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://localhost:3002",
+			"https://app.maximeetundi.store",
+			"https://admin.maximeetundi.store",
+			"https://api.app.maximeetundi.store",
+			"https://api.admin.maximeetundi.store",
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
 		AllowCredentials: true,

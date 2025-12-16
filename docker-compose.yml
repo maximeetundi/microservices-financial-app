@@ -279,14 +279,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - API_URL=${API_URL:-https://api.app.maximeetundi.store}
     ports:
       - "3000:3000"
     depends_on:
       - api-gateway
     environment:
-      - API_BASE_URL=http://api-gateway:8080
+      - API_URL=${API_URL:-https://api.app.maximeetundi.store}
+      - API_BASE_URL=${API_URL:-https://api.app.maximeetundi.store}
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Admin Dashboard
   admin-dashboard:
@@ -294,15 +298,16 @@ services:
       context: ./admin-dashboard
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-http://localhost:8088}
+        - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.maximeetundi.store}
     ports:
       - "3002:3002"
     depends_on:
       - admin-service
     environment:
-      - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-http://localhost:8088}
+      - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.maximeetundi.store}
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Monitoring
   prometheus:
