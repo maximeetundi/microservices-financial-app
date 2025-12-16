@@ -105,23 +105,44 @@
               class="input-premium"
             >
               <option value="" disabled>Sélectionnez votre pays</option>
-              <option value="FR">France</option>
-              <option value="BE">Belgique</option>
-              <option value="CH">Suisse</option>
-              <option value="CA">Canada</option>
-              <option value="US">États-Unis</option>
-              <option value="GB">Royaume-Uni</option>
-              <option value="DE">Allemagne</option>
-              <option value="ES">Espagne</option>
-              <option value="IT">Italie</option>
-              <option value="CM">Cameroun</option>
-              <option value="SN">Sénégal</option>
-              <option value="CI">Côte d'Ivoire</option>
-              <option value="MA">Maroc</option>
-              <option value="TN">Tunisie</option>
-              <option value="DZ">Algérie</option>
+              <option value="France">France</option>
+              <option value="Belgique">Belgique</option>
+              <option value="Suisse">Suisse</option>
+              <option value="Canada">Canada</option>
+              <option value="États-Unis">États-Unis</option>
+              <option value="Royaume-Uni">Royaume-Uni</option>
+              <option value="Allemagne">Allemagne</option>
+              <option value="Espagne">Espagne</option>
+              <option value="Italie">Italie</option>
+              <option value="Cameroun">Cameroun</option>
+              <option value="Sénégal">Sénégal</option>
+              <option value="Côte d'Ivoire">Côte d'Ivoire</option>
+              <option value="Maroc">Maroc</option>
+              <option value="Tunisie">Tunisie</option>
+              <option value="Algérie">Algérie</option>
+              <option value="République Démocratique du Congo">RD Congo</option>
+              <option value="Congo">Congo</option>
+              <option value="Gabon">Gabon</option>
+              <option value="Mali">Mali</option>
+              <option value="Burkina Faso">Burkina Faso</option>
+              <option value="Niger">Niger</option>
+              <option value="Togo">Togo</option>
+              <option value="Bénin">Bénin</option>
+              <option value="Guinée">Guinée</option>
+              <option value="Madagascar">Madagascar</option>
+              <option value="Haïti">Haïti</option>
+              <option value="Mauritanie">Mauritanie</option>
+              <option value="Rwanda">Rwanda</option>
+              <option value="Burundi">Burundi</option>
+              <option value="Comores">Comores</option>
+              <option value="Maurice">Maurice</option>
+              <option value="Portugal">Portugal</option>
+              <option value="Pays-Bas">Pays-Bas</option>
+              <option value="Luxembourg">Luxembourg</option>
+              <option value="Monaco">Monaco</option>
             </select>
           </div>
+
 
           <!-- Password -->
           <div>
