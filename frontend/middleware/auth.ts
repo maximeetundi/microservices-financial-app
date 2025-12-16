@@ -1,14 +1,22 @@
 export default defineNuxtRouteMiddleware((to, from) => {
-    // Skip middleware on server
-    if (process.server) return
-
     // Skip for auth pages
     if (to.path.startsWith('/auth')) return
 
-    // Check authentication
-    const token = localStorage.getItem('accessToken')
+    // Use useCookie for SSR compatibility
+    const token = useCookie('auth_token')
+    const accessToken = useCookie('accessToken')
 
-    if (!token) {
+    // Check authentication - check both cookie names for compatibility
+    if (!token.value && !accessToken.value) {
+        // On client side, also check localStorage as fallback
+        if (process.client) {
+            const localToken = localStorage.getItem('accessToken')
+            if (localToken) {
+                // Sync localStorage to cookie
+                accessToken.value = localToken
+                return
+            }
+        }
         return navigateTo('/auth/login')
     }
 })
