@@ -14,14 +14,15 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_URL || process.env.API_BASE_URL || 'http://localhost:8080',
+      apiBaseUrl: process.env.API_URL || process.env.API_BASE_URL || 'https://api.app.maximeetundi.store',
       appName: 'CryptoBank',
       appVersion: '1.0.0'
     }
   },
-  ssr: true,
+  ssr: false,
   nitro: {
-    preset: 'node-server'
+    preset: 'node-server',
+    serveStatic: 'node'
   },
   app: {
     head: {
