@@ -43,10 +43,11 @@ func main() {
 	orderRepo := repository.NewOrderRepository(db)
 
 	// Initialize services
-	rateService := services.NewRateService(rateRepo, cfg)
-	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, mqClient, cfg)
-	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
+	// Initialize services
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
+	rateService := services.NewRateService(rateRepo, cfg)
+	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, mqClient, walletClient, cfg)
+	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
 	
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)

@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"strings"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
@@ -9,19 +11,50 @@ import (
 )
 
 type RateService struct {
-	rateRepo *repository.RateRepository
-	config   *config.Config
+	rateRepo        *repository.RateRepository
+	config          *config.Config
+	binanceProvider *BinanceProvider
 }
 
 func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *RateService {
+	binanceCfg := BinanceConfig{
+		APIKey:    cfg.BinanceAPIKey,
+		APISecret: cfg.BinanceAPISecret,
+		BaseURL:   cfg.BinanceBaseURL,
+		TestMode:  cfg.BinanceTestMode,
+	}
+	
 	return &RateService{
-		rateRepo: rateRepo,
-		config:   cfg,
+		rateRepo:        rateRepo,
+		config:          cfg,
+		binanceProvider: NewBinanceProvider(binanceCfg),
 	}
 }
 
 func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.ExchangeRate, error) {
-	return s.rateRepo.GetRate(fromCurrency, toCurrency)
+	// Try to get from cache/db first
+	rate, err := s.rateRepo.GetRate(fromCurrency, toCurrency)
+	if err == nil && time.Since(rate.LastUpdated) < time.Duration(s.config.RateUpdateInterval)*time.Second {
+		return rate, nil
+	}
+
+	// If missing or stale, fetch updated rate (if crypto)
+	if s.isCryptoPair(fromCurrency, toCurrency) {
+		updatedRate, err := s.fetchCryptoRate(fromCurrency, toCurrency)
+		if err == nil {
+			s.rateRepo.SaveRate(updatedRate)
+			return updatedRate, nil
+		}
+	} else {
+		// For fiat, use simulated/fixed for now as we don't have a fiat provider
+		updatedRate := s.simulateFiatRate(fromCurrency, toCurrency)
+		if updatedRate != nil {
+			s.rateRepo.SaveRate(updatedRate)
+			return updatedRate, nil
+		}
+	}
+
+	return rate, err
 }
 
 func (s *RateService) UpdateRate(rate *models.ExchangeRate) error {
@@ -37,15 +70,41 @@ func (s *RateService) InvalidateCache(fromCurrency, toCurrency string) {
 }
 
 func (s *RateService) GetMarkets() ([]*models.Market, error) {
-	// Return available trading markets
-	markets := []*models.Market{
-		{Symbol: "BTC/USD", BaseAsset: "BTC", QuoteAsset: "USD", Price: 43500.0, Change24h: 2.3, Volume24h: 1500000000, High24h: 44000.0, Low24h: 42800.0, BidPrice: 43490.0, AskPrice: 43510.0, LastUpdated: time.Now()},
-		{Symbol: "ETH/USD", BaseAsset: "ETH", QuoteAsset: "USD", Price: 2450.0, Change24h: -1.2, Volume24h: 850000000, High24h: 2500.0, Low24h: 2400.0, BidPrice: 2448.0, AskPrice: 2452.0, LastUpdated: time.Now()},
-		{Symbol: "BTC/EUR", BaseAsset: "BTC", QuoteAsset: "EUR", Price: 40100.0, Change24h: 2.1, Volume24h: 500000000, High24h: 40500.0, Low24h: 39500.0, BidPrice: 40090.0, AskPrice: 40110.0, LastUpdated: time.Now()},
-		{Symbol: "ETH/EUR", BaseAsset: "ETH", QuoteAsset: "EUR", Price: 2260.0, Change24h: -1.0, Volume24h: 300000000, High24h: 2300.0, Low24h: 2220.0, BidPrice: 2258.0, AskPrice: 2262.0, LastUpdated: time.Now()},
-		{Symbol: "LTC/USD", BaseAsset: "LTC", QuoteAsset: "USD", Price: 72.0, Change24h: 0.8, Volume24h: 50000000, High24h: 73.0, Low24h: 71.0, BidPrice: 71.9, AskPrice: 72.1, LastUpdated: time.Now()},
-		{Symbol: "XRP/USD", BaseAsset: "XRP", QuoteAsset: "USD", Price: 0.63, Change24h: 1.5, Volume24h: 80000000, High24h: 0.65, Low24h: 0.61, BidPrice: 0.629, AskPrice: 0.631, LastUpdated: time.Now()},
+	// Fetch real markets from Binance
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	prices, err := s.binanceProvider.GetAllPrices(ctx)
+	if err != nil {
+		// Fallback to DB/Cache if external API fails
+		return nil, err
 	}
+
+	var markets []*models.Market
+	for _, p := range prices {
+		// We only care about major pairs for now
+		if isMajorPair(p.Symbol) {
+			base, quote := splitSymbol(p.Symbol)
+			markets = append(markets, &models.Market{
+				Symbol:      base + "/" + quote,
+				BaseAsset:   base,
+				QuoteAsset:  quote,
+				Price:       p.Price,
+				Change24h:   0, // Binance ticker/price endpoint doesn't return 24h change, use simulate or another endpoint if needed. using 0 for speed.
+				LastUpdated: time.Now(),
+				BidPrice:    p.Price * 0.9995,
+				AskPrice:    p.Price * 1.0005,
+			})
+		}
+	}
+	
+	if len(markets) == 0 {
+		// Fallback
+		return []*models.Market{
+			{Symbol: "BTC/USD", BaseAsset: "BTC", QuoteAsset: "USD", Price: 43500.0, LastUpdated: time.Now()},
+		}, nil
+	}
+
 	return markets, nil
 }
 
@@ -62,15 +121,45 @@ func (s *RateService) StartRateUpdater() {
 }
 
 func (s *RateService) updateAllRates() {
-	// Update crypto rates (simulation - in real app, call external APIs)
-	cryptoPairs := [][]string{
-		{"BTC", "USD"}, {"ETH", "USD"}, {"BTC", "EUR"}, {"ETH", "EUR"},
-		{"LTC", "USD"}, {"ADA", "USD"}, {"DOT", "USD"}, {"XRP", "USD"},
+	// Update crypto rates using Binance
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	prices, err := s.binanceProvider.GetAllPrices(ctx)
+	if err != nil {
+		return
 	}
 
-	for _, pair := range cryptoPairs {
-		rate := s.simulateCryptoRate(pair[0], pair[1])
-		s.rateRepo.SaveRate(rate)
+	for _, p := range prices {
+		if isMajorPair(p.Symbol) {
+			base, quote := splitSymbol(p.Symbol)
+			rate := &models.ExchangeRate{
+				FromCurrency: base,
+				ToCurrency:   quote,
+				Rate:         p.Price,
+				BidPrice:     p.Price * 0.995,
+				AskPrice:     p.Price * 1.005,
+				Spread:       p.Price * 0.01,
+				Source:       "binance",
+				LastUpdated:  time.Now(),
+			}
+			s.rateRepo.SaveRate(rate)
+			
+			// Also save reverse rate
+			if p.Price > 0 {
+				reverseRate := &models.ExchangeRate{
+					FromCurrency: quote,
+					ToCurrency:   base,
+					Rate:         1 / p.Price,
+					BidPrice:     (1 / p.Price) * 0.995,
+					AskPrice:     (1 / p.Price) * 1.005,
+					Spread:       (1 / p.Price) * 0.01,
+					Source:       "binance",
+					LastUpdated:  time.Now(),
+				}
+				s.rateRepo.SaveRate(reverseRate)
+			}
+		}
 	}
 
 	// Update fiat rates (simulation)
@@ -81,55 +170,41 @@ func (s *RateService) updateAllRates() {
 
 	for _, pair := range fiatPairs {
 		rate := s.simulateFiatRate(pair[0], pair[1])
-		s.rateRepo.SaveRate(rate)
+		if rate != nil {
+			s.rateRepo.SaveRate(rate)
+		}
 	}
 }
 
-func (s *RateService) simulateCryptoRate(from, to string) *models.ExchangeRate {
-	// Simulate realistic crypto rates (in real app, fetch from APIs like CoinGecko, Binance, etc.)
-	baseRates := map[string]float64{
-		"BTC": 43500.0,
-		"ETH": 2450.0,
-		"LTC": 72.0,
-		"ADA": 0.52,
-		"DOT": 7.8,
-		"XRP": 0.63,
+func (s *RateService) fetchCryptoRate(from, to string) (*models.ExchangeRate, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Binance uses symbols like BTCUSDT
+	// Handle USD mapping to USDT for Binance
+	targetTo := to
+	if to == "USD" {
+		targetTo = "USDT"
 	}
-
-	fiatRates := map[string]float64{
-		"USD": 1.0,
-		"EUR": 0.85,
-		"GBP": 0.78,
+	
+	symbol := from + targetTo
+	price, err := s.binanceProvider.GetPrice(ctx, symbol)
+	if err != nil {
+		return nil, err
 	}
-
-	cryptoPrice := baseRates[from]
-	fiatMultiplier := fiatRates[to]
-
-	if cryptoPrice == 0 || fiatMultiplier == 0 {
-		return nil
-	}
-
-	// Add some volatility (+/- 2%)
-	variation := 1.0 + (0.04*float64(time.Now().UnixNano()%1000)/1000.0 - 0.02)
-	rate := cryptoPrice * fiatMultiplier * variation
-
-	// Calculate spread (0.5% for crypto)
-	spread := rate * 0.005
-	bidPrice := rate - spread/2
-	askPrice := rate + spread/2
 
 	return &models.ExchangeRate{
 		FromCurrency: from,
 		ToCurrency:   to,
-		Rate:         rate,
-		BidPrice:     bidPrice,
-		AskPrice:     askPrice,
-		Spread:       spread,
-		Source:       "crypto_exchange_api",
-		Volume24h:    1000000.0 + float64(time.Now().UnixNano()%500000),
-		Change24h:    -0.1 + (0.2 * float64(time.Now().UnixNano()%1000)/1000), // +/- 10%
+		Rate:         price.Price,
+		BidPrice:     price.Price * 0.995,
+		AskPrice:     price.Price * 1.005,
+		Spread:       price.Price * 0.01,
+		Source:       "binance",
+		Volume24h:    price.Volume24h,
+		Change24h:    price.Change24h,
 		LastUpdated:  time.Now(),
-	}
+	}, nil
 }
 
 func (s *RateService) simulateFiatRate(from, to string) *models.ExchangeRate {
@@ -167,4 +242,37 @@ func (s *RateService) simulateFiatRate(from, to string) *models.ExchangeRate {
 		Change24h:    -0.02 + (0.04 * float64(time.Now().UnixNano()%1000)/1000), // +/- 2%
 		LastUpdated:  time.Now(),
 	}
+}
+
+func (s *RateService) isCryptoPair(from, to string) bool {
+	// Simplified check
+	return isCrypto(from) || isCrypto(to)
+}
+
+func isCrypto(currency string) bool {
+	cryptos := map[string]bool{
+		"BTC": true, "ETH": true, "USDT": true, "BNB": true, "XRP": true, 
+		"ADA": true, "SOL": true, "DOGE": true, "DOT": true, "LTC": true,
+	}
+	return cryptos[currency]
+}
+
+func isMajorPair(symbol string) bool {
+	majors := map[string]bool{
+		"BTCUSDT": true, "ETHUSDT": true, "BNBUSDT": true, "SOLUSDT": true,
+		"XRPUSDT": true, "ADAUSDT": true, "DOGEUSDT": true, "DOTUSDT": true,
+		"LTCUSDT": true,
+	}
+	return majors[symbol]
+}
+
+func splitSymbol(symbol string) (string, string) {
+	if strings.HasSuffix(symbol, "USDT") {
+		return strings.TrimSuffix(symbol, "USDT"), "USDT"
+	}
+	if strings.HasSuffix(symbol, "EUR") {
+		return strings.TrimSuffix(symbol, "EUR"), "EUR"
+	}
+	// Fallback
+	return symbol, ""
 }

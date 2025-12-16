@@ -9,8 +9,8 @@ import (
 )
 
 func SetupWalletRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
-	router.GET("/", handleGetWallets(serviceManager))
-	router.POST("/", handleCreateWallet(serviceManager))
+	router.GET("", handleGetWallets(serviceManager))
+	router.POST("", handleCreateWallet(serviceManager))
 	router.GET("/:wallet_id", handleGetWallet(serviceManager))
 	router.PUT("/:wallet_id", handleUpdateWallet(serviceManager))
 	router.GET("/:wallet_id/balance", handleGetBalance(serviceManager))
