@@ -56,7 +56,58 @@ func main() {
 		})
 	})
 
-	// API routes
+	// API routes - with service prefixes
+	
+	// Auth Service routes: /auth-service/api/v1/...
+	authService := router.Group("/auth-service/api/v1")
+	{
+		auth := authService.Group("/auth")
+		routes.SetupAuthRoutes(auth, serviceManager)
+	}
+
+	// Wallet Service routes: /wallet-service/api/v1/...
+	walletService := router.Group("/wallet-service/api/v1")
+	walletService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupWalletRoutes(walletService.Group("/wallets"), serviceManager)
+	}
+
+	// Transfer Service routes: /transfer-service/api/v1/...
+	transferService := router.Group("/transfer-service/api/v1")
+	transferService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupTransferRoutes(transferService.Group("/transfers"), serviceManager)
+	}
+
+	// Exchange Service routes: /exchange-service/api/v1/...
+	exchangeService := router.Group("/exchange-service/api/v1")
+	exchangeService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupExchangeRoutes(exchangeService.Group("/exchange"), serviceManager)
+	}
+
+	// Card Service routes: /card-service/api/v1/...
+	cardService := router.Group("/card-service/api/v1")
+	cardService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupCardRoutes(cardService.Group("/cards"), serviceManager)
+	}
+
+	// Notification Service routes: /notification-service/api/v1/...
+	notificationService := router.Group("/notification-service/api/v1")
+	notificationService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupNotificationRoutes(notificationService.Group("/notifications"), serviceManager)
+	}
+
+	// User routes: /auth-service/api/v1/users/...
+	userService := authService.Group("/users")
+	userService.Use(middleware.JWTAuth(cfg.JWTSecret))
+	{
+		routes.SetupUserRoutes(userService, serviceManager)
+	}
+
+	// Legacy API routes (for backward compatibility) - keeping /api/v1 prefix
 	api := router.Group("/api/v1")
 	{
 		// Auth routes (no auth required)
@@ -75,7 +126,7 @@ func main() {
 			routes.SetupNotificationRoutes(protected.Group("/notifications"), serviceManager)
 		}
 
-		// Admin routes
+		// Admin routes (through gateway)
 		admin := api.Group("/admin")
 		admin.Use(middleware.JWTAuth(cfg.JWTSecret))
 		admin.Use(middleware.AdminOnly())
@@ -83,6 +134,7 @@ func main() {
 			routes.SetupAdminRoutes(admin, serviceManager)
 		}
 	}
+
 
 	port := os.Getenv("PORT")
 	if port == "" {

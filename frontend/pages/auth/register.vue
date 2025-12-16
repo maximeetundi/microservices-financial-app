@@ -307,7 +307,7 @@ const handleRegister = async () => {
 
   try {
     const apiUrl = config.public.apiBaseUrl || 'https://api.app.maximeetundi.store'
-    const response = await $fetch(`${apiUrl}/api/v1/auth/register`, {
+    const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {
       method: 'POST',
       body: {
         email: registerForm.value.email,
