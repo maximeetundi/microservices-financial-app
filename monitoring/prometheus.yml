@@ -19,37 +19,37 @@ scrape_configs:
   - job_name: 'api-gateway'
     static_configs:
       - targets: ['api-gateway:8080']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # Auth Service
   - job_name: 'auth-service'
     static_configs:
       - targets: ['auth-service:8081']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # Wallet Service
   - job_name: 'wallet-service'
     static_configs:
       - targets: ['wallet-service:8083']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # Transfer Service
   - job_name: 'transfer-service'
     static_configs:
       - targets: ['transfer-service:8084']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # Exchange Service
   - job_name: 'exchange-service'
     static_configs:
       - targets: ['exchange-service:8085']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # Card Service
   - job_name: 'card-service'
     static_configs:
       - targets: ['card-service:8086']
-    metrics_path: /metrics
+    metrics_path: /health
 
   # PostgreSQL (if using postgres_exporter)
   # - job_name: 'postgres'

@@ -341,7 +341,18 @@ const handleRegister = async () => {
 
   } catch (err) {
     console.error('Registration error:', err)
-    error.value = err.data?.message || err.message || 'Erreur lors de l\'inscription. Veuillez réessayer.'
+    // Extract error message from various response formats
+    const errorData = err.data || err.response?.data || {}
+    const errorMessage = errorData.error || errorData.message || err.message || 'Erreur lors de l\'inscription.'
+    
+    // Map backend errors to user-friendly messages
+    if (errorMessage.includes('email already registered')) {
+      error.value = 'Cet email est déjà utilisé. Veuillez vous connecter ou utiliser un autre email.'
+    } else if (errorMessage.includes('phone already registered')) {
+      error.value = 'Ce numéro de téléphone est déjà utilisé.'
+    } else {
+      error.value = errorMessage
+    }
   } finally {
     loading.value = false
   }
