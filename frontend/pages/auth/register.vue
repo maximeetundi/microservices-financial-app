@@ -79,6 +79,50 @@
             />
           </div>
 
+          <!-- Date of Birth -->
+          <div>
+            <label for="dateOfBirth" class="block text-sm font-medium text-white/80 mb-2">
+              Date de naissance
+            </label>
+            <input
+              id="dateOfBirth"
+              v-model="registerForm.date_of_birth"
+              type="date"
+              required
+              class="input-premium"
+            />
+          </div>
+
+          <!-- Country -->
+          <div>
+            <label for="country" class="block text-sm font-medium text-white/80 mb-2">
+              Pays
+            </label>
+            <select
+              id="country"
+              v-model="registerForm.country"
+              required
+              class="input-premium"
+            >
+              <option value="" disabled>Sélectionnez votre pays</option>
+              <option value="FR">France</option>
+              <option value="BE">Belgique</option>
+              <option value="CH">Suisse</option>
+              <option value="CA">Canada</option>
+              <option value="US">États-Unis</option>
+              <option value="GB">Royaume-Uni</option>
+              <option value="DE">Allemagne</option>
+              <option value="ES">Espagne</option>
+              <option value="IT">Italie</option>
+              <option value="CM">Cameroun</option>
+              <option value="SN">Sénégal</option>
+              <option value="CI">Côte d'Ivoire</option>
+              <option value="MA">Maroc</option>
+              <option value="TN">Tunisie</option>
+              <option value="DZ">Algérie</option>
+            </select>
+          </div>
+
           <!-- Password -->
           <div>
             <label for="password" class="block text-sm font-medium text-white/80 mb-2">
@@ -211,7 +255,9 @@ const registerForm = ref({
   confirm_password: '',
   first_name: '',
   last_name: '',
-  phone: ''
+  phone: '',
+  date_of_birth: '',
+  country: ''
 })
 
 const showPassword = ref(false)
@@ -247,7 +293,9 @@ const handleRegister = async () => {
         password: registerForm.value.password,
         first_name: registerForm.value.first_name,
         last_name: registerForm.value.last_name,
-        phone: registerForm.value.phone || undefined
+        phone: registerForm.value.phone || undefined,
+        date_of_birth: registerForm.value.date_of_birth,
+        country: registerForm.value.country
       }
     })
 
