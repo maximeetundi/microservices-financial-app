@@ -15,6 +15,13 @@ services:
       - "5432:5432"
     networks:
       - crypto-bank-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d crypto_bank"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -22,6 +29,12 @@ services:
       - "6379:6379"
     networks:
       - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   # Message Queue
   rabbitmq:
@@ -34,6 +47,12 @@ services:
       - "15672:15672"
     networks:
       - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   # API Gateway
   api-gateway:
@@ -43,13 +62,16 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       - REDIS_URL=redis://redis:6379
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Auth Service
   auth-service:
@@ -59,9 +81,12 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - REDIS_URL=redis://redis:6379
@@ -69,6 +94,7 @@ services:
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # User Service (MISSING)
   # user-service:
@@ -94,15 +120,19 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Transfer Service
   transfer-service:
@@ -112,28 +142,30 @@ services:
     ports:
       - "8084:8084"
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
-      # Flutterwave (Africa) - https://dashboard.flutterwave.com/settings/api
+      # Flutterwave (Africa)
       - FLUTTERWAVE_SECRET_KEY=${FLUTTERWAVE_SECRET_KEY:-}
       - FLUTTERWAVE_PUBLIC_KEY=${FLUTTERWAVE_PUBLIC_KEY:-}
       - FLUTTERWAVE_ENCRYPT_KEY=${FLUTTERWAVE_ENCRYPT_KEY:-}
       - FLUTTERWAVE_CALLBACK_URL=${FLUTTERWAVE_CALLBACK_URL:-http://localhost:8084/api/v1/webhooks/flutterwave}
-      # Thunes (Global) - https://portal.thunes.com
+      # Thunes (Global)
       - THUNES_API_KEY=${THUNES_API_KEY:-}
       - THUNES_API_SECRET=${THUNES_API_SECRET:-}
       - THUNES_CALLBACK_URL=${THUNES_CALLBACK_URL:-http://localhost:8084/api/v1/webhooks/thunes}
-      # Stripe (Europe/US) - https://dashboard.stripe.com/apikeys
+      # Stripe (Europe/US)
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
-  # Exchange Service
   exchange-service:
     build:
       context: ./services
@@ -141,15 +173,19 @@ services:
     ports:
       - "8085:8085"
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Card Service
   card-service:
@@ -159,13 +195,16 @@ services:
     ports:
       - "8086:8086"
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Notification Service
   notification-service:
@@ -175,12 +214,14 @@ services:
     ports:
       - "8087:8087"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Admin Service
   admin-service:
@@ -190,9 +231,12 @@ services:
     ports:
       - "8088:8088"
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - ADMIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank_admin
       - MAIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
@@ -206,6 +250,7 @@ services:
       - EXCHANGE_SERVICE_URL=http://exchange-service:8085
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   # Support Service
   support-service:
@@ -215,9 +260,12 @@ services:
     ports:
       - "8089:8089"
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
       - REDIS_URL=redis://redis:6379
@@ -225,6 +273,7 @@ services:
       - JWT_SECRET=your-super-secret-jwt-key-2024
     networks:
       - crypto-bank-network
+    restart: unless-stopped
 
   frontend:
     build:
