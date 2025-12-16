@@ -15,26 +15,33 @@ COPY . .
 # Generate static site
 RUN npm run generate
 
-# Production stage - use simple static file server
-FROM node:18-alpine AS runner
+# Debug: show what was generated
+RUN echo "=== .output structure ===" && ls -la .output/ || true
+RUN echo "=== .output/public structure ===" && ls -la .output/public/ || true
+RUN echo "=== Looking for index.html ===" && find .output -name "index.html" 2>/dev/null || true
 
-WORKDIR /app
+# Production stage - use nginx for proper static file serving
+FROM nginx:alpine AS runner
 
-# Install serve globally
-RUN npm install -g serve
+# Copy generated static files to nginx html folder
+COPY --from=builder /app/.output/public /usr/share/nginx/html
 
-# Create app user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nuxtjs
-
-# Copy generated static files
-COPY --from=builder --chown=nuxtjs:nodejs /app/.output/public ./public
-
-USER nuxtjs
+# Configure nginx for SPA routing
+RUN echo 'server { \
+    listen 3000; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location /_nuxt/ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 3000
 
-# Start with serve
-CMD ["serve", "-s", "public", "-l", "3000"]
-
+CMD ["nginx", "-g", "daemon off;"]
