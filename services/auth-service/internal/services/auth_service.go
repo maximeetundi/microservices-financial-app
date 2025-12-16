@@ -100,27 +100,36 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 
 	// Check 2FA if enabled
 	if user.TwoFAEnabled {
+		log.Printf("Login: 2FA is enabled for user %s", user.Email)
 		if req.TwoFACode == "" {
+			log.Printf("Login failed: 2FA code required for user %s", user.Email)
 			return nil, fmt.Errorf("2FA code required")
 		}
 		// 2FA verification will be handled separately
 	}
 
 	// Check if user is active
+	log.Printf("Login: Checking if user %s is active (isActive=%v)", user.Email, user.IsActive)
 	if !user.IsActive {
+		log.Printf("Login failed: user %s is deactivated", user.Email)
 		return nil, fmt.Errorf("account is deactivated")
 	}
 
 	// Generate tokens
+	log.Printf("Login: Generating access token for user %s", user.Email)
 	accessToken, err := s.generateAccessToken(user)
 	if err != nil {
+		log.Printf("Login failed: failed to generate access token for user %s - error: %v", user.Email, err)
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
+	log.Printf("Login: Access token generated successfully for user %s", user.Email)
 
 	refreshToken, err := s.generateRefreshToken()
 	if err != nil {
+		log.Printf("Login failed: failed to generate refresh token for user %s - error: %v", user.Email, err)
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
+	log.Printf("Login: Refresh token generated successfully for user %s", user.Email)
 
 	// Create session
 	session := &models.Session{
@@ -133,9 +142,12 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 		IsActive:     true,
 	}
 
+	log.Printf("Login: Creating session for user %s", user.Email)
 	if err := s.sessionRepo.Create(session); err != nil {
+		log.Printf("Login failed: failed to create session for user %s - error: %v", user.Email, err)
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
+	log.Printf("Login: Session created successfully for user %s", user.Email)
 
 	// Update last login
 	s.userRepo.UpdateLastLogin(user.ID)
