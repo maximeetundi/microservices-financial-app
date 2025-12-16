@@ -439,18 +439,22 @@ func (h *WalletHandler) GetRecentActivity(c *gin.Context) {
 	// Get transactions from all wallets
 	var activities []map[string]interface{}
 	for _, wallet := range wallets {
-		transactions, err := h.walletService.GetTransactionHistory(wallet.ID.String(), userID.(string), 5, 0, "", "")
+		transactions, err := h.walletService.GetTransactionHistory(wallet.ID, userID.(string), 5, 0, "", "")
 		if err == nil {
 			for _, tx := range transactions {
+				description := ""
+				if tx.Description != nil {
+					description = *tx.Description
+				}
 				activities = append(activities, map[string]interface{}{
 					"id":          tx.ID,
-					"icon":        getTransactionIcon(tx.Type),
-					"title":       getTransactionTitle(tx.Type),
-					"description": tx.Description,
+					"icon":        getTransactionIcon(tx.TransactionType),
+					"title":       getTransactionTitle(tx.TransactionType),
+					"description": description,
 					"amount":      tx.Amount,
 					"currency":    tx.Currency,
 					"time":        tx.CreatedAt,
-					"bgColor":     getTransactionBgColor(tx.Type),
+					"bgColor":     getTransactionBgColor(tx.TransactionType),
 				})
 			}
 		}
