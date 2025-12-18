@@ -3,8 +3,14 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   modules: [
     '@pinia/nuxt',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@nuxtjs/color-mode'
   ],
+  colorMode: {
+    classSuffix: '',
+    preference: 'system',
+    fallback: 'light'
+  },
   css: ['~/assets/css/main.css'],
   postcss: {
     plugins: {

@@ -1,82 +1,82 @@
 <template>
-  <div class="min-h-screen flex">
+  <div class="min-h-screen flex bg-base transition-colors duration-300">
     <!-- Sidebar -->
-    <aside class="nav-sidebar">
-      <div class="p-6 border-b border-white/5">
+    <aside class="w-72 fixed h-full bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50">
+      <!-- Logo -->
+      <div class="p-6 border-b border-secondary-100 dark:border-secondary-800">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
             <span class="text-2xl">🏦</span>
           </div>
           <div>
-            <h1 class="text-xl font-bold text-white">CryptoBank</h1>
-            <p class="text-xs text-white/50">Secure Digital Banking</p>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-secondary-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">CryptoBank</h1>
+            <p class="text-xs text-muted font-medium">Premium Banking</p>
           </div>
         </div>
       </div>
 
-      <nav class="py-6 space-y-2">
+      <!-- Navigation -->
+      <nav class="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
         <NuxtLink to="/dashboard" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-          </svg>
-          <span>Dashboard</span>
+          <span class="icon">📊</span>
+          <span>Tableau de bord</span>
         </NuxtLink>
 
         <NuxtLink to="/wallet" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-          </svg>
+          <span class="icon">👛</span>
           <span>Portefeuilles</span>
         </NuxtLink>
 
         <NuxtLink to="/cards" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-          </svg>
+          <span class="icon">💳</span>
           <span>Mes Cartes</span>
         </NuxtLink>
 
+        <div class="pt-4 pb-2">
+          <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Échange</p>
+        </div>
+
         <NuxtLink to="/exchange/crypto" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-          </svg>
+          <span class="icon">₿</span>
           <span>Crypto</span>
         </NuxtLink>
 
         <NuxtLink to="/exchange/fiat" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-          </svg>
-          <span>Échange Fiat</span>
+          <span class="icon">💱</span>
+          <span>Fiat</span>
         </NuxtLink>
+
+        <div class="pt-4 pb-2">
+          <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
+        </div>
 
         <NuxtLink to="/transfer" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-          </svg>
-          <span>Transferts</span>
+          <span class="icon">💸</span>
+          <span>Virements</span>
         </NuxtLink>
-
-        <NuxtLink to="/portfolio" class="nav-item" active-class="active">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-          </svg>
-          <span>Portfolio</span>
+        
+        <!-- Only show merchant link if user is merchant - TODO: logic -->
+        <NuxtLink to="/merchant" class="nav-item" active-class="active">
+          <span class="icon">🏪</span>
+          <span>Espace Marchand</span>
         </NuxtLink>
       </nav>
 
       <!-- User Section -->
-      <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/5">
-        <div class="flex items-center gap-3 px-3 py-2">
-          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+      <div class="p-4 border-t border-secondary-100 dark:border-secondary-800 bg-surface-hover/30">
+        <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/50 dark:hover:bg-black/20 transition-colors">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-400 to-secondary-400 flex items-center justify-center text-white font-bold shadow-md">
             {{ userInitials }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-white truncate">{{ userName }}</p>
-            <p class="text-xs text-white/50">{{ userEmail }}</p>
+            <p class="text-sm font-semibold text-base truncate">{{ userName }}</p>
+            <p class="text-xs text-muted truncate">{{ userEmail }}</p>
           </div>
-          <button @click="handleLogout" class="p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <svg class="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          
+          <ThemeToggle />
+          
+          <button @click="handleLogout" class="p-2 text-muted hover:text-error dark:hover:text-red-400 transition-colors" title="Déconnexion">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
           </button>
@@ -85,8 +85,10 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content flex-1 ml-72 p-8">
-      <slot />
+    <main class="flex-1 ml-72 p-8 transition-all duration-300">
+      <div class="max-w-7xl mx-auto animate-fade-in-up">
+        <slot />
+      </div>
     </main>
   </div>
 </template>
@@ -117,3 +119,37 @@ const handleLogout = () => {
   authStore.logout()
 }
 </script>
+
+<style scoped>
+.nav-item {
+  @apply flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted rounded-xl transition-all duration-200 hover:bg-surface-hover hover:text-base;
+}
+
+.nav-item.active {
+  @apply bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 shadow-sm;
+}
+
+.nav-item .icon {
+  @apply text-lg opacity-70 transition-opacity;
+}
+
+.nav-item:hover .icon,
+.nav-item.active .icon {
+  @apply opacity-100;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
