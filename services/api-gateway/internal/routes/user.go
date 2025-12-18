@@ -56,5 +56,49 @@ func handleLookupUser(sm *services.ServiceManager) gin.HandlerFunc {
 		}
 
 		c.Data(resp.StatusCode, "application/json", resp.Body)
+		c.Data(resp.StatusCode, "application/json", resp.Body)
 	}
+}
+
+func handleUpdateProfile(sm *services.ServiceManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, _ := c.Get("user_id")
+		token := c.GetHeader("Authorization")
+
+		var userData map[string]interface{}
+		if err := c.ShouldBindJSON(&userData); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		resp, err := sm.UpdateUser(c.Request.Context(), userID.(string), userData, extractBearerToken(token))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
+			return
+		}
+		c.Data(resp.StatusCode, "application/json", resp.Body)
+	}
+}
+
+func handleGetKYCStatus(sm *services.ServiceManager) gin.HandlerFunc {
+	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
+}
+
+func handleUploadKYCDocument(sm *services.ServiceManager) gin.HandlerFunc {
+	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
+}
+
+func handleGetSettings(sm *services.ServiceManager) gin.HandlerFunc {
+	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
+}
+
+func handleUpdateSettings(sm *services.ServiceManager) gin.HandlerFunc {
+	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
+}
+
+func extractBearerToken(authorization string) string {
+	if len(authorization) > 7 && authorization[:7] == "Bearer " {
+		return authorization[7:]
+	}
+	return ""
 }
