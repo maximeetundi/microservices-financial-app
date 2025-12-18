@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@nuxt/devtools": "^1.0.0",
+    "@nuxtjs/color-mode": "^3.3.2",
     "@types/node": "^20",
     "autoprefixer": "^10.4.16",
     "nuxt": "^3.8.0",
