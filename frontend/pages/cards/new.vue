@@ -73,11 +73,29 @@
                but CreateCardRequest says InitialAmount is optional. Let's assume we can create empty for now or select a wallet. -->
           
           <div v-if="wallets.length > 0">
-             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Portefeuille de financement (optionnel)</label>
-             <select v-model="form.source_wallet_id" class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                <option value="">-- Aucun --</option>
+             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Portefeuille de financement (source des fonds)</label>
+             <select v-model="form.source_wallet_id" class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all mb-4">
+                <option value="">-- Sélectionner un portefeuille --</option>
                 <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }} ({{ w.balance }} {{ w.currency }})</option>
              </select>
+
+             <div v-if="form.source_wallet_id">
+                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Montant initial à créditer</label>
+                 <div class="relative">
+                    <input 
+                      v-model="form.initial_amount" 
+                      type="number" 
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      class="input-premium w-full p-3 pl-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                 </div>
+                 <p class="text-xs text-gray-500 mt-1">Ce montant sera débité de votre portefeuille sélectionné.</p>
+             </div>
           </div>
 
           <!-- Error Message -->
