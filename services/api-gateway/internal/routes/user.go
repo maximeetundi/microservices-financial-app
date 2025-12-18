@@ -9,6 +9,11 @@ import (
 
 func SetupUserRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
 	router.GET("/profile", handleGetProfile(serviceManager))
+	router.PUT("/profile", handleUpdateProfile(serviceManager))
+	router.GET("/kyc", handleGetKYCStatus(serviceManager))
+	router.POST("/kyc/upload", handleUploadKYCDocument(serviceManager))
+	router.GET("/settings", handleGetSettings(serviceManager))
+	router.PUT("/settings", handleUpdateSettings(serviceManager))
 	router.GET("/lookup", handleLookupUser(serviceManager))
 }
 

@@ -28,41 +28,10 @@ func SetupExchangeRoutes(router *gin.RouterGroup, serviceManager *services.Servi
 	}
 }
 
-func SetupUserRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
-	router.GET("/profile", handleGetProfile(serviceManager))
-	router.PUT("/profile", handleUpdateProfile(serviceManager))
-	router.GET("/kyc", handleGetKYCStatus(serviceManager))
-	router.POST("/kyc/upload", handleUploadKYCDocument(serviceManager))
-	router.GET("/settings", handleGetSettings(serviceManager))
-	router.PUT("/settings", handleUpdateSettings(serviceManager))
-}
-
-func SetupCardRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
-	router.GET("/", handleGetCards(serviceManager))
-	router.POST("/", middleware.KYCRequired(2), handleCreateCard(serviceManager))
-	router.GET("/:card_id", handleGetCard(serviceManager))
-	router.PUT("/:card_id", handleUpdateCard(serviceManager))
-	router.POST("/:card_id/activate", handleActivateCard(serviceManager))
-	router.POST("/:card_id/freeze", handleFreezeCard(serviceManager))
-	router.POST("/:card_id/load", handleLoadCard(serviceManager))
-	router.GET("/:card_id/transactions", handleGetCardTransactions(serviceManager))
-}
-
-func SetupNotificationRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
-	router.GET("/", handleGetNotifications(serviceManager))
-	router.PUT("/:notification_id/read", handleMarkAsRead(serviceManager))
-	router.DELETE("/:notification_id", handleDeleteNotification(serviceManager))
-	router.POST("/settings", handleUpdateNotificationSettings(serviceManager))
-}
-
-func SetupAdminRoutes(router *gin.RouterGroup, serviceManager *services.ServiceManager) {
-	router.GET("/users", handleAdminGetUsers(serviceManager))
-	router.GET("/users/:user_id", handleAdminGetUser(serviceManager))
-	router.PUT("/users/:user_id/kyc", handleAdminUpdateKYC(serviceManager))
-	router.GET("/transactions", handleAdminGetTransactions(serviceManager))
-	router.POST("/transactions/:tx_id/investigate", handleInvestigateTransaction(serviceManager))
-	router.GET("/analytics", handleGetAnalytics(serviceManager))
-}
+// SetupUserRoutes removed (moved to user.go)
+// SetupCardRoutes removed (moved to card.go - if exists, or should be cleaned up)
+// SetupNotificationRoutes removed
+// SetupAdminRoutes removed
 
 // Exchange handlers
 func handleGetExchangeRates(sm *services.ServiceManager) gin.HandlerFunc {
@@ -185,100 +154,7 @@ func handleGetExchange(sm *services.ServiceManager) gin.HandlerFunc {
 	}
 }
 
-// User handlers
-func handleGetProfile(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
-		token := c.GetHeader("Authorization")
-
-		resp, err := sm.GetUser(c.Request.Context(), userID.(string), extractBearerToken(token))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
-
-func handleUpdateProfile(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
-		token := c.GetHeader("Authorization")
-
-		var userData map[string]interface{}
-		if err := c.ShouldBindJSON(&userData); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		resp, err := sm.UpdateUser(c.Request.Context(), userID.(string), userData, extractBearerToken(token))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
-
-// Card handlers
-func handleGetCards(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
-		token := c.GetHeader("Authorization")
-
-		resp, err := sm.CallService(c.Request.Context(), "card", "GET", "/api/v1/cards?user_id="+userID.(string), nil, map[string]string{
-			"Authorization": token,
-		})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
-
-func handleCreateCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req struct {
-			CardType     string  `json:"card_type" binding:"required,oneof=prepaid virtual"`
-			Currency     string  `json:"currency" binding:"required"`
-			DailyLimit   float64 `json:"daily_limit,omitempty"`
-			MonthlyLimit float64 `json:"monthly_limit,omitempty"`
-		}
-
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		userID, _ := c.Get("user_id")
-		token := c.GetHeader("Authorization")
-
-		cardData := map[string]interface{}{
-			"user_id":   userID.(string),
-			"card_type": req.CardType,
-			"currency":  req.Currency,
-		}
-
-		if req.DailyLimit > 0 {
-			cardData["daily_limit"] = req.DailyLimit
-		}
-		if req.MonthlyLimit > 0 {
-			cardData["monthly_limit"] = req.MonthlyLimit
-		}
-
-		resp, err := sm.CallService(c.Request.Context(), "card", "POST", "/api/v1/cards", cardData, map[string]string{
-			"Authorization": token,
-		})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
+// User and Card handlers removed (moved to respective files)
 
 // Trading handlers
 func handleCreateLimitOrder(sm *services.ServiceManager) gin.HandlerFunc {
