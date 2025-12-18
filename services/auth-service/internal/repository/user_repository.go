@@ -73,6 +73,32 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
+func (r *UserRepository) GetByPhone(phone string) (*models.User, error) {
+	query := `
+		SELECT id, email, phone, password_hash, first_name, last_name, date_of_birth, country,
+			   kyc_status, kyc_level, is_active, two_fa_enabled, two_fa_secret, email_verified,
+			   phone_verified, last_login_at, created_at, updated_at, failed_attempts, locked_until
+		FROM users WHERE phone = $1
+	`
+
+	var user models.User
+	err := r.db.QueryRow(query, phone).Scan(
+		&user.ID, &user.Email, &user.Phone, &user.PasswordHash, &user.FirstName, &user.LastName,
+		&user.DateOfBirth, &user.Country, &user.KYCStatus, &user.KYCLevel, &user.IsActive,
+		&user.TwoFAEnabled, &user.TwoFASecret, &user.EmailVerified, &user.PhoneVerified,
+		&user.LastLoginAt, &user.CreatedAt, &user.UpdatedAt, &user.FailedAttempts, &user.LockedUntil,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return &user, nil
+}
+
 func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 	query := `
 		SELECT id, email, phone, first_name, last_name, date_of_birth, country,

@@ -322,3 +322,28 @@ func (h *AuthHandler) getLocationFromIP(ip string) string {
 	// For now, return a placeholder
 	return "Unknown location"
 }
+
+func (h *AuthHandler) LookupUser(c *gin.Context) {
+	identifier := c.Query("email")
+	if identifier == "" {
+		identifier = c.Query("phone")
+	}
+
+	if identifier == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email or phone required"})
+		return
+	}
+
+	user, err := h.authService.LookupUser(identifier)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         user.ID,
+		"first_name": user.FirstName,
+		"last_name":  user.LastName,
+		"country":    user.Country,
+	})
+}

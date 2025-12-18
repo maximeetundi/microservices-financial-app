@@ -14,6 +14,7 @@ type RateService struct {
 	rateRepo        *repository.RateRepository
 	config          *config.Config
 	binanceProvider *BinanceProvider
+	fiatProvider    *FiatRateProvider
 }
 
 func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *RateService {
@@ -28,6 +29,7 @@ func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *Ra
 		rateRepo:        rateRepo,
 		config:          cfg,
 		binanceProvider: NewBinanceProvider(binanceCfg),
+		fiatProvider:    NewFiatRateProvider(),
 	}
 }
 
@@ -46,11 +48,49 @@ func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.Exchange
 			return updatedRate, nil
 		}
 	} else {
-		// For fiat, use simulated/fixed for now as we don't have a fiat provider
-		updatedRate := s.simulateFiatRate(fromCurrency, toCurrency)
-		if updatedRate != nil {
-			s.rateRepo.SaveRate(updatedRate)
-			return updatedRate, nil
+		// Fetch fiat rate from real provider
+		rates, err := s.fiatProvider.GetRates("USD")
+		if err == nil {
+			// Find the rate we need
+			// Simplified: We assume base is USD or we calculate generic cross-rate via USD
+			// This implementation mainly supports USD -> Others for now
+			// A production version would handle cross-rates more robustly
+			
+			// If request is USD -> X
+			if fromCurrency == "USD" {
+				if rateVal, ok := rates[toCurrency]; ok {
+					updatedRate := &models.ExchangeRate{
+						FromCurrency: "USD",
+						ToCurrency:   toCurrency,
+						Rate:         rateVal,
+						BidPrice:     rateVal * 0.998,
+						AskPrice:     rateVal * 1.002,
+						Spread:       rateVal * 0.004,
+						Source:       "open.er-api.com",
+						LastUpdated:  time.Now(),
+					}
+					s.rateRepo.SaveRate(updatedRate)
+					return updatedRate, nil
+				}
+			}
+			
+			// If request is X -> USD
+			if toCurrency == "USD" {
+				if rateVal, ok := rates[fromCurrency]; ok && rateVal > 0 {
+					updatedRate := &models.ExchangeRate{
+						FromCurrency: fromCurrency,
+						ToCurrency:   "USD",
+						Rate:         1 / rateVal,
+						BidPrice:     (1 / rateVal) * 0.998,
+						AskPrice:     (1 / rateVal) * 1.002,
+						Spread:       (1 / rateVal) * 0.004,
+						Source:       "open.er-api.com",
+						LastUpdated:  time.Now(),
+					}
+					s.rateRepo.SaveRate(updatedRate)
+					return updatedRate, nil
+				}
+			}
 		}
 	}
 
@@ -162,16 +202,43 @@ func (s *RateService) updateAllRates() {
 		}
 	}
 
-	// Update fiat rates (simulation)
-	fiatPairs := [][]string{
-		{"USD", "EUR"}, {"USD", "GBP"}, {"USD", "JPY"}, {"USD", "CAD"},
-		{"EUR", "GBP"}, {"EUR", "JPY"}, {"GBP", "JPY"}, {"USD", "AUD"},
-	}
+	// Update fiat rates using real provider
+	fiatRates, err := s.fiatProvider.GetRates("USD")
+	if err != nil {
+		// Log error but continue
+		fmt.Printf("Error fetching fiat rates: %v\n", err)
+	} else {
+		supportedFiat := []string{"EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "BRL", "NGN", "XAF", "XOF"}
+		
+		for _, target := range supportedFiat {
+			if rateVal, ok := fiatRates[target]; ok {
+				rate := &models.ExchangeRate{
+					FromCurrency: "USD",
+					ToCurrency:   target,
+					Rate:         rateVal,
+					BidPrice:     rateVal * 0.998, // 0.2% spread for fiat
+					AskPrice:     rateVal * 1.002,
+					Spread:       rateVal * 0.004,
+					Source:       "open.er-api.com",
+					LastUpdated:  time.Now(),
+				}
+				s.rateRepo.SaveRate(rate)
 
-	for _, pair := range fiatPairs {
-		rate := s.simulateFiatRate(pair[0], pair[1])
-		if rate != nil {
-			s.rateRepo.SaveRate(rate)
+				// Reverse rate
+				if rateVal > 0 {
+					reverseRate := &models.ExchangeRate{
+						FromCurrency: target,
+						ToCurrency:   "USD",
+						Rate:         1 / rateVal,
+						BidPrice:     (1 / rateVal) * 0.998,
+						AskPrice:     (1 / rateVal) * 1.002,
+						Spread:       (1 / rateVal) * 0.004,
+						Source:       "open.er-api.com",
+						LastUpdated:  time.Now(),
+					}
+					s.rateRepo.SaveRate(reverseRate)
+				}
+			}
 		}
 	}
 }
@@ -205,43 +272,6 @@ func (s *RateService) fetchCryptoRate(from, to string) (*models.ExchangeRate, er
 		Change24h:    price.Change24h,
 		LastUpdated:  time.Now(),
 	}, nil
-}
-
-func (s *RateService) simulateFiatRate(from, to string) *models.ExchangeRate {
-	// Simulate realistic fiat rates
-	rates := map[string]map[string]float64{
-		"USD": {"EUR": 0.8456, "GBP": 0.7821, "JPY": 149.23, "CAD": 1.3567, "AUD": 1.5234},
-		"EUR": {"USD": 1.1826, "GBP": 0.9248, "JPY": 176.45},
-		"GBP": {"USD": 1.2787, "EUR": 1.0814, "JPY": 190.76},
-		"JPY": {"USD": 0.0067, "EUR": 0.0057, "GBP": 0.0052},
-	}
-
-	baseRate, exists := rates[from][to]
-	if !exists {
-		return nil
-	}
-
-	// Add minimal volatility for fiat (+/- 0.1%)
-	variation := 1.0 + (0.002*float64(time.Now().UnixNano()%1000)/1000.0 - 0.001)
-	rate := baseRate * variation
-
-	// Calculate spread (0.1% for fiat)
-	spread := rate * 0.001
-	bidPrice := rate - spread/2
-	askPrice := rate + spread/2
-
-	return &models.ExchangeRate{
-		FromCurrency: from,
-		ToCurrency:   to,
-		Rate:         rate,
-		BidPrice:     bidPrice,
-		AskPrice:     askPrice,
-		Spread:       spread,
-		Source:       "fiat_exchange_api",
-		Volume24h:    5000000.0,
-		Change24h:    -0.02 + (0.04 * float64(time.Now().UnixNano()%1000)/1000), // +/- 2%
-		LastUpdated:  time.Now(),
-	}
 }
 
 func (s *RateService) isCryptoPair(from, to string) bool {

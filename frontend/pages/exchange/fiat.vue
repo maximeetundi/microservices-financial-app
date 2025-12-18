@@ -30,6 +30,16 @@
                 </option>
               </select>
             </div>
+            <div class="mt-2" v-if="sourceWallets.length > 0">
+              <select 
+                v-model="fromWalletId"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option v-for="wallet in sourceWallets" :key="wallet.id" :value="wallet.id">
+                  Portefeuille: {{ wallet.balance }} {{ wallet.currency }}
+                </option>
+              </select>
+            </div>
             <div class="mt-2">
               <input
                 v-model="fromAmount"
@@ -69,6 +79,16 @@
               >
                 <option v-for="currency in supportedCurrencies" :key="currency.code" :value="currency.code">
                   {{ currency.flag }} {{ currency.code }} - {{ currency.name }}
+                </option>
+              </select>
+            </div>
+            <div class="mt-2" v-if="destWallets.length > 0">
+              <select 
+                v-model="toWalletId"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option v-for="wallet in destWallets" :key="wallet.id" :value="wallet.id">
+                  Portefeuille: {{ wallet.balance }} {{ wallet.currency }}
                 </option>
               </select>
             </div>
@@ -197,9 +217,8 @@
   </div>
 </template>
 
-<script setup>
 import { ref, computed, onMounted } from 'vue'
-import { exchangeAPI } from '~/composables/useApi'
+import { exchangeAPI, walletAPI } from '~/composables/useApi'
 
 // Reactive data
 const loading = ref(false)
@@ -209,6 +228,11 @@ const fromAmount = ref(1000)
 const toAmount = ref(0)
 const exchangeRate = ref(null)
 const recentConversions = ref([])
+
+const wallets = ref([])
+const loadingWallets = ref(false)
+const fromWalletId = ref('')
+const toWalletId = ref('')
 
 // Supported currencies
 const supportedCurrencies = ref([
@@ -225,8 +249,11 @@ const supportedCurrencies = ref([
 
 // Computed properties
 const canConvert = computed(() => {
-  return fromAmount.value > 0 && fromCurrency.value !== toCurrency.value
+  return fromAmount.value > 0 && fromCurrency.value !== toCurrency.value && fromWalletId.value && toWalletId.value
 })
+
+const sourceWallets = computed(() => wallets.value.filter(w => w.currency === fromCurrency.value))
+const destWallets = computed(() => wallets.value.filter(w => w.currency === toCurrency.value))
 
 const ourFee = computed(() => {
   if (!exchangeRate.value) return '0.25'
@@ -240,9 +267,35 @@ const savingsAmount = computed(() => {
 })
 
 // Methods
+const fetchWallets = async () => {
+  loadingWallets.value = true
+  try {
+    const res = await walletAPI.getWallets()
+    wallets.value = res.data.wallets || []
+    updateWalletSelection()
+  } catch (e) {
+    console.error('Failed to fetch wallets', e)
+  } finally {
+    loadingWallets.value = false
+  }
+}
+
+const updateWalletSelection = () => {
+  const source = sourceWallets.value[0]
+  if (source) fromWalletId.value = source.id
+  else fromWalletId.value = ''
+
+  const dest = destWallets.value[0]
+  if (dest) toWalletId.value = dest.id
+  else toWalletId.value = ''
+}
+
 const updateRates = async () => {
   if (fromCurrency.value === toCurrency.value) return
   
+  // Update wallet selection if currency changed
+  updateWalletSelection()
+
   loading.value = true
   try {
     const { data } = await exchangeAPI.getRate(fromCurrency.value, toCurrency.value)
@@ -257,9 +310,12 @@ const updateRates = async () => {
 
 const calculateConversion = () => {
   if (exchangeRate.value && fromAmount.value > 0) {
-    const converted = fromAmount.value * exchangeRate.value.Rate // Note: Backend returns 'Rate' (PascalCase) usually
-    const fee = fromAmount.value * ((exchangeRate.value.FeePercentage || 0.5) / 100)
-    // Adjust logic if Rate object structure differs
+    // Check available balance
+    const wallet = wallets.value.find(w => w.id === fromWalletId.value)
+    if (wallet && wallet.balance < fromAmount.value) {
+       // Optional: Warning
+    }
+
     const rateVal = exchangeRate.value.Rate || exchangeRate.value.rate || 1
     const pFee = exchangeRate.value.FeePercentage || exchangeRate.value.fee_percentage || 0.5
     
@@ -289,9 +345,12 @@ const executeFiatConversion = async () => {
     // 2. Execute Exchange
     const { data: exchange } = await exchangeAPI.executeExchange(
         quote.ID,
-        'user-wallet-' + fromCurrency.value.toLowerCase(), // Simplified local wallet ID assumption
-        'user-wallet-' + toCurrency.value.toLowerCase()
+        fromWalletId.value,
+        toWalletId.value
     )
+
+    // Refresh wallets
+    fetchWallets()
 
     // Add to recent conversions
     recentConversions.value.unshift({
@@ -334,6 +393,7 @@ const showNotification = (message, type) => {
 
 // Lifecycle
 onMounted(() => {
+  fetchWallets()
   updateRates()
 })
 

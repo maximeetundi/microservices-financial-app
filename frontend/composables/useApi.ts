@@ -84,6 +84,12 @@ export const userAPI = {
     setup2FA: () => api.post('/auth-service/api/v1/users/2fa/setup'),
     verify2FA: (code: string) => api.post('/auth-service/api/v1/users/2fa/verify', { code }),
     disable2FA: (code: string) => api.post('/auth-service/api/v1/users/2fa/disable', { code }),
+    lookup: (query: { email?: string, phone?: string }) => {
+        const params = new URLSearchParams()
+        if (query.email) params.append('email', query.email)
+        if (query.phone) params.append('phone', query.phone)
+        return api.get(`/auth-service/api/v1/users/lookup?${params.toString()}`)
+    },
 }
 
 // ========== Wallets ==========

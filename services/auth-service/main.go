@@ -101,6 +101,9 @@ func main() {
 		// Session management
 		api.GET("/sessions", middleware.JWTAuth(cfg.JWTSecret), authHandler.GetSessions)
 		api.DELETE("/sessions/:session_id", middleware.JWTAuth(cfg.JWTSecret), authHandler.RevokeSession)
+
+		// User lookup
+		api.GET("/users/lookup", middleware.JWTAuth(cfg.JWTSecret), authHandler.LookupUser)
 	}
 
 	port := os.Getenv("PORT")

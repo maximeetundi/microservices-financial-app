@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"encoding/json"
@@ -102,6 +103,13 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error
 	}
 
 	return user, nil
+}
+
+func (s *AuthService) LookupUser(identifier string) (*models.User, error) {
+	if strings.Contains(identifier, "@") {
+		return s.userRepo.GetByEmail(identifier)
+	}
+	return s.userRepo.GetByPhone(identifier)
 }
 
 func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent string) (*models.LoginResponse, error) {
