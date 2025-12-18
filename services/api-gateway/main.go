@@ -25,6 +25,8 @@ func main() {
 	}
 
 	router := gin.New()
+	router.RedirectTrailingSlash = false
+	router.RedirectFixedPath = false
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 

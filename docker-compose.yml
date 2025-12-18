@@ -53,21 +53,23 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # API Gateway
+  # API Gateway (Kong)
   api-gateway:
-    build: 
-      context: ./services
-      dockerfile: ./api-gateway/Dockerfile
-    ports:
-      - "8080:8080"
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+    image: kong:3.4
+    volumes:
+      - ./infrastructure/kong/kong.yml:/usr/local/kong/declarative/kong.yml
     environment:
-      - REDIS_URL=redis://redis:6379
-      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001
+      - KONG_PLUGINS=bundled,cors
+    ports:
+      - "8080:8000"
+      - "8001:8001"
     networks:
       - crypto-bank-network
     restart: unless-stopped
