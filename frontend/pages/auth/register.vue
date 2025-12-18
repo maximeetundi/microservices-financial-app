@@ -289,8 +289,6 @@ const handleRegister = async () => {
         last_name: registerForm.value.last_name,
         phone: registerForm.value.phone || undefined,
         date_of_birth: dateOfBirth,
-        phone: registerForm.value.phone || undefined,
-        date_of_birth: dateOfBirth,
         country: registerForm.value.country,
         currency: getCurrencyByCountry(registerForm.value.country)
       }
