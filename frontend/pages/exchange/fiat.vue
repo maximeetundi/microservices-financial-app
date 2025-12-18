@@ -217,6 +217,7 @@
   </div>
 </template>
 
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { exchangeAPI, walletAPI } from '~/composables/useApi'
 
