@@ -339,13 +339,20 @@ const fetchWallets = async () => {
   try {
     const response = await walletAPI.getAll()
     if (response.data?.wallets) {
-      wallets.value = response.data.wallets
+      // Map response to ensure consistent property access
+      wallets.value = response.data.wallets.map(w => ({
+        ...w,
+        // Ensure type IS available even if backend sends wallet_type
+        type: w.wallet_type || w.type,
+        // Ensure wallet_type is also set for any other logic
+        wallet_type: w.wallet_type || w.type
+      }))
     }
   } catch (e) {
     console.log('Using mock data or API error')
      wallets.value = [
-      { id: 1, type: 'fiat', currency: 'USD', name: 'Main USD', balance: 1500.50, balanceUSD: 1500.50, status: 'active', address: 'USD-1234-5678' },
-      { id: 2, type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
+      { id: 1, type: 'fiat', wallet_type: 'fiat', currency: 'USD', name: 'Main USD', balance: 1500.50, balanceUSD: 1500.50, status: 'active', address: 'USD-1234-5678' },
+      { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
     ]
   }
 }
@@ -359,9 +366,15 @@ const createWallet = async () => {
       wallet_type: newWallet.value.type
     })
     
-    const wallet = response.data?.wallet || response.data || response
+    // Handle response structure variations
+    const rawWallet = response.data?.wallet || response.data || response
     
-    if (wallet) {
+    if (rawWallet) {
+       const wallet = {
+          ...rawWallet,
+          type: rawWallet.wallet_type || rawWallet.type,
+          wallet_type: rawWallet.wallet_type || rawWallet.type
+      }
       wallets.value.push(wallet)
       showCreateWallet.value = false
       newWallet.value = { type: 'fiat', currency: 'USD', name: '' }
