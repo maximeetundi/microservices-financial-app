@@ -61,26 +61,13 @@
     }
 
     .dark {
-        /* Primary Color (Lighter for dark mode) */
         --color-primary: 99 102 241;
-        /* 500 */
-
-        /* Backgrounds */
         --color-bg-base: 2 6 23;
-        /* Slate 950 */
         --color-bg-surface: 15 23 42;
-        /* Slate 900 */
         --color-bg-surface-hover: 30 41 59;
-        /* Slate 800 */
-
-        /* Text */
         --color-text-base: 241 245 249;
-        /* Slate 100 */
         --color-text-muted: 148 163 184;
-        /* Slate 400 */
         --color-text-inverted: 15 23 42;
-
-        /* Adjust Status colors for dark background if needed */
     }
 
     body {
