@@ -139,26 +139,58 @@ export const cardAPI = {
 }
 
 // ========== Exchange ==========
+// ========== Exchange ==========
 export const exchangeAPI = {
-    getRates: (baseCurrency?: string) =>
-        api.get(`/exchange-service/api/v1/exchange/rates${baseCurrency ? `?base=${baseCurrency}` : ''}`),
-    getRate: (from: string, to: string) => api.get(`/exchange-service/api/v1/exchange/rate?from=${from}&to=${to}`),
-    convert: (fromCurrency: string, toCurrency: string, amount: number) =>
-        api.post('/exchange-service/api/v1/exchange/convert', {
+    getMarkets: () => api.get('/exchange-service/api/v1/markets'),
+    getRates: () => api.get('/exchange-service/api/v1/rates'),
+    getRate: (from: string, to: string) => api.get(`/exchange-service/api/v1/rates/${from}/${to}`),
+
+    // Quote and Execute flow
+    getQuote: (fromCurrency: string, toCurrency: string, amount: number, side: 'from' | 'to' = 'from') => {
+        const payload: any = {
             from_currency: fromCurrency,
             to_currency: toCurrency,
-            amount,
+        }
+        if (side === 'from') payload.from_amount = amount
+        else payload.to_amount = amount
+        return api.post('/exchange-service/api/v1/quote', payload)
+    },
+
+    executeExchange: (quoteId: string, fromWalletId: string, toWalletId: string) =>
+        api.post('/exchange-service/api/v1/execute', {
+            quote_id: quoteId,
+            from_wallet_id: fromWalletId,
+            to_wallet_id: toWalletId
         }),
-    getCryptoRates: () => api.get('/exchange-service/api/v1/exchange/crypto/rates'),
-    buyCrypto: (currency: string, amount: number, paymentMethod: string) =>
-        api.post('/exchange-service/api/v1/exchange/crypto/buy', { currency, amount, payment_method: paymentMethod }),
-    sellCrypto: (currency: string, amount: number, destinationWalletId: string) =>
-        api.post('/exchange-service/api/v1/exchange/crypto/sell', {
-            currency,
-            amount,
-            destination_wallet_id: destinationWalletId,
+
+    // Legacy/Composite convert for simple UI (may need to be implemented in backend or stitched here)
+    // For now, replacing convert with getQuote+execute would require UI changes. 
+    // If UI expects single call, we should probably keep distinct functions or fix UI.
+    // Given the UI in index.vue calls convert(), let's map it to getQuote for now to at least return the "to_amount".
+    convert: async (fromCurrency: string, toCurrency: string, amount: number) => {
+        // This is a helper for the quick converter which just wants the rate/amount
+        return api.post('/exchange-service/api/v1/quote', {
+            from_currency: fromCurrency,
+            to_currency: toCurrency,
+            from_amount: amount
+        })
+    },
+
+    getCryptoRates: () => api.get('/exchange-service/api/v1/rates'), // Fallback to all rates
+
+    buyCrypto: (currency: string, amount: number, paymentMethod: string, orderType = 'market', limitPrice?: number) =>
+        api.post('/exchange-service/api/v1/trading/buy', {
+            currency, amount, payment_method: paymentMethod, order_type: orderType, limit_price: limitPrice
         }),
-    getHistory: (limit = 50) => api.get(`/exchange-service/api/v1/exchange/history?limit=${limit}`),
+
+    sellCrypto: (currency: string, amount: number, destinationWalletId: string, orderType = 'market', limitPrice?: number) =>
+        api.post('/exchange-service/api/v1/trading/sell', {
+            currency, amount, destination_wallet_id: destinationWalletId, order_type: orderType, limit_price: limitPrice
+        }),
+
+    getHistory: (limit = 50) => api.get(`/exchange-service/api/v1/history?limit=${limit}`),
+    getOrders: () => api.get('/exchange-service/api/v1/trading/orders'),
+    getTradingPortfolio: () => api.get('/exchange-service/api/v1/trading/portfolio'),
 }
 
 // ========== Dashboard ==========

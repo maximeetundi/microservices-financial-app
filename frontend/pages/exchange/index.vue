@@ -216,7 +216,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { exchangeAPI } from '~/composables/useApi'
 
 // Page meta
 definePageMeta({
@@ -233,19 +234,7 @@ const quickConvert = ref({
 })
 const convertedAmount = ref(null)
 const recentActivity = ref([])
-
-const markets = ref([
-  // Crypto markets
-  { symbol: 'BTC/USD', price: 43500, change: 2.3, volume: 1234567, type: 'crypto' },
-  { symbol: 'ETH/USD', price: 2450, change: -1.2, volume: 987654, type: 'crypto' },
-  { symbol: 'LTC/USD', price: 72, change: 0.8, volume: 543210, type: 'crypto' },
-  { symbol: 'ADA/USD', price: 0.52, change: 3.1, volume: 876543, type: 'crypto' },
-  // Fiat markets
-  { symbol: 'EUR/USD', price: 1.0856, change: 0.1, volume: 5000000, type: 'fiat' },
-  { symbol: 'GBP/USD', price: 1.2787, change: 0.3, volume: 3000000, type: 'fiat' },
-  { symbol: 'USD/JPY', price: 149.23, change: -0.1, volume: 4000000, type: 'fiat' },
-  { symbol: 'USD/CAD', price: 1.3567, change: 0.2, volume: 2000000, type: 'fiat' }
-])
+const markets = ref([])
 
 // Computed
 const filteredMarkets = computed(() => {
@@ -259,14 +248,16 @@ const formatDate = (date) => {
 
 const performQuickConvert = async () => {
   try {
-    const response = await $fetch('/api/v1/convert', {
-      params: {
-        from: quickConvert.value.from,
-        to: quickConvert.value.to,
-        amount: quickConvert.value.amount
-      }
-    })
-    convertedAmount.value = response.converted_amount
+    if (!quickConvert.value.amount || quickConvert.value.amount <= 0) return
+
+    const { data } = await exchangeAPI.convert(
+      quickConvert.value.from,
+      quickConvert.value.to,
+      quickConvert.value.amount
+    )
+    if (data) {
+      convertedAmount.value = data.to_amount
+    }
   } catch (error) {
     console.error('Error converting:', error)
   }
@@ -275,29 +266,49 @@ const performQuickConvert = async () => {
 // Fetch data
 const fetchRecentActivity = async () => {
   try {
-    const { data } = await $fetch('/api/v1/exchange/history', {
-      params: { limit: 5 }
-    })
-    recentActivity.value = data.exchanges || []
+    const { data } = await exchangeAPI.getHistory(5)
+    if (data && data.exchanges) {
+      recentActivity.value = data.exchanges.map(ex => ({
+        id: ex.id,
+        type: 'Exchange',
+        pair: `${ex.from_currency}/${ex.to_currency}`,
+        amount: `${ex.from_amount} ${ex.from_currency}`,
+        status: ex.status,
+        date: ex.created_at || new Date().toISOString()
+      }))
+    }
   } catch (error) {
     console.error('Error fetching recent activity:', error)
-    // Fallback data
-    recentActivity.value = [
-      {
-        id: '1',
-        type: 'Exchange',
-        pair: 'BTC/USD',
-        amount: '0.1 BTC',
-        status: 'Completed',
-        date: new Date().toISOString()
-      }
-    ]
+  }
+}
+
+const fetchMarkets = async () => {
+  try {
+     const { data } = await exchangeAPI.getMarkets()
+     if (data) {
+       // Transform API response to UI format
+       markets.value = data.map(m => ({
+         symbol: m.Symbol,
+         price: m.Price,
+         change: m.Change24h || 0,
+         volume: m.Volume24h || 0,
+         type: (m.Symbol.includes('USD') && !m.Symbol.includes('BTC') && !m.Symbol.includes('ETH')) ? 'fiat' : 'crypto' // Simple heuristic
+       }))
+       
+       // If heuristic failed to find fiat, add some manually or from rate service if needed
+       // For now, let's assume getMarkets returns everything or we stick to crypto for "markets"
+       // The backend implementation of getMarkets I saw returned mostly crypto.
+       // Let's ensure we have at least crypto populated.
+     }
+  } catch (error) {
+     console.error('Error fetching markets:', error)
   }
 }
 
 // Auto-update converted amount when inputs change
 watch([() => quickConvert.value.from, () => quickConvert.value.to, () => quickConvert.value.amount], 
   async () => {
+    // Debounce could be added here
     if (quickConvert.value.amount > 0) {
       await performQuickConvert()
     }
@@ -306,7 +317,11 @@ watch([() => quickConvert.value.from, () => quickConvert.value.to, () => quickCo
 
 // Lifecycle
 onMounted(async () => {
-  await fetchRecentActivity()
-  await performQuickConvert()
+  // Parallel fetch
+  await Promise.all([
+    fetchMarkets(),
+    fetchRecentActivity(),
+    performQuickConvert()
+  ])
 })
 </script>

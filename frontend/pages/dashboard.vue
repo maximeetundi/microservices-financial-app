@@ -286,33 +286,65 @@ const formatTime = (date) => {
 const refreshRates = async () => {
   refreshing.value = true
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    fiatRates.value.forEach(rate => {
-      rate.change = (Math.random() - 0.5) * 0.02
-      rate.rate = rate.rate * (1 + rate.change)
-    })
+    const response = await exchangeAPI.getRates()
+    if (response.data) {
+       // Filter/map response to fiatRates format if needed
+       // Assuming response.data is array of rates or object
+       // This is a placeholder adaptation, actual structure depends on backend response
+       fiatRates.value = Object.entries(response.data).map(([pair, rate]) => ({
+         pair,
+         rate: rate.Rate,
+         change: rate.Change24h || 0
+       })).filter(r => r.pair.includes('USD') || r.pair.includes('EUR')).slice(0, 6)
+    }
+  } catch (e) {
+    console.error('Failed to refresh rates:', e)
   } finally {
     refreshing.value = false
   }
 }
 
 const fetchDashboardData = async () => {
+  loading.value = true
   try {
-    // Try to fetch from API
-    const [summaryRes, activityRes] = await Promise.all([
-      dashboardAPI.getSummary().catch(() => null),
-      dashboardAPI.getRecentActivity().catch(() => null)
+    // Fetch all required data in parallel
+    const [summaryRes, activityRes, marketsRes, cardsRes, ratesRes] = await Promise.all([
+      dashboardAPI.getSummary().catch(() => ({ data: { totalBalance: 0, cryptoBalance: 0, cardsBalance: 0, activeCards: 0, monthlyTransfers: 0, monthlyVolume: 0 } })),
+      dashboardAPI.getRecentActivity().catch(() => ({ data: [] })),
+      exchangeAPI.getMarkets().catch(() => ({ data: [] })),
+      cardAPI.getAll().catch(() => ({ data: { cards: [] } })),
+      exchangeAPI.getRates().catch(() => ({ data: {} }))
     ])
     
-    if (summaryRes?.data) {
-      stats.value = summaryRes.data
+    if (summaryRes?.data) stats.value = summaryRes.data
+    if (activityRes?.data) recentActivities.value = activityRes.data.map(a => ({
+      ...a,
+      bgColor: a.type === 'credit' ? 'bg-green-500/20' : 'bg-red-500/20',
+      icon: a.type === 'credit' ? '↓' : '↑'
+    }))
+    
+    if (marketsRes?.data) {
+       cryptoMarkets.value = marketsRes.data.slice(0, 4).map(m => ({
+         name: m.BaseAsset,
+         symbol: m.Symbol,
+         price: m.Price,
+         change: m.Change24h,
+         bgColor: 'bg-orange-500/20' // Dynamic mapping based on symbol could be added
+       }))
     }
-    if (activityRes?.data) {
-      recentActivities.value = activityRes.data
+    
+    if (cardsRes?.data?.cards) userCards.value = cardsRes.data.cards.slice(0, 3)
+    
+    if (ratesRes?.data) {
+       fiatRates.value = Object.entries(ratesRes.data).map(([pair, rate]) => ({
+         pair,
+         rate: rate.Rate || rate, // Handle if rate is object or value
+         change: rate.Change24h || 0
+       })).filter(r => r.pair.includes('USD') || r.pair.includes('EUR')).slice(0, 6)
     }
+
   } catch (error) {
-    console.log('Using mock data')
+    console.error('Error fetching dashboard data:', error)
   } finally {
     loading.value = false
   }

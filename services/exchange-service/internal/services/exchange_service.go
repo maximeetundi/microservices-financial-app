@@ -321,6 +321,10 @@ func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error)
 	// Since we don't have a "get all balances" easily exposed without multiple calls, or if we assume local caching?
 	// We will try to fetch for major assets.
 
+	portfolio := &models.Portfolio{
+		Holdings: []models.Holding{},
+	}
+
 	// Calculate performance metrics from real orders
 	orders, err := s.orderRepo.GetOrdersByUser(userID)
 	if err == nil {
@@ -343,8 +347,6 @@ func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error)
 			portfolio.Performance.WinRate = float64(winningTrades) / float64(totalTrades) * 100
 		}
 	}
-
-	return portfolio, nil
 
 	return portfolio, nil
 }

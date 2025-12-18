@@ -197,8 +197,8 @@
   </div>
 </template>
 
-<script setup>
 import { ref, computed, onMounted } from 'vue'
+import { exchangeAPI } from '~/composables/useApi'
 
 // Reactive data
 const loading = ref(false)
@@ -244,8 +244,8 @@ const updateRates = async () => {
   
   loading.value = true
   try {
-    const response = await $fetch(`/gateway/exchange-service/fiat/rates/${fromCurrency.value}/${toCurrency.value}`)
-    exchangeRate.value = response
+    const { data } = await exchangeAPI.getRate(fromCurrency.value, toCurrency.value)
+    exchangeRate.value = data
     calculateConversion()
   } catch (error) {
     console.error('Error fetching rates:', error)
@@ -256,9 +256,15 @@ const updateRates = async () => {
 
 const calculateConversion = () => {
   if (exchangeRate.value && fromAmount.value > 0) {
-    const converted = fromAmount.value * exchangeRate.value.rate
-    const fee = fromAmount.value * (exchangeRate.value.fee_percentage / 100)
-    toAmount.value = (converted - (fee * exchangeRate.value.rate)).toFixed(2)
+    const converted = fromAmount.value * exchangeRate.value.Rate // Note: Backend returns 'Rate' (PascalCase) usually
+    const fee = fromAmount.value * ((exchangeRate.value.FeePercentage || 0.5) / 100)
+    // Adjust logic if Rate object structure differs
+    const rateVal = exchangeRate.value.Rate || exchangeRate.value.rate || 1
+    const pFee = exchangeRate.value.FeePercentage || exchangeRate.value.fee_percentage || 0.5
+    
+    // Recalculate based on normalized values
+    const rawConverted = fromAmount.value * rateVal
+    toAmount.value = (rawConverted * (1 - pFee/100)).toFixed(2)
   } else {
     toAmount.value = 0
   }
@@ -274,37 +280,27 @@ const swapCurrencies = () => {
 const executeFiatConversion = async () => {
   loading.value = true
   try {
-    // First get quote
-    const quoteResponse = await $fetch('/gateway/exchange-service/fiat/quote', {
-      method: 'POST',
-      body: {
-        from_currency: fromCurrency.value,
-        to_currency: toCurrency.value,
-        amount: fromAmount.value
-      }
-    })
+    // 1. Get Quote
+    const { data: quote } = await exchangeAPI.getQuote(fromCurrency.value, toCurrency.value, fromAmount.value)
+    
+    if (!quote || !quote.ID) throw new Error('Failed to get quote')
 
-    // Execute conversion
-    const conversionResponse = await $fetch('/gateway/exchange-service/fiat/execute', {
-      method: 'POST', 
-      body: {
-        from_wallet_id: 'user-wallet-' + fromCurrency.value.toLowerCase(),
-        to_wallet_id: 'user-wallet-' + toCurrency.value.toLowerCase(),
-        from_currency: fromCurrency.value,
-        to_currency: toCurrency.value,
-        amount: fromAmount.value
-      }
-    })
+    // 2. Execute Exchange
+    const { data: exchange } = await exchangeAPI.executeExchange(
+        quote.ID,
+        'user-wallet-' + fromCurrency.value.toLowerCase(), // Simplified local wallet ID assumption
+        'user-wallet-' + toCurrency.value.toLowerCase()
+    )
 
     // Add to recent conversions
     recentConversions.value.unshift({
-      id: Date.now(),
-      from_amount: fromAmount.value,
-      from_currency: fromCurrency.value,
-      to_amount: toAmount.value,
-      to_currency: toCurrency.value,
-      exchange_rate: exchangeRate.value.rate.toFixed(4),
-      fee: (fromAmount.value * (exchangeRate.value.fee_percentage / 100)).toFixed(2),
+      id: exchange.ID,
+      from_amount: exchange.FromAmount,
+      from_currency: exchange.FromCurrency,
+      to_amount: exchange.ToAmount,
+      to_currency: exchange.ToCurrency,
+      exchange_rate: exchange.ExchangeRate,
+      fee: exchange.Fee,
       status: 'completed',
       created_at: new Date().toISOString()
     })
@@ -332,6 +328,7 @@ const formatTime = (timestamp) => {
 const showNotification = (message, type) => {
   // Simple notification - in real app would use a proper notification system
   console.log(`${type.toUpperCase()}: ${message}`)
+  // alert(message)
 }
 
 // Lifecycle

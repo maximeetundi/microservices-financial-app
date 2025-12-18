@@ -190,8 +190,8 @@
   </div>
 </template>
 
-<script setup>
 import { ref, computed, onMounted } from 'vue'
+import { exchangeAPI } from '~/composables/useApi'
 
 // Page meta
 definePageMeta({
@@ -237,22 +237,14 @@ const selectPair = (pair) => {
 
 const placeBuyOrder = async () => {
   try {
-    const endpoint = buyOrder.value.type === 'market' ? '/api/trading/market-order' : 
-                    buyOrder.value.type === 'limit' ? '/api/trading/limit-order' : 
-                    '/api/trading/stop-order'
-    
-    const payload = {
-      pair: selectedPair.value,
-      side: 'buy',
-      amount: buyOrder.value.amount,
-      ...(buyOrder.value.type === 'limit' && { price: buyOrder.value.price }),
-      ...(buyOrder.value.type === 'stop_loss' && { stop_price: buyOrder.value.stopPrice })
-    }
-
-    const { data } = await $fetch(endpoint, {
-      method: 'POST',
-      body: payload
-    })
+     const [base, quote] = selectedPair.value.split('/')
+     const { data } = await exchangeAPI.buyCrypto(
+         base, 
+         buyOrder.value.amount, 
+         'wallet', // Default payment method
+         buyOrder.value.type,
+         buyOrder.value.price
+     )
 
     // Reset form
     buyOrder.value = { type: 'market', amount: 0, price: 0, stopPrice: 0 }
@@ -270,22 +262,17 @@ const placeBuyOrder = async () => {
 
 const placeSellOrder = async () => {
   try {
-    const endpoint = sellOrder.value.type === 'market' ? '/api/trading/market-order' : 
-                    sellOrder.value.type === 'limit' ? '/api/trading/limit-order' : 
-                    '/api/trading/stop-order'
-    
-    const payload = {
-      pair: selectedPair.value,
-      side: 'sell',
-      amount: sellOrder.value.amount,
-      ...(sellOrder.value.type === 'limit' && { price: sellOrder.value.price }),
-      ...(sellOrder.value.type === 'stop_loss' && { stop_price: sellOrder.value.stopPrice })
-    }
-
-    const { data } = await $fetch(endpoint, {
-      method: 'POST',
-      body: payload
-    })
+    const [base, quote] = selectedPair.value.split('/')
+    // NOTE: destinationWalletId needed for sellCrypto implies where fiat goes. 
+    // Assuming backend handles it or we need a wallet selection in UI. 
+    // Passing 'default' or similar if API allows, or a real ID if we fetched wallets.
+    const { data } = await exchangeAPI.sellCrypto(
+        base,
+        sellOrder.value.amount,
+        'wallet-id-placeholder', // TODO: User should select fiat wallet
+        sellOrder.value.type,
+        sellOrder.value.price
+    )
 
     // Reset form
     sellOrder.value = { type: 'market', amount: 0, price: 0, stopPrice: 0 }
@@ -317,8 +304,15 @@ const viewAllOrders = () => {
 // Fetch data functions
 const fetchTickers = async () => {
   try {
-    const { data } = await $fetch('/api/trading/tickers')
-    tickers.value = data.tickers || []
+    const { data } = await exchangeAPI.getMarkets()
+    if (data) {
+        tickers.value = data.map(m => ({
+            symbol: m.Symbol,
+            price: m.Price,
+            change_24h: m.Change24h,
+            volume_24h: m.Volume24h
+        }))
+    }
   } catch (error) {
     console.error('Error fetching tickers:', error)
   }
@@ -326,8 +320,18 @@ const fetchTickers = async () => {
 
 const fetchPortfolio = async () => {
   try {
-    const data = await $fetch('/api/trading/portfolio')
-    portfolio.value = data
+    const { data } = await exchangeAPI.getTradingPortfolio()
+    if (data) {
+        portfolio.value = {
+            totalValue: data.TotalValue,
+            holdings: data.Holdings.map(h => ({
+                currency: h.Asset,
+                amount: h.Amount,
+                value: h.Value,
+                change_24h: 0 // Backend might need to provide this
+            }))
+        }
+    }
   } catch (error) {
     console.error('Error fetching portfolio:', error)
   }
@@ -335,8 +339,17 @@ const fetchPortfolio = async () => {
 
 const fetchRecentOrders = async () => {
   try {
-    const { data } = await $fetch('/api/trading/orders')
-    recentOrders.value = data.orders?.slice(0, 5) || []
+    const { data } = await exchangeAPI.getOrders()
+    if (data) {
+        recentOrders.value = data.map(o => ({
+            id: o.ID,
+            pair: `${o.ToCurrency}/${o.FromCurrency}`, // Adjust based on Side
+            side: o.Side,
+            order_type: o.OrderType,
+            amount: o.Amount,
+            status: o.Status
+        })).slice(0, 5)
+    }
   } catch (error) {
     console.error('Error fetching recent orders:', error)
   }
@@ -350,4 +363,3 @@ onMounted(async () => {
     fetchRecentOrders()
   ])
 })
-</script>
