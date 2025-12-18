@@ -112,7 +112,8 @@
       <div class="glass-card p-6">
         <h3 class="text-lg font-bold text-base mb-6">Transactions récentes</h3>
         
-        <div v-if="transactions.length > 0" class="space-y-3">
+        <div v-if="loading" class="py-10 text-center text-muted">A few seconds please...</div>
+        <div v-else-if="transactions.length > 0" class="space-y-3">
           <div v-for="tx in transactions" :key="tx.id" 
               class="flex items-center justify-between p-4 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-secondary-100 dark:hover:border-secondary-800">
             <div class="flex items-center gap-4">
@@ -146,7 +147,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { cardAPI } from '~/composables/useApi'
 
 // Cards - will be loaded from API
@@ -157,9 +158,12 @@ const showTopUp = ref(false)
 
 // Transactions - will be loaded from API
 const transactions = ref([])
+const loading = ref(false)
 
 const formatMoney = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount)
+  const val = Number(amount)
+  if (isNaN(val)) return '0.00'
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(val)
 }
 
 const formatDate = (date) => {
@@ -178,41 +182,91 @@ const getCardClass = (type) => {
 
 const selectCard = (card) => {
   selectedCard.value = card
+  fetchTransactions(card.id)
 }
 
 const freezeCard = async () => {
   if (!selectedCard.value) return
-  // API call
-  selectedCard.value.status = selectedCard.value.status === 'frozen' ? 'active' : 'frozen'
+  
+  try {
+    if (selectedCard.value.status === 'frozen') {
+      await cardAPI.unfreeze(selectedCard.value.id)
+      selectedCard.value.status = 'active'
+    } else {
+      await cardAPI.freeze(selectedCard.value.id)
+      selectedCard.value.status = 'frozen'
+    }
+  } catch (e) {
+    console.error('Failed to toggle card status', e)
+    alert("Impossible de changer le statut de la carte : " + (e.response?.data?.error || e.message))
+  }
 }
 
 const fetchCards = async () => {
+  loading.value = true
   try {
     const response = await cardAPI.getAll()
     if (response.data?.cards) {
-      cards.value = response.data.cards
+      cards.value = response.data.cards.map(c => ({
+        id: c.id,
+        type: c.card_type || 'virtual',
+        name: c.cardholder_name || (c.card_category === 'personal' ? 'Personnelle' : 'Business'),
+        last4: c.card_number ? c.card_number.slice(-4) : '****',
+        expiry: `${String(c.expiry_month).padStart(2, '0')}/${String(c.expiry_year).slice(-2)}`,
+        balance: c.balance,
+        currency: c.currency,
+        status: c.status, // active, frozen
+        dailyLimit: c.daily_limit,
+        isVirtual: c.is_virtual
+      }))
+    } else {
+       cards.value = []
     }
   } catch (e) {
-    console.log('Using mock data')
-    // Mock for dev
-    cards.value = [
-        { id: 1, type: 'virtual', name: 'Shopping en ligne', last4: '4242', expiry: '10/25', balance: 120.50, currency: 'USD', status: 'active', dailyLimit: 2000 },
-        { id: 2, type: 'physical', name: 'Carte Principale', last4: '8899', expiry: '01/27', balance: 4300.00, currency: 'EUR', status: 'active', dailyLimit: 5000 },
-    ]
+    console.error('Error fetching cards:', e)
+    cards.value = [] // No mock data fallback, real implementation
+  } finally {
+    loading.value = false
   }
 }
 
-onMounted(() => {
-  fetchCards()
-  if (cards.value.length > 0) {
-    selectedCard.value = cards.value[0]
+const fetchTransactions = async (cardId) => {
+  if (!cardId) return
+  try {
+    const response = await cardAPI.getTransactions(cardId)
+    // Map backend transactions to frontend format if needed
+    // Backend: transaction_type, amount, currency, description, created_at...
+    if (response.data?.transactions) {
+      transactions.value = response.data.transactions.map(tx => ({
+        id: tx.id,
+        type: tx.amount < 0 || tx.transaction_type === 'purchase' ? 'debit' : 'credit',
+        amount: Math.abs(tx.amount),
+        currency: tx.currency,
+        description: tx.merchant_name || tx.description || 'Transaction',
+        category: tx.merchant_category || 'Général',
+        date: tx.created_at
+      }))
+    } else {
+      transactions.value = []
+    }
+  } catch (e) {
+    console.error('Error fetching transactions:', e)
+    transactions.value = []
   }
-  
-  transactions.value = [
-      { id: 1, type: 'debit', amount: 24.90, currency: 'USD', description: 'Netflix Subscription', category: 'Divertissement', date: new Date() },
-      { id: 2, type: 'debit', amount: 12.50, currency: 'USD', description: 'Uber Ride', category: 'Transport', date: new Date(Date.now() - 3600000) },
-      { id: 3, type: 'credit', amount: 500.00, currency: 'USD', description: 'Rechargement', category: 'Virement', date: new Date(Date.now() - 86400000) },
-  ]
+}
+
+onMounted(async () => {
+  await fetchCards()
+  if (cards.value.length > 0) {
+    selectCard(cards.value[0])
+  }
+})
+
+// Watch for selection changes to refresh transactions if needed
+watch(selectedCard, (newCard) => {
+  if (newCard) {
+    fetchTransactions(newCard.id)
+  }
 })
 
 definePageMeta({
