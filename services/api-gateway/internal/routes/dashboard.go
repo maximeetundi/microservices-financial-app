@@ -17,7 +17,7 @@ func handleGetDashboardSummary(sm *services.ServiceManager) gin.HandlerFunc {
 		userID, _ := c.Get("user_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/dashboard/summary?user_id="+userID.(string), nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/dashboard/summary?user_id="+userID.(string), nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -44,7 +44,7 @@ func handleGetRecentActivity(sm *services.ServiceManager) gin.HandlerFunc {
 		token := c.GetHeader("Authorization")
 		limit := c.DefaultQuery("limit", "10")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/dashboard/activity?user_id="+userID.(string)+"&limit="+limit, nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/dashboard/activity?user_id="+userID.(string)+"&limit="+limit, nil, map[string]string{
 			"Authorization": token,
 		})
 

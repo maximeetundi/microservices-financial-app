@@ -81,7 +81,7 @@ func handleGetSpecificRate(sm *services.ServiceManager) gin.HandlerFunc {
 		from := c.Param("from")
 		to := c.Param("to")
 		
-		resp, err := sm.CallService(c.Request.Context(), "exchange", "GET", "/rates/"+from+"/"+to, nil, nil)
+		resp, err := sm.CallService(c.Request.Context(), "exchange", "GET", "/api/v1/rates/"+from+"/"+to, nil, nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
 			return
@@ -104,7 +104,7 @@ func handleGetQuote(sm *services.ServiceManager) gin.HandlerFunc {
 		}
 
 		token := c.GetHeader("Authorization")
-		resp, err := sm.CallService(c.Request.Context(), "exchange", "POST", "/quote", req, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "exchange", "POST", "/api/v1/quote", req, map[string]string{
 			"Authorization": token,
 		})
 
@@ -155,7 +155,7 @@ func handleGetExchangeHistory(sm *services.ServiceManager) gin.HandlerFunc {
 		userID, _ := c.Get("user_id")
 		token := c.GetHeader("Authorization")
 
-		endpoint := "/exchange/history?user_id=" + userID.(string)
+		endpoint := "/api/v1/exchange/history?user_id=" + userID.(string)
 		resp, err := sm.CallService(c.Request.Context(), "exchange", "GET", endpoint, nil, map[string]string{
 			"Authorization": token,
 		})
@@ -173,7 +173,7 @@ func handleGetExchange(sm *services.ServiceManager) gin.HandlerFunc {
 		exchangeID := c.Param("exchange_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "exchange", "GET", "/exchange/"+exchangeID, nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "exchange", "GET", "/api/v1/exchange/"+exchangeID, nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -226,7 +226,7 @@ func handleGetCards(sm *services.ServiceManager) gin.HandlerFunc {
 		userID, _ := c.Get("user_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "card", "GET", "/cards?user_id="+userID.(string), nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "card", "GET", "/api/v1/cards?user_id="+userID.(string), nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -268,7 +268,7 @@ func handleCreateCard(sm *services.ServiceManager) gin.HandlerFunc {
 			cardData["monthly_limit"] = req.MonthlyLimit
 		}
 
-		resp, err := sm.CallService(c.Request.Context(), "card", "POST", "/cards", cardData, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "card", "POST", "/api/v1/cards", cardData, map[string]string{
 			"Authorization": token,
 		})
 
@@ -309,7 +309,7 @@ func handleCreateLimitOrder(sm *services.ServiceManager) gin.HandlerFunc {
 			"execution_type": "limit",
 		}
 
-		resp, err := sm.CallService(c.Request.Context(), "exchange", "POST", "/trading/limit-order", orderData, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "exchange", "POST", "/api/v1/trading/limit-order", orderData, map[string]string{
 			"Authorization": token,
 		})
 
@@ -327,7 +327,7 @@ func handleGetNotifications(sm *services.ServiceManager) gin.HandlerFunc {
 		userID, _ := c.Get("user_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "notification", "GET", "/notifications?user_id="+userID.(string), nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "notification", "GET", "/api/v1/notifications?user_id="+userID.(string), nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -346,7 +346,7 @@ func handleAdminGetUsers(sm *services.ServiceManager) gin.HandlerFunc {
 		limit := c.DefaultQuery("limit", "50")
 		offset := c.DefaultQuery("offset", "0")
 
-		resp, err := sm.CallService(c.Request.Context(), "user", "GET", "/admin/users?limit="+limit+"&offset="+offset, nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "user", "GET", "/api/v1/admin/users?limit="+limit+"&offset="+offset, nil, map[string]string{
 			"Authorization": token,
 		})
 

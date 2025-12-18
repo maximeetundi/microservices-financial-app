@@ -85,7 +85,7 @@ func handleGetWallet(sm *services.ServiceManager) gin.HandlerFunc {
 		walletID := c.Param("wallet_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/wallets/"+walletID, nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/wallets/"+walletID, nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -110,7 +110,7 @@ func handleUpdateWallet(sm *services.ServiceManager) gin.HandlerFunc {
 
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "PUT", "/wallets/"+walletID, req, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "PUT", "/api/v1/wallets/"+walletID, req, map[string]string{
 			"Authorization": token,
 		})
 
@@ -128,7 +128,7 @@ func handleGetBalance(sm *services.ServiceManager) gin.HandlerFunc {
 		walletID := c.Param("wallet_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/wallets/"+walletID+"/balance", nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/wallets/"+walletID+"/balance", nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -152,7 +152,7 @@ func handleGetWalletTransactions(sm *services.ServiceManager) gin.HandlerFunc {
 		status := c.Query("status")
 		txType := c.Query("type")
 
-		endpoint := "/wallets/" + walletID + "/transactions?limit=" + limit + "&offset=" + offset
+		endpoint := "/api/v1/wallets/" + walletID + "/transactions?limit=" + limit + "&offset=" + offset
 		if status != "" {
 			endpoint += "&status=" + status
 		}
@@ -187,7 +187,7 @@ func handleFreezeWallet(sm *services.ServiceManager) gin.HandlerFunc {
 
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/wallets/"+walletID+"/freeze", req, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/api/v1/wallets/"+walletID+"/freeze", req, map[string]string{
 			"Authorization": token,
 		})
 
@@ -205,7 +205,7 @@ func handleUnfreezeWallet(sm *services.ServiceManager) gin.HandlerFunc {
 		walletID := c.Param("wallet_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/wallets/"+walletID+"/unfreeze", nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/api/v1/wallets/"+walletID+"/unfreeze", nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -240,7 +240,7 @@ func handleGenerateCryptoWallet(sm *services.ServiceManager) gin.HandlerFunc {
 			"name":        req.Name,
 		}
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/crypto/generate", walletData, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/api/v1/crypto/generate", walletData, map[string]string{
 			"Authorization": token,
 		})
 
@@ -258,7 +258,7 @@ func handleGetCryptoAddress(sm *services.ServiceManager) gin.HandlerFunc {
 		walletID := c.Param("wallet_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/crypto/"+walletID+"/address", nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/crypto/"+walletID+"/address", nil, map[string]string{
 			"Authorization": token,
 		})
 
@@ -301,7 +301,7 @@ func handleSendCrypto(sm *services.ServiceManager) gin.HandlerFunc {
 			sendData["gas_price"] = *req.GasPrice
 		}
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/crypto/"+walletID+"/send", sendData, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "POST", "/api/v1/crypto/"+walletID+"/send", sendData, map[string]string{
 			"Authorization": token,
 		})
 
@@ -319,7 +319,7 @@ func handleGetPendingTransactions(sm *services.ServiceManager) gin.HandlerFunc {
 		walletID := c.Param("wallet_id")
 		token := c.GetHeader("Authorization")
 
-		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/crypto/"+walletID+"/pending", nil, map[string]string{
+		resp, err := sm.CallService(c.Request.Context(), "wallet", "GET", "/api/v1/crypto/"+walletID+"/pending", nil, map[string]string{
 			"Authorization": token,
 		})
 
