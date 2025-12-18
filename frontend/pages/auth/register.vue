@@ -93,7 +93,7 @@
             />
           </div>
 
-          <!-- Country -->
+            <!-- Country -->
           <div>
             <label for="country" class="block text-sm font-medium text-white/80 mb-2">
               Pays
@@ -102,46 +102,15 @@
               id="country"
               v-model="registerForm.country"
               required
-              class="input-premium"
+              class="input-premium text-black-options"
             >
               <option value="" disabled>Sélectionnez votre pays</option>
-              <option value="FRA">France</option>
-              <option value="BEL">Belgique</option>
-              <option value="CHE">Suisse</option>
-              <option value="CAN">Canada</option>
-              <option value="USA">États-Unis</option>
-              <option value="GBR">Royaume-Uni</option>
-              <option value="DEU">Allemagne</option>
-              <option value="ESP">Espagne</option>
-              <option value="ITA">Italie</option>
-              <option value="CMR">Cameroun</option>
-              <option value="SEN">Sénégal</option>
-              <option value="CIV">Côte d'Ivoire</option>
-              <option value="MAR">Maroc</option>
-              <option value="TUN">Tunisie</option>
-              <option value="DZA">Algérie</option>
-              <option value="COD">RD Congo</option>
-              <option value="COG">Congo</option>
-              <option value="GAB">Gabon</option>
-              <option value="MLI">Mali</option>
-              <option value="BFA">Burkina Faso</option>
-              <option value="NER">Niger</option>
-              <option value="TGO">Togo</option>
-              <option value="BEN">Bénin</option>
-              <option value="GIN">Guinée</option>
-              <option value="MDG">Madagascar</option>
-              <option value="HTI">Haïti</option>
-              <option value="MRT">Mauritanie</option>
-              <option value="RWA">Rwanda</option>
-              <option value="BDI">Burundi</option>
-              <option value="COM">Comores</option>
-              <option value="MUS">Maurice</option>
-              <option value="PRT">Portugal</option>
-              <option value="NLD">Pays-Bas</option>
-              <option value="LUX">Luxembourg</option>
-              <option value="MCO">Monaco</option>
+              <option v-for="country in countries" :key="country.code" :value="country.code">
+                {{ country.name }}
+              </option>
             </select>
           </div>
+
 
 
           <!-- Password -->
@@ -262,6 +231,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useCountries } from '~/composables/useCountries'
 
 definePageMeta({
   layout: false
@@ -269,6 +239,7 @@ definePageMeta({
 
 const router = useRouter()
 const config = useRuntimeConfig()
+const { countries, getCurrencyByCountry } = useCountries()
 
 const registerForm = ref({
   email: '',
@@ -318,7 +289,10 @@ const handleRegister = async () => {
         last_name: registerForm.value.last_name,
         phone: registerForm.value.phone || undefined,
         date_of_birth: dateOfBirth,
-        country: registerForm.value.country
+        phone: registerForm.value.phone || undefined,
+        date_of_birth: dateOfBirth,
+        country: registerForm.value.country,
+        currency: getCurrencyByCountry(registerForm.value.country)
       }
     })
 
@@ -405,5 +379,10 @@ const handleRegister = async () => {
 .btn-premium:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.text-black-options option {
+  color: #000000;
+  background-color: #ffffff;
 }
 </style>

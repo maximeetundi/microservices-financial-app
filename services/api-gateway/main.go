@@ -29,12 +29,13 @@ func main() {
 	router.Use(gin.Recovery())
 
 	// CORS configuration - Allow all origins to fix 301 redirect CORS issues
+	// CORS configuration - Allow all origins to fix 301 redirect CORS issues
 	router.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
+		AllowOriginFunc:  func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
-		AllowCredentials: false, // Must be false when AllowAllOrigins is true
+		AllowCredentials: true,
 	}))
 
 	// Security middleware

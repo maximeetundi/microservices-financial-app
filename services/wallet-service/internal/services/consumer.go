@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/streadway/amqp"
 )
 
@@ -27,6 +28,7 @@ func (c *Consumer) Start() error {
 	go c.consumeTransferCompleted()
 	go c.consumeExchangeCompleted()
 	go c.consumeCardLoaded()
+	go c.consumeUserRegistered()
 
 	log.Println("Wallet service consumers started")
 	return nil
@@ -206,4 +208,76 @@ func (c *Consumer) handleCardLoaded(msg amqp.Delivery) {
 
 	msg.Ack(false)
 	log.Printf("Successfully processed card_loaded event")
+}
+
+// consumeUserRegistered handles user.registered events
+func (c *Consumer) consumeUserRegistered() {
+	_, err := c.channel.QueueDeclare(
+		"user.registered", // name
+		true,              // durable
+		false,             // delete when unused
+		false,             // exclusive
+		false,             // no-wait
+		nil,               // arguments
+	)
+	if err != nil {
+		log.Printf("Failed to declare user.registered queue: %v", err)
+		return
+	}
+
+	msgs, err := c.channel.Consume(
+		"user.registered", // queue
+		"",                // consumer
+		false,             // auto-ack
+		false,             // exclusive
+		false,             // no-local
+		false,             // no-wait
+		nil,               // args
+	)
+	if err != nil {
+		log.Printf("Failed to consume user.registered: %v", err)
+		return
+	}
+
+	for msg := range msgs {
+		c.handleUserRegistered(msg)
+	}
+}
+
+func (c *Consumer) handleUserRegistered(msg amqp.Delivery) {
+	var event map[string]interface{}
+	if err := json.Unmarshal(msg.Body, &event); err != nil {
+		log.Printf("Failed to unmarshal user registered event: %v", err)
+		msg.Nack(false, true)
+		return
+	}
+
+	log.Printf("Processing user.registered event: %v", event)
+
+	userID, _ := event["user_id"].(string)
+	currency, _ := event["currency"].(string)
+
+	if userID != "" && currency != "" {
+		// Create default wallet
+		name := "Main Wallet"
+		desc := "Default wallet created on registration"
+		
+		req := &models.CreateWalletRequest{
+			Currency:    currency,
+			WalletType:  "fiat",
+			Name:        &name,
+			Description: &desc,
+		}
+		
+		// Internal call, no auth token needed
+		_, err := c.walletService.CreateWallet(userID, req)
+		if err != nil {
+			log.Printf("Failed to create default wallet for user %s: %v", userID, err)
+			msg.Nack(false, true)
+			return
+		}
+		log.Printf("Created default wallet for user %s with currency %s", userID, currency)
+	}
+
+	msg.Ack(false)
 }

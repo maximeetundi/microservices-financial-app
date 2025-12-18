@@ -124,14 +124,14 @@ func (sm *ServiceManager) GetUser(ctx context.Context, userID string, authToken 
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "user", "GET", "/users/"+userID, nil, headers)
+	return sm.CallService(ctx, "user", "GET", "/api/v1/users/"+userID, nil, headers)
 }
 
 func (sm *ServiceManager) UpdateUser(ctx context.Context, userID string, userData map[string]interface{}, authToken string) (*ServiceResponse, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "user", "PUT", "/users/"+userID, userData, headers)
+	return sm.CallService(ctx, "user", "PUT", "/api/v1/users/"+userID, userData, headers)
 }
 
 // Wallet Service calls
@@ -139,14 +139,14 @@ func (sm *ServiceManager) GetWallets(ctx context.Context, userID string, authTok
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "wallet", "GET", "/wallets?user_id="+userID, nil, headers)
+	return sm.CallService(ctx, "wallet", "GET", "/api/v1/wallets?user_id="+userID, nil, headers)
 }
 
 func (sm *ServiceManager) CreateWallet(ctx context.Context, walletData map[string]interface{}, authToken string) (*ServiceResponse, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "wallet", "POST", "/wallets", walletData, headers)
+	return sm.CallService(ctx, "wallet", "POST", "/api/v1/wallets", walletData, headers)
 }
 
 // Transfer Service calls
@@ -154,24 +154,24 @@ func (sm *ServiceManager) CreateTransfer(ctx context.Context, transferData map[s
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "transfer", "POST", "/transfers", transferData, headers)
+	return sm.CallService(ctx, "transfer", "POST", "/api/v1/transfers", transferData, headers)
 }
 
 func (sm *ServiceManager) GetTransferHistory(ctx context.Context, userID string, authToken string) (*ServiceResponse, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "transfer", "GET", "/transfers?user_id="+userID, nil, headers)
+	return sm.CallService(ctx, "transfer", "GET", "/api/v1/transfers?user_id="+userID, nil, headers)
 }
 
 // Exchange Service calls
 func (sm *ServiceManager) GetExchangeRates(ctx context.Context) (*ServiceResponse, error) {
-	return sm.CallService(ctx, "exchange", "GET", "/rates", nil, nil)
+	return sm.CallService(ctx, "exchange", "GET", "/api/v1/rates", nil, nil)
 }
 
 func (sm *ServiceManager) CreateExchange(ctx context.Context, exchangeData map[string]interface{}, authToken string) (*ServiceResponse, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + authToken,
 	}
-	return sm.CallService(ctx, "exchange", "POST", "/exchange", exchangeData, headers)
+	return sm.CallService(ctx, "exchange", "POST", "/api/v1/exchange", exchangeData, headers)
 }

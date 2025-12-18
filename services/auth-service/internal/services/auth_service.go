@@ -7,6 +7,9 @@ import (
 	"log"
 	"time"
 
+	"encoding/json"
+	
+	"github.com/streadway/amqp"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
@@ -17,13 +20,15 @@ type AuthService struct {
 	userRepo    *repository.UserRepository
 	sessionRepo *repository.SessionRepository
 	config      *config.Config
+	mqChannel   *amqp.Channel
 }
 
-func NewAuthService(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, cfg *config.Config) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, cfg *config.Config, mqChannel *amqp.Channel) *AuthService {
 	return &AuthService{
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
 		config:      cfg,
+		mqChannel:   mqChannel,
 	}
 }
 
@@ -63,6 +68,37 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error
 	user, err := s.userRepo.Create(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	// Publish user.registered event
+	if s.mqChannel != nil {
+		event := map[string]interface{}{
+			"user_id":  user.ID,
+			"email":    user.Email,
+			"country":  user.Country,
+			"currency": req.Currency,
+			"timestamp": time.Now().Unix(),
+		}
+		
+		body, _ := json.Marshal(event)
+		
+		err = s.mqChannel.Publish(
+			"",                // exchange
+			"user.registered", // routing key
+			false,             // mandatory
+			false,             // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        body,
+			},
+		)
+		
+		if err != nil {
+			log.Printf("Failed to publish user.registered event: %v", err)
+			// Don't fail registration if event publishing fails, but log error
+		} else {
+			log.Printf("Published user.registered event for user %s", user.ID)
+		}
 	}
 
 	return user, nil
