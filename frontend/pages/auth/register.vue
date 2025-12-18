@@ -280,18 +280,27 @@ const handleRegister = async () => {
     const apiUrl = config.public.apiBaseUrl || 'https://api.app.maximeetundi.store'
     // Format date as RFC3339
     const dateOfBirth = registerForm.value.date_of_birth ? `${registerForm.value.date_of_birth}T00:00:00Z` : ''
+    
+    // Debug logging
+    console.log('Using country:', registerForm.value.country)
+    console.log('Derived currency:', getCurrencyByCountry(registerForm.value.country))
+    
+    const payload = {
+      email: registerForm.value.email,
+      password: registerForm.value.password,
+      first_name: registerForm.value.first_name,
+      last_name: registerForm.value.last_name,
+      phone: registerForm.value.phone || undefined,
+      date_of_birth: dateOfBirth,
+      country: registerForm.value.country,
+      currency: getCurrencyByCountry(registerForm.value.country)
+    }
+    
+    console.log('Registration Payload:', payload)
+
     const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {
       method: 'POST',
-      body: {
-        email: registerForm.value.email,
-        password: registerForm.value.password,
-        first_name: registerForm.value.first_name,
-        last_name: registerForm.value.last_name,
-        phone: registerForm.value.phone || undefined,
-        date_of_birth: dateOfBirth,
-        country: registerForm.value.country,
-        currency: getCurrencyByCountry(registerForm.value.country)
-      }
+      body: payload
     })
 
     success.value = 'Compte créé avec succès ! Redirection...'
