@@ -96,9 +96,4 @@ func handleUpdateSettings(sm *services.ServiceManager) gin.HandlerFunc {
 	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
 }
 
-func extractBearerToken(authorization string) string {
-	if len(authorization) > 7 && authorization[:7] == "Bearer " {
-		return authorization[7:]
-	}
-	return ""
-}
+
