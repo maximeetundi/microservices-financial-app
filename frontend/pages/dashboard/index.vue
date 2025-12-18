@@ -22,21 +22,21 @@
     <!-- Portfolio Overview Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in-up" style="animation-delay: 0.1s">
       <!-- Total Portfolio Value -->
-      <div class="glass-card relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-3xl group-hover:bg-primary-500/20 transition-all"></div>
+      <div class="glass-card relative overflow-hidden group hover:shadow-xl hover:shadow-primary-500/10 transition-all duration-300">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 dark:bg-primary-500/20 rounded-full blur-3xl group-hover:bg-primary-500/20 dark:group-hover:bg-primary-500/30 transition-all"></div>
         <div class="relative">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-muted">Valeur Totale</p>
-            <div class="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400">
+            <p class="text-sm font-medium text-muted uppercase tracking-wider">Valeur Totale</p>
+            <div class="p-2.5 bg-primary-50 dark:bg-primary-900/30 rounded-xl text-primary-600 dark:text-primary-400">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
               </svg>
             </div>
           </div>
-          <p class="text-3xl font-bold text-base mb-2">${{ portfolioStats.totalValue?.toLocaleString() || '0' }}</p>
+          <p class="text-3xl font-bold text-base mb-2 tracking-tight">${{ portfolioStats.totalValue?.toLocaleString() || '0' }}</p>
           <div class="flex items-center text-sm">
-            <span :class="portfolioStats.dailyChange >= 0 ? 'text-success' : 'text-error'" class="font-medium flex items-center gap-1">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span :class="portfolioStats.dailyChange >= 0 ? 'text-success bg-success/10' : 'text-error bg-error/10'" class="px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path v-if="portfolioStats.dailyChange >= 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
               </svg>
@@ -98,6 +98,54 @@
           <p class="text-3xl font-bold text-base mb-2">{{ portfolioStats.activeOrders || 0 }}</p>
           <p class="text-sm text-muted">En attente</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mb-8 animate-fade-in-up" style="animation-delay: 0.15s">
+      <h2 class="text-xl font-bold text-base mb-4 flex items-center gap-2">
+        <span>⚡</span> Actions Rapides
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- Transfer -->
+        <NuxtLink to="/transfer" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-primary-500/10">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+          </div>
+          <span class="font-medium text-base group-hover:text-primary transition-colors">Virement</span>
+        </NuxtLink>
+
+        <!-- Exchange -->
+        <NuxtLink to="/exchange/crypto" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-purple-500/10">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+          </div>
+          <span class="font-medium text-base group-hover:text-primary transition-colors">Échange</span>
+        </NuxtLink>
+
+        <!-- Wallet -->
+        <NuxtLink to="/wallet" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-green-500/10">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/20 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+          </div>
+          <span class="font-medium text-base group-hover:text-primary transition-colors">Portefeuille</span>
+        </NuxtLink>
+
+        <!-- Cards -->
+        <NuxtLink to="/cards" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-orange-500/10">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+          </div>
+          <span class="font-medium text-base group-hover:text-primary transition-colors">Mes Cartes</span>
+        </NuxtLink>
       </div>
     </div>
 

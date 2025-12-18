@@ -521,12 +521,24 @@ definePageMeta({
   }
 }
 
-/* Custom scrollbar for modal */
+/* Custom visible scrollbar for modal */
 .glass-card::-webkit-scrollbar {
-  width: 6px;
+  width: 8px; /* Slightly wider */
+}
+.glass-card::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05); /* Visible track */
+  border-radius: 4px;
+}
+.dark .glass-card::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
 }
 .glass-card::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 3px;
+  background-color: rgba(156, 163, 175, 0.8); /* Darker thumb */
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.glass-card::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 1);
 }
 </style>
