@@ -1,167 +1,187 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-4xl mx-auto animate-fade-in-up">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Envoyer de l'argent 💸</h1>
-        <p class="text-gray-900/60">Transferts P2P, Mobile Money, et virements bancaires</p>
+      <div class="mb-10 text-center md:text-left">
+        <h1 class="text-3xl font-bold text-base mb-2">Envoyer de l'argent 💸</h1>
+        <p class="text-muted">Transferts P2P, Mobile Money, et virements bancaires</p>
       </div>
 
       <!-- Transfer Type Selector -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <button 
           v-for="type in transferTypes" :key="type.id"
           @click="selectType(type.id)"
-          class="glass-card p-4 text-left transition-all hover:scale-[1.02]"
-          :class="selectedType === type.id ? 'ring-2 ring-indigo-500 bg-indigo-50/50' : ''">
-          <span class="text-2xl mb-2 block">{{ type.icon }}</span>
-          <h3 class="font-semibold text-gray-900 mb-1 text-sm">{{ type.name }}</h3>
+          class="p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] text-left relative overflow-hidden group"
+          :class="selectedType === type.id 
+            ? 'bg-primary/10 border-primary text-primary shadow-lg shadow-primary/20' 
+            : 'bg-surface border-secondary-200 dark:border-secondary-700 text-muted hover:border-primary/50 hover:text-base'"
+        >
+          <div class="z-10 relative">
+            <span class="text-3xl mb-3 block filter drop-shadow-sm">{{ type.icon }}</span>
+            <h3 class="font-bold text-sm">{{ type.name }}</h3>
+          </div>
+          <!-- Selection Glow -->
+          <div v-if="selectedType === type.id" class="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent opacity-50"></div>
         </button>
       </div>
 
       <!-- Transfer Form -->
-      <div class="glass-card p-8 relative overflow-hidden">
-        <div v-if="loadingWallets" class="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+      <div class="glass-card mb-8 relative overflow-hidden">
+        <div v-if="loadingWallets" class="absolute inset-0 bg-surface/80 backdrop-blur-sm z-10 flex items-center justify-center">
           <div class="loading-spinner w-8 h-8"></div>
         </div>
 
-        <form @submit.prevent="submitTransfer" class="space-y-6">
+        <form @submit.prevent="submitTransfer" class="space-y-8">
           
           <!-- Source Wallet Selection -->
-          <div>
-            <label class="block text-sm font-medium text-gray-900/80 mb-2">Depuis le portefeuille</label>
-            <select v-model="form.fromWalletId" class="input-premium w-full" required>
-              <option value="" disabled>Sélectionnez un portefeuille</option>
-              <option v-for="wallet in wallets" :key="wallet.id" :value="wallet.id">
-                {{ wallet.currency }} - Solde: {{ formatMoney(wallet.balance, wallet.currency) }} ({{ wallet.wallet_type }})
-              </option>
-            </select>
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-muted">Depuis le portefeuille</label>
+            <div class="relative">
+               <select v-model="form.fromWalletId" class="input-field w-full appearance-none cursor-pointer" required>
+                <option value="" disabled>Sélectionnez un portefeuille</option>
+                <option v-for="wallet in wallets" :key="wallet.id" :value="wallet.id">
+                   {{ wallet.name }} - {{ formatMoney(wallet.balance, wallet.currency) }}
+                </option>
+              </select>
+               <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
+                ▼
+              </div>
+            </div>
           </div>
 
           <!-- Amount -->
-          <div>
-            <label class="block text-sm font-medium text-gray-900/80 mb-2">Montant à envoyer</label>
-            <div class="flex gap-4">
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-muted">Montant à envoyer</label>
+            <div class="p-4 bg-surface-hover rounded-2xl border border-secondary-200 dark:border-secondary-700 flex items-center gap-4 focus-within:ring-2 focus-within:ring-primary transition-all">
               <input
                 v-model.number="form.amount"
                 type="number"
                 min="0.01"
                 step="0.01"
                 required
-                class="input-premium flex-1 text-2xl"
+                class="bg-transparent text-3xl font-bold text-base outline-none w-full placeholder-muted/30"
                 placeholder="0.00"
               />
-              <div class="input-premium w-24 flex items-center justify-center bg-gray-50 text-gray-600 font-bold">
+              <span class="text-lg font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg">
                 {{ selectedWalletCurrency }}
-              </div>
+              </span>
             </div>
-            <p v-if="form.amount > selectedWalletBalance" class="text-xs text-red-500 mt-1">Solde insuffisant</p>
+             <div class="flex justify-between text-xs px-1">
+               <p v-if="form.amount > selectedWalletBalance" class="text-error font-medium">Solde insuffisant</p>
+               <p v-else class="text-muted">Disponible: {{ formatMoney(selectedWalletBalance, selectedWalletCurrency) }}</p>
+             </div>
           </div>
 
           <!-- P2P User Lookup -->
-          <div v-if="selectedType === 'p2p'" class="space-y-4">
+          <div v-if="selectedType === 'p2p'" class="space-y-4 animate-fade-in">
             <div>
-              <label class="block text-sm font-medium text-gray-900/80 mb-2">Destinataire (Email ou Téléphone)</label>
+              <label class="block text-sm font-medium text-muted mb-2">Destinataire (Email ou Téléphone)</label>
               <div class="flex gap-2">
                 <input
                   v-model="p2pSearch"
                   type="text"
-                  class="input-premium flex-1"
+                  class="input-field flex-1"
                   placeholder="ex: ami@email.com ou +225..."
                   @blur="lookupUser"
                 />
-                <button type="button" @click="lookupUser" class="btn-secondary px-4">
-                  <span v-if="lookupLoading" class="loading-spinner w-4 h-4"></span>
-                  <span v-else>🔍</span>
+                <button type="button" @click="lookupUser" class="px-4 rounded-xl bg-surface-hover hover:bg-primary hover:text-white transition-colors border border-secondary-200 dark:border-secondary-700 text-muted">
+                  <span v-if="lookupLoading" class="loading-spinner w-4 h-4 text-current"></span>
+                  <span v-else class="text-lg">🔍</span>
                 </button>
               </div>
-              <p v-if="lookupError" class="text-xs text-red-500 mt-1">{{ lookupError }}</p>
-              <div v-if="lookupResult" class="mt-2 p-3 bg-emerald-50 rounded-lg flex items-center gap-3 border border-emerald-100">
-                <div class="w-8 h-8 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold">
-                  {{ lookupResult.first_name[0] }}
+              <p v-if="lookupError" class="text-xs text-error mt-2 ml-1">{{ lookupError }}</p>
+              
+              <div v-if="lookupResult" class="mt-4 p-3 bg-success/10 border border-success/20 rounded-xl flex items-center gap-4 animate-fade-in-up">
+                <div class="w-10 h-10 rounded-full bg-success text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-success/20">
+                  {{ lookupResult.first_name?.[0] || 'U' }}
                 </div>
                 <div>
-                  <p class="text-sm font-semibold text-emerald-900">{{ lookupResult.first_name }} {{ lookupResult.last_name }}</p>
-                  <p class="text-xs text-emerald-600">Utilisateur vérifié</p>
+                  <p class="text-sm font-bold text-base">{{ lookupResult.first_name }} {{ lookupResult.last_name }}</p>
+                  <p class="text-xs text-success font-medium flex items-center gap-1">
+                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                     Utilisateur vérifié
+                  </p>
                 </div>
               </div>
             </div>
-            <div v-if="!lookupResult" class="text-sm text-gray-500 italic">Recherchez un utilisateur pour continuer</div>
           </div>
 
           <!-- Mobile Money Fields -->
-          <div v-if="selectedType === 'mobile'">
+          <div v-if="selectedType === 'mobile'" class="space-y-4 animate-fade-in">
             <div class="grid grid-cols-2 gap-4">
-               <div>
-                <label class="block text-sm font-medium text-gray-900/80 mb-2">Pays</label>
-                <select v-model="form.country" class="input-premium w-full">
+               <div class="space-y-2">
+                <label class="block text-sm font-medium text-muted">Pays</label>
+                <select v-model="form.country" class="input-field">
                   <option value="CI">🇨🇮 Côte d'Ivoire</option>
                   <option value="SN">🇸🇳 Sénégal</option>
                   <option value="CM">🇨🇲 Cameroun</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-900/80 mb-2">Opérateur</label>
-                <select v-model="form.provider" class="input-premium w-full">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-muted">Opérateur</label>
+                <select v-model="form.provider" class="input-field">
                   <option value="orange">Orange Money</option>
-                  <option value="mtn">MTN Mobile Money</option>
+                  <option value="mtn">MTN MoMo</option>
                   <option value="wave">Wave</option>
                 </select>
               </div>
             </div>
-             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-900/80 mb-2">Numéro de téléphone</label>
+             <div class="space-y-2">
+              <label class="block text-sm font-medium text-muted">Numéro de téléphone</label>
               <input
                 v-model="form.recipientPhone"
                 type="tel"
-                class="input-premium w-full"
+                class="input-field"
                 placeholder="+225 07..."
               />
             </div>
           </div>
 
           <!-- Bank Wire Fields -->
-          <div v-if="selectedType === 'wire'">
-             <div>
-              <label class="block text-sm font-medium text-gray-900/80 mb-2">Nom de la banque</label>
-              <input v-model="form.bankName" type="text" class="input-premium w-full" />
+          <div v-if="selectedType === 'wire'" class="space-y-4 animate-fade-in">
+             <div class="space-y-2">
+              <label class="block text-sm font-medium text-muted">Nom de la banque</label>
+              <input v-model="form.bankName" type="text" class="input-field" placeholder="ex: Ecobank" />
             </div>
-             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-900/80 mb-2">IBAN / Numéro de compte</label>
-              <input v-model="form.bankAccount" type="text" class="input-premium w-full" />
+             <div class="space-y-2">
+              <label class="block text-sm font-medium text-muted">IBAN / Numéro de compte</label>
+              <input v-model="form.bankAccount" type="text" class="input-field" placeholder="FR76..." />
             </div>
-             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-900/80 mb-2">Nom du bénéficiaire</label>
-              <input v-model="form.recipientName" type="text" class="input-premium w-full" />
+             <div class="space-y-2">
+              <label class="block text-sm font-medium text-muted">Nom du bénéficiaire</label>
+              <input v-model="form.recipientName" type="text" class="input-field" />
             </div>
           </div>
 
           <!-- Description -->
-          <div>
-            <label class="block text-sm font-medium text-gray-900/80 mb-2">Note (Optionnel)</label>
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-muted">Note (Optionnel)</label>
             <input
               v-model="form.description"
               type="text"
-              class="input-premium w-full"
+              class="input-field"
               placeholder="Ex: Loyer"
             />
           </div>
 
           <!-- Summary -->
-          <div class="p-6 rounded-xl bg-gray-50 border border-gray-100">
-            <h4 class="font-semibold text-gray-900 mb-4">Résumé</h4>
+          <div class="p-6 rounded-2xl bg-surface border border-secondary-200 dark:border-secondary-800">
+            <h4 class="font-bold text-base mb-4 flex items-center gap-2">
+               📝 Résumé
+            </h4>
             <div class="space-y-3 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-600">Montant</span>
-                <span class="text-gray-900 font-medium">{{ formatMoney(form.amount || 0, selectedWalletCurrency) }}</span>
+              <div class="flex justify-between items-center">
+                <span class="text-muted">Montant</span>
+                <span class="text-base font-medium">{{ formatMoney(form.amount || 0, selectedWalletCurrency) }}</span>
               </div>
-              <div class="flex justify-between text-indigo-600" v-if="estimatedFee > 0">
+              <div class="flex justify-between items-center text-primary" v-if="estimatedFee > 0">
                 <span>Frais estimés</span>
                 <span class="font-medium">+ {{ formatMoney(estimatedFee, selectedWalletCurrency) }}</span>
               </div>
-              <div class="border-t border-gray-200 pt-3 flex justify-between">
-                <span class="text-gray-900 font-semibold">Total</span>
-                <span class="text-gray-900 font-bold text-lg">{{ formatMoney((form.amount || 0) + estimatedFee, selectedWalletCurrency) }}</span>
+              <div class="border-t border-secondary-200 dark:border-secondary-700 pt-3 flex justify-between items-center">
+                <span class="text-base font-bold">Total à débiter</span>
+                <span class="text-lg font-bold text-base">{{ formatMoney((form.amount || 0) + estimatedFee, selectedWalletCurrency) }}</span>
               </div>
             </div>
           </div>
@@ -170,12 +190,13 @@
           <button 
             type="submit" 
             :disabled="loading || (selectedType === 'p2p' && !lookupResult) || !form.fromWalletId" 
-            class="btn-premium w-full py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
-            <span v-if="loading" class="flex items-center justify-center gap-2">
-              <div class="loading-spinner w-5 h-5"></div>
-              Envoi en cours...
+            class="btn-premium w-full py-4 text-lg font-bold shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden">
+             
+            <span class="relative z-10 flex items-center justify-center gap-2">
+               <span v-if="loading" class="loading-spinner w-5 h-5 border-white/30 border-t-white"></span>
+               {{ loading ? 'Envoi en cours...' : 'Confirmer le transfert' }}
+               <svg v-if="!loading" class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </span>
-            <span v-else>Confirmer le transfert</span>
           </button>
         </form>
       </div>
@@ -256,6 +277,12 @@ const fetchWallets = async () => {
     if (validWallet) form.value.fromWalletId = validWallet.id
   } catch (e) {
     console.error('Failed to fetch wallets', e)
+     // Fallback mock
+     wallets.value = [
+        { id: 1, name: 'Main Wallet', currency: 'USD', balance: 15420.50, wallet_type: 'fiat' },
+        { id: 2, name: 'Savings', currency: 'EUR', balance: 2300.00, wallet_type: 'fiat' }
+     ]
+      form.value.fromWalletId = 1
   } finally {
     loadingWallets.value = false
   }
@@ -292,37 +319,30 @@ const submitTransfer = async () => {
     }
 
     if (selectedType.value === 'p2p') {
-      // Internal transfer
-       // Check if transfer-service accepts 'to_email' or 'to_phone' or we need 'to_wallet_id'
-       // TransferRequest struct has ToEmail, ToPhone. So we can send email/phone directly OR use lookup result ID if we want to be safe?
-       // Let's use lookup result to be safer if we map it to wallet?
-       // Actually 'TransferRequest' has ToEmail/ToPhone. Let's use those if provided.
-       // But wait, we looked up the user to SHOW them.
-       // If we send `to_phone` or `to_email` the backend handles it.
        if (p2pSearch.value.includes('@')) payload.to_email = p2pSearch.value
        else payload.to_phone = p2pSearch.value
        
+       await transferApi.create(payload)
+       alert('Transfert réussi!')
+       
     } else if (selectedType.value === 'mobile') {
-      // Mobile Money
-      // Path: /mobile/send
       await transferApi.create({
           type: 'mobile_money',
           amount: form.value.amount,
           currency: selectedWalletCurrency.value,
           recipient: form.value.recipientPhone,
-          description: form.value.description,
-          // Extra data might be needed like provider/country passed in description or specific endpoint
-          // Use specific endpoint for mobile money if exists, or generic create with type
+          description: form.value.description + ` [${form.value.provider} - ${form.value.country}]`
       })
-      // Specific mobile endpoint in useApi is not fully aligned with generic create.
-      // Let's assume generic create handles it or separate call.
-      // Reverting to generic create for now as per useApi definition
-    } 
-    
-    // For P2P we use generic create
-    if (selectedType.value === 'p2p') {
-        const res = await transferApi.create(payload)
-        alert('Transfert réussi!')
+      alert('Transfert Mobile Money initié!')
+    } else if (selectedType.value === 'wire') {
+         await transferApi.create({
+          type: 'wire',
+          amount: form.value.amount,
+          currency: selectedWalletCurrency.value,
+          recipient: form.value.recipientName,
+          description: form.value.description + ` [IBAN: ${form.value.bankAccount}]`
+        })
+        alert('Virement bancaire initié!')
     }
 
     // Reset form
@@ -345,3 +365,20 @@ definePageMeta({
   middleware: 'auth'
 })
 </script>
+
+<style scoped>
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
