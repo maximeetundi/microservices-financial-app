@@ -29,6 +29,7 @@ func handleRegister(sm *services.ServiceManager) gin.HandlerFunc {
 			FirstName   string `json:"first_name" binding:"required"`
 			LastName    string `json:"last_name" binding:"required"`
 			Country     string `json:"country" binding:"required,len=3"`
+			Currency    string `json:"currency" binding:"required,len=3"`
 			DateOfBirth string `json:"date_of_birth" binding:"required"`
 		}
 
@@ -45,6 +46,7 @@ func handleRegister(sm *services.ServiceManager) gin.HandlerFunc {
 			"first_name":    req.FirstName,
 			"last_name":     req.LastName,
 			"country":       req.Country,
+			"currency":      req.Currency,
 			"date_of_birth": req.DateOfBirth,
 		})
 
