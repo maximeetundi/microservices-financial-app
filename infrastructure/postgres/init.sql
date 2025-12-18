@@ -59,8 +59,6 @@ CREATE TABLE wallets (
     frozen_balance DECIMAL(20,8) DEFAULT 0,
     wallet_address VARCHAR(255), -- For crypto wallets
     private_key_encrypted TEXT, -- Encrypted private key
-    wallet_address VARCHAR(255), -- For crypto wallets
-    private_key_encrypted TEXT, -- Encrypted private key
     name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
