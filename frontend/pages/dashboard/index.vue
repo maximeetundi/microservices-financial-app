@@ -3,11 +3,11 @@
     <!-- Header -->
     <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in-up">
       <div>
-        <h1 class="text-3xl font-bold text-base">Bonjour, {{ userName }} 👋</h1>
-        <p class="text-muted mt-1">Voici un aperçu de votre portefeuille aujourd'hui.</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Bonjour, {{ userName }} 👋</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">Voici un aperçu de votre portefeuille aujourd'hui.</p>
       </div>
       <div class="flex items-center gap-3">
-        <div class="px-4 py-2 rounded-xl bg-surface border border-secondary-200 dark:border-secondary-800 text-sm font-medium text-muted">
+        <div class="px-4 py-2 rounded-xl bg-white dark:bg-surface border border-gray-200 dark:border-secondary-800 text-sm font-medium text-gray-500 dark:text-muted shadow-sm">
           Dernière MAJ: {{ new Date().toLocaleTimeString() }}
         </div>
         <NuxtLink to="/transfer" class="btn-primary flex items-center gap-2">
@@ -22,129 +22,129 @@
     <!-- Portfolio Overview Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in-up" style="animation-delay: 0.1s">
       <!-- Total Portfolio Value -->
-      <div class="glass-card relative overflow-hidden group hover:shadow-xl hover:shadow-primary-500/10 transition-all duration-300">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 dark:bg-primary-500/20 rounded-full blur-3xl group-hover:bg-primary-500/20 dark:group-hover:bg-primary-500/30 transition-all"></div>
+      <div class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 dark:bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/10 dark:group-hover:bg-blue-500/30 transition-all"></div>
         <div class="relative">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-muted uppercase tracking-wider">Valeur Totale</p>
-            <div class="p-2.5 bg-primary-50 dark:bg-primary-900/30 rounded-xl text-primary-600 dark:text-primary-400">
+            <p class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Valeur Totale</p>
+            <div class="p-2.5 bg-blue-50 dark:bg-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
               </svg>
             </div>
           </div>
-          <p class="text-3xl font-bold text-base mb-2 tracking-tight">${{ portfolioStats.totalValue?.toLocaleString() || '0' }}</p>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">${{ portfolioStats.totalValue?.toLocaleString() || '0' }}</p>
           <div class="flex items-center text-sm">
-            <span :class="portfolioStats.dailyChange >= 0 ? 'text-success bg-success/10' : 'text-error bg-error/10'" class="px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+            <span :class="portfolioStats.dailyChange >= 0 ? 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-500/20' : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/20'" class="px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path v-if="portfolioStats.dailyChange >= 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
               </svg>
               {{ Math.abs(portfolioStats.dailyChange) }}%
             </span>
-            <span class="text-muted ml-2">vs hier</span>
+            <span class="text-gray-400 ml-2">vs hier</span>
           </div>
         </div>
       </div>
 
       <!-- Available Cash -->
-      <div class="glass-card relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl group-hover:bg-green-500/20 transition-all"></div>
+      <div class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 dark:bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/10 dark:group-hover:bg-emerald-500/30 transition-all"></div>
         <div class="relative">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-muted">Disponible</p>
-            <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 dark:text-green-400">
+            <p class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Disponible</p>
+            <div class="p-2.5 bg-emerald-50 dark:bg-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
               </svg>
             </div>
           </div>
-          <p class="text-3xl font-bold text-base mb-2">${{ portfolioStats.availableCash?.toLocaleString() || '0' }}</p>
-          <p class="text-sm text-muted">Prêt à investir</p>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">${{ portfolioStats.availableCash?.toLocaleString() || '0' }}</p>
+          <p class="text-sm text-gray-400">Prêt à investir</p>
         </div>
       </div>
 
       <!-- Total Profit/Loss -->
-      <div class="glass-card relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
+      <div class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 dark:bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/10 dark:group-hover:bg-purple-500/30 transition-all"></div>
         <div class="relative">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-muted">P&L Total</p>
-            <div class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400">
+            <p class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">P&L Total</p>
+            <div class="p-2.5 bg-purple-50 dark:bg-purple-500/20 rounded-xl text-purple-600 dark:text-purple-400">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 00-2-2z"/>
               </svg>
             </div>
           </div>
-          <p class="text-3xl font-bold text-base mb-2" :class="portfolioStats.totalPnL >= 0 ? 'text-success' : 'text-error'">
+          <p class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight" :class="portfolioStats.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
             {{ portfolioStats.totalPnL >= 0 ? '+' : '' }}${{ Math.abs(portfolioStats.totalPnL || 0).toLocaleString() }}
           </p>
-          <p class="text-sm text-muted">Total réalisé</p>
+          <p class="text-sm text-gray-400">Total réalisé</p>
         </div>
       </div>
 
       <!-- Active Orders -->
-      <div class="glass-card relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 transition-all"></div>
+      <div class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 dark:bg-orange-500/20 rounded-full blur-3xl group-hover:bg-orange-500/10 dark:group-hover:bg-orange-500/30 transition-all"></div>
         <div class="relative">
           <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-muted">Ordres Actifs</p>
-            <div class="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600 dark:text-orange-400">
+            <p class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ordres Actifs</p>
+            <div class="p-2.5 bg-orange-50 dark:bg-orange-500/20 rounded-xl text-orange-600 dark:text-orange-400">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
           </div>
-          <p class="text-3xl font-bold text-base mb-2">{{ portfolioStats.activeOrders || 0 }}</p>
-          <p class="text-sm text-muted">En attente</p>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">{{ portfolioStats.activeOrders || 0 }}</p>
+          <p class="text-sm text-gray-400">En attente</p>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="mb-8 animate-fade-in-up" style="animation-delay: 0.15s">
-      <h2 class="text-xl font-bold text-base mb-4 flex items-center gap-2">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <span>⚡</span> Actions Rapides
       </h2>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <!-- Transfer -->
-        <NuxtLink to="/transfer" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-primary-500/10">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <NuxtLink to="/transfer" class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-md hover:shadow-xl hover:bg-blue-50/50 dark:hover:bg-white/10 transition-all duration-300 flex flex-col items-center gap-3">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
             </svg>
           </div>
-          <span class="font-medium text-base group-hover:text-primary transition-colors">Virement</span>
+          <span class="font-bold text-gray-700 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Virement</span>
         </NuxtLink>
 
         <!-- Exchange -->
-        <NuxtLink to="/exchange/crypto" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-purple-500/10">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20 group-hover:scale-110 transition-transform duration-300">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <NuxtLink to="/exchange/crypto" class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-md hover:shadow-xl hover:bg-purple-50/50 dark:hover:bg-white/10 transition-all duration-300 flex flex-col items-center gap-3">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
             </svg>
           </div>
-          <span class="font-medium text-base group-hover:text-primary transition-colors">Échange</span>
+          <span class="font-bold text-gray-700 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Échange</span>
         </NuxtLink>
 
         <!-- Wallet -->
-        <NuxtLink to="/wallet" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-green-500/10">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/20 group-hover:scale-110 transition-transform duration-300">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <NuxtLink to="/wallet" class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-md hover:shadow-xl hover:bg-emerald-50/50 dark:hover:bg-white/10 transition-all duration-300 flex flex-col items-center gap-3">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
             </svg>
           </div>
-          <span class="font-medium text-base group-hover:text-primary transition-colors">Portefeuille</span>
+          <span class="font-bold text-gray-700 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Portefeuille</span>
         </NuxtLink>
 
         <!-- Cards -->
-        <NuxtLink to="/cards" class="glass-card p-4 flex flex-col items-center justify-center gap-3 hover:scale-105 transition-transform cursor-pointer group hover:bg-surface-hover hover:shadow-lg dark:hover:shadow-orange-500/10">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <NuxtLink to="/cards" class="relative overflow-hidden group rounded-2xl p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-md hover:shadow-xl hover:bg-orange-50/50 dark:hover:bg-white/10 transition-all duration-300 flex flex-col items-center gap-3">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/30 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
             </svg>
           </div>
-          <span class="font-medium text-base group-hover:text-primary transition-colors">Mes Cartes</span>
+          <span class="font-bold text-gray-700 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Mes Cartes</span>
         </NuxtLink>
       </div>
     </div>
@@ -153,49 +153,49 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 animate-fade-in-up" style="animation-delay: 0.2s">
       
       <!-- Portfolio Chart -->
-      <div class="glass-card">
+      <div class="glass-card p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-bold text-base">Performance</h3>
-          <div class="flex space-x-1 bg-secondary-100 dark:bg-secondary-800 p-1 rounded-lg">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Performance</h3>
+          <div class="flex space-x-1 bg-gray-100 dark:bg-secondary-800 p-1 rounded-lg">
             <button v-for="period in chartPeriods" :key="period.value"
                     @click="selectedPeriod = period.value"
                     :class="selectedPeriod === period.value 
                       ? 'bg-white dark:bg-secondary-700 text-primary shadow-sm' 
-                      : 'text-muted hover:text-base'"
+                      : 'text-gray-500 dark:text-muted hover:text-gray-900 dark:hover:text-white'"
                     class="px-3 py-1 text-sm font-medium rounded-md transition-all">
               {{ period.label }}
             </button>
           </div>
         </div>
-        <div class="h-64 flex items-center justify-center border border-dashed border-secondary-200 dark:border-secondary-700 rounded-xl bg-surface/50">
-          <span class="text-muted">Graphique Portefeuille (Chart.js)</span>
+        <div class="h-64 flex items-center justify-center border border-dashed border-gray-200 dark:border-secondary-700 rounded-xl bg-gray-50/50 dark:bg-surface/50">
+          <span class="text-gray-400 dark:text-muted">Graphique Portefeuille (Chart.js)</span>
         </div>
       </div>
 
       <!-- Top Holdings -->
-      <div class="glass-card">
+      <div class="glass-card p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-bold text-base">Top Actifs</h3>
-          <NuxtLink to="/wallet" class="text-primary text-sm font-medium hover:text-primary-600 transition-colors">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Top Actifs</h3>
+          <NuxtLink to="/wallet" class="text-primary text-sm font-bold hover:text-primary-600 transition-colors">
             Voir tout
           </NuxtLink>
         </div>
         <div class="space-y-3">
           <div v-for="holding in topHoldings" :key="holding.currency" 
-               class="flex items-center justify-between p-3 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer group">
+               class="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-surface-hover transition-colors cursor-pointer group">
             <div class="flex items-center gap-4">
-              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-lg"
+              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-md transform group-hover:scale-110 transition-transform"
                    :class="getCurrencyColor(holding.currency)">
                 {{ getCurrencySymbol(holding.currency) }}
               </div>
               <div>
-                <h4 class="font-bold text-base group-hover:text-primary transition-colors">{{ holding.currency }}</h4>
-                <p class="text-sm text-muted">{{ holding.amount }} {{ holding.currency }}</p>
+                <h4 class="font-bold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{{ holding.currency }}</h4>
+                <p class="text-sm text-gray-500 dark:text-muted">{{ holding.amount }} {{ holding.currency }}</p>
               </div>
             </div>
             <div class="text-right">
-              <p class="font-bold text-base">${{ holding.value?.toLocaleString() }}</p>
-              <p class="text-sm font-medium" :class="holding.change >= 0 ? 'text-success' : 'text-error'">
+              <p class="font-bold text-gray-900 dark:text-white">${{ holding.value?.toLocaleString() }}</p>
+              <p class="text-sm font-bold" :class="holding.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ holding.change >= 0 ? '+' : '' }}{{ holding.change }}%
               </p>
             </div>
@@ -205,17 +205,17 @@
     </div>
 
     <!-- Market Overview -->
-    <div class="glass-card mb-8 animate-fade-in-up" style="animation-delay: 0.3s">
+    <div class="glass-card mb-8 animate-fade-in-up p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-lg dark:shadow-none" style="animation-delay: 0.3s">
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg font-bold text-base">Marché</h3>
-        <NuxtLink to="/exchange/crypto" class="text-primary text-sm font-medium hover:text-primary-600 transition-colors">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Marché</h3>
+        <NuxtLink to="/exchange/crypto" class="text-primary text-sm font-bold hover:text-primary-600 transition-colors">
           Voir tout les marchés
         </NuxtLink>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="text-left text-xs font-semibold text-muted uppercase tracking-wider border-b border-secondary-200 dark:border-secondary-800">
+            <tr class="text-left text-xs font-bold text-gray-500 dark:text-muted uppercase tracking-wider border-b border-gray-200 dark:border-secondary-800">
               <th class="pb-4 pl-4">Actif</th>
               <th class="pb-4">Prix</th>
               <th class="pb-4">24h Change</th>
@@ -223,8 +223,8 @@
               <th class="pb-4 pr-4 text-right">Action</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-secondary-100 dark:divide-secondary-800">
-            <tr v-for="market in marketData" :key="market.symbol" class="group hover:bg-surface-hover transition-colors">
+          <tbody class="divide-y divide-gray-100 dark:divide-secondary-800">
+            <tr v-for="market in marketData" :key="market.symbol" class="group hover:bg-gray-50 dark:hover:bg-surface-hover transition-colors">
               <td class="py-4 pl-4">
                 <div class="flex items-center">
                   <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white mr-3 shadow-md"
@@ -232,19 +232,19 @@
                     {{ getCurrencySymbol(market.symbol.split('/')[0]) }}
                   </div>
                   <div>
-                    <div class="font-bold text-base group-hover:text-primary transition-colors">{{ market.symbol }}</div>
-                    <div class="text-xs text-muted">{{ getCurrencyName(market.symbol.split('/')[0]) }}</div>
+                    <div class="font-bold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{{ market.symbol }}</div>
+                    <div class="text-xs text-gray-500 dark:text-muted">{{ getCurrencyName(market.symbol.split('/')[0]) }}</div>
                   </div>
                 </div>
               </td>
-              <td class="py-4 font-medium text-base">${{ market.price?.toLocaleString() }}</td>
-              <td class="py-4 font-medium" :class="market.change >= 0 ? 'text-success' : 'text-error'">
+              <td class="py-4 font-bold text-gray-900 dark:text-white">${{ market.price?.toLocaleString() }}</td>
+              <td class="py-4 font-bold" :class="market.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ market.change >= 0 ? '+' : '' }}{{ market.change }}%
               </td>
-              <td class="py-4 text-sm text-muted">${{ market.volume?.toLocaleString() }}</td>
+              <td class="py-4 text-sm text-gray-500 dark:text-muted">${{ market.volume?.toLocaleString() }}</td>
               <td class="py-4 pr-4 text-right">
                 <button @click="quickTrade(market)" 
-                        class="px-4 py-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary font-medium text-sm hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
+                        class="px-4 py-2 rounded-lg bg-blue-50 dark:bg-primary-900/20 text-blue-600 dark:text-primary font-bold text-sm hover:bg-blue-100 dark:hover:bg-primary-900/40 transition-colors">
                   Trader
                 </button>
               </td>
@@ -258,12 +258,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from '~/stores/auth'
 
 // Page meta
 definePageMeta({
   layout: 'default',
   middleware: 'auth'
 })
+
+const authStore = useAuthStore()
+const userName = computed(() => authStore.user?.first_name || 'Utilisateur')
 
 // Reactive data
 const selectedPeriod = ref('7d')
@@ -317,43 +321,14 @@ const getCurrencyName = (currency) => {
   return names[currency] || currency
 }
 
-const getActivityTypeColor = (type) => {
-  const colors = {
-    'buy': 'bg-green-100 text-green-800',
-    'sell': 'bg-red-100 text-red-800',
-    'transfer': 'bg-blue-100 text-blue-800',
-    'exchange': 'bg-purple-100 text-purple-800'
-  }
-  return colors[type] || 'bg-gray-100 text-gray-800'
-}
-
-const getStatusColor = (status) => {
-  const colors = {
-    'completed': 'bg-green-100 text-green-800',
-    'pending': 'bg-yellow-100 text-yellow-800',
-    'failed': 'bg-red-100 text-red-800'
-  }
-  return colors[status] || 'bg-gray-100 text-gray-800'
-}
-
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString()
-}
-
 const quickTrade = (market) => {
   navigateTo(`/exchange/trading?pair=${market.symbol}`)
 }
 
 // Fetch data functions
 const fetchDashboardData = async () => {
-  try {
-    const data = await $fetch('/api/dashboard/overview')
-    portfolioStats.value = data.stats || {}
-    topHoldings.value = data.holdings || []
-    recentActivity.value = data.activity || []
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error)
-    // Fallback demo data
+  // Using fallback data directly for now to emulate API response
+  // In a real scenario, this would be an API call
     portfolioStats.value = {
       totalValue: 15750.50,
       availableCash: 2500.00,
@@ -383,42 +358,16 @@ const fetchDashboardData = async () => {
         change: 0
       }
     ]
-
-    recentActivity.value = [
-      {
-        id: '1',
-        type: 'buy',
-        asset: 'BTC',
-        amount: '0.1 BTC',
-        status: 'completed',
-        date: new Date().toISOString()
-      },
-      {
-        id: '2',
-        type: 'transfer',
-        asset: 'ETH',
-        amount: '1.5 ETH',
-        status: 'pending',
-        date: new Date().toISOString()
-      }
-    ]
-  }
 }
 
 const fetchMarketData = async () => {
-  try {
-    const data = await $fetch('/api/market/overview')
-    marketData.value = data.markets || []
-  } catch (error) {
-    console.error('Error fetching market data:', error)
-    // Fallback demo data
+    // Demo market data
     marketData.value = [
       { symbol: 'BTC/USD', price: 43500, change: 2.3, volume: 1234567 },
       { symbol: 'ETH/USD', price: 2450, change: -1.2, volume: 987654 },
       { symbol: 'LTC/USD', price: 72, change: 0.8, volume: 543210 },
       { symbol: 'ADA/USD', price: 0.52, change: 3.1, volume: 876543 }
     ]
-  }
 }
 
 // Lifecycle

@@ -1,124 +1,127 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);">
+  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0f0f1a]">
     <!-- Animated Background -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+      <div class="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-indigo-600/20 rounded-full blur-[100px] animate-blob"></div>
+      <div class="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] bg-purple-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
+      <div class="absolute -bottom-[20%] right-[20%] w-[60vw] h-[60vw] bg-blue-600/10 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
     </div>
 
-    <div class="relative w-full max-w-md">
+    <!-- Main Container -->
+    <div class="relative w-full max-w-lg z-10 animate-fade-in-up">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6">
+        <NuxtLink to="/" class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
           <span class="text-4xl">🏦</span>
-        </div>
-        <h1 class="text-3xl font-bold text-white mb-2">CryptoBank</h1>
-        <p class="text-white/60">Créez votre compte sécurisé</p>
+        </NuxtLink>
+        <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">CryptoBank</h1>
+        <p class="text-indigo-200/80">Créez votre compte sécurisé</p>
       </div>
 
       <!-- Register Card -->
-      <div class="glass-card p-8">
-        <form @submit.prevent="handleRegister" class="space-y-5">
+      <div class="glass-card p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-white/5 relative overflow-hidden group">
+        <!-- Shine Effect -->
+        <div class="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none"></div>
+
+        <form @submit.prevent="handleRegister" class="space-y-5 relative z-10">
           <!-- Name Fields -->
           <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label for="firstName" class="block text-sm font-medium text-white/80 mb-2">
-                Prénom
-              </label>
+            <div class="space-y-2">
+              <label for="firstName" class="block text-sm font-medium text-indigo-100">Prénom</label>
               <input
                 id="firstName"
                 v-model="registerForm.first_name"
                 type="text"
                 required
-                class="input-premium"
+                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
                 placeholder="John"
               />
             </div>
-            <div>
-              <label for="lastName" class="block text-sm font-medium text-white/80 mb-2">
-                Nom
-              </label>
+            <div class="space-y-2">
+              <label for="lastName" class="block text-sm font-medium text-indigo-100">Nom</label>
               <input
                 id="lastName"
                 v-model="registerForm.last_name"
                 type="text"
                 required
-                class="input-premium"
+                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
                 placeholder="Doe"
               />
             </div>
           </div>
 
           <!-- Email -->
-          <div>
-            <label for="email" class="block text-sm font-medium text-white/80 mb-2">
-              Adresse email
-            </label>
-            <input
-              id="email"
-              v-model="registerForm.email"
-              type="email"
-              autocomplete="email"
-              required
-              class="input-premium"
-              placeholder="exemple@email.com"
-            />
+          <div class="space-y-2">
+            <label for="email" class="block text-sm font-medium text-indigo-100">Adresse email</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg>
+              </div>
+              <input
+                id="email"
+                v-model="registerForm.email"
+                type="email"
+                autocomplete="email"
+                required
+                class="input-premium pl-11 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                placeholder="exemple@email.com"
+              />
+            </div>
           </div>
 
-          <!-- Phone -->
-          <div>
-            <label for="phone" class="block text-sm font-medium text-white/80 mb-2">
-              Téléphone (optionnel)
-            </label>
-            <input
-              id="phone"
-              v-model="registerForm.phone"
-              type="tel"
-              class="input-premium"
-              placeholder="+33 6 12 34 56 78"
-            />
+          <!-- Phone & Country Grid (Modified for better fit) -->
+          <div class="grid grid-cols-2 gap-4">
+             <!-- Country -->
+             <div class="space-y-2">
+              <label for="country" class="block text-sm font-medium text-indigo-100">Pays</label>
+              <select
+                id="country"
+                v-model="registerForm.country"
+                required
+                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50 appearance-none"
+              >
+                <option value="" disabled class="bg-slate-900 text-gray-400">Sélectionner</option>
+                <option v-for="country in countries" :key="country.code" :value="country.code" class="bg-slate-900 text-white">
+                  {{ country.name }}
+                </option>
+              </select>
+            </div>
+             <!-- Phone -->
+             <div class="space-y-2">
+              <label for="phone" class="block text-sm font-medium text-indigo-100">Téléphone</label>
+              <input
+                id="phone"
+                v-model="registerForm.phone"
+                type="tel"
+                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                placeholder="+33 6..."
+              />
+            </div>
           </div>
 
           <!-- Date of Birth -->
-          <div>
-            <label for="dateOfBirth" class="block text-sm font-medium text-white/80 mb-2">
-              Date de naissance
-            </label>
+           <div class="space-y-2">
+            <label for="dateOfBirth" class="block text-sm font-medium text-indigo-100">Date de naissance</label>
             <input
               id="dateOfBirth"
               v-model="registerForm.date_of_birth"
               type="date"
               required
-              class="input-premium"
+              class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50 [color-scheme:dark]"
             />
           </div>
 
-            <!-- Country -->
-          <div>
-            <label for="country" class="block text-sm font-medium text-white/80 mb-2">
-              Pays
-            </label>
-            <select
-              id="country"
-              v-model="registerForm.country"
-              required
-              class="input-premium text-black-options"
-            >
-              <option value="" disabled>Sélectionnez votre pays</option>
-              <option v-for="country in countries" :key="country.code" :value="country.code">
-                {{ country.name }}
-              </option>
-            </select>
-          </div>
-
-
-
           <!-- Password -->
-          <div>
-            <label for="password" class="block text-sm font-medium text-white/80 mb-2">
-              Mot de passe
-            </label>
+          <div class="space-y-2">
+            <label for="password" class="block text-sm font-medium text-indigo-100">Mot de passe</label>
             <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
               <input
                 id="password"
                 v-model="registerForm.password"
@@ -126,13 +129,13 @@
                 autocomplete="new-password"
                 required
                 minlength="8"
-                class="input-premium pr-12"
+                class="input-premium pl-11 pr-12 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white transition-colors focus:outline-none"
               >
                 <svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
@@ -143,87 +146,94 @@
                 </svg>
               </button>
             </div>
-            <p class="mt-1 text-xs text-white/40">Minimum 8 caractères</p>
           </div>
 
           <!-- Confirm Password -->
-          <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-white/80 mb-2">
-              Confirmer le mot de passe
-            </label>
-            <input
-              id="confirmPassword"
-              v-model="registerForm.confirm_password"
-              :type="showPassword ? 'text' : 'password'"
-              autocomplete="new-password"
-              required
-              class="input-premium"
-              placeholder="••••••••"
-            />
+          <div class="space-y-2">
+            <label for="confirmPassword" class="block text-sm font-medium text-indigo-100">Confirmer</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <input
+                id="confirmPassword"
+                v-model="registerForm.confirm_password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                required
+                class="input-premium pl-11 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           <!-- Terms -->
-          <div class="flex items-start gap-3">
-            <input
-              id="terms"
-              v-model="acceptTerms"
-              type="checkbox"
-              required
-              class="mt-1 w-4 h-4 rounded border-white/20 bg-white/10 text-indigo-500 focus:ring-indigo-500"
-            />
-            <label for="terms" class="text-sm text-white/60">
-              J'accepte les <a href="#" class="text-indigo-400 hover:underline">conditions d'utilisation</a> et la <a href="#" class="text-indigo-400 hover:underline">politique de confidentialité</a>
-            </label>
-          </div>
+          <label class="flex items-start gap-3 cursor-pointer group pt-2">
+            <div class="relative flex items-center pt-0.5">
+              <input
+                v-model="acceptTerms"
+                type="checkbox"
+                class="peer appearance-none w-5 h-5 rounded border border-white/20 bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer"
+              />
+              <svg class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span class="text-sm text-indigo-200/80 group-hover:text-white transition-colors">
+              J'accepte les <a href="#" class="text-indigo-400 hover:text-indigo-300 hover:underline">conditions d'utilisation</a>
+            </span>
+          </label>
 
-          <!-- Error Message -->
-          <div v-if="error" class="p-3 rounded-lg bg-red-500/20 border border-red-500/30">
-            <p class="text-sm text-red-400">{{ error }}</p>
+          <!-- Messages -->
+          <div v-if="error" class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm animate-shake">
+            <div class="flex items-center gap-3">
+               <div class="p-2 rounded-full bg-red-500/20 text-red-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <p class="text-sm text-red-200">{{ error }}</p>
+            </div>
           </div>
-
-          <!-- Success Message -->
-          <div v-if="success" class="p-3 rounded-lg bg-green-500/20 border border-green-500/30">
-            <p class="text-sm text-green-400">{{ success }}</p>
+          <div v-if="success" class="p-4 rounded-xl bg-green-500/10 border border-green-500/20 backdrop-blur-sm">
+            <div class="flex items-center gap-3">
+               <div class="p-2 rounded-full bg-green-500/20 text-green-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <p class="text-sm text-green-200">{{ success }}</p>
+            </div>
           </div>
 
           <!-- Submit Button -->
           <button
             type="submit"
             :disabled="loading || !acceptTerms"
-            class="btn-premium w-full flex items-center justify-center"
+            class="btn-premium w-full py-4 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
           >
-            <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            {{ loading ? 'Création du compte...' : 'Créer mon compte' }}
+            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+            <span class="flex items-center justify-center gap-2 relative z-10">
+              <svg v-if="loading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ loading ? 'En cours...' : 'Créer mon compte' }}
+            </span>
           </button>
+
+          <!-- Login Link -->
+          <div class="text-center pt-2">
+             <p class="text-indigo-200/60 text-sm">
+              Déjà un compte ?
+              <NuxtLink to="/auth/login" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline transition-all ml-1">
+                Se connecter
+              </NuxtLink>
+            </p>
+          </div>
         </form>
-
-        <!-- Divider -->
-        <div class="my-6 flex items-center">
-          <div class="flex-1 border-t border-white/10"></div>
-          <span class="px-4 text-sm text-white/40">ou</span>
-          <div class="flex-1 border-t border-white/10"></div>
-        </div>
-
-        <!-- Login Link -->
-        <p class="text-center text-white/60">
-          Déjà un compte ?
-          <NuxtLink to="/auth/login" class="text-indigo-400 hover:text-indigo-300 font-medium">
-            Se connecter
-          </NuxtLink>
-        </p>
-      </div>
-
-      <!-- Security Badge -->
-      <div class="mt-6 text-center">
-        <div class="inline-flex items-center gap-2 text-white/40 text-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          Connexion sécurisée 256-bit SSL
-        </div>
       </div>
     </div>
   </div>
@@ -341,55 +351,50 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-.glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
+/* Blob Animation */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blob 7s infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
 }
 
-.input-premium {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: white;
-  transition: all 0.3s;
+/* Shake Animation for Error */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
 }
 
-.input-premium::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+/* Autofill Hack for Dark Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.2) inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: transparent !important;
 }
 
-.input-premium:focus {
-  outline: none;
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+/* Custom Scrollbar if needed */
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-.btn-premium {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 12px;
-  color: white;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.btn-premium:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-}
-
-.btn-premium:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.text-black-options option {
-  color: #000000;
-  background-color: #ffffff;
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
 </style>

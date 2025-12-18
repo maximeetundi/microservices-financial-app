@@ -1,59 +1,76 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);">
+  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0f0f1a]">
     <!-- Animated Background -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
-      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+      <div class="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-indigo-600/20 rounded-full blur-[100px] animate-blob"></div>
+      <div class="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] bg-purple-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
+      <div class="absolute -bottom-[20%] right-[20%] w-[60vw] h-[60vw] bg-blue-600/10 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
     </div>
 
-    <div class="relative w-full max-w-md">
+    <!-- Main Container -->
+    <div class="relative w-full max-w-md z-10 animate-fade-in-up">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6">
+        <NuxtLink to="/" class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
           <span class="text-4xl">🏦</span>
-        </div>
-        <h1 class="text-3xl font-bold text-white mb-2">CryptoBank</h1>
-        <p class="text-white/60">Connectez-vous à votre espace sécurisé</p>
+        </NuxtLink>
+        <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">CryptoBank</h1>
+        <p class="text-indigo-200/80">Connectez-vous à votre espace sécurisé</p>
       </div>
 
       <!-- Login Card -->
-      <div class="glass-card p-8">
-        <form @submit.prevent="handleLogin" class="space-y-6">
+      <div class="glass-card p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-white/5 relative overflow-hidden group">
+        <!-- Shine Effect -->
+        <div class="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none"></div>
+
+        <form @submit.prevent="handleLogin" class="space-y-6 relative z-10">
           <!-- Email -->
-          <div>
-            <label for="email" class="block text-sm font-medium text-white/80 mb-2">
+          <div class="space-y-2">
+            <label for="email" class="block text-sm font-medium text-indigo-100">
               Adresse email
             </label>
-            <input
-              id="email"
-              v-model="loginForm.email"
-              type="email"
-              autocomplete="email"
-              required
-              class="input-premium"
-              placeholder="exemple@email.com"
-            />
+            <div class="relative group/input">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 group-focus-within/input:text-indigo-400 transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg>
+              </div>
+              <input
+                id="email"
+                v-model="loginForm.email"
+                type="email"
+                autocomplete="email"
+                required
+                class="input-premium pl-11 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                placeholder="exemple@email.com"
+              />
+            </div>
           </div>
 
           <!-- Password -->
-          <div>
-            <label for="password" class="block text-sm font-medium text-white/80 mb-2">
+          <div class="space-y-2">
+            <label for="password" class="block text-sm font-medium text-indigo-100">
               Mot de passe
             </label>
-            <div class="relative">
+            <div class="relative group/input">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 group-focus-within/input:text-indigo-400 transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
               <input
                 id="password"
                 v-model="loginForm.password"
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
                 required
-                class="input-premium pr-12"
+                class="input-premium pl-11 pr-12 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white transition-colors focus:outline-none"
               >
                 <svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
@@ -67,47 +84,56 @@
           </div>
 
           <!-- 2FA Field -->
-          <div v-if="show2FA">
-            <label for="totp" class="block text-sm font-medium text-white/80 mb-2">
+          <div v-if="show2FA" class="space-y-2 animate-fade-in-up">
+            <label for="totp" class="block text-sm font-medium text-indigo-100">
               Code d'authentification
             </label>
-            <input
-              id="totp"
-              v-model="loginForm.totp_code"
-              type="text"
-              maxlength="6"
-              pattern="[0-9]{6}"
-              required
-              class="input-premium text-center text-lg tracking-widest"
-              placeholder="000000"
-            />
-            <p class="mt-2 text-sm text-white/50">
+            <div class="relative">
+              <input
+                id="totp"
+                v-model="loginForm.totp_code"
+                type="text"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                required
+                class="input-premium text-center text-2xl tracking-[0.5em] font-mono bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                placeholder="000000"
+              />
+            </div>
+            <p class="text-xs text-indigo-300 text-center">
               Entrez le code à 6 chiffres de votre application
             </p>
           </div>
 
           <!-- Remember & Forgot -->
-          <div class="flex items-center justify-between">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="loginForm.remember_me"
-                type="checkbox"
-                class="w-4 h-4 rounded border-white/20 bg-white/10 text-indigo-500 focus:ring-indigo-500"
-              />
-              <span class="text-sm text-white/60">Se souvenir de moi</span>
+          <div class="flex items-center justify-between pt-2">
+            <label class="flex items-center gap-2 cursor-pointer group">
+              <div class="relative flex items-center">
+                <input
+                  v-model="loginForm.remember_me"
+                  type="checkbox"
+                  class="peer appearance-none w-5 h-5 rounded border border-white/20 bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer"
+                />
+                <svg class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span class="text-sm text-indigo-200 group-hover:text-white transition-colors">Se souvenir de moi</span>
             </label>
-            <NuxtLink to="/auth/forgot-password" class="text-sm text-indigo-400 hover:text-indigo-300">
+            <NuxtLink to="/auth/forgot-password" class="text-sm text-indigo-400 hover:text-indigo-300 font-medium hover:underline transition-all">
               Mot de passe oublié ?
             </NuxtLink>
           </div>
 
           <!-- Error Message -->
-          <div v-if="errorMessage" class="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+          <div v-if="errorMessage" class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm animate-shake">
             <div class="flex items-center gap-3">
-              <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <p class="text-sm text-red-300">{{ errorMessage }}</p>
+              <div class="p-2 rounded-full bg-red-500/20 text-red-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <p class="text-sm text-red-200 font-medium">{{ errorMessage }}</p>
             </div>
           </div>
 
@@ -115,42 +141,38 @@
           <button
             type="submit"
             :disabled="isLoading"
-            class="btn-premium w-full py-4 text-lg"
+            class="btn-premium w-full py-4 text-white font-bold text-lg shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed group relative overflow-hidden"
           >
-            <span v-if="isLoading" class="flex items-center justify-center gap-2">
-              <div class="loading-spinner w-5 h-5"></div>
+            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+            <span v-if="isLoading" class="flex items-center justify-center gap-2 relative z-10">
+              <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
               Connexion...
             </span>
-            <span v-else>Se connecter</span>
+            <span v-else class="relative z-10">Se connecter</span>
           </button>
 
           <!-- Register Link -->
-          <p class="text-center text-white/60">
-            Pas encore de compte ?
-            <NuxtLink to="/auth/register" class="text-indigo-400 hover:text-indigo-300 font-medium">
-              Créer un compte
-            </NuxtLink>
-          </p>
+          <div class="text-center pt-2">
+            <p class="text-indigo-200/60 text-sm">
+              Pas encore de compte ?
+              <NuxtLink to="/auth/register" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline transition-all ml-1">
+                Créer un compte
+              </NuxtLink>
+            </p>
+          </div>
         </form>
       </div>
 
-      <!-- Security Notice -->
-      <div class="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
-        <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-          </svg>
-          <p class="text-sm text-white/50">
-            <strong class="text-white/70">Sécurité bancaire</strong> - Votre connexion est protégée par un chiffrement de niveau bancaire.
-          </p>
-        </div>
-      </div>
-
       <!-- Footer -->
-      <div class="mt-8 flex justify-center gap-6 text-sm text-white/40">
-        <NuxtLink to="/legal/privacy" class="hover:text-white/60">Confidentialité</NuxtLink>
-        <NuxtLink to="/legal/terms" class="hover:text-white/60">CGU</NuxtLink>
-        <NuxtLink to="/support" class="hover:text-white/60">Aide</NuxtLink>
+      <div class="mt-8 flex justify-center gap-6 text-xs font-medium text-indigo-200/40">
+        <NuxtLink to="/legal/privacy" class="hover:text-indigo-300 transition-colors">Confidentialité</NuxtLink>
+        <span class="text-indigo-200/20">•</span>
+        <NuxtLink to="/legal/terms" class="hover:text-indigo-300 transition-colors">CGU</NuxtLink>
+        <span class="text-indigo-200/20">•</span>
+        <NuxtLink to="/support" class="hover:text-indigo-300 transition-colors">Aide</NuxtLink>
       </div>
     </div>
   </div>
@@ -215,3 +237,52 @@ onMounted(() => {
   document.getElementById('email')?.focus()
 })
 </script>
+
+<style scoped>
+/* Blob Animation */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blob 7s infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Shake Animation for Error */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Autofill Hack for Dark Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.2) inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: transparent !important;
+}
+
+/* Custom Scrollbar if needed */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+</style>
