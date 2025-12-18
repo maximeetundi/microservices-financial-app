@@ -50,12 +50,7 @@ func main() {
 	}
 
 	router := gin.New()
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.RateLimiter())
-
-	// CORS configuration
+	// CORS configuration - Must be first!
 	router.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -63,6 +58,11 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.RateLimiter())
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
