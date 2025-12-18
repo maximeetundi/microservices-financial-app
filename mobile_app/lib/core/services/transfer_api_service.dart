@@ -24,22 +24,29 @@ class TransferApiService {
   }
   
   /// Créer un nouveau transfert
+  /// Créer un nouveau transfert
   Future<Map<String, dynamic>> createTransfer({
     required String fromWalletId,
-    required String toWalletId,
+    String? toWalletId,
+    String? toEmail,
+    String? toPhone,
     required double amount,
     required String currency,
     String? description,
   }) async {
+    final data = {
+      'from_wallet_id': fromWalletId,
+      'amount': amount,
+      'currency': currency,
+      if (toWalletId != null) 'to_wallet_id': toWalletId,
+      if (toEmail != null) 'to_email': toEmail,
+      if (toPhone != null) 'to_phone': toPhone,
+      if (description != null) 'description': description,
+    };
+
     final response = await _client.post(
       ApiEndpoints.createTransfer,
-      data: {
-        'from_wallet_id': fromWalletId,
-        'to_wallet_id': toWalletId,
-        'amount': amount,
-        'currency': currency,
-        if (description != null) 'description': description,
-      },
+      data: data,
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
       return response.data['transfer'];

@@ -125,4 +125,21 @@ class AuthApiService {
     );
     return response.statusCode == 200;
   }
+
+  /// Rechercher un utilisateur (Email ou Téléphone)
+  Future<Map<String, dynamic>> lookupUser({String? email, String? phone}) async {
+    final Map<String, dynamic> queryParams = {};
+    if (email != null) queryParams['email'] = email;
+    if (phone != null) queryParams['phone'] = phone;
+
+    final response = await _client.get(
+      ApiEndpoints.lookup,
+      queryParameters: queryParams,
+    );
+    
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception('User not found');
+  }
 }

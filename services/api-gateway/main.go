@@ -65,6 +65,14 @@ func main() {
 	{
 		routes.SetupWalletRoutes(walletService.Group("/wallets"), serviceManager)
 		routes.SetupDashboardRoutes(walletService.Group("/dashboard"), serviceManager)
+		routes.SetupMerchantRoutes(walletService.Group("/merchant"), serviceManager)
+		routes.SetupPaymentRoutes(walletService.Group("/payments"), serviceManager)
+	}
+
+	// Public Wallet Routes
+	publicWalletService := router.Group("/wallet-service/api/v1")
+	{
+		routes.SetupPublicPaymentRoutes(publicWalletService, serviceManager)
 	}
 
 	// Transfer Service routes: /transfer-service/api/v1/...

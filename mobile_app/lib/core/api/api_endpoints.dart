@@ -27,6 +27,7 @@ class ApiEndpoints {
   static const String uploadAvatar = '$users/me/avatar';
   static const String kycStatus = '$users/me/kyc';
   static const String updateKYC = '$users/me/kyc';
+  static const String lookup = '$users/lookup'; // Added lookup endpoint
   
   // Wallet Service Endpoints
   static String walletsList = wallets;
@@ -70,6 +71,7 @@ class ApiEndpoints {
   // Exchange Service Endpoints
   static String exchangeRates = '$exchange/rates';
   static String exchangePair(String from, String to) => '$exchange/rate/$from/$to';
+  static String quote = '$exchange/quote'; // Added quote endpoint
   static String executeExchange = '$exchange/execute';
   static String exchangeHistory = '$exchange/history';
   static String exchangeById(String id) => '$exchange/$id';

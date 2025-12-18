@@ -48,6 +48,52 @@ class ExchangeApiService {
     }
     throw Exception(response.data['error'] ?? 'Exchange failed');
   }
+
+  /// Obtenir un devis (Quote)
+  Future<Map<String, dynamic>> getQuote({
+    required String fromCurrency,
+    required String toCurrency,
+    double? fromAmount,
+    double? toAmount,
+  }) async {
+    final data = {
+      'from_currency': fromCurrency,
+      'to_currency': toCurrency,
+      if (fromAmount != null) 'from_amount': fromAmount,
+      if (toAmount != null) 'to_amount': toAmount,
+    };
+
+    final response = await _client.post(
+      ApiEndpoints.quote,
+      data: data,
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception(response.data['error'] ?? 'Failed to get quote');
+  }
+
+  /// Exécuter un devis (Quote)
+  Future<Map<String, dynamic>> executeQuote({
+    required String quoteId,
+    required String fromWalletId,
+    required String toWalletId,
+  }) async {
+    final response = await _client.post(
+      ApiEndpoints.executeExchange,
+      data: {
+        'quote_id': quoteId,
+        'from_wallet_id': fromWalletId,
+        'to_wallet_id': toWalletId,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception(response.data['error'] ?? 'Failed to execute quote');
+  }
   
   /// Récupérer l'historique des échanges
   Future<List<Map<String, dynamic>>> getExchangeHistory({
