@@ -197,98 +197,14 @@ func handleCreateLimitOrder(sm *services.ServiceManager) gin.HandlerFunc {
 	}
 }
 
-// Notification handlers
-func handleGetNotifications(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
-		token := c.GetHeader("Authorization")
+// Notification handlers (moved to notification.go)
 
-		resp, err := sm.CallService(c.Request.Context(), "notification", "GET", "/api/v1/notifications?user_id="+userID.(string), nil, map[string]string{
-			"Authorization": token,
-		})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
-
-// Admin handlers
-func handleAdminGetUsers(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
-		limit := c.DefaultQuery("limit", "50")
-		offset := c.DefaultQuery("offset", "0")
-
-		resp, err := sm.CallService(c.Request.Context(), "user", "GET", "/api/v1/admin/users?limit="+limit+"&offset="+offset, nil, map[string]string{
-			"Authorization": token,
-		})
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Service unavailable"})
-			return
-		}
-		c.Data(resp.StatusCode, "application/json", resp.Body)
-	}
-}
+// Admin handlers (moved to admin.go)
 
 // Placeholder handlers for other routes
-func handleGetKYCStatus(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleUploadKYCDocument(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleGetSettings(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleUpdateSettings(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleGetCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleUpdateCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleActivateCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleFreezeCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleLoadCard(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleGetCardTransactions(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleMarkAsRead(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleDeleteNotification(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleUpdateNotificationSettings(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleAdminGetUser(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleAdminUpdateKYC(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleAdminGetTransactions(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleInvestigateTransaction(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
-func handleGetAnalytics(sm *services.ServiceManager) gin.HandlerFunc {
-	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
-}
+// User specific placeholders moved to user.go, card to card.go etc.
+// Keeping only Exchange specific placeholders if any.
+
 func handleCreateStopLoss(sm *services.ServiceManager) gin.HandlerFunc {
 	return func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) }
 }
