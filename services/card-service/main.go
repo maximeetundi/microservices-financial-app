@@ -50,6 +50,8 @@ func main() {
 	}
 
 	router := gin.New()
+	router.RedirectTrailingSlash = false
+	router.RedirectFixedPath = false
 	// CORS configuration - Must be first!
 	router.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
