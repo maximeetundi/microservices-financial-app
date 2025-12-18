@@ -105,10 +105,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { cardAPI, walletAPI } from '~/composables/useApi'
-import { useUser } from '~/composables/useAuth' 
+import { useAuthStore } from '~/stores/auth'
 
 const router = useRouter()
-const { user } = useUser()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const error = ref('')
@@ -118,7 +118,7 @@ const form = ref({
   card_type: 'virtual',
   card_category: 'personal', // Default
   currency: 'USD',
-  cardholder_name: user.value?.name || '', 
+  cardholder_name: '', 
   source_wallet_id: '',
   initial_amount: 0
 })
@@ -127,7 +127,7 @@ const fetchWallets = async () => {
     try {
         const res = await walletAPI.getAll()
         if (res.data?.wallets) {
-             wallets.value = res.data.wallets.filter(w => w.wallet_type !== 'crypto') // Assuming cards funded by fiat mostly
+             wallets.value = res.data.wallets.filter(w => w.wallet_type !== 'crypto')
         }
     } catch (e) {
         console.error("Error fetching wallets", e)
@@ -139,17 +139,6 @@ const createCard = async () => {
   error.value = ''
   
   try {
-    // Backend expects snake_case keys in some places, but useApi wrap might handle it or we send formatted payload.
-    // The composable defines: create: (data: { type: string; currency: string; name: string }) 
-    // Wait, let's check useApi definition again.
-    
-    // The useApi definition for create is currently: 
-    // create: (data: { type: string; currency: string; name: string }) => api.post('/card-service/api/v1/cards', data)
-    // But the backend CreateCardRequest struct has: 
-    // { CardType, CardCategory, Currency, CardholderName, InitialAmount, SourceWalletID }
-    
-    // So I need to match the backend expectations.
-    
     const payload = {
         card_type: form.value.card_type,
         card_category: form.value.card_category,
@@ -158,10 +147,6 @@ const createCard = async () => {
         initial_amount: Number(form.value.initial_amount),
         source_wallet_id: form.value.source_wallet_id || undefined
     }
-
-    // Direct call using the composable's underlying logic but passing correct payload
-    // Or I should update the composable type definition if I could. 
-    // Javascript allows passing any object, so:
     
     await cardAPI.create(payload)
 
@@ -176,8 +161,10 @@ const createCard = async () => {
 
 onMounted(() => {
     fetchWallets()
-    if (user.value?.name) {
-        form.value.cardholder_name = user.value.name
+    if (authStore.user?.first_name && authStore.user?.last_name) {
+        form.value.cardholder_name = `${authStore.user.first_name} ${authStore.user.last_name}`
+    } else if (authStore.user?.name) {
+        form.value.cardholder_name = authStore.user.name
     }
 })
 
