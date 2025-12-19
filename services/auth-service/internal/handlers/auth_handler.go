@@ -347,3 +347,91 @@ func (h *AuthHandler) LookupUser(c *gin.Context) {
 		"country":    user.Country,
 	})
 }
+
+func (h *AuthHandler) GetProfile(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	user, err := h.authService.GetUserByID(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         user.ID,
+		"email":      user.Email,
+		"first_name": user.FirstName,
+		"last_name":  user.LastName,
+		"phone":      user.Phone,
+		"country":    user.Country,
+		"kyc_level":  user.KYCLevel,
+		"created_at": user.CreatedAt,
+		// Add other non-sensitive fields
+	})
+}
+
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req map[string]interface{} // Use map for partial updates or a specific struct
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Prevent updating sensitive fields via this endpoint
+	delete(req, "password")
+	delete(req, "role")
+	delete(req, "kyc_level")
+	delete(req, "id")
+	delete(req, "email") // Usually require separate flow for email change
+
+	updatedUser, err := h.authService.UpdateUser(userID.(string), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+		"user":    updatedUser,
+	})
+}
+
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req struct {
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.authService.ChangePassword(userID.(string), req.OldPassword, req.NewPassword)
+	if err != nil {
+		if strings.Contains(err.Error(), "incorrect password") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect current password"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}

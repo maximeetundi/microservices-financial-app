@@ -97,6 +97,7 @@ func main() {
 
 		// Card loading (recharge)
 		protected.POST("/cards/:card_id/load", cardHandler.LoadCard)
+		protected.POST("/cards/:card_id/topup", cardHandler.LoadCard) // Alias for frontend compatibility
 		protected.POST("/cards/:card_id/auto-load", cardHandler.SetupAutoLoad)
 		protected.DELETE("/cards/:card_id/auto-load", cardHandler.CancelAutoLoad)
 

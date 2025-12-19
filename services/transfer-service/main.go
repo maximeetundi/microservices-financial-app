@@ -84,6 +84,11 @@ func main() {
 		// Protected routes - apply JWT auth middleware
 		api.POST("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateTransfer)
 		api.GET("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransferHistory)
+		
+		// Additional lookup routes (consistent with frontend useApi.ts)
+		api.GET("/transfers/banks", transferHandler.GetBanks)
+		api.GET("/transfers/mobile-operators", transferHandler.GetMobileProviders)
+		
 		api.GET("/transfers/:transfer_id", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransfer)
 		api.POST("/transfers/:transfer_id/cancel", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CancelTransfer)
 
@@ -96,7 +101,7 @@ func main() {
 		{
 			mobile.POST("/send", transferHandler.SendMobileMoney)
 			mobile.POST("/receive", transferHandler.ReceiveMobileMoney)
-			mobile.GET("/providers", transferHandler.GetMobileProviders)
+			mobile.GET("/providers", transferHandler.GetMobileProviders) // Keep for backward compatibility if needed
 		}
 
 		// Bulk transfers

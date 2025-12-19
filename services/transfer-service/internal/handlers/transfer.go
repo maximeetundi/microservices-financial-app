@@ -196,3 +196,17 @@ func (h *TransferHandler) HandleBankCallback(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "received"})
 }
+
+func (h *TransferHandler) GetBanks(c *gin.Context) {
+	country := c.Query("country")
+	// Mock bank list
+	banks := []gin.H{
+		{"code": "001", "name": "Central Bank"},
+		{"code": "002", "name": "First National Bank"},
+		{"code": "003", "name": "Commercial Bank"},
+	}
+	if country != "" {
+		// Filter or adjust based on country if needed
+	}
+	c.JSON(http.StatusOK, gin.H{"banks": banks})
+}

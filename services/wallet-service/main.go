@@ -107,6 +107,10 @@ func main() {
 			protected.GET("/wallets/:wallet_id/transactions", walletHandler.GetWalletTransactions)
 			protected.POST("/wallets/:wallet_id/freeze", walletHandler.FreezeWallet)
 			protected.POST("/wallets/:wallet_id/unfreeze", walletHandler.UnfreezeWallet)
+			
+			// Deposit and Withdraw routes (added to match frontend)
+			protected.POST("/wallets/:wallet_id/deposit", walletHandler.Deposit)
+			protected.POST("/wallets/:wallet_id/withdraw", walletHandler.Withdraw)
 
 			// Crypto wallet specific routes
 			crypto := protected.Group("/crypto")
