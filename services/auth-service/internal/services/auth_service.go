@@ -378,6 +378,11 @@ func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
 	return token.SignedString([]byte(s.config.JWTSecret))
 }
 
+func (s *AuthService) generateRefreshToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
 	return hex.EncodeToString(bytes), nil
 }
 
