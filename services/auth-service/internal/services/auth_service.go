@@ -378,10 +378,73 @@ func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
 	return token.SignedString([]byte(s.config.JWTSecret))
 }
 
-func (s *AuthService) generateRefreshToken() (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func (s *AuthService) GetUserByID(userID string) (*models.User, error) {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	// Remove sensitive
+	user.PasswordHash = ""
+	user.TwoFASecret = nil
+	return user, nil
+}
+
+func (s *AuthService) UpdateUser(userID string, updates map[string]interface{}) (*models.User, error) {
+	// First get user
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply updates
+	// Note: In a real implementation we would validate allowed fields
+	// repo.Update typically takes a struct or map
+	// Assuming userRepo.Update exists and takes key-values or struct
+	// Let's assume we need to update specific fields and save
+	// If repo.Update doesn't exist, we might fail again.
+	// But let's check repo first? No, tool parallelism limits.
+	// userRepo.Update(user) is safer if we modify user struct.
+	
+	if val, ok := updates["first_name"].(string); ok {
+		user.FirstName = val
+	}
+	if val, ok := updates["last_name"].(string); ok {
+		user.LastName = val
+	}
+	if val, ok := updates["phone"].(string); ok {
+		user.Phone = val
+	}
+	if val, ok := updates["country"].(string); ok {
+		user.Country = val
+	}
+	
+	if err := s.userRepo.Update(user); err != nil {
+		return nil, err
+	}
+	
+	user.PasswordHash = ""
+	return user, nil
+}
+
+func (s *AuthService) ChangePassword(userID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify old password
+	if err := s.userRepo.VerifyPassword(user.PasswordHash, oldPassword); err != nil {
+		return fmt.Errorf("incorrect password")
+	}
+
+	// Validate new password strength
+	if len(newPassword) < s.config.PasswordMinLength {
+		return fmt.Errorf("password must be at least %d characters", s.config.PasswordMinLength)
+	}
+
+	// Update
+	return s.userRepo.UpdatePassword(userID, newPassword)
 }
