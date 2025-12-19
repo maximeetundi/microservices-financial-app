@@ -76,8 +76,15 @@ func (s *CardService) CreateCard(userID string, req *models.CreateCardRequest) (
 		limits.MonthlyLimit = *req.MonthlyLimit
 	}
 
+	// Générer un ID unique
+	cardID, err := s.generateUUID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate card ID: %w", err)
+	}
+
 	// Créer la carte
 	card := &models.Card{
+		ID:                cardID,
 		UserID:            userID,
 		CardNumber:        s.maskCardNumber(cardNumber),
 		CardNumberFull:    cardNumberFull,
@@ -1096,5 +1103,19 @@ func (s *CardService) loadCardFromWallet(cardID, walletID string, amount float64
 		Description:    "Initial card load",
 	}
 	
+	
 	s.LoadCard(userID, cardID, loadReq)
+}
+
+func (s *CardService) generateUUID() (string, error) {
+	uuid := make([]byte, 16)
+	_, err := rand.Read(uuid)
+	if err != nil {
+		return "", err
+	}
+	// variant bits; see section 4.1.1
+	uuid[8] = uuid[8]&^0xc0 | 0x80
+	// version 4 (pseudo-random); see section 4.1.3
+	uuid[6] = uuid[6]&^0xf0 | 0x40
+	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]), nil
 }

@@ -317,14 +317,14 @@ const fetchDashboardData = async () => {
     ])
     
     if (summaryRes?.data) stats.value = summaryRes.data
-    if (activityRes?.data) recentActivities.value = activityRes.data.map(a => ({
+    if (activityRes?.data?.activities) recentActivities.value = activityRes.data.activities.map(a => ({
       ...a,
       bgColor: a.type === 'credit' ? 'bg-green-500/20' : 'bg-red-500/20',
       icon: a.type === 'credit' ? '↓' : '↑'
     }))
     
-    if (marketsRes?.data) {
-       cryptoMarkets.value = marketsRes.data.slice(0, 4).map(m => ({
+    if (marketsRes?.data?.markets) {
+       cryptoMarkets.value = marketsRes.data.markets.slice(0, 4).map(m => ({
          name: m.BaseAsset,
          symbol: m.Symbol,
          price: m.Price,
@@ -335,8 +335,8 @@ const fetchDashboardData = async () => {
     
     if (cardsRes?.data?.cards) userCards.value = cardsRes.data.cards.slice(0, 3)
     
-    if (ratesRes?.data) {
-       fiatRates.value = Object.entries(ratesRes.data).map(([pair, rate]) => ({
+    if (ratesRes?.data?.rates) {
+       fiatRates.value = Object.entries(ratesRes.data.rates).map(([pair, rate]) => ({
          pair,
          rate: rate.Rate || rate, // Handle if rate is object or value
          change: rate.Change24h || 0
