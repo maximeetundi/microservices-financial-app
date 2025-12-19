@@ -339,3 +339,13 @@ func (r *UserRepository) GetUserRole(userID string) (string, error) {
 	}
 	return role, nil
 }
+
+func (r *UserRepository) Update(user *models.User) error {
+	query := `
+		UPDATE users 
+		SET first_name = $1, last_name = $2, phone = $3, date_of_birth = $4, country = $5, updated_at = NOW()
+		WHERE id = $6
+	`
+	_, err := r.db.Exec(query, user.FirstName, user.LastName, user.Phone, user.DateOfBirth, user.Country, user.ID)
+	return err
+}
