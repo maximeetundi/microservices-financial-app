@@ -3,10 +3,10 @@
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Bonjour, {{ userName }} 👋
         </h1>
-        <p class="text-slate-400">
+        <p class="text-gray-500 dark:text-slate-400">
           {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
         </p>
       </div>
@@ -22,8 +22,8 @@
             </div>
             <span class="badge badge-success">+5.2%</span>
           </div>
-          <p class="text-slate-400 text-sm mb-1">Solde Total</p>
-          <p class="text-2xl font-bold text-white">{{ formatMoney(stats.totalBalance) }}</p>
+          <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Solde Total</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.totalBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-green">
@@ -33,8 +33,8 @@
             </div>
             <span class="badge badge-success">+12.8%</span>
           </div>
-          <p class="text-slate-400 text-sm mb-1">Crypto Portfolio</p>
-          <p class="text-2xl font-bold text-white">{{ formatMoney(stats.cryptoBalance) }}</p>
+          <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Crypto Portfolio</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.cryptoBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-purple">
@@ -45,9 +45,9 @@
               </svg>
             </div>
           </div>
-          <p class="text-slate-400 text-sm mb-1">Cartes Actives</p>
-          <p class="text-2xl font-bold text-white">{{ stats.activeCards }}</p>
-          <p class="text-sm text-slate-500">Solde: {{ formatMoney(stats.cardsBalance) }}</p>
+          <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Cartes Actives</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.activeCards }}</p>
+          <p class="text-sm text-gray-400 dark:text-slate-500">Solde: {{ formatMoney(stats.cardsBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-orange">
@@ -58,44 +58,44 @@
               </svg>
             </div>
           </div>
-          <p class="text-slate-400 text-sm mb-1">Transferts ce mois</p>
-          <p class="text-2xl font-bold text-white">{{ stats.monthlyTransfers }}</p>
-          <p class="text-sm text-slate-500">Volume: {{ formatMoney(stats.monthlyVolume) }}</p>
+          <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Transferts ce mois</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.monthlyTransfers }}</p>
+          <p class="text-sm text-gray-400 dark:text-slate-500">Volume: {{ formatMoney(stats.monthlyVolume) }}</p>
         </div>
       </div>
 
       <!-- Quick Actions -->
       <div class="glass-card p-6 mb-8">
-        <h3 class="text-lg font-semibold text-white mb-6">🚀 Actions Rapides</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">🚀 Actions Rapides</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <NuxtLink to="/exchange/crypto" class="quick-action-btn">
             <span class="text-3xl mb-2">₿</span>
-            <span class="text-sm font-medium text-slate-300">Acheter Crypto</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Acheter Crypto</span>
           </NuxtLink>
 
           <NuxtLink to="/exchange/fiat" class="quick-action-btn">
             <span class="text-3xl mb-2">💱</span>
-            <span class="text-sm font-medium text-slate-300">Convertir</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Convertir</span>
           </NuxtLink>
 
           <NuxtLink to="/cards" class="quick-action-btn">
             <span class="text-3xl mb-2">💳</span>
-            <span class="text-sm font-medium text-slate-300">Mes Cartes</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Mes Cartes</span>
           </NuxtLink>
 
           <NuxtLink to="/transfer" class="quick-action-btn">
             <span class="text-3xl mb-2">💸</span>
-            <span class="text-sm font-medium text-slate-300">Envoyer</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Envoyer</span>
           </NuxtLink>
 
           <NuxtLink to="/wallet" class="quick-action-btn">
             <span class="text-3xl mb-2">👛</span>
-            <span class="text-sm font-medium text-slate-300">Portefeuilles</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Portefeuilles</span>
           </NuxtLink>
 
           <button @click="showQRModal = true" class="quick-action-btn">
             <span class="text-3xl mb-2">📱</span>
-            <span class="text-sm font-medium text-slate-300">Recevoir</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Recevoir</span>
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@
         <!-- Crypto Markets -->
         <div class="glass-card p-6">
           <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-white">📊 Marchés Crypto</h3>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">📊 Marchés Crypto</h3>
             <NuxtLink to="/exchange/crypto" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
               Voir tout →
             </NuxtLink>
@@ -119,12 +119,12 @@
                   <span class="text-white font-bold">{{ crypto.symbol?.slice(0, 2) || '??' }}</span>
                 </div>
                 <div>
-                  <p class="font-semibold text-white">{{ crypto.name }}</p>
-                  <p class="text-sm text-slate-400">{{ crypto.symbol }}</p>
+                  <p class="font-semibold text-gray-900 dark:text-white">{{ crypto.name }}</p>
+                  <p class="text-sm text-gray-500 dark:text-slate-400">{{ crypto.symbol }}</p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="font-semibold text-white">${{ (crypto.price || 0).toLocaleString() }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">${{ (crypto.price || 0).toLocaleString() }}</p>
                 <p class="text-sm" :class="(crypto.change || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'">
                   {{ (crypto.change || 0) >= 0 ? '+' : '' }}{{ (crypto.change || 0).toFixed(2) }}%
                 </p>
@@ -136,7 +136,7 @@
         <!-- Recent Activity -->
         <div class="glass-card p-6">
           <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-white">🕒 Activité Récente</h3>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">🕒 Activité Récente</h3>
             <NuxtLink to="/transactions" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
               Voir tout →
             </NuxtLink>
@@ -149,12 +149,12 @@
                 <span class="text-lg">{{ activity.icon }}</span>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="font-medium text-white truncate">{{ activity.title }}</p>
-                <p class="text-sm text-slate-400 truncate">{{ activity.description }}</p>
+                <p class="font-medium text-gray-900 dark:text-white truncate">{{ activity.title }}</p>
+                <p class="text-sm text-gray-500 dark:text-slate-400 truncate">{{ activity.description }}</p>
               </div>
               <div class="text-right">
-                <p class="font-semibold text-white">{{ activity.amount }}</p>
-                <p class="text-xs text-slate-500">{{ formatTime(activity.time) }}</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ activity.amount }}</p>
+                <p class="text-xs text-gray-400 dark:text-slate-500">{{ formatTime(activity.time) }}</p>
               </div>
             </div>
           </div>
@@ -164,7 +164,7 @@
       <!-- My Cards Section -->
       <div class="glass-card p-6 mb-8">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-white">💳 Mes Cartes</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">💳 Mes Cartes</h3>
           <NuxtLink to="/cards" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
             Gérer →
           </NuxtLink>
