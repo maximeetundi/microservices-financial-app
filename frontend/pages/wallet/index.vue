@@ -181,11 +181,11 @@
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-0 max-w-lg w-full shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
              <h3 class="text-xl font-bold text-gray-900 dark:text-white">Recharger</h3>
-             <button @click="showTopUpModal = false" class="text-gray-400 hover:text-gray-900 dark:hover:text-white">✕</button>
+             <button @click="closeTopUpModal" class="text-gray-400 hover:text-gray-900 dark:hover:text-white">✕</button>
            </div>
            
            <div class="p-6 overflow-y-auto custom-scrollbar">
-             <!-- Wallet Selection if likely needed, or display current -->
+             <!-- Wallet Selection -->
              <div class="mb-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl flex items-center gap-4">
                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm" :class="getCurrencyBg(selectedWallet?.currency)">
                  {{ getCurrencyIcon(selectedWallet?.currency) }}
@@ -196,51 +196,100 @@
                </div>
              </div>
 
-             <!-- Conditional Content based on Wallet Type -->
-             <div v-if="selectedWallet?.type === 'fiat'">
-                <h4 class="font-bold text-gray-900 dark:text-white mb-4">Moyens de paiement</h4>
-                <div class="grid grid-cols-1 gap-3">
-                  <button class="flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group">
-                    <span class="text-2xl">📱</span>
-                    <div class="text-left">
-                      <p class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Mobile Money</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Orange, MTN, Wave</p>
-                    </div>
-                  </button>
-                   <button class="flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group">
-                    <span class="text-2xl">🏦</span>
-                    <div class="text-left">
-                      <p class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Virement Bancaire</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">IBAN / RIB</p>
-                    </div>
-                  </button>
-                    <button class="flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group">
-                    <span class="text-2xl">💳</span>
-                    <div class="text-left">
-                      <p class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Carte Bancaire</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard</p>
-                    </div>
-                  </button>
-                </div>
+             <!-- Amount Input -->
+             <div class="mb-6">
+               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Montant à déposer</label>
+               <div class="relative">
+                 <input 
+                   v-model.number="depositAmount" 
+                   type="number" 
+                   placeholder="0.00"
+                   min="1"
+                   class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                 />
+                 <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">{{ selectedWallet?.currency }}</span>
+               </div>
+               <div class="flex gap-2 mt-3">
+                 <button v-for="amt in [1000, 5000, 10000, 50000]" :key="amt" 
+                   @click="depositAmount = amt"
+                   class="flex-1 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors text-gray-700 dark:text-gray-300">
+                   {{ amt.toLocaleString() }}
+                 </button>
+               </div>
              </div>
 
-             <div v-else>
-               <!-- Crypto Deposit -->
-                <div class="text-center">
-                  <div class="bg-white p-4 rounded-xl inline-block shadow-lg border border-gray-100 mb-6">
-                    <!-- Placeholder QR -->
-                    <div class="w-48 h-48 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">QR Code {{ selectedWallet?.currency }}</div>
-                  </div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Adresse de dépôt {{ selectedWallet?.currency }}</p>
-                  <div class="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <code class="text-sm font-mono flex-1 break-all text-gray-800 dark:text-gray-200">{{ selectedWallet?.address }}</code>
-                    <button @click="copyAddress" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">📋</button>
-                  </div>
-                  <p class="text-xs text-amber-600 mt-4 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
-                    ⚠️ Envoyez uniquement du <strong>{{ selectedWallet?.currency }}</strong> sur cette adresse. Tout autre jeton sera perdu.
-                  </p>
-                </div>
+             <!-- Payment Method Selection -->
+             <div class="mb-6">
+               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
+               <div class="grid grid-cols-1 gap-3">
+                 <button @click="depositMethod = 'orange'" 
+                   :class="depositMethod === 'orange' ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-200 dark:border-gray-700'"
+                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-orange-500 transition-all group">
+                   <span class="text-2xl">🟠</span>
+                   <div class="text-left flex-1">
+                     <p class="font-bold text-gray-900 dark:text-white">Orange Money</p>
+                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                   </div>
+                   <div v-if="depositMethod === 'orange'" class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                     </svg>
+                   </div>
+                 </button>
+                 <button @click="depositMethod = 'mtn'" 
+                   :class="depositMethod === 'mtn' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'border-gray-200 dark:border-gray-700'"
+                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-yellow-500 transition-all group">
+                   <span class="text-2xl">🟡</span>
+                   <div class="text-left flex-1">
+                     <p class="font-bold text-gray-900 dark:text-white">MTN Mobile Money</p>
+                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                   </div>
+                   <div v-if="depositMethod === 'mtn'" class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                     </svg>
+                   </div>
+                 </button>
+                 <button @click="depositMethod = 'wave'" 
+                   :class="depositMethod === 'wave' ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-gray-200 dark:border-gray-700'"
+                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-blue-500 transition-all group">
+                   <span class="text-2xl">🌊</span>
+                   <div class="text-left flex-1">
+                     <p class="font-bold text-gray-900 dark:text-white">Wave</p>
+                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                   </div>
+                   <div v-if="depositMethod === 'wave'" class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                     </svg>
+                   </div>
+                 </button>
+               </div>
              </div>
+
+             <!-- Error/Success Message -->
+             <div v-if="depositError" class="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+               {{ depositError }}
+             </div>
+             <div v-if="depositSuccess" class="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 text-sm">
+               {{ depositSuccess }}
+             </div>
+
+             <!-- Submit Button -->
+             <button 
+               @click="submitDeposit"
+               :disabled="!depositAmount || depositAmount <= 0 || !depositMethod || depositLoading"
+               class="w-full py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
+             >
+               <span v-if="depositLoading" class="flex items-center justify-center gap-2">
+                 <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                 </svg>
+                 Traitement...
+               </span>
+               <span v-else>Déposer {{ depositAmount ? depositAmount.toLocaleString() : '' }} {{ selectedWallet?.currency }}</span>
+             </button>
            </div>
         </div>
       </div>
@@ -263,6 +312,13 @@ const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showTopUpModal = ref(false)
 const creatingWallet = ref(false)
+
+// Deposit form
+const depositAmount = ref(5000)
+const depositMethod = ref('orange')
+const depositLoading = ref(false)
+const depositError = ref('')
+const depositSuccess = ref('')
 
 // New wallet form
 const newWallet = ref({
@@ -332,6 +388,40 @@ const copyAddress = () => {
   if (selectedWallet.value?.address) {
     navigator.clipboard.writeText(selectedWallet.value.address)
     alert('Adresse copiée !')
+  }
+}
+
+const closeTopUpModal = () => {
+  showTopUpModal.value = false
+  depositError.value = ''
+  depositSuccess.value = ''
+}
+
+const submitDeposit = async () => {
+  if (!selectedWallet.value || !depositAmount.value || depositAmount.value <= 0) return
+  
+  depositLoading.value = true
+  depositError.value = ''
+  depositSuccess.value = ''
+  
+  try {
+    const response = await walletAPI.deposit(selectedWallet.value.id, depositAmount.value, depositMethod.value)
+    
+    if (response.data) {
+      depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${depositMethod.value.toUpperCase()}!`
+      // Refresh wallets to show new balance
+      await fetchWallets()
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        closeTopUpModal()
+        depositAmount.value = 5000
+      }, 2000)
+    }
+  } catch (e) {
+    console.error('Deposit error:', e)
+    depositError.value = e.response?.data?.error || 'Erreur lors du dépôt. Veuillez réessayer.'
+  } finally {
+    depositLoading.value = false
   }
 }
 

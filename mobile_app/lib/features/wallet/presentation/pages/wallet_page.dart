@@ -7,10 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_widget.dart';
 import '../bloc/wallet_bloc.dart';
-import '../widgets/wallet_card.dart';
-import '../widgets/wallet_actions.dart';
-import '../widgets/recent_transactions_list.dart';
-import '../widgets/create_wallet_bottom_sheet.dart';
+import '../widgets/deposit_bottom_sheet.dart';
 
 class WalletPage extends StatefulWidget {
   const WalletPage({Key? key}) : super(key: key);
@@ -408,51 +405,67 @@ class _WalletPageState extends State<WalletPage> {
   }
 
   void _showBuyOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Buy Crypto',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Credit/Debit Card'),
-              subtitle: const Text('Instant purchase'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navigate to card purchase
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_balance),
-              title: const Text('Bank Transfer'),
-              subtitle: const Text('Lower fees'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navigate to bank transfer
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: const Text('P2P Exchange'),
-              subtitle: const Text('Buy from other users'),
-              onTap: () {
-                Navigator.pop(context);
-                // Navigate to P2P
-              },
-            ),
-          ],
+    // Use deposit bottom sheet if wallet is loaded
+    final state = context.read<WalletBloc>().state;
+    if (state is WalletLoadedState && state.wallets.isNotEmpty) {
+      final wallet = state.wallets.first;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => DepositBottomSheet(
+          walletId: wallet.id,
+          walletCurrency: wallet.currency,
+          onSuccess: () {
+            _loadWallets(); // Refresh wallets after deposit
+          },
         ),
-      ),
-    );
+      );
+    } else {
+      // Fallback to original options if no wallet
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Buy Crypto',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.credit_card),
+                title: const Text('Credit/Debit Card'),
+                subtitle: const Text('Instant purchase'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance),
+                title: const Text('Bank Transfer'),
+                subtitle: const Text('Lower fees'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: const Text('P2P Exchange'),
+                subtitle: const Text('Buy from other users'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 }
