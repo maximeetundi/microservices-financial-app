@@ -289,9 +289,8 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 	}
 
 	// Default password: Admin123!
-	// This is a pre-computed bcrypt hash for "Admin123!"
-	// In production, change this immediately after first login!
-	defaultPasswordHash := "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+	// bcrypt hash generated with cost 10
+	defaultPasswordHash := "$2a$10$Wq5bZpZ9L.OKvJqRGCGCyOlf8.8K1VOy0kDfNjMhB.R5oGpAFUQXq"
 	
 	// Create default super admin
 	_, err = db.Exec(`
