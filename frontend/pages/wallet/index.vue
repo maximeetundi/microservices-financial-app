@@ -101,6 +101,20 @@
                  <span class="text-gray-600 dark:text-gray-300 font-mono text-xs bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded">{{ truncateAddress(wallet.address) }}</span>
             </div>
           </div>
+          
+          <!-- Action Buttons per Wallet -->
+          <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 relative z-10">
+            <button @click.stop="openTopUpForWallet(wallet)" 
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Recharger
+            </button>
+            <NuxtLink :to="`/transfer?wallet=${wallet.id}`" @click.stop
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-white text-sm font-semibold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              Envoyer
+            </NuxtLink>
+          </div>
         </div>
       </div>
 
@@ -420,6 +434,11 @@ const openTopUpModal = () => {
     showTopUpModal.value = true
 }
 
+const openTopUpForWallet = (wallet) => {
+    selectedWallet.value = wallet
+    showTopUpModal.value = true
+}
+
 const copyAddress = () => {
   if (selectedWallet.value?.address) {
     navigator.clipboard.writeText(selectedWallet.value.address)
@@ -466,13 +485,32 @@ const fetchWallets = async () => {
     const response = await walletAPI.getAll()
     if (response.data?.wallets) {
       // Map response to ensure consistent property access
-      wallets.value = response.data.wallets.map(w => ({
-        ...w,
-        // Ensure type IS available even if backend sends wallet_type
-        type: w.wallet_type || w.type,
-        // Ensure wallet_type is also set for any other logic
-        wallet_type: w.wallet_type || w.type
-      }))
+      wallets.value = response.data.wallets.map(w => {
+        const balance = Number(w.balance) || 0
+        // Calculate balanceUSD from balance using conversion rates
+        let balanceUSD = balance
+        if (w.currency === 'XOF' || w.currency === 'XAF') {
+          balanceUSD = balance / 600 // ~600 XOF/XAF per USD
+        } else if (w.currency === 'EUR') {
+          balanceUSD = balance * 1.08
+        } else if (w.currency === 'GBP') {
+          balanceUSD = balance * 1.27
+        } else if (w.currency === 'USD') {
+          balanceUSD = balance
+        } else if (w.currency === 'BTC') {
+          balanceUSD = balance * 43000
+        } else if (w.currency === 'ETH') {
+          balanceUSD = balance * 2200
+        }
+        
+        return {
+          ...w,
+          balance,
+          balanceUSD,
+          type: w.wallet_type || w.type,
+          wallet_type: w.wallet_type || w.type
+        }
+      })
     }
   } catch (e) {
     console.log('Using mock data or API error')
