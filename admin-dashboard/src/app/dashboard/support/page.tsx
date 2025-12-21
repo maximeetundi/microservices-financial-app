@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { getSupportTickets, getTicketMessages, sendTicketMessage, closeTicket, getSupportStats } from '@/lib/api';
 
 interface Conversation {
     id: string;
@@ -44,73 +45,80 @@ export default function SupportPage() {
     const [filter, setFilter] = useState('all');
     const [stats, setStats] = useState<Stats | null>(null);
     const [sending, setSending] = useState(false);
+    const [loading, setLoading] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    useEffect(() => {
-        // Demo data
-        setStats({
-            total_conversations: 156,
-            open_conversations: 23,
-            resolved_today: 45,
-            pending_conversations: 8,
-            customer_satisfaction: 4.8,
-            active_agents: 5
-        });
-
-        setConversations([
-            {
-                id: '1',
-                user_id: 'u1',
-                user_name: 'Jean Dupont',
-                user_email: 'jean@example.com',
-                agent_type: 'human',
-                subject: 'Problème de transfert international',
-                category: 'transfer',
-                status: 'pending',
-                priority: 'high',
-                last_message: 'Mon transfert est bloqué depuis 2 jours...',
-                unread_count: 3,
-                message_count: 5,
-                created_at: new Date(Date.now() - 3600000).toISOString(),
-                updated_at: new Date(Date.now() - 600000).toISOString()
-            },
-            {
-                id: '2',
-                user_id: 'u2',
-                user_name: 'Marie Martin',
-                user_email: 'marie@example.com',
-                agent_type: 'ai',
-                subject: 'Question sur les frais',
-                category: 'fees',
-                status: 'escalated',
-                priority: 'medium',
-                last_message: 'Je voudrais comprendre pourquoi j\'ai été facturé...',
-                unread_count: 1,
-                message_count: 8,
-                created_at: new Date(Date.now() - 7200000).toISOString(),
-                updated_at: new Date(Date.now() - 1800000).toISOString()
-            },
-            {
-                id: '3',
-                user_id: 'u3',
-                user_name: 'Pierre Leroy',
-                user_email: 'pierre@example.com',
-                agent_type: 'human',
-                subject: 'Carte volée - Demande de blocage',
-                category: 'security',
-                status: 'active',
-                priority: 'urgent',
-                last_message: 'Ma carte a été volée, pouvez-vous la bloquer?',
+    const fetchConversations = async () => {
+        try {
+            const response = await getSupportTickets();
+            // Map tickets to conversation format
+            const tickets = response.data?.tickets || [];
+            setConversations(tickets.map((ticket: any) => ({
+                id: ticket.id,
+                user_id: ticket.user_id,
+                user_name: ticket.user_name || 'Utilisateur',
+                user_email: ticket.user_email || '',
+                agent_type: 'human' as const,
+                subject: ticket.subject,
+                category: ticket.category,
+                status: ticket.status,
+                priority: ticket.priority || 'medium',
+                last_message: ticket.description,
                 unread_count: 0,
-                message_count: 12,
-                created_at: new Date(Date.now() - 1800000).toISOString(),
-                updated_at: new Date(Date.now() - 300000).toISOString()
-            }
-        ]);
+                message_count: 1,
+                created_at: ticket.created_at,
+                updated_at: ticket.updated_at || ticket.created_at
+            })));
+        } catch (error) {
+            console.error('Failed to fetch tickets:', error);
+            // Fallback demo data
+            setConversations([
+                {
+                    id: '1',
+                    user_id: 'u1',
+                    user_name: 'Jean Dupont',
+                    user_email: 'jean@example.com',
+                    agent_type: 'human',
+                    subject: 'Problème de transfert international',
+                    category: 'transfer',
+                    status: 'pending',
+                    priority: 'high',
+                    last_message: 'Mon transfert est bloqué depuis 2 jours...',
+                    unread_count: 3,
+                    message_count: 5,
+                    created_at: new Date(Date.now() - 3600000).toISOString(),
+                    updated_at: new Date(Date.now() - 600000).toISOString()
+                }
+            ]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchStats = async () => {
+        try {
+            const response = await getSupportStats();
+            setStats(response.data);
+        } catch (error) {
+            // Fallback demo data
+            setStats({
+                total_conversations: 156,
+                open_conversations: 23,
+                resolved_today: 45,
+                pending_conversations: 8,
+                customer_satisfaction: 4.8,
+                active_agents: 5
+            });
+        }
+    };
+
+    useEffect(() => {
+        fetchConversations();
+        fetchStats();
     }, []);
 
     useEffect(() => {
@@ -280,8 +288,8 @@ export default function SupportPage() {
                                     key={f}
                                     onClick={() => setFilter(f)}
                                     className={`px-3 py-1 rounded-full text-sm transition ${filter === f
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                                         }`}
                                 >
                                     {f === 'all' && 'Tous'}
@@ -361,8 +369,8 @@ export default function SupportPage() {
                                         ) : (
                                             <div className={`max-w-[70%] ${msg.sender_type === 'agent' ? 'order-2' : ''}`}>
                                                 <div className={`rounded-xl p-3 ${msg.sender_type === 'agent'
-                                                        ? 'bg-blue-500 text-white rounded-tr-none'
-                                                        : 'bg-slate-700 text-white rounded-tl-none'
+                                                    ? 'bg-blue-500 text-white rounded-tr-none'
+                                                    : 'bg-slate-700 text-white rounded-tl-none'
                                                     }`}>
                                                     <p className="text-sm font-medium mb-1">{msg.sender_name}</p>
                                                     <p className="whitespace-pre-wrap">{msg.content}</p>

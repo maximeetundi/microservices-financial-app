@@ -107,4 +107,41 @@ export const getRoles = () => api.get('/roles');
 export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
+// Support Tickets (via support-service proxied through Kong)
+const supportApi = axios.create({
+    baseURL: `${API_URL}/support-service/api/v1`,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Use same interceptors for support API
+supportApi.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+export const getSupportTickets = (limit = 50, offset = 0) =>
+    supportApi.get(`/tickets?limit=${limit}&offset=${offset}`);
+
+export const getSupportTicket = (id: string) =>
+    supportApi.get(`/tickets/${id}`);
+
+export const getTicketMessages = (ticketId: string) =>
+    supportApi.get(`/tickets/${ticketId}/messages`);
+
+export const sendTicketMessage = (ticketId: string, message: string) =>
+    supportApi.post(`/tickets/${ticketId}/messages`, { message });
+
+export const closeTicket = (ticketId: string) =>
+    supportApi.post(`/tickets/${ticketId}/close`);
+
+export const getSupportStats = () =>
+    supportApi.get('/stats');
+
 export default api;

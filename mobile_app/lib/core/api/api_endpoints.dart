@@ -81,4 +81,14 @@ class ApiEndpoints {
   static String markAsRead(String id) => '$notifications/$id/read';
   static const String markAllAsRead = '$notifications/read-all';
   static const String notificationSettings = '$notifications/settings';
+  
+  // Support Service Endpoints
+  static const String support = '/support-service/api/v1';
+  static String supportTickets = '$support/tickets';
+  static String createTicket = '$support/tickets';
+  static String ticketById(String id) => '$support/tickets/$id';
+  static String ticketMessages(String id) => '$support/tickets/$id/messages';
+  static String sendMessage(String id) => '$support/tickets/$id/messages';
+  static String closeTicket(String id) => '$support/tickets/$id/close';
+  static String supportStats = '$support/stats';
 }

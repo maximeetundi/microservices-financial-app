@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/support_api_service.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -305,8 +306,9 @@ class _SupportScreenState extends State<SupportScreen> {
 // Chat Screen
 class ChatScreen extends StatefulWidget {
   final String agentType;
+  final String? ticketId; // Optional: resume existing ticket
 
-  const ChatScreen({super.key, required this.agentType});
+  const ChatScreen({super.key, required this.agentType, this.ticketId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -317,11 +319,62 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
+  String? _ticketId;
+  final SupportApiService _supportApi = SupportApiService();
 
   @override
   void initState() {
     super.initState();
+    _ticketId = widget.ticketId;
+    _initializeConversation();
+  }
+  
+  Future<void> _initializeConversation() async {
+    if (_ticketId != null) {
+      // Load existing ticket messages
+      await _loadMessages();
+    } else {
+      // Create new ticket
+      await _createTicket();
+    }
+  }
+  
+  Future<void> _createTicket() async {
+    try {
+      final ticket = await _supportApi.createTicket(
+        subject: 'Conversation ${widget.agentType == 'ai' ? 'IA' : 'Conseiller'}',
+        category: 'general',
+        description: 'Nouvelle conversation de support',
+        priority: 'normal',
+      );
+      setState(() {
+        _ticketId = ticket['id']?.toString();
+      });
+    } catch (e) {
+      // Continue with local simulation if API fails
+      debugPrint('Failed to create ticket: $e');
+    }
     _addWelcomeMessage();
+  }
+  
+  Future<void> _loadMessages() async {
+    if (_ticketId == null) return;
+    try {
+      final messages = await _supportApi.getMessages(_ticketId!);
+      setState(() {
+        _messages.addAll(messages.map((msg) => ChatMessage(
+          id: msg['id']?.toString() ?? '',
+          content: msg['content'] ?? '',
+          isUser: msg['sender_type'] == 'user',
+          timestamp: DateTime.tryParse(msg['created_at'] ?? '') ?? DateTime.now(),
+        )));
+      });
+    } catch (e) {
+      debugPrint('Failed to load messages: $e');
+    }
+    if (_messages.isEmpty) {
+      _addWelcomeMessage();
+    }
   }
 
   void _addWelcomeMessage() {
