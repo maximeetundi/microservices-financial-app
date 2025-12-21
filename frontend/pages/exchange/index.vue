@@ -149,8 +149,8 @@
                 {{ market.change >= 0 ? '+' : '' }}{{ market.change }}%
               </span>
             </div>
-            <div class="text-lg font-bold">${{ market.price.toLocaleString() }}</div>
-            <div class="text-sm text-gray-500">Vol: ${{ market.volume.toLocaleString() }}</div>
+            <div class="text-lg font-bold">${{ (market.price || 0).toLocaleString() }}</div>
+            <div class="text-sm text-gray-500">Vol: ${{ (market.volume || 0).toLocaleString() }}</div>
           </div>
         </div>
       </div>
@@ -273,6 +273,7 @@ const formatDate = (date) => {
 }
 
 const formatPrice = (price) => {
+  if (price == null) return '0'
   if (price >= 1000) return price.toLocaleString()
   if (price >= 1) return price.toFixed(2)
   return price.toFixed(6)

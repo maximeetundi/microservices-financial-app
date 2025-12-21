@@ -127,8 +127,8 @@
               </div>
               <div class="text-right">
                 <p class="font-semibold text-white">${{ formatPrice(crypto.price) }}</p>
-                <p class="text-xs" :class="crypto.change >= 0 ? 'text-emerald-400' : 'text-red-400'">
-                  {{ crypto.change >= 0 ? '+' : '' }}{{ crypto.change.toFixed(2) }}%
+                <p class="text-xs" :class="(crypto.change || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'">
+                  {{ (crypto.change || 0) >= 0 ? '+' : '' }}{{ (crypto.change || 0).toFixed(2) }}%
                 </p>
               </div>
             </div>
@@ -194,6 +194,7 @@ const formatMoney = (amount, currency = 'USD') => {
 }
 
 const formatPrice = (price) => {
+  if (price == null) return '0'
   return price >= 1 ? price.toLocaleString() : price.toFixed(4)
 }
 
