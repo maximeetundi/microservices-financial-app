@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0f0f1a]">
+  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 dark:bg-[#0f0f1a]">
     <!-- Animated Background -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-indigo-600/20 rounded-full blur-[100px] animate-blob"></div>
@@ -14,9 +14,19 @@
         <NuxtLink to="/" class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
           <span class="text-3xl">🏦</span>
         </NuxtLink>
-        <h1 class="text-2xl font-bold text-white mb-1 tracking-tight">Créer votre compte</h1>
-        <p class="text-indigo-200/70 text-sm">Rejoignez CryptoBank en quelques étapes</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-1 tracking-tight">Créer votre compte</h1>
+        <p class="text-gray-600 dark:text-indigo-200/70 text-sm">Rejoignez CryptoBank en quelques étapes</p>
       </div>
+
+      <!-- Theme Toggle Button -->
+      <button @click="toggleTheme" class="absolute top-4 right-4 p-3 rounded-xl bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-gray-200 dark:border-white/10 transition-all shadow-lg z-20">
+        <svg v-if="isDark" class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+        <svg v-else class="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+      </button>
 
       <!-- Progress Steps -->
       <div class="flex items-center justify-center gap-2 mb-6">
@@ -37,14 +47,14 @@
       </div>
 
       <!-- Step Labels -->
-      <div class="flex justify-between text-xs text-slate-400 mb-8 px-4">
+      <div class="flex justify-between text-xs text-gray-500 dark:text-slate-400 mb-8 px-4">
         <span :class="currentStep >= 1 ? 'text-indigo-400' : ''">Identité</span>
         <span :class="currentStep >= 2 ? 'text-indigo-400' : ''">Contact</span>
         <span :class="currentStep >= 3 ? 'text-indigo-400' : ''">Sécurité</span>
       </div>
 
       <!-- Register Card -->
-      <div class="glass-card p-8 border border-white/10 shadow-2xl backdrop-blur-xl bg-white/5 relative overflow-hidden">
+      <div class="glass-card p-8 border border-gray-200 dark:border-white/10 shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-white/5 relative overflow-hidden">
         <form @submit.prevent="handleSubmit">
           
           <!-- Step 1: Identity -->
@@ -238,6 +248,12 @@ definePageMeta({ layout: false })
 const router = useRouter()
 const config = useRuntimeConfig()
 const { countries, getCurrencyByCountry } = useCountries()
+const colorMode = useColorMode()
+
+const isDark = computed(() => colorMode.value === 'dark')
+const toggleTheme = () => {
+  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+}
 
 const currentStep = ref(1)
 const showPassword = ref(false)

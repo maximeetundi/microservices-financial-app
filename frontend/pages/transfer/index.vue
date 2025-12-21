@@ -267,12 +267,26 @@ const formatMoney = (amount, currency) => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount)
 }
 
+const route = useRoute()
+
 const fetchWallets = async () => {
   loadingWallets.value = true
   try {
     const res = await walletApi.getWallets()
     wallets.value = res.data.wallets || []
-    // Auto-select first wallet with balance
+    
+    // Check if wallet ID is passed in URL query param
+    const urlWalletId = route.query.wallet
+    if (urlWalletId) {
+      // Find and select the wallet from URL
+      const targetWallet = wallets.value.find(w => w.id === urlWalletId)
+      if (targetWallet) {
+        form.value.fromWalletId = targetWallet.id
+        return // Don't auto-select, use the URL param
+      }
+    }
+    
+    // Fallback: Auto-select first wallet with balance
     const validWallet = wallets.value.find(w => w.balance > 0)
     if (validWallet) form.value.fromWalletId = validWallet.id
   } catch (e) {
