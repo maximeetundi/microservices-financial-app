@@ -194,7 +194,7 @@
               </div>
             </div>
             <div class="text-right">
-              <p class="font-bold text-gray-900 dark:text-white">${{ holding.value?.toLocaleString() }}</p>
+              <p class="font-bold text-gray-900 dark:text-white">${{ (holding.value || 0).toLocaleString() }}</p>
               <p class="text-sm font-bold" :class="holding.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
                 {{ holding.change >= 0 ? '+' : '' }}{{ holding.change }}%
               </p>
@@ -237,11 +237,11 @@
                   </div>
                 </div>
               </td>
-              <td class="py-4 font-bold text-gray-900 dark:text-white">${{ market.price?.toLocaleString() }}</td>
+              <td class="py-4 font-bold text-gray-900 dark:text-white">${{ (market.price || 0).toLocaleString() }}</td>
               <td class="py-4 font-bold" :class="market.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
                 {{ market.change >= 0 ? '+' : '' }}{{ market.change }}%
               </td>
-              <td class="py-4 text-sm text-gray-500 dark:text-gray-400">${{ market.volume?.toLocaleString() }}</td>
+              <td class="py-4 text-sm text-gray-500 dark:text-gray-400">${{ (market.volume || 0).toLocaleString() }}</td>
               <td class="py-4 pr-4 text-right">
                 <button @click="quickTrade(market)" 
                         class="px-4 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors">

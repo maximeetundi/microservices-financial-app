@@ -37,11 +37,11 @@
                       class="border-b hover:bg-gray-50 cursor-pointer"
                       @click="selectPair(ticker.symbol)">
                     <td class="py-3 font-medium">{{ ticker.symbol }}</td>
-                    <td class="py-3">${{ ticker.price?.toLocaleString() }}</td>
+                    <td class="py-3">${{ (ticker.price || 0).toLocaleString() }}</td>
                     <td class="py-3" :class="ticker.change_24h >= 0 ? 'text-green-600' : 'text-red-600'">
                       {{ ticker.change_24h >= 0 ? '+' : '' }}{{ ticker.change_24h }}%
                     </td>
-                    <td class="py-3">${{ ticker.volume_24h?.toLocaleString() }}</td>
+                    <td class="py-3">${{ (ticker.volume_24h || 0).toLocaleString() }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -152,7 +152,7 @@
                   <div class="text-sm text-gray-500">{{ holding.amount }}</div>
                 </div>
                 <div class="text-right">
-                  <div class="font-medium">${{ holding.value?.toLocaleString() }}</div>
+                  <div class="font-medium">${{ (holding.value || 0).toLocaleString() }}</div>
                   <div class="text-sm" :class="holding.change_24h >= 0 ? 'text-green-600' : 'text-red-600'">
                     {{ holding.change_24h >= 0 ? '+' : '' }}{{ holding.change_24h }}%
                   </div>

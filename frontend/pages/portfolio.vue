@@ -138,7 +138,7 @@
                   {{ formatAmount(holding.amount, holding.currency) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  ${{ holding.value?.toLocaleString() }}
+                  ${{ (holding.value || 0).toLocaleString() }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ holding.percentage }}%
@@ -147,7 +147,7 @@
                     :class="holding.change_24h >= 0 ? 'text-green-600' : 'text-red-600'">
                   <div>{{ holding.change_24h >= 0 ? '+' : '' }}{{ holding.change_24h }}%</div>
                   <div class="text-xs">
-                    ${{ holding.changeValue24h >= 0 ? '+' : '' }}{{ holding.changeValue24h?.toLocaleString() }}
+                    ${{ (holding.changeValue24h || 0) >= 0 ? '+' : '' }}{{ (holding.changeValue24h || 0).toLocaleString() }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
