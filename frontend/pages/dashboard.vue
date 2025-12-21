@@ -124,9 +124,9 @@
                 </div>
               </div>
               <div class="text-right">
-                <p class="font-semibold text-white">${{ crypto.price.toLocaleString() }}</p>
-                <p class="text-sm" :class="crypto.change >= 0 ? 'text-emerald-400' : 'text-red-400'">
-                  {{ crypto.change >= 0 ? '+' : '' }}{{ crypto.change.toFixed(2) }}%
+                <p class="font-semibold text-white">${{ (crypto.price || 0).toLocaleString() }}</p>
+                <p class="text-sm" :class="(crypto.change || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'">
+                  {{ (crypto.change || 0) >= 0 ? '+' : '' }}{{ (crypto.change || 0).toFixed(2) }}%
                 </p>
               </div>
             </div>

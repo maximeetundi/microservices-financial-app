@@ -35,6 +35,23 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 		return
 	}
 
+	// Auto-create a default wallet if user has none
+	if len(wallets) == 0 {
+		name := "Wallet Principal"
+		desc := "Wallet créé automatiquement"
+		defaultReq := &models.CreateWalletRequest{
+			Currency:    "XOF", // Default currency for African users
+			WalletType:  "fiat",
+			Name:        &name,
+			Description: &desc,
+		}
+		
+		newWallet, err := h.walletService.CreateWallet(userID.(string), defaultReq)
+		if err == nil {
+			wallets = append(wallets, newWallet)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"wallets": wallets})
 }
 

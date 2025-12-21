@@ -26,45 +26,39 @@
         <form @submit.prevent="handleLogin" class="space-y-6 relative z-10">
           <!-- Email -->
           <div class="space-y-2">
-            <label for="email" class="block text-sm font-medium text-indigo-100">
+            <label for="email" class="flex items-center gap-2 text-sm font-medium text-indigo-100">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+              </svg>
               Adresse email
             </label>
-            <div class="relative group/input">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 group-focus-within/input:text-indigo-400 transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                </svg>
-              </div>
-              <input
-                id="email"
-                v-model="loginForm.email"
-                type="email"
-                autocomplete="email"
-                required
-                class="input-premium pl-11 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
-                placeholder="exemple@email.com"
-              />
-            </div>
+            <input
+              id="email"
+              v-model="loginForm.email"
+              type="email"
+              autocomplete="email"
+              required
+              class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+              placeholder="exemple@email.com"
+            />
           </div>
 
           <!-- Password -->
           <div class="space-y-2">
-            <label for="password" class="block text-sm font-medium text-indigo-100">
+            <label for="password" class="flex items-center gap-2 text-sm font-medium text-indigo-100">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
               Mot de passe
             </label>
-            <div class="relative group/input">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 group-focus-within/input:text-indigo-400 transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
+            <div class="relative">
               <input
                 id="password"
                 v-model="loginForm.password"
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
                 required
-                class="input-premium pl-11 pr-12 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                class="input-premium pr-12 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
                 placeholder="••••••••"
               />
               <button
