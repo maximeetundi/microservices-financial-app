@@ -163,7 +163,7 @@ func main() {
 		}
 
 		// Payment Providers management
-		paymentHandler := handlers.NewPaymentHandler(db)
+		paymentHandler := handlers.NewPaymentHandler(mainDB)
 		payments := protected.Group("/payment-providers")
 		{
 			payments.GET("", paymentHandler.GetPaymentProviders)
@@ -182,7 +182,7 @@ func main() {
 	// Public endpoint for payment methods (no auth required for wallet)
 	publicPayments := router.Group("/api/v1")
 	{
-		paymentHandler := handlers.NewPaymentHandler(db)
+		paymentHandler := handlers.NewPaymentHandler(mainDB)
 		publicPayments.GET("/payment-methods", paymentHandler.GetPaymentMethodsForCountry)
 	}
 
