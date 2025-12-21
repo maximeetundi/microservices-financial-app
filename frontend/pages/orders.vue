@@ -213,6 +213,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { exchangeAPI } from '~/composables/useApi'
 
 // Page meta
 definePageMeta({
@@ -281,7 +282,7 @@ const formatDate = (dateString) => {
 
 const cancelOrder = async (orderId) => {
   try {
-    await $fetch(`/api/trading/orders/${orderId}/cancel`, { method: 'POST' })
+    await exchangeAPI.cancelOrder(orderId)
     
     // Update local state
     const order = allOrders.value.find(o => o.id === orderId)
@@ -303,8 +304,8 @@ const viewOrderDetails = (order) => {
 // Fetch orders
 const fetchOrders = async () => {
   try {
-    const { data } = await $fetch('/api/trading/orders')
-    allOrders.value = data.orders || []
+    const response = await exchangeAPI.getUserOrders()
+    allOrders.value = response.data?.orders || []
   } catch (error) {
     console.error('Error fetching orders:', error)
     // Fallback demo data

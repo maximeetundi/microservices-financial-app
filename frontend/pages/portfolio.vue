@@ -167,6 +167,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { dashboardAPI } from '~/composables/useApi'
 
 // Page meta
 definePageMeta({
@@ -211,8 +212,30 @@ const sellCurrency = (currency) => {
 // Fetch data
 const fetchPortfolio = async () => {
   try {
-    const data = await $fetch('/api/trading/portfolio')
-    portfolio.value = data
+    const response = await dashboardAPI.getPortfolio()
+    const data = response.data || response
+    
+    // Map API response to component format
+    portfolio.value = {
+      totalValue: data.total_value || 0,
+      holdings: (data.assets || []).map(asset => ({
+        currency: asset.symbol || asset.name,
+        amount: asset.balance || 0,
+        value: asset.value || 0,
+        percentage: asset.allocation || 0,
+        change_24h: asset.change_pct || 0,
+        changeValue24h: asset.change_24h || 0
+      })),
+      performance: {
+        totalReturn: data.change_pct || 0,
+        totalReturnValue: data.change_24h || 0,
+        dayReturn: data.change_pct || 0,
+        dayReturnValue: data.change_24h || 0,
+        weekReturn: 0,
+        monthReturn: 0,
+        yearReturn: 0
+      }
+    }
   } catch (error) {
     console.error('Error fetching portfolio:', error)
     // Fallback data for demo

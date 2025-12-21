@@ -192,7 +192,8 @@ async function loadPayment() {
   loading.value = true
   try {
     const paymentId = route.params.id
-    payment.value = await paymentApi.getPaymentDetails(paymentId)
+    const response = await paymentApi.getPaymentDetails(paymentId)
+    payment.value = response.data?.payment || response.data || response
   } catch (err) {
     error.value = err.message || 'Paiement introuvable'
   } finally {
@@ -202,7 +203,8 @@ async function loadPayment() {
 
 async function loadWallets() {
   try {
-    wallets.value = await walletApi.getWallets()
+    const response = await walletApi.getWallets()
+    wallets.value = response.data?.wallets || response.wallets || []
   } catch (err) {
     console.error('Failed to load wallets:', err)
   }

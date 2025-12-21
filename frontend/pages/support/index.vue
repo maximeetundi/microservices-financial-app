@@ -254,6 +254,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { supportAPI } from '~/composables/useApi'
 
 definePageMeta({
   layout: 'default',
@@ -281,19 +282,16 @@ const startConversation = async () => {
   loading.value = true
   
   try {
-    // In production, this would call the API
-    const response = await $fetch('/api/v1/support/conversations', {
-      method: 'POST',
-      body: {
-        agent_type: selectedAgent.value,
-        subject: newConversation.value.subject,
-        category: newConversation.value.category,
-        message: newConversation.value.message
-      }
+    const response = await supportAPI.createTicket({
+      subject: newConversation.value.subject,
+      category: newConversation.value.category,
+      description: newConversation.value.message,
+      priority: 'normal'
     })
     
-    // Navigate to chat
-    router.push(`/support/chat?id=${response.conversation.id}`)
+    // Navigate to chat with ticket ID
+    const ticketId = response.data?.ticket?.id || response.data?.id || 'demo-' + Date.now()
+    router.push(`/support/chat?id=${ticketId}`)
   } catch (error) {
     console.error('Error starting conversation:', error)
     // For demo, navigate anyway
@@ -309,10 +307,18 @@ const openConversation = (conv) => {
 
 const fetchConversations = async () => {
   try {
-    const response = await $fetch('/api/v1/support/conversations')
-    conversations.value = response.conversations || []
+    const response = await supportAPI.getTickets()
+    // Map tickets to conversation format for UI
+    conversations.value = (response.data?.tickets || []).map(ticket => ({
+      id: ticket.id,
+      subject: ticket.subject,
+      agent_type: 'ai', // Default to AI
+      status: ticket.status,
+      last_message: ticket.description,
+      updated_at: ticket.updated_at || ticket.created_at
+    }))
   } catch (error) {
-    // Demo data
+    // Demo data fallback
     conversations.value = [
       {
         id: '1',
