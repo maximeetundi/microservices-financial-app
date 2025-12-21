@@ -299,6 +299,71 @@ INSERT INTO exchange_rates (from_currency, to_currency, rate, source, valid_unti
 ('USD', 'BTC', 0.000022, 'system', NOW() + INTERVAL '1 day'),
 ('USD', 'ETH', 0.000333, 'system', NOW() + INTERVAL '1 day');
 
+-- Trading orders table
+CREATE TABLE trading_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    pair VARCHAR(20) NOT NULL, -- BTC/USD, ETH/EUR, etc.
+    order_type VARCHAR(20) NOT NULL, -- market, limit, stop_loss, take_profit
+    side VARCHAR(10) NOT NULL, -- buy, sell
+    amount DECIMAL(20,8) NOT NULL,
+    price DECIMAL(20,8), -- NULL for market orders
+    filled_amount DECIMAL(20,8) DEFAULT 0,
+    average_price DECIMAL(20,8),
+    status VARCHAR(20) DEFAULT 'pending', -- pending, partial, filled, cancelled, expired
+    stop_price DECIMAL(20,8), -- For stop-loss orders
+    expires_at TIMESTAMP,
+    filled_at TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Exchanges/Conversions table
+CREATE TABLE exchanges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_currency VARCHAR(10) NOT NULL,
+    to_currency VARCHAR(10) NOT NULL,
+    from_amount DECIMAL(20,8) NOT NULL,
+    to_amount DECIMAL(20,8) NOT NULL,
+    exchange_rate DECIMAL(20,8) NOT NULL,
+    fee DECIMAL(20,8) DEFAULT 0,
+    fee_currency VARCHAR(10),
+    status VARCHAR(20) DEFAULT 'completed', -- pending, completed, failed, refunded
+    from_wallet_id UUID,
+    to_wallet_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- P2P trading offers table
+CREATE TABLE p2p_offers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    offer_type VARCHAR(10) NOT NULL, -- buy, sell
+    currency VARCHAR(10) NOT NULL,
+    fiat_currency VARCHAR(10) NOT NULL,
+    amount DECIMAL(20,8) NOT NULL,
+    min_amount DECIMAL(20,8),
+    max_amount DECIMAL(20,8),
+    price DECIMAL(20,8) NOT NULL,
+    payment_methods JSONB,
+    terms TEXT,
+    status VARCHAR(20) DEFAULT 'active', -- active, paused, completed, cancelled
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for trading tables
+CREATE INDEX idx_trading_orders_user_id ON trading_orders(user_id);
+CREATE INDEX idx_trading_orders_status ON trading_orders(status);
+CREATE INDEX idx_trading_orders_pair ON trading_orders(pair);
+CREATE INDEX idx_exchanges_user_id ON exchanges(user_id);
+CREATE INDEX idx_exchanges_status ON exchanges(status);
+CREATE INDEX idx_p2p_offers_user_id ON p2p_offers(user_id);
+CREATE INDEX idx_p2p_offers_status ON p2p_offers(status);
+
 -- Support tickets table
 CREATE TABLE support_tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

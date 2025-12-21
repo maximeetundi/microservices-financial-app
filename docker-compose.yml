@@ -181,9 +181,12 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
+      - DATABASE_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-crypto-bank-2024}
+      - WALLET_SERVICE_URL=http://wallet-service:8083
     networks:
       - crypto-bank-network
     restart: unless-stopped

@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  <div class="min-h-screen bg-[#0f0f1a]">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
+    <div class="bg-slate-900/50 border-b border-slate-700/50 backdrop-blur-xl">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gray-900">Orders</h1>
+          <h1 class="text-2xl font-bold text-white">Orders</h1>
           <div class="flex items-center space-x-4">
             <NuxtLink to="/exchange/trading" 
-                      class="bg-blue-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-blue-700">
+                      class="btn-premium px-4 py-2 text-white">
               New Order
             </NuxtLink>
           </div>
@@ -17,7 +17,7 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Filter Tabs -->
-      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+      <div class="glass-card p-6 mb-8">
         <div class="flex space-x-6 border-b">
           <button v-for="filter in filters" :key="filter.key"
                   @click="activeFilter = filter.key"
@@ -53,7 +53,7 @@
       </div>
 
       <!-- Orders Table -->
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div class="glass-card overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full">
             <thead class="bg-gray-50">
