@@ -195,7 +195,7 @@ const formatMoney = (amount, currency = 'USD') => {
 
 const formatPrice = (price) => {
   if (price == null) return '0'
-  return price >= 1 ? price.toLocaleString() : price.toFixed(4)
+  return price >= 1 ? (price || 0).toLocaleString() : (price || 0).toFixed(4)
 }
 
 const calculateToAmount = () => {

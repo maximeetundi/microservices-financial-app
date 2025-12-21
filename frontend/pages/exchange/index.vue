@@ -264,7 +264,7 @@ const filteredMarkets = computed(() => {
 const formattedVolume = computed(() => {
   if (totalVolume.value >= 1e9) return `$${(totalVolume.value / 1e9).toFixed(1)}B`
   if (totalVolume.value >= 1e6) return `$${(totalVolume.value / 1e6).toFixed(1)}M`
-  return `$${totalVolume.value.toLocaleString()}`
+  return `$${(totalVolume.value || 0).toLocaleString()}`
 })
 
 // Methods
@@ -274,7 +274,7 @@ const formatDate = (date) => {
 
 const formatPrice = (price) => {
   if (price == null) return '0'
-  if (price >= 1000) return price.toLocaleString()
+  if (price >= 1000) return (price || 0).toLocaleString()
   if (price >= 1) return price.toFixed(2)
   return price.toFixed(6)
 }

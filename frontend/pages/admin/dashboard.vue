@@ -13,7 +13,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-400">Utilisateurs</p>
-              <p class="text-2xl font-bold text-white">{{ stats.users.toLocaleString() }}</p>
+              <p class="text-2xl font-bold text-white">{{ (stats.users || 0).toLocaleString() }}</p>
               <p class="text-xs text-emerald-400">+12% ce mois</p>
             </div>
             <div class="p-3 bg-indigo-500/20 rounded-xl">
@@ -25,7 +25,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-400">Transactions</p>
-              <p class="text-2xl font-bold text-white">{{ stats.transactions.toLocaleString() }}</p>
+              <p class="text-2xl font-bold text-white">{{ (stats.transactions || 0).toLocaleString() }}</p>
               <p class="text-xs text-emerald-400">+8% ce mois</p>
             </div>
             <div class="p-3 bg-emerald-500/20 rounded-xl">

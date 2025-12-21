@@ -107,7 +107,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
             <div class="grid grid-cols-2 gap-4">
               <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <div class="text-2xl font-bold text-gray-900">${{ monthlySpending.toLocaleString() }}</div>
+                <div class="text-2xl font-bold text-gray-900">${{ (monthlySpending || 0).toLocaleString() }}</div>
                 <div class="text-sm text-gray-500">This Month</div>
               </div>
               <div class="text-center p-4 bg-gray-50 rounded-lg">
@@ -115,7 +115,7 @@
                 <div class="text-sm text-gray-500">Transactions</div>
               </div>
               <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <div class="text-2xl font-bold text-green-600">${{ cashbackEarned.toLocaleString() }}</div>
+                <div class="text-2xl font-bold text-green-600">${{ (cashbackEarned || 0).toLocaleString() }}</div>
                 <div class="text-sm text-gray-500">Cashback Earned</div>
               </div>
               <div class="text-center p-4 bg-gray-50 rounded-lg">
@@ -143,8 +143,8 @@
                        :style="{ width: (dailySpent / card.daily_limit * 100) + '%' }"></div>
                 </div>
                 <div class="flex justify-between text-sm text-gray-500 mt-1">
-                  <span>${{ dailySpent.toLocaleString() }} spent</span>
-                  <span>${{ card.daily_limit?.toLocaleString() }} limit</span>
+                  <span>${{ (dailySpent || 0).toLocaleString() }} spent</span>
+                  <span>${{ (card.daily_limit || 0).toLocaleString() }} limit</span>
                 </div>
               </div>
 
@@ -161,8 +161,8 @@
                        :style="{ width: (monthlySpending / card.monthly_limit * 100) + '%' }"></div>
                 </div>
                 <div class="flex justify-between text-sm text-gray-500 mt-1">
-                  <span>${{ monthlySpending.toLocaleString() }} spent</span>
-                  <span>${{ card.monthly_limit?.toLocaleString() }} limit</span>
+                  <span>${{ (monthlySpending || 0).toLocaleString() }} spent</span>
+                  <span>${{ (card.monthly_limit || 0).toLocaleString() }} limit</span>
                 </div>
               </div>
 
@@ -265,7 +265,7 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                     :class="transaction.type === 'debit' ? 'text-red-600' : 'text-green-600'">
-                  {{ transaction.type === 'debit' ? '-' : '+' }}${{ transaction.amount?.toLocaleString() }}
+                  {{ transaction.type === 'debit' ? '-' : '+' }}${{ (transaction.amount || 0).toLocaleString() }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="px-2 py-1 text-xs rounded-full"
@@ -299,7 +299,7 @@
                     class="w-full rounded-md border-gray-300 shadow-sm">
               <option value="">Select wallet</option>
               <option v-for="wallet in availableWallets" :key="wallet.id" :value="wallet.id">
-                {{ wallet.currency }} - ${{ wallet.balance?.toLocaleString() }}
+                {{ wallet.currency }} - ${{ (wallet.balance || 0).toLocaleString() }}
               </option>
             </select>
           </div>
