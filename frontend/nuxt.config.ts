@@ -42,5 +42,16 @@ export default defineNuxtConfig({
   },
   build: {
     transpile: ['chart.js']
+  },
+  nitro: {
+    compressPublicAssets: true,
+    routeRules: {
+      '/_nuxt/**': {
+        headers: { 'Cache-Control': 'public, max-age=31536000, immutable' }
+      }
+    }
+  },
+  experimental: {
+    payloadExtraction: false
   }
 })

@@ -78,14 +78,14 @@
           <div class="mt-4 text-sm text-gray-500">
             <div class="flex justify-between">
               <span>EUR/USD:</span>
-              <span :class="fiatRates.EUR_USD.change >= 0 ? 'text-green-600' : 'text-red-600'">
-                {{ fiatRates.EUR_USD.rate.toFixed(4) }} ({{ formatChange(fiatRates.EUR_USD.change) }})
+              <span :class="(fiatRates.EUR_USD?.change || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ (fiatRates.EUR_USD?.rate || 0).toFixed(4) }} ({{ formatChange(fiatRates.EUR_USD?.change || 0) }})
               </span>
             </div>
             <div class="flex justify-between">
               <span>GBP/USD:</span>
-              <span :class="fiatRates.GBP_USD.change >= 0 ? 'text-green-600' : 'text-red-600'">
-                {{ fiatRates.GBP_USD.rate.toFixed(4) }} ({{ formatChange(fiatRates.GBP_USD.change) }})
+              <span :class="(fiatRates.GBP_USD?.change || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ (fiatRates.GBP_USD?.rate || 0).toFixed(4) }} ({{ formatChange(fiatRates.GBP_USD?.change || 0) }})
               </span>
             </div>
           </div>
@@ -275,13 +275,14 @@ const formatDate = (date) => {
 const formatPrice = (price) => {
   if (price == null) return '0'
   if (price >= 1000) return (price || 0).toLocaleString()
-  if (price >= 1) return price.toFixed(2)
-  return price.toFixed(6)
+  if (price >= 1) return (price || 0).toFixed(2)
+  return (price || 0).toFixed(6)
 }
 
 const formatChange = (change) => {
-  const sign = change >= 0 ? '+' : ''
-  return `${sign}${change.toFixed(1)}%`
+  const val = change || 0
+  const sign = val >= 0 ? '+' : ''
+  return `${sign}${val.toFixed(1)}%`
 }
 
 const performQuickConvert = async () => {
