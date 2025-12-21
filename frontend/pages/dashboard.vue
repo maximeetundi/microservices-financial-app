@@ -242,7 +242,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { dashboardAPI, exchangeAPI } from '~/composables/useApi'
+import { dashboardAPI, exchangeAPI, cardAPI } from '~/composables/useApi'
 
 const authStore = useAuthStore()
 

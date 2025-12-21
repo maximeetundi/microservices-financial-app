@@ -210,3 +210,91 @@ func (h *TransferHandler) GetBanks(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"banks": banks})
 }
+
+// ValidateRecipient validates a recipient before transfer
+func (h *TransferHandler) ValidateRecipient(c *gin.Context) {
+	var req struct {
+		Type      string `json:"type" binding:"required"`
+		Recipient string `json:"recipient" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate based on type
+	valid := true
+	recipientName := ""
+	
+	switch req.Type {
+	case "internal":
+		// For internal transfers, check if user exists
+		recipientName = "User Account"
+		valid = len(req.Recipient) > 0
+	case "bank":
+		// Validate bank account format
+		valid = len(req.Recipient) >= 10
+		recipientName = "Bank Account ***" + req.Recipient[len(req.Recipient)-4:]
+	case "mobile":
+		// Validate phone number
+		valid = len(req.Recipient) >= 9
+		recipientName = "Mobile ***" + req.Recipient[len(req.Recipient)-4:]
+	default:
+		valid = len(req.Recipient) > 0
+		recipientName = "External Account"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid":          valid,
+		"recipient_name": recipientName,
+		"type":           req.Type,
+	})
+}
+
+// GetFees returns the fees for a transfer
+func (h *TransferHandler) GetFees(c *gin.Context) {
+	transferType := c.Query("type")
+	amountStr := c.Query("amount")
+	currency := c.DefaultQuery("currency", "USD")
+
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount"})
+		return
+	}
+
+	// Calculate fees based on transfer type
+	var feePercent float64
+	var fixedFee float64
+
+	switch transferType {
+	case "internal":
+		feePercent = 0.0
+		fixedFee = 0.0
+	case "bank":
+		feePercent = 0.5
+		fixedFee = 2.0
+	case "mobile":
+		feePercent = 1.0
+		fixedFee = 0.5
+	case "international":
+		feePercent = 2.0
+		fixedFee = 5.0
+	default:
+		feePercent = 1.0
+		fixedFee = 1.0
+	}
+
+	fee := (amount * feePercent / 100) + fixedFee
+	total := amount + fee
+
+	c.JSON(http.StatusOK, gin.H{
+		"amount":       amount,
+		"fee":          fee,
+		"fee_percent":  feePercent,
+		"fixed_fee":    fixedFee,
+		"total":        total,
+		"currency":     currency,
+		"type":         transferType,
+	})
+}

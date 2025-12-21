@@ -20,7 +20,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Environment:          getEnv("ENVIRONMENT", "development"),
-		DBUrl:                getEnv("DATABASE_URL", "postgres://user:password@localhost/crypto_bank_support?sslmode=disable"),
+		DBUrl:                getEnv("DB_URL", "postgres://user:password@localhost/crypto_bank_support?sslmode=disable"),
 		RedisURL:             getEnv("REDIS_URL", "redis://localhost:6379"),
 		RabbitMQURL:          getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		JWTSecret:            getEnv("JWT_SECRET", "your-secret-key"),

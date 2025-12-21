@@ -88,6 +88,8 @@ func main() {
 		// Additional lookup routes (consistent with frontend useApi.ts)
 		api.GET("/transfers/banks", transferHandler.GetBanks)
 		api.GET("/transfers/mobile-operators", transferHandler.GetMobileProviders)
+		api.POST("/transfers/validate-recipient", transferHandler.ValidateRecipient)
+		api.GET("/transfers/fees", transferHandler.GetFees)
 		
 		api.GET("/transfers/:transfer_id", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransfer)
 		api.POST("/transfers/:transfer_id/cancel", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CancelTransfer)

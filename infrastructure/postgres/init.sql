@@ -298,3 +298,37 @@ INSERT INTO exchange_rates (from_currency, to_currency, rate, source, valid_unti
 ('ETH', 'USD', 3000.00, 'system', NOW() + INTERVAL '1 day'),
 ('USD', 'BTC', 0.000022, 'system', NOW() + INTERVAL '1 day'),
 ('USD', 'ETH', 0.000333, 'system', NOW() + INTERVAL '1 day');
+
+-- Support tickets table
+CREATE TABLE support_tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL, -- account, transaction, card, technical, other
+    priority VARCHAR(20) DEFAULT 'normal', -- low, normal, high, urgent
+    status VARCHAR(20) DEFAULT 'open', -- open, in_progress, resolved, closed
+    assigned_to UUID REFERENCES users(id),
+    resolved_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chat messages table
+CREATE TABLE chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES users(id),
+    sender_type VARCHAR(20) NOT NULL, -- user, agent
+    message TEXT NOT NULL,
+    attachments JSONB,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for support tables
+CREATE INDEX idx_support_tickets_user_id ON support_tickets(user_id);
+CREATE INDEX idx_support_tickets_status ON support_tickets(status);
+CREATE INDEX idx_support_tickets_assigned_to ON support_tickets(assigned_to);
+CREATE INDEX idx_chat_messages_ticket_id ON chat_messages(ticket_id);
+CREATE INDEX idx_chat_messages_sender_id ON chat_messages(sender_id);

@@ -127,6 +127,8 @@ func main() {
 			{
 				dashboard.GET("/summary", walletHandler.GetDashboardSummary)
 				dashboard.GET("/activity", walletHandler.GetRecentActivity)
+				dashboard.GET("/portfolio", walletHandler.GetPortfolio)
+				dashboard.GET("/stats", walletHandler.GetStats)
 			}
 
 			// Merchant payment routes

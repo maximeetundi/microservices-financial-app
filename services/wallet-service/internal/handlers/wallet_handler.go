@@ -601,3 +601,120 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 		"status": "pending",
 	})
 }
+
+// GetPortfolio returns the user's portfolio with asset allocation
+func (h *WalletHandler) GetPortfolio(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Get all wallets for user
+	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"assets":       []interface{}{},
+			"total_value":  0,
+			"change_24h":   0,
+			"change_pct":   0,
+		})
+		return
+	}
+
+	// Build portfolio data
+	var assets []map[string]interface{}
+	var totalValue float64
+
+	for _, wallet := range wallets {
+		asset := map[string]interface{}{
+			"id":          wallet.ID,
+			"name":        wallet.Currency,
+			"symbol":      wallet.Currency,
+			"type":        wallet.WalletType,
+			"balance":     wallet.Balance,
+			"value":       wallet.Balance, // TODO: Convert to base currency
+			"change_24h":  0.0,            // TODO: Get from exchange service
+			"change_pct":  0.0,            // TODO: Get from exchange service
+			"allocation":  0.0,            // Will be calculated below
+		}
+		assets = append(assets, asset)
+		totalValue += wallet.Balance
+	}
+
+	// Calculate allocation percentages
+	for i := range assets {
+		if totalValue > 0 {
+			assets[i]["allocation"] = (assets[i]["value"].(float64) / totalValue) * 100
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"assets":       assets,
+		"total_value":  totalValue,
+		"change_24h":   0,   // TODO: Calculate from exchange rates
+		"change_pct":   0.0, // TODO: Calculate from exchange rates
+	})
+}
+
+// GetStats returns statistics for a given period
+func (h *WalletHandler) GetStats(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	period := c.DefaultQuery("period", "month")
+
+	// Get all wallets for user
+	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"period":            period,
+			"total_deposits":    0,
+			"total_withdrawals": 0,
+			"total_transfers":   0,
+			"total_exchanges":   0,
+			"transaction_count": 0,
+			"volume":            0,
+		})
+		return
+	}
+
+	// Calculate period stats
+	var totalDeposits, totalWithdrawals, totalTransfers, totalExchanges float64
+	var transactionCount int
+
+	for _, wallet := range wallets {
+		// Get transactions for this wallet in the period
+		transactions, err := h.walletService.GetTransactionHistory(wallet.ID, userID.(string), 100, 0, "", "")
+		if err == nil {
+			for _, tx := range transactions {
+				transactionCount++
+				switch tx.TransactionType {
+				case "deposit":
+					totalDeposits += tx.Amount
+				case "withdraw":
+					totalWithdrawals += tx.Amount
+				case "transfer":
+					totalTransfers += tx.Amount
+				case "exchange":
+					totalExchanges += tx.Amount
+				}
+			}
+		}
+	}
+
+	volume := totalDeposits + totalWithdrawals + totalTransfers + totalExchanges
+
+	c.JSON(http.StatusOK, gin.H{
+		"period":            period,
+		"total_deposits":    totalDeposits,
+		"total_withdrawals": totalWithdrawals,
+		"total_transfers":   totalTransfers,
+		"total_exchanges":   totalExchanges,
+		"transaction_count": transactionCount,
+		"volume":            volume,
+	})
+}

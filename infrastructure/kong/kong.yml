@@ -56,6 +56,14 @@ services:
           - /admin-service
         strip_path: true
 
+  - name: support-service
+    url: http://support-service:8089
+    routes:
+      - name: support-routes
+        paths:
+          - /support-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:
