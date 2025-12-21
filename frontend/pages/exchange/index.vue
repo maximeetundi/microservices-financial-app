@@ -7,7 +7,7 @@
           <h1 class="text-2xl font-bold text-gray-900">Exchange Center</h1>
           <div class="flex items-center space-x-4">
             <span class="text-sm text-gray-500">24h Volume:</span>
-            <span class="text-lg font-semibold text-blue-600">$2.4B</span>
+            <span class="text-lg font-semibold text-blue-600">{{ formattedVolume }}</span>
           </div>
         </div>
       </div>
@@ -41,11 +41,15 @@
           <div class="mt-4 text-sm text-gray-500">
             <div class="flex justify-between">
               <span>BTC/USD:</span>
-              <span class="text-green-600">$43,500 (+2.3%)</span>
+              <span :class="cryptoPrices.BTC.change >= 0 ? 'text-green-600' : 'text-red-600'">
+                ${{ formatPrice(cryptoPrices.BTC.price) }} ({{ formatChange(cryptoPrices.BTC.change) }})
+              </span>
             </div>
             <div class="flex justify-between">
               <span>ETH/USD:</span>
-              <span class="text-red-600">$2,450 (-1.2%)</span>
+              <span :class="cryptoPrices.ETH.change >= 0 ? 'text-green-600' : 'text-red-600'">
+                ${{ formatPrice(cryptoPrices.ETH.price) }} ({{ formatChange(cryptoPrices.ETH.change) }})
+              </span>
             </div>
           </div>
         </NuxtLink>
@@ -74,11 +78,15 @@
           <div class="mt-4 text-sm text-gray-500">
             <div class="flex justify-between">
               <span>EUR/USD:</span>
-              <span class="text-green-600">1.0856 (+0.1%)</span>
+              <span :class="fiatRates.EUR_USD.change >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ fiatRates.EUR_USD.rate.toFixed(4) }} ({{ formatChange(fiatRates.EUR_USD.change) }})
+              </span>
             </div>
             <div class="flex justify-between">
               <span>GBP/USD:</span>
-              <span class="text-green-600">1.2787 (+0.3%)</span>
+              <span :class="fiatRates.GBP_USD.change >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ fiatRates.GBP_USD.rate.toFixed(4) }} ({{ formatChange(fiatRates.GBP_USD.change) }})
+              </span>
             </div>
           </div>
         </NuxtLink>
@@ -107,11 +115,11 @@
           <div class="mt-4 text-sm text-gray-500">
             <div class="flex justify-between">
               <span>24h Volume:</span>
-              <span>$2.4B</span>
+              <span>{{ formattedVolume }}</span>
             </div>
             <div class="flex justify-between">
               <span>Active Pairs:</span>
-              <span>150+</span>
+              <span>{{ markets.length }}+</span>
             </div>
           </div>
         </NuxtLink>
@@ -235,15 +243,44 @@ const quickConvert = ref({
 const convertedAmount = ref(null)
 const recentActivity = ref([])
 const markets = ref([])
+const loading = ref(true)
+
+// Dynamic price data for header cards
+const totalVolume = ref(0)
+const cryptoPrices = ref({
+  BTC: { price: 0, change: 0 },
+  ETH: { price: 0, change: 0 }
+})
+const fiatRates = ref({
+  EUR_USD: { rate: 0, change: 0 },
+  GBP_USD: { rate: 0, change: 0 }
+})
 
 // Computed
 const filteredMarkets = computed(() => {
   return markets.value.filter(market => market.type === marketTab.value)
 })
 
+const formattedVolume = computed(() => {
+  if (totalVolume.value >= 1e9) return `$${(totalVolume.value / 1e9).toFixed(1)}B`
+  if (totalVolume.value >= 1e6) return `$${(totalVolume.value / 1e6).toFixed(1)}M`
+  return `$${totalVolume.value.toLocaleString()}`
+})
+
 // Methods
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString()
+}
+
+const formatPrice = (price) => {
+  if (price >= 1000) return price.toLocaleString()
+  if (price >= 1) return price.toFixed(2)
+  return price.toFixed(6)
+}
+
+const formatChange = (change) => {
+  const sign = change >= 0 ? '+' : ''
+  return `${sign}${change.toFixed(1)}%`
 }
 
 const performQuickConvert = async () => {
@@ -285,30 +322,79 @@ const fetchRecentActivity = async () => {
 const fetchMarkets = async () => {
   try {
      const { data } = await exchangeAPI.getMarkets()
-     if (data) {
+     if (data && data.markets) {
        // Transform API response to UI format
-       markets.value = data.map(m => ({
-         symbol: m.Symbol,
-         price: m.Price,
-         change: m.Change24h || 0,
-         volume: m.Volume24h || 0,
-         type: (m.Symbol.includes('USD') && !m.Symbol.includes('BTC') && !m.Symbol.includes('ETH')) ? 'fiat' : 'crypto' // Simple heuristic
+       markets.value = data.markets.map(m => ({
+         symbol: m.Symbol || m.symbol,
+         price: m.Price || m.price || 0,
+         change: m.Change24h || m.change_24h || 0,
+         volume: m.Volume24h || m.volume_24h || 0,
+         type: 'crypto'
        }))
        
-       // If heuristic failed to find fiat, add some manually or from rate service if needed
-       // For now, let's assume getMarkets returns everything or we stick to crypto for "markets"
-       // The backend implementation of getMarkets I saw returned mostly crypto.
-       // Let's ensure we have at least crypto populated.
+       // Calculate total volume
+       totalVolume.value = markets.value.reduce((sum, m) => sum + (m.volume || 0), 0)
+       
+       // Extract BTC and ETH prices for the cards
+       const btc = markets.value.find(m => m.symbol?.includes('BTC'))
+       const eth = markets.value.find(m => m.symbol?.includes('ETH'))
+       
+       if (btc) {
+         cryptoPrices.value.BTC = { price: btc.price, change: btc.change }
+       }
+       if (eth) {
+         cryptoPrices.value.ETH = { price: eth.price, change: eth.change }
+       }
      }
   } catch (error) {
      console.error('Error fetching markets:', error)
   }
 }
 
+const fetchRates = async () => {
+  try {
+    const { data } = await exchangeAPI.getRates()
+    if (data && data.rates) {
+      // Extract EUR/USD and GBP/USD rates
+      const eurUsd = data.rates['EUR/USD'] || data.rates['EUR_USD']
+      const gbpUsd = data.rates['GBP/USD'] || data.rates['GBP_USD']
+      
+      if (eurUsd) {
+        fiatRates.value.EUR_USD = { 
+          rate: eurUsd.Rate || eurUsd.rate || eurUsd, 
+          change: eurUsd.Change24h || eurUsd.change_24h || 0 
+        }
+      }
+      if (gbpUsd) {
+        fiatRates.value.GBP_USD = { 
+          rate: gbpUsd.Rate || gbpUsd.rate || gbpUsd, 
+          change: gbpUsd.Change24h || gbpUsd.change_24h || 0 
+        }
+      }
+      
+      // Add fiat markets to the markets array
+      if (!markets.value.some(m => m.type === 'fiat')) {
+        Object.entries(data.rates).forEach(([pair, rateData]) => {
+          if (!pair.includes('BTC') && !pair.includes('ETH')) {
+            markets.value.push({
+              symbol: pair.replace('_', '/'),
+              price: rateData.Rate || rateData.rate || rateData,
+              change: rateData.Change24h || rateData.change_24h || 0,
+              volume: 0,
+              type: 'fiat'
+            })
+          }
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching rates:', error)
+  }
+}
+
 // Auto-update converted amount when inputs change
 watch([() => quickConvert.value.from, () => quickConvert.value.to, () => quickConvert.value.amount], 
   async () => {
-    // Debounce could be added here
     if (quickConvert.value.amount > 0) {
       await performQuickConvert()
     }
@@ -317,11 +403,17 @@ watch([() => quickConvert.value.from, () => quickConvert.value.to, () => quickCo
 
 // Lifecycle
 onMounted(async () => {
-  // Parallel fetch
-  await Promise.all([
-    fetchMarkets(),
-    fetchRecentActivity(),
-    performQuickConvert()
-  ])
+  loading.value = true
+  try {
+    // Parallel fetch
+    await Promise.all([
+      fetchMarkets(),
+      fetchRates(),
+      fetchRecentActivity(),
+      performQuickConvert()
+    ])
+  } finally {
+    loading.value = false
+  }
 })
 </script>

@@ -259,6 +259,36 @@ export const paymentAPI = {
     }) => api.post(`/wallet-service/api/v1/payments/${id}/pay`, data),
 }
 
+// ========== Support ==========
+export const supportAPI = {
+    // Get all tickets for the current user
+    getTickets: (limit = 20, offset = 0) =>
+        api.get(`/support-service/api/v1/tickets?limit=${limit}&offset=${offset}`),
+
+    // Get a specific ticket
+    getTicket: (id: string) => api.get(`/support-service/api/v1/tickets/${id}`),
+
+    // Create a new support ticket
+    createTicket: (data: {
+        subject: string
+        description: string
+        category: string
+        priority?: string
+    }) => api.post('/support-service/api/v1/tickets', data),
+
+    // Add a message to a ticket
+    sendMessage: (ticketId: string, message: string) =>
+        api.post(`/support-service/api/v1/tickets/${ticketId}/messages`, { message }),
+
+    // Get messages for a ticket
+    getMessages: (ticketId: string) =>
+        api.get(`/support-service/api/v1/tickets/${ticketId}/messages`),
+
+    // Close a ticket
+    closeTicket: (ticketId: string) =>
+        api.post(`/support-service/api/v1/tickets/${ticketId}/close`),
+}
+
 // ========== Composable ==========
 export function useApi() {
     return {
@@ -271,6 +301,7 @@ export function useApi() {
         dashboardApi: dashboardAPI,
         merchantApi: merchantAPI,
         paymentApi: paymentAPI,
+        supportApi: supportAPI,
     }
 }
 
