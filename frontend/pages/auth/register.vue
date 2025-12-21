@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 dark:bg-[#0f0f1a]">
+  <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" :class="isDark ? 'bg-[#0f0f1a]' : 'bg-gradient-to-br from-slate-50 to-indigo-50'">
     <!-- Animated Background -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-indigo-600/20 rounded-full blur-[100px] animate-blob"></div>
