@@ -264,6 +264,7 @@
   </NuxtLayout>
 </template>
 
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { adminPaymentAPI } from '~/composables/useApi'
 
