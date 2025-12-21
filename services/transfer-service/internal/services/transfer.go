@@ -107,7 +107,12 @@ func (s *TransferService) calculateFee(transferType string, amount float64) floa
 }
 
 func generateID() string {
-	return fmt.Sprintf("txn_%d", time.Now().UnixNano())
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		time.Now().Unix(),
+		time.Now().Nanosecond()&0xffff,
+		0x4000|time.Now().Nanosecond()&0x0fff,
+		0x8000|time.Now().Nanosecond()&0x3fff,
+		time.Now().UnixNano()&0xffffffffffff)
 }
 
 func generateReferenceID() string {

@@ -148,7 +148,12 @@ func (s *InternalTransferService) CreateTransfer(ctx context.Context, req *Inter
 	
 	// Step 3: Create transfer record
 	transfer := &InternalTransfer{
-		ID:              fmt.Sprintf("txn_%d", time.Now().UnixNano()),
+		ID:              fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+			time.Now().Unix(),
+			time.Now().Nanosecond()&0xffff,
+			0x4000|time.Now().Nanosecond()&0x0fff,
+			0x8000|time.Now().Nanosecond()&0x3fff,
+			time.Now().UnixNano()&0xffffffffffff),
 		ReferenceID:     req.ReferenceID,
 		SenderUserID:    req.SenderUserID,
 		SenderWalletID:  req.SenderWalletID,
