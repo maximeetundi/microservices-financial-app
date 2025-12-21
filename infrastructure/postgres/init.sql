@@ -90,10 +90,16 @@ CREATE TABLE exchange_rates (
     from_currency VARCHAR(10) NOT NULL,
     to_currency VARCHAR(10) NOT NULL,
     rate DECIMAL(20,8) NOT NULL,
+    bid_price DECIMAL(20,8) DEFAULT 0,
+    ask_price DECIMAL(20,8) DEFAULT 0,
+    spread DECIMAL(20,8) DEFAULT 0,
     source VARCHAR(50) NOT NULL, -- coinbase, binance, etc.
+    volume_24h DECIMAL(20,8) DEFAULT 0,
+    change_24h DECIMAL(10,4) DEFAULT 0,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valid_until TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(from_currency, to_currency, source)
+    UNIQUE(from_currency, to_currency)
 );
 
 -- Cards table (enhanced for card-service)
@@ -291,13 +297,23 @@ CREATE INDEX idx_card_transactions_user_id ON card_transactions(user_id);
 CREATE INDEX idx_card_transactions_created_at ON card_transactions(created_at);
 
 -- Supported currencies
-INSERT INTO exchange_rates (from_currency, to_currency, rate, source, valid_until) VALUES
-('USD', 'EUR', 0.85, 'system', NOW() + INTERVAL '1 day'),
-('EUR', 'USD', 1.18, 'system', NOW() + INTERVAL '1 day'),
-('BTC', 'USD', 45000.00, 'system', NOW() + INTERVAL '1 day'),
-('ETH', 'USD', 3000.00, 'system', NOW() + INTERVAL '1 day'),
-('USD', 'BTC', 0.000022, 'system', NOW() + INTERVAL '1 day'),
-('USD', 'ETH', 0.000333, 'system', NOW() + INTERVAL '1 day');
+INSERT INTO exchange_rates (from_currency, to_currency, rate, bid_price, ask_price, spread, source, volume_24h, change_24h, valid_until) VALUES
+('USD', 'EUR', 0.85, 0.8498, 0.8502, 0.0004, 'system', 5000000.00, 0.1, NOW() + INTERVAL '1 day'),
+('EUR', 'USD', 1.18, 1.1798, 1.1802, 0.0004, 'system', 5000000.00, -0.1, NOW() + INTERVAL '1 day'),
+('BTC', 'USD', 45000.00, 44990.00, 45010.00, 20.00, 'binance', 1234567.89, 2.5, NOW() + INTERVAL '1 day'),
+('ETH', 'USD', 3000.00, 2998.00, 3002.00, 4.00, 'binance', 987654.32, 1.8, NOW() + INTERVAL '1 day'),
+('USD', 'BTC', 0.000022, 0.0000219, 0.0000221, 0.0000002, 'binance', 1234567.89, -2.5, NOW() + INTERVAL '1 day'),
+('USD', 'ETH', 0.000333, 0.000332, 0.000334, 0.000002, 'binance', 987654.32, -1.8, NOW() + INTERVAL '1 day'),
+('SOL', 'USD', 100.00, 99.95, 100.05, 0.10, 'binance', 543210.11, 3.2, NOW() + INTERVAL '1 day'),
+('XRP', 'USD', 0.63, 0.6298, 0.6302, 0.0004, 'binance', 432109.87, 1.7, NOW() + INTERVAL '1 day')
+ON CONFLICT (from_currency, to_currency) DO UPDATE SET
+    rate = EXCLUDED.rate,
+    bid_price = EXCLUDED.bid_price,
+    ask_price = EXCLUDED.ask_price,
+    spread = EXCLUDED.spread,
+    volume_24h = EXCLUDED.volume_24h,
+    change_24h = EXCLUDED.change_24h,
+    last_updated = NOW();
 
 -- Trading orders table
 CREATE TABLE trading_orders (
@@ -397,3 +413,243 @@ CREATE INDEX idx_support_tickets_status ON support_tickets(status);
 CREATE INDEX idx_support_tickets_assigned_to ON support_tickets(assigned_to);
 CREATE INDEX idx_chat_messages_ticket_id ON chat_messages(ticket_id);
 CREATE INDEX idx_chat_messages_sender_id ON chat_messages(sender_id);
+
+-- =====================================================
+-- PAYMENT PROVIDERS / AGGREGATORS
+-- =====================================================
+
+-- Payment Providers (Flutterwave, CinetPay, Paystack, etc.)
+CREATE TABLE payment_providers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL UNIQUE,           -- flutterwave, cinetpay, paystack, demo
+    display_name VARCHAR(100) NOT NULL,         -- Flutterwave, CinetPay
+    provider_type VARCHAR(30) NOT NULL,         -- mobile_money, card, bank_transfer, all
+    api_base_url VARCHAR(255),
+    api_key_encrypted VARCHAR(500),
+    api_secret_encrypted VARCHAR(500),
+    public_key_encrypted VARCHAR(500),
+    webhook_secret_encrypted VARCHAR(500),
+    is_active BOOLEAN DEFAULT false,
+    is_demo_mode BOOLEAN DEFAULT true,          -- Mode démo = crédit direct sans API
+    logo_url VARCHAR(255),
+    supported_currencies JSONB DEFAULT '[]',    -- ["XOF", "NGN", "GHS"]
+    config_json JSONB DEFAULT '{}',             -- Config spécifique au provider
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Provider-Country Mapping
+CREATE TABLE provider_countries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID NOT NULL REFERENCES payment_providers(id) ON DELETE CASCADE,
+    country_code VARCHAR(3) NOT NULL,           -- CI, SN, NG, GH, CM
+    country_name VARCHAR(100) NOT NULL,         -- Côte d'Ivoire, Sénégal
+    currency VARCHAR(10) NOT NULL,              -- XOF, NGN, GHS
+    is_active BOOLEAN DEFAULT true,
+    priority INT DEFAULT 1,                     -- Pour ordonner les providers (1 = priorité haute)
+    min_amount DECIMAL(20,2) DEFAULT 100,
+    max_amount DECIMAL(20,2) DEFAULT 10000000,
+    fee_percentage DECIMAL(5,2) DEFAULT 1.5,
+    fee_fixed DECIMAL(20,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(provider_id, country_code)
+);
+
+-- Payment Transactions Log
+CREATE TABLE payment_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID REFERENCES payment_providers(id),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wallet_id UUID NOT NULL,
+    external_reference VARCHAR(255),            -- Reference du provider
+    internal_reference VARCHAR(255) NOT NULL,   -- Notre reference
+    amount DECIMAL(20,2) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    fee DECIMAL(20,2) DEFAULT 0,
+    status VARCHAR(30) DEFAULT 'pending',       -- pending, processing, completed, failed, cancelled
+    payment_method VARCHAR(50),                 -- orange_money, mtn_momo, card, bank
+    phone_number VARCHAR(20),
+    metadata JSONB DEFAULT '{}',
+    provider_response JSONB,
+    error_message TEXT,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for payment tables
+CREATE INDEX idx_payment_providers_active ON payment_providers(is_active);
+CREATE INDEX idx_payment_providers_name ON payment_providers(name);
+CREATE INDEX idx_provider_countries_country ON provider_countries(country_code);
+CREATE INDEX idx_provider_countries_provider ON provider_countries(provider_id);
+CREATE INDEX idx_payment_transactions_user ON payment_transactions(user_id);
+CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
+CREATE INDEX idx_payment_transactions_ref ON payment_transactions(external_reference);
+
+-- Insert default payment providers
+INSERT INTO payment_providers (name, display_name, provider_type, api_base_url, is_active, is_demo_mode, logo_url, supported_currencies, config_json) VALUES
+-- Demo Mode (always available for testing)
+('demo', 'Mode Démo', 'all', NULL, true, true, '/icons/demo.svg', 
+ '["XOF", "XAF", "NGN", "GHS", "KES", "USD", "EUR"]'::jsonb,
+ '{"description": "Mode test - crédite directement le compte sans paiement réel"}'::jsonb),
+
+-- Flutterwave
+('flutterwave', 'Flutterwave', 'all', 'https://api.flutterwave.com/v3', false, true, '/icons/flutterwave.svg',
+ '["NGN", "GHS", "KES", "ZAR", "XOF", "XAF", "USD", "EUR", "GBP"]'::jsonb,
+ '{"supports_mobile_money": true, "supports_card": true, "supports_bank": true, "webhook_path": "/webhooks/flutterwave"}'::jsonb),
+
+-- CinetPay
+('cinetpay', 'CinetPay', 'mobile_money', 'https://api-checkout.cinetpay.com/v2', false, true, '/icons/cinetpay.svg',
+ '["XOF", "XAF", "GNF"]'::jsonb,
+ '{"supports_mobile_money": true, "operators": ["orange_money", "mtn_momo", "moov_money", "wave"], "webhook_path": "/webhooks/cinetpay"}'::jsonb),
+
+-- Paystack
+('paystack', 'Paystack', 'all', 'https://api.paystack.co', false, true, '/icons/paystack.svg',
+ '["NGN", "GHS", "ZAR", "KES"]'::jsonb,
+ '{"supports_mobile_money": true, "supports_card": true, "supports_bank": true, "webhook_path": "/webhooks/paystack"}'::jsonb),
+
+-- Orange Money Direct API
+('orange_money', 'Orange Money', 'mobile_money', 'https://api.orange.com/orange-money-webpay', false, true, '/icons/orange.svg',
+ '["XOF", "XAF"]'::jsonb,
+ '{"countries": ["CI", "SN", "ML", "BF", "CM", "GN"], "webhook_path": "/webhooks/orange"}'::jsonb),
+
+-- MTN MoMo
+('mtn_momo', 'MTN Mobile Money', 'mobile_money', 'https://sandbox.momodeveloper.mtn.com', false, true, '/icons/mtn.svg',
+ '["XOF", "XAF", "GHS", "UGX", "RWF"]'::jsonb,
+ '{"countries": ["CI", "CM", "GH", "UG", "RW", "BJ"], "webhook_path": "/webhooks/mtn"}'::jsonb),
+
+-- Wave (Sénégal, CI)
+('wave', 'Wave', 'mobile_money', 'https://api.wave.com/v1', false, true, '/icons/wave.svg',
+ '["XOF"]'::jsonb,
+ '{"countries": ["SN", "CI"], "webhook_path": "/webhooks/wave"}'::jsonb),
+
+-- Stripe (International)
+('stripe', 'Stripe', 'card', 'https://api.stripe.com/v1', false, true, '/icons/stripe.svg',
+ '["USD", "EUR", "GBP", "CAD", "AUD"]'::jsonb,
+ '{"supports_card": true, "webhook_path": "/webhooks/stripe"}'::jsonb)
+
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    api_base_url = EXCLUDED.api_base_url,
+    supported_currencies = EXCLUDED.supported_currencies,
+    config_json = EXCLUDED.config_json,
+    updated_at = NOW();
+
+-- Insert default country mappings
+INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage) VALUES
+-- Demo mode for all countries
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CI', 'Côte d''Ivoire', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'SN', 'Sénégal', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'NG', 'Nigeria', 'NGN', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GH', 'Ghana', 'GHS', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CM', 'Cameroun', 'XAF', 1, 0),
+
+-- CinetPay
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CI', 'Côte d''Ivoire', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'SN', 'Sénégal', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CM', 'Cameroun', 'XAF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'BF', 'Burkina Faso', 'XOF', 2, 1.5),
+
+-- Flutterwave
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'NG', 'Nigeria', 'NGN', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'GH', 'Ghana', 'GHS', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'KE', 'Kenya', 'KES', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'CI', 'Côte d''Ivoire', 'XOF', 3, 1.4),
+
+-- Paystack
+((SELECT id FROM payment_providers WHERE name = 'paystack'), 'NG', 'Nigeria', 'NGN', 3, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'paystack'), 'GH', 'Ghana', 'GHS', 3, 1.5),
+
+-- Orange Money
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'CI', 'Côte d''Ivoire', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'SN', 'Sénégal', 'XOF', 4, 1.0),
+
+-- MTN MoMo
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'CI', 'Côte d''Ivoire', 'XOF', 5, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'CM', 'Cameroun', 'XAF', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'GH', 'Ghana', 'GHS', 4, 1.0),
+
+-- Wave
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'SN', 'Sénégal', 'XOF', 2, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'CI', 'Côte d''Ivoire', 'XOF', 5, 1.0)
+
+ON CONFLICT (provider_id, country_code) DO UPDATE SET
+    priority = EXCLUDED.priority,
+    fee_percentage = EXCLUDED.fee_percentage;
+
+-- =====================================================
+-- ADMIN USERS & PERMISSIONS
+-- =====================================================
+
+-- Admin Roles
+CREATE TABLE admin_roles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    permissions JSONB DEFAULT '[]',
+    is_system BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin Users
+CREATE TABLE admins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    role_id UUID REFERENCES admin_roles(id),
+    is_active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES admins(id)
+);
+
+-- Admin Audit Logs
+CREATE TABLE admin_audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_id UUID REFERENCES admins(id),
+    admin_email VARCHAR(255),
+    action VARCHAR(100) NOT NULL,
+    resource VARCHAR(100),
+    resource_id VARCHAR(100),
+    details JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX idx_admins_email ON admins(email);
+CREATE INDEX idx_admins_role ON admins(role_id);
+CREATE INDEX idx_admin_audit_admin ON admin_audit_logs(admin_id);
+CREATE INDEX idx_admin_audit_action ON admin_audit_logs(action);
+
+-- Insert default admin roles
+INSERT INTO admin_roles (name, description, permissions, is_system) VALUES
+('super_admin', 'Super Administrateur - Tous les droits', 
+ '["users.view", "users.create", "users.update", "users.block", "users.delete", "kyc.view", "kyc.approve", "kyc.reject", "transactions.view", "transactions.block", "transactions.refund", "cards.view", "cards.freeze", "cards.block", "wallets.view", "wallets.freeze", "wallets.adjust", "system.view", "system.logs", "system.settings", "admins.view", "admins.create", "admins.update", "admins.delete", "admins.roles", "analytics.view", "analytics.export"]'::jsonb, 
+ true),
+('admin', 'Administrateur', 
+ '["users.view", "users.update", "users.block", "kyc.view", "kyc.approve", "kyc.reject", "transactions.view", "cards.view", "cards.freeze", "wallets.view", "wallets.freeze", "system.view", "system.logs", "analytics.view"]'::jsonb, 
+ true),
+('support', 'Support Client', 
+ '["users.view", "kyc.view", "transactions.view", "cards.view", "wallets.view"]'::jsonb, 
+ true),
+('viewer', 'Lecteur seul', 
+ '["users.view", "transactions.view", "analytics.view"]'::jsonb, 
+ true)
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert default super admin
+-- Password: Admin123! (bcrypt hash)
+INSERT INTO admins (email, password_hash, first_name, last_name, role_id, is_active) VALUES
+('admin@crypto-bank.com', 
+ '$2a$10$rQZ7nAQ.L3dNLqvHQQQQwekHqg4BzKqvBFHqKqH9.K3XGMGGe0Gey',
+ 'Super', 
+ 'Admin',
+ (SELECT id FROM admin_roles WHERE name = 'super_admin'),
+ true)
+ON CONFLICT (email) DO NOTHING;

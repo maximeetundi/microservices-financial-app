@@ -161,6 +161,29 @@ func main() {
 		{
 			logs.GET("", handler.GetAuditLogs)
 		}
+
+		// Payment Providers management
+		paymentHandler := handlers.NewPaymentHandler(db)
+		payments := protected.Group("/payment-providers")
+		{
+			payments.GET("", paymentHandler.GetPaymentProviders)
+			payments.GET("/:id", paymentHandler.GetPaymentProvider)
+			payments.POST("", paymentHandler.CreatePaymentProvider)
+			payments.PUT("/:id", paymentHandler.UpdatePaymentProvider)
+			payments.DELETE("/:id", paymentHandler.DeletePaymentProvider)
+			payments.POST("/:id/toggle-status", paymentHandler.ToggleProviderStatus)
+			payments.POST("/:id/toggle-demo", paymentHandler.ToggleDemoMode)
+			payments.POST("/:id/test", paymentHandler.TestProviderConnection)
+			payments.POST("/:id/countries", paymentHandler.AddProviderCountry)
+			payments.DELETE("/:id/countries/:country", paymentHandler.RemoveProviderCountry)
+		}
+	}
+
+	// Public endpoint for payment methods (no auth required for wallet)
+	publicPayments := router.Group("/api/v1")
+	{
+		paymentHandler := handlers.NewPaymentHandler(db)
+		publicPayments.GET("/payment-methods", paymentHandler.GetPaymentMethodsForCountry)
 	}
 
 	port := os.Getenv("PORT")

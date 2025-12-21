@@ -118,7 +118,7 @@
                 @click="selectCrypto(crypto.symbol)">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center" :class="crypto.bgColor">
-                  <span class="text-white font-bold text-sm">{{ crypto.symbol.slice(0, 2) }}</span>
+                  <span class="text-white font-bold text-sm">{{ crypto.symbol?.slice(0, 2) || '??' }}</span>
                 </div>
                 <div>
                   <p class="font-medium text-white">{{ crypto.name }}</p>

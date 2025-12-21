@@ -222,6 +222,8 @@
              <div class="mb-6">
                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
                <div class="grid grid-cols-1 gap-3">
+                 <!-- Mobile Money Section -->
+                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">📱 Mobile Money</p>
                  <button @click="depositMethod = 'orange'" 
                    :class="depositMethod === 'orange' ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-200 dark:border-gray-700'"
                    class="flex items-center gap-4 p-4 rounded-xl border hover:border-orange-500 transition-all group">
@@ -259,6 +261,40 @@
                      <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
                    </div>
                    <div v-if="depositMethod === 'wave'" class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                     </svg>
+                   </div>
+                 </button>
+
+                 <!-- Bank Transfer Section -->
+                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">🏦 Virement</p>
+                 <button @click="depositMethod = 'bank'" 
+                   :class="depositMethod === 'bank' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-gray-200 dark:border-gray-700'"
+                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-emerald-500 transition-all group">
+                   <span class="text-2xl">🏦</span>
+                   <div class="text-left flex-1">
+                     <p class="font-bold text-gray-900 dark:text-white">Virement Bancaire</p>
+                     <p class="text-xs text-gray-500 dark:text-gray-400">IBAN / RIB • 1-3 jours</p>
+                   </div>
+                   <div v-if="depositMethod === 'bank'" class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                     </svg>
+                   </div>
+                 </button>
+
+                 <!-- Card Section -->
+                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">💳 Carte</p>
+                 <button @click="depositMethod = 'card'" 
+                   :class="depositMethod === 'card' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10' : 'border-gray-200 dark:border-gray-700'"
+                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-purple-500 transition-all group">
+                   <span class="text-2xl">💳</span>
+                   <div class="text-left flex-1">
+                     <p class="font-bold text-gray-900 dark:text-white">Carte Bancaire</p>
+                     <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard • Instantané</p>
+                   </div>
+                   <div v-if="depositMethod === 'card'" class="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
                      <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                      </svg>

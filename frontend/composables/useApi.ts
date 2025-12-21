@@ -257,6 +257,50 @@ export const paymentAPI = {
         from_wallet_id: string
         amount?: number
     }) => api.post(`/wallet-service/api/v1/payments/${id}/pay`, data),
+
+    // Get available payment methods for a country
+    getPaymentMethods: (countryCode = 'CI') =>
+        api.get(`/admin-service/api/v1/payment-methods?country=${countryCode}`),
+}
+
+// ========== Admin Payment Providers ==========
+export const adminPaymentAPI = {
+    // Get all payment providers
+    getProviders: () => api.get('/admin-service/api/v1/admin/payment-providers'),
+
+    // Get single provider
+    getProvider: (id: string) => api.get(`/admin-service/api/v1/admin/payment-providers/${id}`),
+
+    // Create provider
+    createProvider: (data: any) => api.post('/admin-service/api/v1/admin/payment-providers', data),
+
+    // Update provider
+    updateProvider: (id: string, data: any) =>
+        api.put(`/admin-service/api/v1/admin/payment-providers/${id}`, data),
+
+    // Delete provider
+    deleteProvider: (id: string) =>
+        api.delete(`/admin-service/api/v1/admin/payment-providers/${id}`),
+
+    // Toggle active status
+    toggleStatus: (id: string, isActive: boolean) =>
+        api.post(`/admin-service/api/v1/admin/payment-providers/${id}/toggle-status`, { is_active: isActive }),
+
+    // Toggle demo mode
+    toggleDemo: (id: string, isDemoMode: boolean) =>
+        api.post(`/admin-service/api/v1/admin/payment-providers/${id}/toggle-demo`, { is_demo_mode: isDemoMode }),
+
+    // Test connection
+    testConnection: (id: string) =>
+        api.post(`/admin-service/api/v1/admin/payment-providers/${id}/test`),
+
+    // Add country
+    addCountry: (id: string, country: any) =>
+        api.post(`/admin-service/api/v1/admin/payment-providers/${id}/countries`, country),
+
+    // Remove country
+    removeCountry: (id: string, countryCode: string) =>
+        api.delete(`/admin-service/api/v1/admin/payment-providers/${id}/countries/${countryCode}`),
 }
 
 // ========== Support ==========
@@ -301,6 +345,7 @@ export function useApi() {
         dashboardApi: dashboardAPI,
         merchantApi: merchantAPI,
         paymentApi: paymentAPI,
+        adminPaymentApi: adminPaymentAPI,
         supportApi: supportAPI,
     }
 }

@@ -116,7 +116,7 @@
                 class="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 transition-colors cursor-pointer border border-slate-700/50">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="crypto.bgColor">
-                  <span class="text-white font-bold">{{ crypto.symbol.slice(0, 2) }}</span>
+                  <span class="text-white font-bold">{{ crypto.symbol?.slice(0, 2) || '??' }}</span>
                 </div>
                 <div>
                   <p class="font-semibold text-white">{{ crypto.name }}</p>
