@@ -243,7 +243,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { dashboardAPI, exchangeAPI, cardAPI } from '~/composables/useApi'
+import { dashboardAPI, exchangeAPI, cardAPI, walletAPI } from '~/composables/useApi'
 
 const authStore = useAuthStore()
 
@@ -252,6 +252,23 @@ const userName = computed(() => authStore.user?.first_name || 'Utilisateur')
 const loading = ref(true)
 const refreshing = ref(false)
 const showQRModal = ref(false)
+
+// Conversion rates to USD (approximate)
+const conversionRates = {
+  'USD': 1,
+  'EUR': 1.08,
+  'GBP': 1.27,
+  'XOF': 0.00167,  // 1/600
+  'XAF': 0.00167,  // 1/600
+  'FCFA': 0.00167, // 1/600
+  'BTC': 43000,
+  'ETH': 2200,
+}
+
+const convertToUSD = (amount, currency) => {
+  const rate = conversionRates[currency?.toUpperCase()] || 1
+  return amount * rate
+}
 
 // Stats - will be loaded from API
 const stats = ref({
@@ -309,15 +326,45 @@ const fetchDashboardData = async () => {
   loading.value = true
   try {
     // Fetch all required data in parallel
-    const [summaryRes, activityRes, marketsRes, cardsRes, ratesRes] = await Promise.all([
+    const [summaryRes, activityRes, marketsRes, cardsRes, ratesRes, walletsRes] = await Promise.all([
       dashboardAPI.getSummary().catch(() => ({ data: { totalBalance: 0, cryptoBalance: 0, cardsBalance: 0, activeCards: 0, monthlyTransfers: 0, monthlyVolume: 0 } })),
       dashboardAPI.getRecentActivity().catch(() => ({ data: [] })),
       exchangeAPI.getMarkets().catch(() => ({ data: [] })),
       cardAPI.getAll().catch(() => ({ data: { cards: [] } })),
-      exchangeAPI.getRates().catch(() => ({ data: {} }))
+      exchangeAPI.getRates().catch(() => ({ data: {} })),
+      walletAPI.getAll().catch(() => ({ data: { wallets: [] } }))
     ])
     
-    if (summaryRes?.data) stats.value = summaryRes.data
+    // Calculate totals from wallets with currency conversion to USD
+    if (walletsRes?.data?.wallets) {
+      const wallets = walletsRes.data.wallets
+      let totalUSD = 0
+      let cryptoUSD = 0
+      
+      wallets.forEach(w => {
+        const balance = Number(w.balance) || 0
+        const inUSD = convertToUSD(balance, w.currency)
+        totalUSD += inUSD
+        
+        // Check if crypto wallet
+        if (['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'XRP', 'SOL'].includes(w.currency?.toUpperCase())) {
+          cryptoUSD += inUSD
+        }
+      })
+      
+      stats.value.totalBalance = Math.round(totalUSD * 100) / 100
+      stats.value.cryptoBalance = Math.round(cryptoUSD * 100) / 100
+    } else if (summaryRes?.data) {
+      stats.value = summaryRes.data
+    }
+    
+    // Load cards stats
+    if (cardsRes?.data?.cards) {
+      userCards.value = cardsRes.data.cards.slice(0, 3)
+      stats.value.activeCards = cardsRes.data.cards.filter(c => c.status === 'active').length
+      stats.value.cardsBalance = cardsRes.data.cards.reduce((sum, c) => sum + (Number(c.balance) || 0), 0)
+    }
+    
     if (activityRes?.data?.activities) recentActivities.value = activityRes.data.activities.map(a => ({
       ...a,
       bgColor: a.type === 'credit' ? 'bg-green-500/20' : 'bg-red-500/20',
@@ -333,8 +380,6 @@ const fetchDashboardData = async () => {
          bgColor: 'bg-orange-500/20' // Dynamic mapping based on symbol could be added
        }))
     }
-    
-    if (cardsRes?.data?.cards) userCards.value = cardsRes.data.cards.slice(0, 3)
     
     if (ratesRes?.data?.rates) {
        fiatRates.value = Object.entries(ratesRes.data.rates).map(([pair, rate]) => ({
