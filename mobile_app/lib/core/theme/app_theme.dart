@@ -312,6 +312,13 @@ class AppTheme {
 
   // Dark Theme
   static ThemeData get darkTheme {
+    const darkBackground = Color(0xFF0F172A);
+    const darkSurface = Color(0xFF1E293B);
+    const darkCard = Color(0xFF1E293B);
+    const darkTextPrimary = Color(0xFFE2E8F0);
+    const darkTextSecondary = Color(0xFF94A3B8);
+    const darkTextTertiary = Color(0xFF64748B);
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -321,20 +328,257 @@ class AppTheme {
         primaryContainer: primaryColor,
         secondary: secondaryLightColor,
         secondaryContainer: secondaryColor,
-        background: Color(0xFF0F172A),
-        surface: Color(0xFF1E293B),
+        background: darkBackground,
+        surface: darkSurface,
         error: errorColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onBackground: Colors.white,
-        onSurface: Colors.white,
+        onBackground: darkTextPrimary,
+        onSurface: darkTextPrimary,
         onError: Colors.white,
       ),
       
-      scaffoldBackgroundColor: const Color(0xFF0F172A),
+      scaffoldBackgroundColor: darkBackground,
       
-      // Continue with dark theme configurations...
-      // Similar structure to light theme but with dark colors
+      // App Bar Theme
+      appBarTheme: AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: darkTextPrimary,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        iconTheme: const IconThemeData(
+          color: darkTextPrimary,
+          size: 24,
+        ),
+      ),
+      
+      // Card Theme
+      cardTheme: const CardThemeData(
+        color: darkCard,
+        elevation: 2,
+        shadowColor: Colors.black38,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+      
+      // Button Themes
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryLightColor,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryLightColor,
+          side: const BorderSide(color: primaryLightColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryLightColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          textStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      
+      // Input Decoration Theme
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryLightColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorColor),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: GoogleFonts.inter(
+          color: darkTextSecondary,
+          fontSize: 16,
+        ),
+        hintStyle: GoogleFonts.inter(
+          color: darkTextTertiary,
+          fontSize: 16,
+        ),
+      ),
+      
+      // Text Theme
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.inter(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: darkTextPrimary,
+        ),
+        displayMedium: GoogleFonts.inter(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: darkTextPrimary,
+        ),
+        displaySmall: GoogleFonts.inter(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        headlineLarge: GoogleFonts.inter(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        headlineMedium: GoogleFonts.inter(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        headlineSmall: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        titleLarge: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        titleMedium: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: darkTextPrimary,
+        ),
+        titleSmall: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: darkTextSecondary,
+        ),
+        bodyLarge: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.normal,
+          color: darkTextPrimary,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+          color: darkTextPrimary,
+        ),
+        bodySmall: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+          color: darkTextSecondary,
+        ),
+        labelLarge: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: darkTextPrimary,
+        ),
+        labelMedium: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: darkTextSecondary,
+        ),
+        labelSmall: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: darkTextTertiary,
+        ),
+      ),
+      
+      // Bottom Navigation Theme
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: darkSurface,
+        selectedItemColor: primaryLightColor,
+        unselectedItemColor: darkTextTertiary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      
+      // Floating Action Button Theme
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: primaryLightColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+      
+      // Divider Theme
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF334155),
+        thickness: 1,
+      ),
+      
+      // Switch Theme
+      switchTheme: SwitchThemeData(
+        thumbColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return primaryLightColor;
+          }
+          return const Color(0xFF64748B);
+        }),
+        trackColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return primaryLightColor.withOpacity(0.3);
+          }
+          return const Color(0xFF334155);
+        }),
+      ),
+      
+      // Checkbox Theme
+      checkboxTheme: CheckboxThemeData(
+        fillColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return primaryLightColor;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: MaterialStateProperty.all(Colors.white),
+      ),
+
+      // Dialog styling is handled by ColorScheme
+
+      // Bottom Sheet Theme
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkSurface,
+        modalBackgroundColor: darkSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
     );
   }
 }

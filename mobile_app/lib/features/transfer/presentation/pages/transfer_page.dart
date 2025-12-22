@@ -1,457 +1,722 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
-import '../../../../core/widgets/loading_widget.dart';
+import '../../../../core/widgets/security_confirmation.dart';
+import '../../../wallet/presentation/bloc/wallet_bloc.dart';
 import '../bloc/transfer_bloc.dart';
-import '../widgets/transfer_type_card.dart';
-import '../widgets/recent_transfers_list.dart';
-import '../widgets/contact_selector.dart';
-import '../widgets/transfer_confirmation_sheet.dart';
 
+/// Modern Transfer Page matching frontend design
 class TransferPage extends StatefulWidget {
-  const TransferPage({Key? key}) : super(key: key);
+  const TransferPage({super.key});
 
   @override
   State<TransferPage> createState() => _TransferPageState();
 }
 
-class _TransferPageState extends State<TransferPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _TransferPageState extends State<TransferPage> {
+  String _selectedType = 'p2p';
+  String? _selectedWalletId;
   
-  final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _recipientController = TextEditingController();
-  final _memoController = TextEditingController();
+  final _descriptionController = TextEditingController();
   
-  String _selectedTransferType = 'crypto';
-  String? _selectedWallet;
-  String? _selectedRecipient;
+  // P2P fields
+  final _recipientController = TextEditingController();
+  bool _isLookingUp = false;
+  Map<String, dynamic>? _lookupResult;
+  String? _lookupError;
+  
+  // Mobile Money fields
+  String _selectedCountry = 'CI';
+  String _selectedProvider = 'orange';
+  final _phoneController = TextEditingController();
+  
+  // Wire fields  
+  final _bankNameController = TextEditingController();
+  final _ibanController = TextEditingController();
+  final _recipientNameController = TextEditingController();
+
+  bool _isLoading = false;
+
+  final List<Map<String, dynamic>> _transferTypes = [
+    {'id': 'p2p', 'name': 'Interne (P2P)', 'icon': '👤'},
+    {'id': 'mobile', 'name': 'Mobile Money', 'icon': '📱'},
+    {'id': 'wire', 'name': 'Virement', 'icon': '🏦'},
+    {'id': 'crypto', 'name': 'Crypto', 'icon': '₿'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadTransferData();
+    context.read<WalletBloc>().add(LoadWalletsEvent());
   }
 
-  void _loadTransferData() {
-    context.read<TransferBloc>().add(LoadTransferDataEvent());
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descriptionController.dispose();
+    _recipientController.dispose();
+    _phoneController.dispose();
+    _bankNameController.dispose();
+    _ibanController.dispose();
+    _recipientNameController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Send & Transfer'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Envoyer de l\'argent 💸',
+          style: TextStyle(
+            color: Color(0xFF1a1a2e),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Send Money'),
-            Tab(text: 'Recent'),
-          ],
-        ),
       ),
-      body: BlocListener<TransferBloc, TransferState>(
-        listener: (context, state) {
-          if (state is TransferSuccessState) {
-            _showSuccessDialog(state.transfer);
-          } else if (state is TransferErrorState) {
-            _showErrorSnackBar(state.message);
-          }
-        },
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildSendMoneyTab(),
-            _buildRecentTransfersTab(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSendMoneyTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Transfer Type Selection
+            // Subtitle
             const Text(
-              'Transfer Type',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              'Transferts P2P, Mobile Money, et virements bancaires',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            
+            // Transfer Type Selector
+            _buildTypeSelector(),
+            const SizedBox(height: 24),
+            
+            // Transfer Form Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // From Wallet
+                    _buildWalletSelector(),
+                    const SizedBox(height: 24),
+                    
+                    // Amount
+                    _buildAmountField(),
+                    const SizedBox(height: 24),
+                    
+                    // Type-specific fields
+                    _buildTypeSpecificFields(),
+                    const SizedBox(height: 24),
+                    
+                    // Description
+                    _buildDescriptionField(),
+                    const SizedBox(height: 24),
+                    
+                    // Summary
+                    _buildSummary(),
+                    const SizedBox(height: 24),
+                    
+                    // Submit Button
+                    _buildSubmitButton(),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: TransferTypeCard(
-                    icon: Icons.currency_bitcoin,
-                    title: 'Crypto',
-                    description: 'Send cryptocurrencies\nto any wallet address',
-                    color: AppTheme.bitcoinColor,
-                    isSelected: _selectedTransferType == 'crypto',
-                    onTap: () => _setTransferType('crypto'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TransferTypeCard(
-                    icon: Icons.account_balance,
-                    title: 'Bank',
-                    description: 'SEPA/SWIFT transfers\nto bank accounts',
-                    color: AppTheme.secondaryColor,
-                    isSelected: _selectedTransferType == 'fiat',
-                    onTap: () => _setTransferType('fiat'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TransferTypeCard(
-                    icon: Icons.flash_on,
-                    title: 'Instant',
-                    description: 'Free transfers between\nCrypto Bank users',
-                    color: AppTheme.primaryColor,
-                    isSelected: _selectedTransferType == 'instant',
-                    onTap: () => _setTransferType('instant'),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // From Wallet Selection
-            BlocBuilder<TransferBloc, TransferState>(
-              builder: (context, state) {
-                if (state is TransferLoadedState) {
-                  return _buildFromWalletSection(state.wallets);
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Recipient Selection
-            _buildRecipientSection(),
-
-            const SizedBox(height: 24),
-
-            // Amount Input
-            CustomTextField(
-              controller: _amountController,
-              label: 'Amount',
-              hint: '0.00',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              prefixIcon: Icons.attach_money,
-              validator: _validateAmount,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Memo/Notes (optional)
-            CustomTextField(
-              controller: _memoController,
-              label: 'Notes (Optional)',
-              hint: 'Payment reference or notes',
-              maxLines: 3,
-              prefixIcon: Icons.note_outlined,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Fee Information
-            _buildFeeInformation(),
-
-            const SizedBox(height: 32),
-
-            // Send Button
-            BlocBuilder<TransferBloc, TransferState>(
-              builder: (context, state) {
-                final isLoading = state is TransferLoadingState;
-                
-                return CustomButton(
-                  text: isLoading ? 'Processing...' : 'Send Transfer',
-                  onPressed: isLoading ? null : _handleSendTransfer,
-                  isLoading: isLoading,
-                  icon: Icons.send,
-                );
-              },
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentTransfersTab() {
-    return BlocBuilder<TransferBloc, TransferState>(
-      builder: (context, state) {
-        if (state is TransferLoadingState) {
-          return const LoadingWidget();
-        } else if (state is TransferLoadedState) {
-          return RecentTransfersList(
-            transfers: state.recentTransfers,
-            onTransferTap: (transfer) {
-              context.push('/more/transfer/${transfer.id}');
-            },
-          );
-        } else if (state is TransferErrorState) {
-          return Center(
+  Widget _buildTypeSelector() {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 2.2,
+      children: _transferTypes.map((type) {
+        final isSelected = _selectedType == type['id'];
+        return GestureDetector(
+          onTap: () => setState(() {
+            _selectedType = type['id'];
+            _lookupResult = null;
+            _lookupError = null;
+          }),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? const Color(0xFF667eea).withOpacity(0.1)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected 
+                    ? const Color(0xFF667eea)
+                    : const Color(0xFFE2E8F0),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected ? [
+                BoxShadow(
+                  color: const Color(0xFF667eea).withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ] : null,
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: AppTheme.errorColor,
-                ),
-                const SizedBox(height: 16),
+                Text(type['icon'], style: const TextStyle(fontSize: 24)),
+                const SizedBox(height: 4),
                 Text(
-                  'Failed to load transfers',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.message,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                CustomButton(
-                  text: 'Try Again',
-                  onPressed: _loadTransferData,
+                  type['name'],
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected 
+                        ? const Color(0xFF667eea)
+                        : const Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildFromWalletSection(List<dynamic> wallets) {
+  Widget _buildWalletSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'From Wallet',
+          'Depuis le portefeuille',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
           ),
         ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _selectedWallet,
-            decoration: const InputDecoration(
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: InputBorder.none,
-              hintText: 'Select wallet',
-            ),
-            items: wallets.map<DropdownMenuItem<String>>((wallet) {
-              return DropdownMenuItem<String>(
-                value: wallet.id,
-                child: Row(
-                  children: [
-                    Icon(
-                      _getCurrencyIcon(wallet.currency),
-                      size: 20,
-                      color: AppTheme.primaryColor,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${wallet.currency} Wallet',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            '${wallet.balance.toStringAsFixed(8)} ${wallet.currency}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
+        const SizedBox(height: 8),
+        BlocBuilder<WalletBloc, WalletState>(
+          builder: (context, state) {
+            if (state is WalletLoadedState) {
+              final wallets = state.wallets;
+              if (_selectedWalletId == null && wallets.isNotEmpty) {
+                _selectedWalletId = wallets.first.id;
+              }
+              
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButton<String>(
+                  value: _selectedWalletId,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                  items: wallets.map((wallet) {
+                    return DropdownMenuItem<String>(
+                      value: wallet.id,
+                      child: Text(
+                        '${wallet.name} - ${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
+                        style: const TextStyle(fontSize: 15),
                       ),
-                    ),
-                  ],
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => _selectedWalletId = value),
                 ),
               );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedWallet = value;
-              });
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please select a wallet';
-              }
-              return null;
-            },
-          ),
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
         ),
       ],
     );
   }
 
-  Widget _buildRecipientSection() {
+  Widget _buildAmountField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Montant à envoyer',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1a1a2e),
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: '0.00',
+                    hintStyle: TextStyle(color: Color(0xFFCBD5E1)),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _getSelectedCurrency(),
+                  style: const TextStyle(
+                    color: Color(0xFF667eea),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        BlocBuilder<WalletBloc, WalletState>(
+          builder: (context, state) {
+            if (state is WalletLoadedState && _selectedWalletId != null) {
+              final wallet = state.wallets.firstWhere(
+                (w) => w.id == _selectedWalletId,
+                orElse: () => state.wallets.first,
+              );
+              final amount = double.tryParse(_amountController.text) ?? 0;
+              final isInsufficient = amount > wallet.balance;
+              
+              return Text(
+                isInsufficient 
+                    ? 'Solde insuffisant'
+                    : 'Disponible: ${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isInsufficient ? Colors.red : const Color(0xFF64748B),
+                  fontWeight: isInsufficient ? FontWeight.w600 : FontWeight.normal,
+                ),
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeSpecificFields() {
+    switch (_selectedType) {
+      case 'p2p':
+        return _buildP2PFields();
+      case 'mobile':
+        return _buildMobileMoneyFields();
+      case 'wire':
+        return _buildWireFields();
+      case 'crypto':
+        return _buildCryptoFields();
+      default:
+        return const SizedBox();
+    }
+  }
+
+  Widget _buildP2PFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Destinataire (Email ou Téléphone)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _recipientController,
+                decoration: InputDecoration(
+                  hintText: 'ex: ami@email.com ou +225...',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _lookupUser,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: _isLookingUp
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('🔍', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+          ],
+        ),
+        if (_lookupError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _lookupError!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ],
+        if (_lookupResult != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (_lookupResult!['first_name'] as String?)?.substring(0, 1).toUpperCase() ?? 'U',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_lookupResult!['first_name']} ${_lookupResult!['last_name']}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1a1a2e),
+                      ),
+                    ),
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Color(0xFF10B981), size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Utilisateur vérifié',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMobileMoneyFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Send To',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  onPressed: _scanQRCode,
-                  tooltip: 'Scan QR Code',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.contacts),
-                  onPressed: _selectFromContacts,
-                  tooltip: 'Select Contact',
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        if (_selectedTransferType == 'crypto')
-          CustomTextField(
-            controller: _recipientController,
-            label: 'Wallet Address',
-            hint: 'Enter recipient wallet address',
-            prefixIcon: Icons.account_balance_wallet,
-            validator: _validateRecipient,
-          )
-        else if (_selectedTransferType == 'fiat')
-          Column(
-            children: [
-              CustomTextField(
-                controller: _recipientController,
-                label: 'IBAN / Account Number',
-                hint: 'Enter bank account details',
-                prefixIcon: Icons.account_balance,
-                validator: _validateRecipient,
-              ),
-              const SizedBox(height: 16),
-              Row(
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Bank Code / SWIFT',
-                      hint: 'SWIFT/BIC code',
-                      prefixIcon: Icons.business,
+                  const Text('Pays', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CustomTextField(
-                      label: 'Recipient Name',
-                      hint: 'Full name',
-                      prefixIcon: Icons.person,
+                    child: DropdownButton<String>(
+                      value: _selectedCountry,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: 'CI', child: Text('🇨🇮 Côte d\'Ivoire')),
+                        DropdownMenuItem(value: 'SN', child: Text('🇸🇳 Sénégal')),
+                        DropdownMenuItem(value: 'CM', child: Text('🇨🇲 Cameroun')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedCountry = v!),
                     ),
                   ),
                 ],
               ),
-            ],
-          )
-        else // instant transfer
-          CustomTextField(
-            controller: _recipientController,
-            label: 'Email Address',
-            hint: 'user@email.com',
-            keyboardType: TextInputType.emailAddress,
-            prefixIcon: Icons.email,
-            validator: _validateRecipient,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Opérateur', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedProvider,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: 'orange', child: Text('Orange Money')),
+                        DropdownMenuItem(value: 'mtn', child: Text('MTN MoMo')),
+                        DropdownMenuItem(value: 'wave', child: Text('Wave')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedProvider = v!),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const Text('Numéro de téléphone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            hintText: '+225 07...',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildFeeInformation() {
+  Widget _buildWireFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Nom de la banque', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _bankNameController,
+          decoration: InputDecoration(
+            hintText: 'ex: Ecobank',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text('IBAN / Numéro de compte', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _ibanController,
+          decoration: InputDecoration(
+            hintText: 'FR76...',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text('Nom du bénéficiaire', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _recipientNameController,
+          decoration: InputDecoration(
+            hintText: 'Jean Dupont',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCryptoFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Adresse du portefeuille', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _recipientController,
+          decoration: InputDecoration(
+            hintText: '0x... ou bc1...',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.qr_code_scanner),
+              onPressed: () {/* Scan QR */},
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Note (Optionnel)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _descriptionController,
+          decoration: InputDecoration(
+            hintText: 'Ex: Loyer',
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummary() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    final fee = _getEstimatedFee();
+    final total = amount + fee;
+    final currency = _getSelectedCurrency();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              Text('📝', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 8),
+              Text('Résumé', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Transfer Amount:'),
-              Text(
-                '${_amountController.text.isEmpty ? '0.00' : _amountController.text} ${_getSelectedCurrency()}',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              const Text('Montant', style: TextStyle(color: Color(0xFF64748B))),
+              Text('${amount.toStringAsFixed(2)} $currency', style: const TextStyle(fontWeight: FontWeight.w500)),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Network Fee:'),
-              Text(
-                _getEstimatedFee(),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
+          if (fee > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Frais estimés', style: TextStyle(color: Color(0xFF667eea))),
+                Text('+ ${fee.toStringAsFixed(2)} $currency', style: const TextStyle(color: Color(0xFF667eea), fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ],
           const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                _getTotalAmount(),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('Total à débiter', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('${total.toStringAsFixed(2)} $currency', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
         ],
@@ -459,240 +724,174 @@ class _TransferPageState extends State<TransferPage>
     );
   }
 
-  void _setTransferType(String type) {
-    setState(() {
-      _selectedTransferType = type;
-      _recipientController.clear();
-    });
-  }
+  Widget _buildSubmitButton() {
+    final isP2PValid = _selectedType != 'p2p' || _lookupResult != null;
+    final hasWallet = _selectedWalletId != null;
+    final hasAmount = (double.tryParse(_amountController.text) ?? 0) > 0;
+    final isEnabled = isP2PValid && hasWallet && hasAmount && !_isLoading;
 
-  String? _validateAmount(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter an amount';
-    }
-    final amount = double.tryParse(value);
-    if (amount == null || amount <= 0) {
-      return 'Please enter a valid amount';
-    }
-    return null;
-  }
-
-  String? _validateRecipient(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'This field is required';
-    }
-    
-    if (_selectedTransferType == 'crypto') {
-      // Basic crypto address validation
-      if (value.length < 26) {
-        return 'Invalid wallet address';
-      }
-    } else if (_selectedTransferType == 'instant') {
-      // Email validation
-      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-        return 'Please enter a valid email address';
-      }
-    }
-    
-    return null;
-  }
-
-  IconData _getCurrencyIcon(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'BTC': return Icons.currency_bitcoin;
-      case 'ETH': return Icons.diamond;
-      case 'USD': return Icons.attach_money;
-      case 'EUR': return Icons.euro;
-      default: return Icons.monetization_on;
-    }
+    return GestureDetector(
+      onTap: isEnabled ? _handleSubmit : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          gradient: isEnabled
+              ? const LinearGradient(colors: [Color(0xFF667eea), Color(0xFF764ba2)])
+              : null,
+          color: isEnabled ? null : const Color(0xFFCBD5E1),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isEnabled ? [
+            BoxShadow(
+              color: const Color(0xFF667eea).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isLoading)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            else ...[
+              Text(
+                'Confirmer le transfert',
+                style: TextStyle(
+                  color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward,
+                color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
+                size: 20,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   String _getSelectedCurrency() {
-    // This should come from the selected wallet
-    return 'USD'; // Placeholder
-  }
-
-  String _getEstimatedFee() {
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    switch (_selectedTransferType) {
-      case 'crypto':
-        return '${(amount * 0.0025).toStringAsFixed(8)} ${_getSelectedCurrency()}';
-      case 'fiat':
-        return '\$${(amount * 0.001).clamp(2.5, 50.0).toStringAsFixed(2)}';
-      case 'instant':
-        return 'Free';
-      default:
-        return '0.00';
-    }
-  }
-
-  String _getTotalAmount() {
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    final fee = _selectedTransferType == 'instant' ? 0.0 : 
-                _selectedTransferType == 'crypto' ? amount * 0.0025 :
-                (amount * 0.001).clamp(2.5, 50.0);
-    
-    return '${(amount + fee).toStringAsFixed(8)} ${_getSelectedCurrency()}';
-  }
-
-  Future<void> _scanQRCode() async {
-    // Implement QR code scanning
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SizedBox(
-        height: 400,
-        child: Column(
-          children: [
-            AppBar(
-              title: const Text('Scan QR Code'),
-              automaticallyImplyLeading: false,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            Expanded(
-              child: MobileScanner(
-                onDetect: (capture) {
-                  final List<Barcode> barcodes = capture.barcodes;
-                  if (barcodes.isNotEmpty) {
-                    Navigator.pop(context);
-                    setState(() {
-                      _recipientController.text = barcodes.first.rawValue ?? '';
-                    });
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _selectFromContacts() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => ContactSelector(
-        onContactSelected: (contact) {
-          Navigator.pop(context);
-          setState(() {
-            _selectedRecipient = contact.id;
-            _recipientController.text = contact.address;
-          });
-        },
-      ),
-    );
-  }
-
-  void _handleSendTransfer() {
-    if (_formKey.currentState!.validate()) {
-      final amount = double.parse(_amountController.text);
-      
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => TransferConfirmationSheet(
-          transferType: _selectedTransferType,
-          amount: amount,
-          recipient: _recipientController.text,
-          currency: _getSelectedCurrency(),
-          fee: _getEstimatedFee(),
-          onConfirm: () {
-            Navigator.pop(context);
-            context.read<TransferBloc>().add(
-              SendTransferEvent(
-                type: _selectedTransferType,
-                fromWallet: _selectedWallet!,
-                recipient: _recipientController.text,
-                amount: amount,
-                memo: _memoController.text.isEmpty ? null : _memoController.text,
-              ),
-            );
-          },
-        ),
+    final walletState = context.read<WalletBloc>().state;
+    if (walletState is WalletLoadedState && _selectedWalletId != null) {
+      final wallet = walletState.wallets.firstWhere(
+        (w) => w.id == _selectedWalletId,
+        orElse: () => walletState.wallets.first,
       );
+      return wallet.currency;
+    }
+    return 'USD';
+  }
+
+  double _getEstimatedFee() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (amount == 0) return 0;
+    
+    switch (_selectedType) {
+      case 'p2p':
+        return 0; // Free internal transfers
+      case 'mobile':
+        return amount * 0.01; // 1%
+      case 'wire':
+        return amount * 0.02 < 5 ? 5 : amount * 0.02; // Min 5 or 2%
+      case 'crypto':
+        return amount * 0.005; // 0.5%
+      default:
+        return 0;
     }
   }
 
-  void _showSuccessDialog(dynamic transfer) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.check_circle,
-          color: AppTheme.successColor,
-          size: 48,
-        ),
-        title: const Text('Transfer Sent'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Your transfer has been sent successfully!'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Transaction ID:'),
-                      Text(
-                        transfer.id.substring(0, 8),
-                        style: const TextStyle(fontFamily: 'monospace'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Status:'),
-                      Text(transfer.status),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('View Details'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
+  void _lookupUser() async {
+    final query = _recipientController.text.trim();
+    if (query.length < 3) return;
+
+    setState(() {
+      _isLookingUp = true;
+      _lookupError = null;
+      _lookupResult = null;
+    });
+
+    // Simulate API call - in real app, call userApi.lookup
+    await Future.delayed(const Duration(seconds: 1));
+
+    setState(() {
+      _isLookingUp = false;
+      // Simulated result
+      if (query.contains('@') || query.startsWith('+')) {
+        _lookupResult = {
+          'first_name': 'Jean',
+          'last_name': 'Dupont',
+          'id': 'user-123',
+        };
+      } else {
+        _lookupError = 'Utilisateur introuvable';
+      }
+    });
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-      ),
+  void _handleSubmit() async {
+    // Require security confirmation before transfer
+    final confirmed = await SecurityConfirmation.require(
+      context,
+      title: 'Confirmer le transfert',
+      message: 'Authentifiez-vous pour valider ce transfert',
     );
-  }
+    if (!confirmed) return;
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _amountController.dispose();
-    _recipientController.dispose();
-    _memoController.dispose();
-    super.dispose();
+    setState(() => _isLoading = true);
+
+    try {
+      final amount = double.tryParse(_amountController.text) ?? 0;
+      
+      context.read<TransferBloc>().add(SendTransferEvent(
+        type: _selectedType,
+        fromWallet: _selectedWalletId!,
+        recipient: _selectedType == 'p2p' 
+            ? _recipientController.text
+            : _selectedType == 'mobile'
+                ? _phoneController.text
+                : _selectedType == 'wire'
+                    ? _recipientNameController.text
+                    : _recipientController.text,
+        amount: amount,
+        memo: _descriptionController.text,
+      ));
+
+      // Wait for result
+      await Future.delayed(const Duration(seconds: 2));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transfert initié avec succès!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+        context.go('/wallet');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }

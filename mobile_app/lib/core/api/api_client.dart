@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
@@ -11,6 +12,15 @@ class ApiClient {
   
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  
+  // Global navigator key for logout navigation
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  
+  // Callback for logout - will be set by the app
+  static VoidCallback? onLogout;
+  
+  // Flag to prevent multiple logout calls
+  bool _isLoggingOut = false;
   
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -48,13 +58,16 @@ class ApiClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
+        if (error.response?.statusCode == 401 && !_isLoggingOut) {
           // Token expired, try to refresh
           final refreshed = await _refreshToken();
           if (refreshed) {
             // Retry the request
             final retryResponse = await _retry(error.requestOptions);
             return handler.resolve(retryResponse);
+          } else {
+            // Refresh failed - Auto logout
+            await _handleLogout();
           }
         }
         return handler.next(error);
@@ -69,13 +82,33 @@ class ApiClient {
     ));
   }
   
+  Future<void> _handleLogout() async {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
+    
+    try {
+      // Clear all tokens
+      await clearTokens();
+      
+      // Call logout callback if set (this will navigate to login)
+      if (onLogout != null) {
+        onLogout!();
+      }
+    } finally {
+      // Reset flag after a delay to prevent rapid re-triggers
+      Future.delayed(const Duration(seconds: 2), () {
+        _isLoggingOut = false;
+      });
+    }
+  }
+  
   Future<bool> _refreshToken() async {
     try {
       final refreshToken = await _storage.read(key: 'refresh_token');
       if (refreshToken == null) return false;
       
       final response = await Dio().post(
-        '${_getBaseUrl()}/api/v1/auth/refresh',
+        '${_getBaseUrl()}/auth-service/api/v1/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
       
@@ -92,6 +125,7 @@ class ApiClient {
       }
     } catch (e) {
       // Refresh failed
+      print('Token refresh failed: $e');
     }
     return false;
   }

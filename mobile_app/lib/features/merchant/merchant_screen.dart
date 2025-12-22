@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
-import '../../core/services/api_service.dart';
-import '../../core/widgets/custom_button.dart';
-import '../../core/utils/currency_formatter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
+import '../wallet/presentation/bloc/wallet_bloc.dart';
+
+/// Merchant Screen - Create payment requests and generate QR codes
 class MerchantScreen extends StatefulWidget {
   const MerchantScreen({Key? key}) : super(key: key);
 
@@ -14,80 +16,225 @@ class MerchantScreen extends StatefulWidget {
 
 class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<dynamic> _payments = [];
-  List<dynamic> _wallets = [];
-  bool _loading = true;
-  Map<String, dynamic> _stats = {};
+  List<Map<String, dynamic>> _payments = [];
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadData();
+    context.read<WalletBloc>().add(LoadWalletsEvent());
+    _loadDemoPayments();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
-    try {
-      final payments = await ApiService.getMerchantPayments();
-      final wallets = await ApiService.getWallets();
-      setState(() {
-        _payments = payments['payments'] ?? [];
-        _wallets = wallets ?? [];
-      });
-    } catch (e) {
-      debugPrint('Error loading data: $e');
-    } finally {
-      setState(() => _loading = false);
-    }
+  void _loadDemoPayments() {
+    // Demo payments for testing
+    _payments = [
+      {
+        'id': 'pay_001',
+        'title': 'iPhone 15 Pro',
+        'amount': 599000,
+        'currency': 'XOF',
+        'status': 'pending',
+        'type': 'fixed',
+        'created_at': DateTime.now().subtract(const Duration(hours: 2)),
+      },
+      {
+        'id': 'pay_002',
+        'title': 'Donation',
+        'amount': null,
+        'currency': 'XOF',
+        'status': 'pending',
+        'type': 'variable',
+        'created_at': DateTime.now().subtract(const Duration(hours: 5)),
+      },
+      {
+        'id': 'pay_003',
+        'title': 'Commande #1234',
+        'amount': 25000,
+        'currency': 'XOF',
+        'status': 'paid',
+        'type': 'fixed',
+        'created_at': DateTime.now().subtract(const Duration(days: 1)),
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F23),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('💼 Espace Marchand'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Espace Marchand 💼',
+          style: TextStyle(
+            color: Color(0xFF1a1a2e),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFF6366F1),
+          labelColor: const Color(0xFF667eea),
+          unselectedLabelColor: const Color(0xFF64748B),
+          indicatorColor: const Color(0xFF667eea),
+          indicatorWeight: 3,
           tabs: const [
             Tab(text: 'En attente'),
             Tab(text: 'Historique'),
           ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
+      body: Column(
+        children: [
+          // Stats Card
+          _buildStatsCard(),
+          
+          // Payments List
+          Expanded(
+            child: TabBarView(
               controller: _tabController,
               children: [
                 _buildPaymentsList(_payments.where((p) => p['status'] == 'pending').toList()),
                 _buildPaymentsList(_payments.where((p) => p['status'] != 'pending').toList()),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreatePaymentSheet(context),
-        backgroundColor: const Color(0xFF6366F1),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouveau'),
+          ),
+        ],
+      ),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Scan button
+          FloatingActionButton(
+            heroTag: 'scan',
+            onPressed: () => context.push('/more/merchant/scan'),
+            backgroundColor: const Color(0xFF10B981),
+            child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          // Create payment button
+          FloatingActionButton.extended(
+            heroTag: 'create',
+            onPressed: () => _showCreatePaymentSheet(context),
+            backgroundColor: const Color(0xFF667eea),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Nouveau', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPaymentsList(List<dynamic> payments) {
+  Widget _buildStatsCard() {
+    final pendingCount = _payments.where((p) => p['status'] == 'pending').length;
+    final paidToday = _payments.where((p) => p['status'] == 'paid').fold<double>(0, (sum, p) => sum + (p['amount'] ?? 0));
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF667eea).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'En attente',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$pendingCount paiements',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            color: Colors.white24,
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Reçu aujourd\'hui',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${paidToday.toStringAsFixed(0)} XOF',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentsList(List<Map<String, dynamic>> payments) {
     if (payments.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.receipt_long, size: 48, color: Color(0xFF94A3B8)),
+            ),
             const SizedBox(height: 16),
             const Text(
               'Aucun paiement',
-              style: TextStyle(color: Colors.grey, fontSize: 18),
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Créez une demande de paiement',
+              style: TextStyle(color: Color(0xFF94A3B8)),
             ),
           ],
         ),
@@ -111,12 +258,8 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1A3E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => _CreatePaymentSheet(
-        wallets: _wallets,
         onCreated: (payment) {
           setState(() => _payments.insert(0, payment));
           Navigator.pop(context);
@@ -126,21 +269,18 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     );
   }
 
-  void _showQRCode(dynamic payment) {
+  void _showQRCode(Map<String, dynamic> payment) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1A3E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => _QRCodeSheet(payment: payment),
     );
   }
 }
 
 class _PaymentCard extends StatelessWidget {
-  final dynamic payment;
+  final Map<String, dynamic> payment;
   final VoidCallback onTap;
 
   const _PaymentCard({required this.payment, required this.onTap});
@@ -149,90 +289,93 @@ class _PaymentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = payment['status'] ?? 'pending';
     final amount = payment['amount'];
-    final currency = payment['currency'] ?? 'EUR';
+    final currency = payment['currency'] ?? 'XOF';
 
-    return Card(
-      color: const Color(0xFF1A1A3E),
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _getStatusColor(status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getStatusIcon(status),
-                  color: _getStatusColor(status),
-                ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: _getStatusColor(status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      payment['title'] ?? 'Paiement',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _getTypeLabel(payment['type']),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
+              child: Icon(
+                _getStatusIcon(status),
+                color: _getStatusColor(status),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    amount != null
-                        ? CurrencyFormatter.format(amount, currency)
-                        : 'Variable',
+                    payment['title'] ?? 'Paiement',
                     style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1a1a2e),
+                      fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getStatusLabel(status),
-                      style: TextStyle(
-                        color: _getStatusColor(status),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  Text(
+                    _getTypeLabel(payment['type']),
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.qr_code, color: Colors.grey),
-            ],
-          ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  amount != null ? '${amount.toStringAsFixed(0)} $currency' : 'Variable',
+                  style: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _getStatusLabel(status),
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.qr_code, color: Color(0xFF94A3B8)),
+          ],
         ),
       ),
     );
@@ -241,13 +384,13 @@ class _PaymentCard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'paid':
-        return const Color(0xFF22C55E);
+        return const Color(0xFF10B981);
       case 'pending':
-        return const Color(0xFFFBBF24);
+        return const Color(0xFFF59E0B);
       case 'expired':
         return const Color(0xFFEF4444);
       default:
-        return Colors.grey;
+        return const Color(0xFF64748B);
     }
   }
 
@@ -292,226 +435,193 @@ class _PaymentCard extends StatelessWidget {
 }
 
 class _CreatePaymentSheet extends StatefulWidget {
-  final List<dynamic> wallets;
-  final Function(dynamic) onCreated;
+  final Function(Map<String, dynamic>) onCreated;
 
-  const _CreatePaymentSheet({required this.wallets, required this.onCreated});
+  const _CreatePaymentSheet({required this.onCreated});
 
   @override
   State<_CreatePaymentSheet> createState() => _CreatePaymentSheetState();
 }
 
 class _CreatePaymentSheetState extends State<_CreatePaymentSheet> {
-  final _formKey = GlobalKey<FormState>();
   String _type = 'fixed';
   String? _walletId;
-  double? _amount;
-  String _title = '';
-  String _description = '';
-  int _expiresIn = 60;
-  bool _reusable = false;
+  final _amountController = TextEditingController();
+  final _titleController = TextEditingController();
   bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Nouvelle demande de paiement',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
-              
-              // Type selector
-              Row(
-                children: [
-                  Expanded(
-                    child: _TypeButton(
-                      label: 'Prix fixe',
-                      icon: Icons.sell,
-                      selected: _type == 'fixed',
-                      onTap: () => setState(() => _type = 'fixed'),
-                    ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Nouvelle demande de paiement',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1a1a2e),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Type selector
+            Row(
+              children: [
+                Expanded(
+                  child: _TypeButton(
+                    label: 'Prix fixe',
+                    icon: Icons.sell,
+                    selected: _type == 'fixed',
+                    onTap: () => setState(() => _type = 'fixed'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TypeButton(
-                      label: 'Variable',
-                      icon: Icons.volunteer_activism,
-                      selected: _type == 'variable',
-                      onTap: () => setState(() => _type = 'variable'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Wallet selection
-              DropdownButtonFormField<String>(
-                value: _walletId,
-                decoration: _inputDecoration('Portefeuille de réception'),
-                dropdownColor: const Color(0xFF1A1A3E),
-                style: const TextStyle(color: Colors.white),
-                items: widget.wallets.map<DropdownMenuItem<String>>((w) {
-                  return DropdownMenuItem(
-                    value: w['id'],
-                    child: Text('${w['currency']} - ${CurrencyFormatter.format(w['balance'], w['currency'])}'),
-                  );
-                }).toList(),
-                onChanged: (v) => setState(() => _walletId = v),
-                validator: (v) => v == null ? 'Sélectionnez un portefeuille' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Title
-              TextFormField(
-                decoration: _inputDecoration('Titre (ex: iPhone 15)'),
-                style: const TextStyle(color: Colors.white),
-                onChanged: (v) => _title = v,
-                validator: (v) => v?.isEmpty == true ? 'Titre requis' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Amount (for fixed)
-              if (_type == 'fixed') ...[
-                TextFormField(
-                  decoration: _inputDecoration('Montant'),
-                  style: const TextStyle(color: Colors.white),
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => _amount = double.tryParse(v),
-                  validator: (v) {
-                    if (_type == 'fixed' && (v?.isEmpty == true || double.tryParse(v!) == null)) {
-                      return 'Montant requis';
-                    }
-                    return null;
-                  },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TypeButton(
+                    label: 'Variable',
+                    icon: Icons.volunteer_activism,
+                    selected: _type == 'variable',
+                    onTap: () => setState(() => _type = 'variable'),
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 20),
 
-              // Description
-              TextFormField(
-                decoration: _inputDecoration('Description (optionnel)'),
-                style: const TextStyle(color: Colors.white),
-                maxLines: 2,
-                onChanged: (v) => _description = v,
-              ),
-              const SizedBox(height: 16),
-
-              // Expiration
-              DropdownButtonFormField<int>(
-                value: _expiresIn,
-                decoration: _inputDecoration('Expiration'),
-                dropdownColor: const Color(0xFF1A1A3E),
-                style: const TextStyle(color: Colors.white),
-                items: const [
-                  DropdownMenuItem(value: 60, child: Text('1 heure')),
-                  DropdownMenuItem(value: 1440, child: Text('24 heures')),
-                  DropdownMenuItem(value: 10080, child: Text('7 jours')),
-                  DropdownMenuItem(value: -1, child: Text('Jamais')),
-                ],
-                onChanged: (v) => setState(() => _expiresIn = v ?? 60),
-              ),
-              const SizedBox(height: 16),
-
-              // Reusable
-              SwitchListTile(
-                value: _reusable,
-                onChanged: (v) => setState(() => _reusable = v),
-                title: const Text('Réutilisable', style: TextStyle(color: Colors.white)),
-                subtitle: Text('Plusieurs clients peuvent payer', style: TextStyle(color: Colors.white.withOpacity(0.6))),
-                activeColor: const Color(0xFF6366F1),
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 24),
-
-              // Submit
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Créer le QR code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            // Title
+            const Text('Titre', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: 'ex: iPhone 15',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Amount (for fixed)
+            if (_type == 'fixed') ...[
+              const Text('Montant', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: '0',
+                  suffix: const Text('XOF'),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
-          ),
+
+            const SizedBox(height: 8),
+
+            // Submit
+            GestureDetector(
+              onTap: _loading ? null : _submit,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: _loading
+                    ? const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.qr_code, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Créer le QR code',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.05),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF6366F1)),
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _submit() {
+    if (_titleController.text.isEmpty) return;
+    if (_type == 'fixed' && _amountController.text.isEmpty) return;
 
     setState(() => _loading = true);
-    try {
-      final wallet = widget.wallets.firstWhere((w) => w['id'] == _walletId);
-      
-      final result = await ApiService.createMerchantPayment({
+
+    // Simulate API call
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final payment = {
+        'id': 'pay_${DateTime.now().millisecondsSinceEpoch}',
+        'title': _titleController.text,
+        'amount': _type == 'fixed' ? double.tryParse(_amountController.text) : null,
+        'currency': 'XOF',
+        'status': 'pending',
         'type': _type,
-        'wallet_id': _walletId,
-        'amount': _type == 'fixed' ? _amount : null,
-        'currency': wallet['currency'],
-        'title': _title,
-        'description': _description,
-        'expires_in_minutes': _expiresIn,
-        'reusable': _reusable,
-      });
-      
-      widget.onCreated(result['payment_request']);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() => _loading = false);
-    }
+        'created_at': DateTime.now(),
+      };
+      widget.onCreated(payment);
+    });
   }
 }
 
@@ -530,28 +640,31 @@ class _TypeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? const Color(0xFF667eea).withOpacity(0.1) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? const Color(0xFF6366F1) : Colors.white.withOpacity(0.1),
+            color: selected ? const Color(0xFF667eea) : const Color(0xFFE2E8F0),
             width: 2,
           ),
         ),
         child: Column(
           children: [
-            Icon(icon, color: selected ? const Color(0xFF6366F1) : Colors.grey, size: 28),
+            Icon(
+              icon,
+              color: selected ? const Color(0xFF667eea) : const Color(0xFF64748B),
+              size: 28,
+            ),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                color: selected ? const Color(0xFF6366F1) : Colors.white,
-                fontWeight: FontWeight.w500,
+                color: selected ? const Color(0xFF667eea) : const Color(0xFF1a1a2e),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -562,90 +675,130 @@ class _TypeButton extends StatelessWidget {
 }
 
 class _QRCodeSheet extends StatelessWidget {
-  final dynamic payment;
+  final Map<String, dynamic> payment;
 
   const _QRCodeSheet({required this.payment});
 
   @override
   Widget build(BuildContext context) {
+    final amount = payment['amount'];
+    final currency = payment['currency'] ?? 'XOF';
+
     return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            payment['title'] ?? 'Paiement',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 24),
-          
-          // QR Code placeholder - in real app, use qr_flutter package
+          Text(
+            payment['title'] ?? 'Paiement',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1a1a2e),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // QR Code
           Container(
-            width: 200,
-            height: 200,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.qr_code_2, size: 120, color: Color(0xFF0F0F23)),
-                  Text(
-                    payment['id'] ?? '',
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
+            child: QrImageView(
+              data: 'cryptobank://pay/${payment['id']}',
+              version: QrVersions.auto,
+              size: 200,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Color(0xFF1a1a2e),
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Color(0xFF1a1a2e),
               ),
             ),
           ),
           const SizedBox(height: 24),
 
-          if (payment['amount'] != null)
+          // Amount
+          if (amount != null)
             Text(
-              CurrencyFormatter.format(payment['amount'], payment['currency'] ?? 'EUR'),
+              '${amount.toStringAsFixed(0)} $currency',
               style: const TextStyle(
-                color: Color(0xFF22C55E),
-                fontSize: 32,
+                color: Color(0xFF10B981),
+                fontSize: 36,
                 fontWeight: FontWeight.bold,
               ),
             )
           else
             const Text(
               'Montant variable',
-              style: TextStyle(color: Colors.grey, fontSize: 18),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 18),
             ),
           const SizedBox(height: 24),
 
+          // Actions
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _copyLink(context),
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copier'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                child: GestureDetector(
+                  onTap: () => _copyLink(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.copy, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text('Copier', style: TextStyle(color: Color(0xFF1a1a2e), fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _share(context),
-                  icon: const Icon(Icons.share),
-                  label: const Text('Partager'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                child: GestureDetector(
+                  onTap: () => _share(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.share, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Partager', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -657,15 +810,18 @@ class _QRCodeSheet extends StatelessWidget {
   }
 
   void _copyLink(BuildContext context) {
-    final link = payment['payment_link'] ?? '';
+    final link = 'https://cryptobank.app/pay/${payment['id']}';
     Clipboard.setData(ClipboardData(text: link));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lien copié!')),
+      const SnackBar(
+        content: Text('Lien copié!'),
+        backgroundColor: Color(0xFF10B981),
+      ),
     );
   }
 
   void _share(BuildContext context) {
-    // In real app, use share_plus package
     _copyLink(context);
+    // In real app, use share_plus package
   }
 }

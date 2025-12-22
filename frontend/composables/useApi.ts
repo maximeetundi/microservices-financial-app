@@ -101,11 +101,20 @@ export const authAPI = {
 export const userAPI = {
     getProfile: () => api.get('/auth-service/api/v1/users/profile'),
     updateProfile: (data: any) => api.put('/auth-service/api/v1/users/profile', data),
-    changePassword: (oldPassword: string, newPassword: string) =>
-        api.post('/auth-service/api/v1/users/change-password', { old_password: oldPassword, new_password: newPassword }),
-    setup2FA: () => api.post('/auth-service/api/v1/users/2fa/setup'),
-    verify2FA: (code: string) => api.post('/auth-service/api/v1/users/2fa/verify', { code }),
-    disable2FA: (code: string) => api.post('/auth-service/api/v1/users/2fa/disable', { code }),
+    changePassword: (data: { current_password: string, new_password: string }) =>
+        api.post('/auth-service/api/v1/auth/change-password', data),
+
+    // 2FA
+    enable2FA: () => api.post('/auth-service/api/v1/auth/2fa/enable'),
+    verify2FA: (data: { code: string }) => api.post('/auth-service/api/v1/auth/2fa/verify', data),
+    disable2FA: () => api.post('/auth-service/api/v1/auth/2fa/disable'),
+
+    // Sessions
+    getSessions: () => api.get('/auth-service/api/v1/auth/sessions'),
+    revokeSession: (sessionId: string) => api.delete(`/auth-service/api/v1/auth/sessions/${sessionId}`),
+    revokeAllSessions: () => api.delete('/auth-service/api/v1/auth/sessions'),
+
+    // User lookup
     lookup: (query: { email?: string, phone?: string }) => {
         const params = new URLSearchParams()
         if (query.email) params.append('email', query.email)

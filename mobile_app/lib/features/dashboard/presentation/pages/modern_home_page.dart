@@ -507,56 +507,152 @@ class _ModernHomePageState extends State<ModernHomePage>
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () => context.push('/wallet'),
                 child: const Text('Voir tout'),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
+          BlocBuilder<WalletBloc, WalletState>(
+            builder: (context, state) {
+              if (state is WalletLoadedState) {
+                // Show empty state with link to wallet for transactions
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Text('📊', style: TextStyle(fontSize: 40)),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Consultez vos transactions',
+                        style: TextStyle(
+                          color: Color(0xFF1a1a2e),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Accédez à vos portefeuilles pour voir l\'historique complet',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () => context.push('/wallet'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Voir les portefeuilles',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              // Loading state
+              return Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildTransactionItem(
-                  icon: Icons.arrow_upward_rounded,
-                  color: const Color(0xFFEF4444),
-                  title: 'Envoi à Jean',
-                  subtitle: 'Transfert',
-                  amount: '-\$50.00',
-                  isCredit: false,
+                child: const Center(
+                  child: CircularProgressIndicator(),
                 ),
-                const Divider(height: 1),
-                _buildTransactionItem(
-                  icon: Icons.arrow_downward_rounded,
-                  color: const Color(0xFF10B981),
-                  title: 'Reçu de Marie',
-                  subtitle: 'Transfert',
-                  amount: '+\$120.00',
-                  isCredit: true,
-                ),
-                const Divider(height: 1),
-                _buildTransactionItem(
-                  icon: Icons.shopping_bag_rounded,
-                  color: const Color(0xFFF59E0B),
-                  title: 'Amazon',
-                  subtitle: 'Paiement carte',
-                  amount: '-\$89.99',
-                  isCredit: false,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRealTransactionItem(dynamic tx, String currency) {
+    final isCredit = tx.isIncoming ?? false;
+    final amount = tx.amount ?? 0.0;
+    final type = tx.type?.toString().split('.').last ?? 'transfer';
+    
+    IconData icon;
+    Color color;
+    String title;
+    String subtitle;
+    
+    switch (type) {
+      case 'deposit':
+      case 'credit':
+        icon = Icons.arrow_downward_rounded;
+        color = const Color(0xFF10B981);
+        title = tx.memo ?? 'Dépôt';
+        subtitle = 'Dépôt';
+        break;
+      case 'withdrawal':
+      case 'debit':
+        icon = Icons.arrow_upward_rounded;
+        color = const Color(0xFFEF4444);
+        title = tx.memo ?? 'Retrait';
+        subtitle = 'Retrait';
+        break;
+      case 'transfer':
+        if (isCredit) {
+          icon = Icons.arrow_downward_rounded;
+          color = const Color(0xFF10B981);
+          title = tx.senderName ?? tx.memo ?? 'Reçu';
+          subtitle = 'Transfert reçu';
+        } else {
+          icon = Icons.arrow_upward_rounded;
+          color = const Color(0xFFEF4444);
+          title = tx.recipientName ?? tx.memo ?? 'Envoi';
+          subtitle = 'Transfert envoyé';
+        }
+        break;
+      case 'payment':
+        icon = Icons.shopping_bag_rounded;
+        color = const Color(0xFFF59E0B);
+        title = tx.merchantName ?? tx.memo ?? 'Paiement';
+        subtitle = 'Paiement';
+        break;
+      case 'exchange':
+        icon = Icons.swap_horiz_rounded;
+        color = const Color(0xFF3B82F6);
+        title = tx.memo ?? 'Échange';
+        subtitle = 'Conversion';
+        break;
+      default:
+        icon = isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded;
+        color = isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+        title = tx.memo ?? (isCredit ? 'Crédit' : 'Débit');
+        subtitle = type;
+    }
+    
+    final amountStr = '${isCredit ? '+' : '-'}${amount.toStringAsFixed(0)} $currency';
+    
+    return _buildTransactionItem(
+      icon: icon,
+      color: color,
+      title: title,
+      subtitle: subtitle,
+      amount: amountStr,
+      isCredit: isCredit,
     );
   }
 

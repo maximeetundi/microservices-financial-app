@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:convert';
-import '../../core/services/api_service.dart';
-import '../../core/utils/currency_formatter.dart';
+
+import '../../../core/widgets/security_confirmation.dart';
+import '../wallet/presentation/bloc/wallet_bloc.dart';
 
 /// Screen for scanning QR codes and making payments
 class ScanPayScreen extends StatefulWidget {
@@ -11,38 +15,82 @@ class ScanPayScreen extends StatefulWidget {
   State<ScanPayScreen> createState() => _ScanPayScreenState();
 }
 
-class _ScanPayScreenState extends State<ScanPayScreen> {
+class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserver {
+  MobileScannerController? _cameraController;
   bool _scanning = true;
-  dynamic _payment;
+  Map<String, dynamic>? _payment;
   String? _error;
   bool _processing = false;
   String? _selectedWalletId;
   double? _customAmount;
-  List<dynamic> _wallets = [];
+  bool _hasScanned = false;
 
   @override
   void initState() {
     super.initState();
-    _loadWallets();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeCamera();
+    context.read<WalletBloc>().add(LoadWalletsEvent());
   }
 
-  Future<void> _loadWallets() async {
-    try {
-      final wallets = await ApiService.getWallets();
-      setState(() => _wallets = wallets ?? []);
-    } catch (e) {
-      debugPrint('Error loading wallets: $e');
+  void _initializeCamera() {
+    _cameraController = MobileScannerController(
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive) {
+      _cameraController?.stop();
+    } else if (state == AppLifecycleState.resumed && _scanning) {
+      _cameraController?.start();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F23),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Scanner & Payer'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Scanner & Payer 📷',
+          style: TextStyle(
+            color: Color(0xFF1a1a2e),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          if (_scanning && _cameraController != null)
+            IconButton(
+              icon: ValueListenableBuilder(
+                valueListenable: _cameraController!.torchState,
+                builder: (context, state, child) {
+                  return Icon(
+                    state == TorchState.on ? Icons.flash_on : Icons.flash_off,
+                    color: const Color(0xFF1a1a2e),
+                  );
+                },
+              ),
+              onPressed: () => _cameraController?.toggleTorch(),
+            ),
+        ],
       ),
       body: _scanning
           ? _buildScanner()
@@ -53,82 +101,107 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
   }
 
   Widget _buildScanner() {
-    // In production, use mobile_scanner or qr_code_scanner package
     return Column(
       children: [
         Expanded(
           child: Container(
             margin: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.black,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFF6366F1), width: 3),
-            ),
-            child: Stack(
-              children: [
-                // Camera preview placeholder
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.qr_code_scanner,
-                        size: 100,
-                        color: Colors.white.withOpacity(0.3),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Placez le QR code dans le cadre',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Scanning animation
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _ScannerOverlayPainter(),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF667eea).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  // Real Camera Scanner
+                  MobileScanner(
+                    controller: _cameraController,
+                    onDetect: (capture) {
+                      if (_hasScanned) return;
+                      final List<Barcode> barcodes = capture.barcodes;
+                      for (final barcode in barcodes) {
+                        if (barcode.rawValue != null) {
+                          _hasScanned = true;
+                          _onCodeScanned(barcode.rawValue!);
+                          break;
+                        }
+                      }
+                    },
+                  ),
+                  // Overlay with corners
+                  CustomPaint(
+                    painter: _ScannerOverlayPainter(),
+                    child: Container(),
+                  ),
+                  // Center text
+                  const Positioned(
+                    bottom: 40,
+                    left: 0,
+                    right: 0,
+                    child: Text(
+                      'Placez le QR code dans le cadre',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        shadows: [Shadow(blurRadius: 10, color: Colors.black)],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        // Manual entry option
-        Padding(
+        // Manual entry section
+        Container(
           padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
             children: [
               const Text(
                 'Ou entrez le code manuellement',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
               ),
               const SizedBox(height: 12),
               TextField(
-                onSubmitted: _onCodeEntered,
+                onSubmitted: _onCodeScanned,
                 decoration: InputDecoration(
                   hintText: 'Code de paiement (pay_xxx)',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                  hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
-                  suffixIcon: const Icon(Icons.arrow_forward, color: Color(0xFF6366F1)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  suffixIcon: const Icon(Icons.arrow_forward, color: Color(0xFF667eea)),
                 ),
-                style: const TextStyle(color: Colors.white),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               // Demo button for testing
               TextButton.icon(
-                onPressed: () => _onCodeEntered('pay_demo'),
-                icon: const Icon(Icons.bug_report),
-                label: const Text('Test avec démo'),
-                style: TextButton.styleFrom(foregroundColor: Colors.grey),
+                onPressed: () => _onCodeScanned('pay_demo'),
+                icon: const Icon(Icons.science, size: 18),
+                label: const Text('Tester avec une démo'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF64748B),
+                ),
               ),
             ],
           ),
@@ -138,260 +211,364 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
   }
 
   Widget _buildPaymentDetails() {
-    final amount = _payment['amount'];
-    final currency = _payment['currency'] ?? 'EUR';
+    final amount = _payment!['amount'];
+    final currency = _payment!['currency'] ?? 'XOF';
     final isVariable = amount == null;
-    final compatibleWallets = _wallets.where((w) => w['currency'] == currency).toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Merchant info
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A3E),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Color(0xFF6366F1),
-                  child: Icon(Icons.store, color: Colors.white, size: 30),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _payment['title'] ?? 'Paiement',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (_payment['description'] != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _payment['description'],
-                    style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+    return BlocBuilder<WalletBloc, WalletState>(
+      builder: (context, state) {
+        List<dynamic> wallets = [];
+        if (state is WalletLoadedState) {
+          wallets = state.wallets.where((w) => w.currency == currency).toList();
+          if (_selectedWalletId == null && wallets.isNotEmpty) {
+            _selectedWalletId = wallets.first.id;
+          }
+        }
 
-          // Amount
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A3E),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                if (!isVariable)
-                  Text(
-                    CurrencyFormatter.format(amount, currency),
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              // Merchant Info Card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
                     ),
-                  )
-                else ...[
-                  const Text(
-                    'Entrez le montant',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    onChanged: (v) => _customAmount = double.tryParse(v),
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '0.00',
-                      hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
-                      border: InputBorder.none,
-                      suffix: Text(
-                        currency,
-                        style: const TextStyle(color: Colors.grey, fontSize: 18),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
                       ),
+                      child: const Icon(Icons.store, color: Colors.white, size: 35),
                     ),
-                  ),
-                  if (_payment['min_amount'] != null || _payment['max_amount'] != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Min: ${_payment['min_amount'] ?? 0} - Max: ${_payment['max_amount'] ?? '∞'}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Wallet selection
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A3E),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Payer depuis',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                if (compatibleWallets.isEmpty)
-                  Text(
-                    'Aucun portefeuille $currency disponible',
-                    style: const TextStyle(color: Colors.red),
-                  )
-                else
-                  ...compatibleWallets.map((wallet) => _WalletOption(
-                        wallet: wallet,
-                        selected: wallet['id'] == _selectedWalletId,
-                        enabled: (wallet['balance'] ?? 0) >= (amount ?? _customAmount ?? 0),
-                        onTap: () => setState(() => _selectedWalletId = wallet['id']),
-                      )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Pay button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _canPay ? _processPayment : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF22C55E),
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                disabledBackgroundColor: Colors.grey,
-              ),
-              child: _processing
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(
-                      'Payer ${CurrencyFormatter.format(amount ?? _customAmount ?? 0, currency)}',
+                    const SizedBox(height: 16),
+                    Text(
+                      _payment!['title'] ?? 'Paiement',
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF1a1a2e),
                       ),
                     ),
-            ),
-          ),
-          const SizedBox(height: 16),
+                    if (_payment!['description'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _payment!['description'],
+                        style: const TextStyle(color: Color(0xFF64748B)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
 
-          // Cancel
-          TextButton(
-            onPressed: () => setState(() {
-              _scanning = true;
-              _payment = null;
-            }),
-            child: const Text('Annuler'),
+              // Amount Card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    if (!isVariable) ...[
+                      Text(
+                        '${amount.toStringAsFixed(0)} $currency',
+                        style: const TextStyle(
+                          color: Color(0xFF10B981),
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ] else ...[
+                      const Text(
+                        'Entrez le montant',
+                        style: TextStyle(color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        onChanged: (v) => setState(() => _customAmount = double.tryParse(v)),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF10B981),
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '0',
+                          hintStyle: TextStyle(color: const Color(0xFF10B981).withOpacity(0.3)),
+                          border: InputBorder.none,
+                          suffix: Text(
+                            currency,
+                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Wallet Selection
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Payer depuis',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (wallets.isEmpty)
+                      Text(
+                        'Aucun portefeuille $currency disponible',
+                        style: const TextStyle(color: Colors.red),
+                      )
+                    else
+                      ...wallets.map((wallet) => _WalletOption(
+                            wallet: wallet,
+                            selected: wallet.id == _selectedWalletId,
+                            enabled: wallet.balance >= (amount ?? _customAmount ?? 0),
+                            onTap: () => setState(() => _selectedWalletId = wallet.id),
+                          )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Pay Button
+              GestureDetector(
+                onTap: _canPay ? _processPayment : null,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    gradient: _canPay
+                        ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)])
+                        : null,
+                    color: _canPay ? null : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: _canPay
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: _processing
+                      ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Payer ${(amount ?? _customAmount ?? 0).toStringAsFixed(0)} $currency',
+                              style: TextStyle(
+                                color: _canPay ? Colors.white : const Color(0xFF94A3B8),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.check_circle,
+                              color: _canPay ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Cancel Button
+              TextButton(
+                onPressed: () => setState(() {
+                  _scanning = true;
+                  _payment = null;
+                  _hasScanned = false;
+                  _cameraController?.start();
+                }),
+                child: const Text('Annuler et rescanner'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(
-            _error ?? 'Paiement introuvable',
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => setState(() {
-              _scanning = true;
-              _error = null;
-            }),
-            child: const Text('Réessayer'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _error ?? 'QR Code invalide ou expiré',
+              style: const TextStyle(
+                color: Color(0xFF1a1a2e),
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            GestureDetector(
+              onTap: () => setState(() {
+                _scanning = true;
+                _error = null;
+                _hasScanned = false;
+                _cameraController?.start();
+              }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Réessayer',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   bool get _canPay {
     if (_selectedWalletId == null) return false;
-    final amount = _payment['amount'] ?? _customAmount;
+    final amount = _payment?['amount'] ?? _customAmount;
     if (amount == null || amount <= 0) return false;
-    final wallet = _wallets.firstWhere(
-      (w) => w['id'] == _selectedWalletId,
-      orElse: () => null,
-    );
-    if (wallet == null || (wallet['balance'] ?? 0) < amount) return false;
+    
+    final walletState = context.read<WalletBloc>().state;
+    if (walletState is WalletLoadedState) {
+      final wallet = walletState.wallets.where((w) => w.id == _selectedWalletId).firstOrNull;
+      if (wallet == null || wallet.balance < amount) return false;
+    }
     return true;
   }
 
-  Future<void> _onCodeEntered(String code) async {
-    // Extract payment ID from QR data or direct input
+  void _onCodeScanned(String code) async {
+    _cameraController?.stop();
+    
+    // Parse QR code data
     String paymentId = code;
     
-    // Try to parse as JSON (QR code data)
     try {
+      // Try to parse as JSON
       final data = jsonDecode(code);
-      paymentId = data['payment_id'] ?? code;
+      paymentId = data['payment_id'] ?? data['id'] ?? code;
     } catch (_) {
-      // Not JSON, use as-is
+      // Not JSON, try URL parsing
+      if (code.contains('/pay/')) {
+        paymentId = code.split('/pay/').last;
+      }
     }
 
-    // Remove prefix if present
-    if (paymentId.contains('/pay/')) {
-      paymentId = paymentId.split('/pay/').last;
-    }
+    // Simulate API call - in real app, fetch from backend
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    try {
-      final payment = await ApiService.getPaymentDetails(paymentId);
+    if (paymentId == 'pay_demo' || paymentId.startsWith('pay_')) {
       setState(() {
-        _payment = payment;
+        _payment = {
+          'payment_id': paymentId,
+          'title': 'Boutique CryptoBank',
+          'description': 'Achat en magasin',
+          'amount': 5000.0,
+          'currency': 'XOF',
+          'merchant': 'CryptoBank Store',
+        };
         _scanning = false;
       });
-    } catch (e) {
+    } else {
       setState(() {
-        _error = e.toString();
+        _error = 'QR Code non reconnu: $paymentId';
         _scanning = false;
       });
     }
   }
 
-  Future<void> _processPayment() async {
+  void _processPayment() async {
     if (!_canPay) return;
 
+    // Require security confirmation before payment
+    final confirmed = await SecurityConfirmation.require(
+      context,
+      title: 'Confirmer le paiement',
+      message: 'Authentifiez-vous pour valider ce paiement',
+    );
+    if (!confirmed) return;
+
     setState(() => _processing = true);
+
     try {
-      await ApiService.payPayment(
-        _payment['payment_id'],
-        _selectedWalletId!,
-        _payment['amount'] ?? _customAmount!,
-      );
-      
+      // Simulate payment - in real app, call API
+      await Future.delayed(const Duration(seconds: 2));
+
       if (mounted) {
         _showSuccessDialog();
       }
@@ -402,7 +579,9 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         );
       }
     } finally {
-      setState(() => _processing = false);
+      if (mounted) {
+        setState(() => _processing = false);
+      }
     }
   }
 
@@ -411,42 +590,61 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A3E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 80),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 64),
+            ),
             const SizedBox(height: 24),
             const Text(
-              'Paiement réussi!',
+              'Paiement réussi! 🎉',
               style: TextStyle(
-                color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
+                color: Color(0xFF1a1a2e),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              CurrencyFormatter.format(
-                _payment['amount'] ?? _customAmount,
-                _payment['currency'] ?? 'EUR',
+              '${(_payment!['amount'] ?? _customAmount).toStringAsFixed(0)} ${_payment!['currency']}',
+              style: const TextStyle(
+                color: Color(0xFF10B981),
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
               ),
-              style: const TextStyle(color: Color(0xFF22C55E), fontSize: 28),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).pop();
+                context.go('/wallet');
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('Terminé'),
+                child: const Text(
+                  'Terminé',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ],
@@ -471,27 +669,33 @@ class _WalletOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF6366F1).withOpacity(0.1) : Colors.transparent,
+          color: selected ? const Color(0xFF667eea).withOpacity(0.1) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF6366F1) : Colors.white.withOpacity(0.1),
+            color: selected ? const Color(0xFF667eea) : const Color(0xFFE2E8F0),
             width: 2,
           ),
         ),
         child: Row(
           children: [
-            Radio<bool>(
-              value: true,
-              groupValue: selected,
-              onChanged: enabled ? (_) => onTap() : null,
-              activeColor: const Color(0xFF6366F1),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFF667eea) : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.account_balance_wallet,
+                color: selected ? Colors.white : const Color(0xFF64748B),
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -499,16 +703,16 @@ class _WalletOption extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    wallet['currency'],
+                    wallet.name ?? wallet.currency,
                     style: TextStyle(
-                      color: enabled ? Colors.white : Colors.grey,
+                      color: enabled ? const Color(0xFF1a1a2e) : const Color(0xFF94A3B8),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    CurrencyFormatter.format(wallet['balance'], wallet['currency']),
+                    '${wallet.balance.toStringAsFixed(0)} ${wallet.currency}',
                     style: TextStyle(
-                      color: enabled ? Colors.white.withOpacity(0.6) : Colors.grey,
+                      color: enabled ? const Color(0xFF64748B) : const Color(0xFFCBD5E1),
                       fontSize: 13,
                     ),
                   ),
@@ -516,10 +720,19 @@ class _WalletOption extends StatelessWidget {
               ),
             ),
             if (!enabled)
-              const Text(
-                'Solde insuffisant',
-                style: TextStyle(color: Colors.red, fontSize: 12),
-              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Insuffisant',
+                  style: TextStyle(color: Colors.red, fontSize: 11),
+                ),
+              )
+            else if (selected)
+              const Icon(Icons.check_circle, color: Color(0xFF667eea)),
           ],
         ),
       ),
@@ -531,32 +744,33 @@ class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF6366F1)
+      ..color = const Color(0xFF667eea)
       ..strokeWidth = 4
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final cornerLength = 40.0;
+    const cornerLength = 50.0;
     final rect = Rect.fromCenter(
       center: Offset(size.width / 2, size.height / 2),
-      width: 200,
-      height: 200,
+      width: 220,
+      height: 220,
     );
 
     // Top left corner
-    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(rect.topLeft, rect.topLeft + Offset(0, cornerLength), paint);
+    canvas.drawLine(rect.topLeft, rect.topLeft + const Offset(cornerLength, 0), paint);
+    canvas.drawLine(rect.topLeft, rect.topLeft + const Offset(0, cornerLength), paint);
 
     // Top right corner
-    canvas.drawLine(rect.topRight, rect.topRight + Offset(-cornerLength, 0), paint);
-    canvas.drawLine(rect.topRight, rect.topRight + Offset(0, cornerLength), paint);
+    canvas.drawLine(rect.topRight, rect.topRight + const Offset(-cornerLength, 0), paint);
+    canvas.drawLine(rect.topRight, rect.topRight + const Offset(0, cornerLength), paint);
 
     // Bottom left corner
-    canvas.drawLine(rect.bottomLeft, rect.bottomLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(rect.bottomLeft, rect.bottomLeft + Offset(0, -cornerLength), paint);
+    canvas.drawLine(rect.bottomLeft, rect.bottomLeft + const Offset(cornerLength, 0), paint);
+    canvas.drawLine(rect.bottomLeft, rect.bottomLeft + const Offset(0, -cornerLength), paint);
 
     // Bottom right corner
-    canvas.drawLine(rect.bottomRight, rect.bottomRight + Offset(-cornerLength, 0), paint);
-    canvas.drawLine(rect.bottomRight, rect.bottomRight + Offset(0, -cornerLength), paint);
+    canvas.drawLine(rect.bottomRight, rect.bottomRight + const Offset(-cornerLength, 0), paint);
+    canvas.drawLine(rect.bottomRight, rect.bottomRight + const Offset(0, -cornerLength), paint);
   }
 
   @override

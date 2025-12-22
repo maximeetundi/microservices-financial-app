@@ -5,8 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'core/di/injection_container.dart' as di;
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/routes/app_router.dart';
 import 'core/utils/constants.dart';
+import 'core/api/api_client.dart';
+import 'core/services/push_notification_service.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'features/exchange/presentation/bloc/exchange_bloc.dart';
@@ -19,6 +22,22 @@ void main() async {
   
   // Initialize dependency injection
   await di.init();
+  
+  // Initialize push notifications
+  await PushNotificationService().initialize();
+  
+  // Configure auto-logout callback for token expiry
+  ApiClient.onLogout = () {
+    AppRouter.router.go('/auth/login');
+  };
+  
+  // Configure notification tap handler
+  PushNotificationService().onNotificationTap = (payload) {
+    if (payload != null) {
+      // Navigate based on notification type
+      AppRouter.router.go('/notifications');
+    }
+  };
   
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
@@ -44,6 +63,8 @@ class CryptoBankApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = ThemeProvider();
+    
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => di.sl<AuthBloc>()),
@@ -53,19 +74,24 @@ class CryptoBankApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<PortfolioBloc>()),
         BlocProvider(create: (_) => di.sl<TransferBloc>()),
       ],
-      child: MaterialApp.router(
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        routerConfig: AppRouter.router,
+      child: ListenableBuilder(
+        listenable: themeProvider,
         builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaleFactor: 1.0, // Prevent text scaling
-            ),
-            child: child!,
+          return MaterialApp.router(
+            title: AppConstants.appName,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            routerConfig: AppRouter.router,
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaleFactor: 1.0, // Prevent text scaling
+                ),
+                child: child!,
+              );
+            },
           );
         },
       ),
