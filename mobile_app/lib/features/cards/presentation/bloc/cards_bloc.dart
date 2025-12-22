@@ -85,6 +85,21 @@ class LoadCardTransactionsEvent extends CardsEvent {
   List<Object> get props => [cardId];
 }
 
+class TopUpCardEvent extends CardsEvent {
+  final String cardId;
+  final double amount;
+  final String? sourceWalletId;
+
+  const TopUpCardEvent({
+    required this.cardId,
+    required this.amount,
+    this.sourceWalletId,
+  });
+
+  @override
+  List<Object?> get props => [cardId, amount, sourceWalletId];
+}
+
 // States
 abstract class CardsState extends Equatable {
   const CardsState();

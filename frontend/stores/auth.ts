@@ -35,6 +35,11 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async initializeAuth() {
+      // Skip initialization if already on auth pages
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+        return
+      }
+
       const token = localStorage.getItem('accessToken')
       const refreshToken = localStorage.getItem('refreshToken')
 
@@ -44,7 +49,13 @@ export const useAuthStore = defineStore('auth', {
         try {
           await this.fetchUserProfile()
         } catch (error) {
-          this.logout()
+          // Clear tokens but don't redirect here - let the API interceptor handle it
+          this.user = null
+          this.accessToken = null
+          this.refreshToken = null
+          this.isAuthenticated = false
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
         }
       }
     },

@@ -8,6 +8,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_widget.dart';
 import '../bloc/wallet_bloc.dart';
 import '../widgets/deposit_bottom_sheet.dart';
+import '../widgets/wallet_widgets.dart';
 
 class WalletPage extends StatefulWidget {
   const WalletPage({Key? key}) : super(key: key);

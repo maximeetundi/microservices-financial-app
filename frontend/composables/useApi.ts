@@ -1,5 +1,8 @@
 import axios from 'axios'
 
+// Flag to prevent infinite redirect loop
+let isLoggingOut = false
+
 // Use runtime config in Nuxt context, fallback to production API
 const getApiUrl = () => {
     if (typeof window !== 'undefined') {
@@ -51,11 +54,23 @@ api.interceptors.response.use(
                     originalRequest.headers.Authorization = `Bearer ${access_token}`
                     return api(originalRequest)
                 } catch {
-                    localStorage.removeItem('accessToken')
-                    localStorage.removeItem('refreshToken')
-                    if (typeof window !== 'undefined') {
-                        window.location.href = '/auth/login'
+                    // Prevent infinite loop - only redirect once
+                    if (!isLoggingOut) {
+                        isLoggingOut = true
+                        localStorage.removeItem('accessToken')
+                        localStorage.removeItem('refreshToken')
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/auth/login'
+                        }
                     }
+                }
+            } else if (!isLoggingOut) {
+                // No refresh token, redirect to login
+                isLoggingOut = true
+                localStorage.removeItem('accessToken')
+                localStorage.removeItem('refreshToken')
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/auth/login'
                 }
             }
         }

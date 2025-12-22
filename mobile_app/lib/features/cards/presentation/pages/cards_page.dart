@@ -92,7 +92,7 @@ class _CardsPageState extends State<CardsPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: CardWidget(
                       card: card,
-                      onTap: () => context.push('/more/cards/${card.id}'),
+                      onTap: () => context.push('/more/cards/${card['id']}'),
                     ),
                   );
                 },
@@ -141,7 +141,7 @@ class _CardsPageState extends State<CardsPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildActionButton(
-                      icon: Icons.freeze,
+                      icon: Icons.ac_unit,
                       label: 'Freeze',
                       onTap: () => _freezeCard(cards[_currentCardIndex]),
                     ),
@@ -151,7 +151,7 @@ class _CardsPageState extends State<CardsPage> {
                     child: _buildActionButton(
                       icon: Icons.settings,
                       label: 'Settings',
-                      onTap: () => context.push('/more/cards/${cards[_currentCardIndex].id}'),
+                      onTap: () => context.push('/more/cards/${cards[_currentCardIndex]['id']}'),
                     ),
                   ),
                 ],
@@ -164,7 +164,9 @@ class _CardsPageState extends State<CardsPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: CardStatsSection(
-                card: cards[_currentCardIndex],
+                monthlySpend: (cards[_currentCardIndex]['monthly_spend'] as num?)?.toDouble() ?? 0.0,
+                limit: (cards[_currentCardIndex]['limit'] as num?)?.toDouble() ?? 1000.0,
+                transactionCount: (cards[_currentCardIndex]['transaction_count'] as num?)?.toInt() ?? 0,
               ),
             ),
 
@@ -193,10 +195,8 @@ class _CardsPageState extends State<CardsPage> {
                   ),
                   const SizedBox(height: 16),
                   RecentCardTransactions(
-                    cardId: cards[_currentCardIndex].id,
-                    transactions: state.recentTransactions
-                        .where((t) => t.cardId == cards[_currentCardIndex].id)
-                        .toList(),
+                    cardId: cards[_currentCardIndex]['id']?.toString() ?? '',
+                    transactions: const []
                   ),
                 ],
               ),
@@ -439,7 +439,7 @@ class _CardsPageState extends State<CardsPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => OrderCardBottomSheet(
-        selectedCardType: cardType,
+        onOrder: () => context.read<CardsBloc>().add(CreateVirtualCardEvent(currency: 'USD')),
       ),
     );
   }

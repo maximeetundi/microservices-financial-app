@@ -291,7 +291,7 @@ class TransferListItem extends StatelessWidget {
         text,
         style: TextStyle(
           fontSize: 12,
-          color: color.shade700,
+          color: color,
           fontWeight: FontWeight.w500,
         ),
       ),

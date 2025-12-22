@@ -15,7 +15,6 @@
         "device_info_plus",
         "dio",
         "equatable",
-        "firebase_messaging",
         "fl_chart",
         "flutter",
         "flutter_bloc",
@@ -25,6 +24,7 @@
         "flutter_svg",
         "flutter_webrtc",
         "get_it",
+        "go_router",
         "google_fonts",
         "image_picker",
         "intl",
@@ -32,8 +32,8 @@
         "local_auth",
         "local_auth_android",
         "local_auth_ios",
+        "mobile_scanner",
         "package_info_plus",
-        "qr_code_scanner",
         "qr_flutter",
         "retrofit",
         "shared_preferences",
@@ -177,18 +177,6 @@
       ]
     },
     {
-      "name": "firebase_messaging",
-      "version": "14.7.10",
-      "dependencies": [
-        "firebase_core",
-        "firebase_core_platform_interface",
-        "firebase_messaging_platform_interface",
-        "firebase_messaging_web",
-        "flutter",
-        "meta"
-      ]
-    },
-    {
       "name": "flutter_local_notifications",
       "version": "15.1.3",
       "dependencies": [
@@ -232,20 +220,20 @@
       ]
     },
     {
+      "name": "mobile_scanner",
+      "version": "4.0.1",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "js"
+      ]
+    },
+    {
       "name": "qr_flutter",
       "version": "4.1.0",
       "dependencies": [
         "flutter",
         "qr"
-      ]
-    },
-    {
-      "name": "qr_code_scanner",
-      "version": "1.0.1",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins",
-        "js"
       ]
     },
     {
@@ -411,6 +399,17 @@
         "bloc",
         "flutter",
         "provider"
+      ]
+    },
+    {
+      "name": "go_router",
+      "version": "14.8.1",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "flutter_web_plugins",
+        "logging",
+        "meta"
       ]
     },
     {
@@ -942,52 +941,6 @@
       ]
     },
     {
-      "name": "firebase_messaging_web",
-      "version": "3.5.18",
-      "dependencies": [
-        "_flutterfire_internals",
-        "firebase_core",
-        "firebase_core_web",
-        "firebase_messaging_platform_interface",
-        "flutter",
-        "flutter_web_plugins",
-        "js",
-        "meta"
-      ]
-    },
-    {
-      "name": "firebase_messaging_platform_interface",
-      "version": "4.5.37",
-      "dependencies": [
-        "_flutterfire_internals",
-        "firebase_core",
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "firebase_core_platform_interface",
-      "version": "5.4.2",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "flutter_test",
-        "meta",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "firebase_core",
-      "version": "2.32.0",
-      "dependencies": [
-        "firebase_core_platform_interface",
-        "firebase_core_web",
-        "flutter",
-        "meta"
-      ]
-    },
-    {
       "name": "timezone",
       "version": "0.9.4",
       "dependencies": [
@@ -1123,17 +1076,17 @@
       ]
     },
     {
-      "name": "qr",
-      "version": "3.0.2",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
       "name": "flutter_web_plugins",
       "version": "0.0.0",
       "dependencies": [
         "flutter"
+      ]
+    },
+    {
+      "name": "qr",
+      "version": "3.0.2",
+      "dependencies": [
+        "meta"
       ]
     },
     {
@@ -1596,28 +1549,6 @@
       "name": "plugin_platform_interface",
       "version": "2.1.8",
       "dependencies": [
-        "meta"
-      ]
-    },
-    {
-      "name": "firebase_core_web",
-      "version": "2.24.0",
-      "dependencies": [
-        "firebase_core_platform_interface",
-        "flutter",
-        "flutter_web_plugins",
-        "meta",
-        "web"
-      ]
-    },
-    {
-      "name": "_flutterfire_internals",
-      "version": "1.3.35",
-      "dependencies": [
-        "collection",
-        "firebase_core",
-        "firebase_core_platform_interface",
-        "flutter",
         "meta"
       ]
     },

@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/services/api_service.dart';
 import '../../domain/entities/wallet.dart';
-import '../../domain/entities/transaction.dart';
+import '../../domain/entities/transaction.dart' as tx;
 
 // Events
 abstract class WalletEvent extends Equatable {
@@ -108,7 +108,7 @@ class WalletLoadedState extends WalletState {
   final List<Wallet> wallets;
   final double totalValue;
   final double dailyChange;
-  final List<Transaction> recentTransactions;
+  final List<tx.Transaction> recentTransactions;
 
   const WalletLoadedState({
     required this.wallets,
@@ -124,7 +124,7 @@ class WalletLoadedState extends WalletState {
     List<Wallet>? wallets,
     double? totalValue,
     double? dailyChange,
-    List<Transaction>? recentTransactions,
+    List<tx.Transaction>? recentTransactions,
   }) {
     return WalletLoadedState(
       wallets: wallets ?? this.wallets,
@@ -194,14 +194,14 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
       );
       
       // Get recent transactions from first wallet (or empty)
-      List<Transaction> recentTransactions = [];
+      List<tx.Transaction> recentTransactions = [];
       if (wallets.isNotEmpty) {
         try {
           final txData = await _apiService.wallet.getTransactions(
             wallets.first.id,
             limit: 10,
           );
-          recentTransactions = txData.map((t) => Transaction.fromJson(t)).toList();
+          recentTransactions = txData.map((t) => tx.Transaction.fromJson(t)).toList();
         } catch (_) {}
       }
       
@@ -288,7 +288,7 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         offset: event.offset,
       );
       
-      final transactions = txData.map((t) => Transaction.fromJson(t)).toList();
+      final transactions = txData.map((t) => tx.Transaction.fromJson(t)).toList();
       
       if (state is WalletLoadedState) {
         emit((state as WalletLoadedState).copyWith(

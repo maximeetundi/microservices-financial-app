@@ -77,7 +77,11 @@ class _PortfolioPageState extends State<PortfolioPage>
           // Portfolio Summary
           SliverToBoxAdapter(
             child: PortfolioSummary(
-              portfolio: state.portfolio,
+              portfolio: PortfolioData(
+                totalValue: state.totalValue,
+                totalChange: state.dailyChange,
+                totalChangePercent: state.dailyChangePercent,
+              ),
             ),
           ),
 
@@ -99,8 +103,9 @@ class _PortfolioPageState extends State<PortfolioPage>
                       setState(() {
                         _selectedTimeframe = timeframe;
                       });
+                      // Reload portfolio with new timeframe
                       context.read<PortfolioBloc>().add(
-                        ChangeTimeframeEvent(timeframe: timeframe),
+                        const LoadPortfolioEvent(),
                       );
                     },
                     child: Container(
@@ -134,8 +139,7 @@ class _PortfolioPageState extends State<PortfolioPage>
               height: 300,
               margin: const EdgeInsets.symmetric(horizontal: 16),
               child: PortfolioChart(
-                data: state.chartData,
-                timeframe: _selectedTimeframe,
+                data: state.assets.map((a) => ChartData(label: a.currency, value: a.value)).toList(),
               ),
             ),
           ),
@@ -165,21 +169,35 @@ class _PortfolioPageState extends State<PortfolioPage>
               children: [
                 // Assets Tab
                 HoldingsList(
-                  holdings: state.portfolio.holdings,
-                  onAssetTap: (asset) {
-                    // Navigate to asset details
-                  },
+                  holdings: state.assets.map((a) => Holding(
+                    symbol: a.currency,
+                    name: a.name,
+                    quantity: a.balance,
+                    value: a.value,
+                    change24h: a.change24h,
+                  )).toList(),
                 ),
 
                 // Performance Tab
                 PerformanceMetrics(
-                  performance: state.portfolio.performance,
+                  performance: PortfolioPerformance(
+                    dailyReturn: state.dailyChangePercent,
+                    weeklyReturn: state.dailyChangePercent * 7,
+                    monthlyReturn: state.dailyChangePercent * 30,
+                    totalReturn: state.dailyChangePercent,
+                  ),
                 ),
 
                 // Allocation Tab
                 AssetAllocation(
-                  holdings: state.portfolio.holdings,
-                  totalValue: state.portfolio.totalValue,
+                  holdings: state.assets.map((a) => Holding(
+                    symbol: a.currency,
+                    name: a.name,
+                    quantity: a.balance,
+                    value: a.value,
+                    change24h: a.change24h,
+                  )).toList(),
+                  totalValue: state.totalValue,
                 ),
               ],
             ),

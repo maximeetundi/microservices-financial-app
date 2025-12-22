@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/transfer.dart';
-import '../../domain/usecases/send_transfer_usecase.dart';
+import '../../domain/usecases/send_transfer_usecase.dart' as send_transfer_usecase;
 import '../../domain/usecases/get_transfer_history_usecase.dart';
 import '../../../wallet/domain/entities/wallet.dart';
 
@@ -157,11 +157,11 @@ class TransferFeeEstimatedState extends TransferState {
 
 // BLoC
 class TransferBloc extends Bloc<TransferEvent, TransferState> {
-  final SendTransferUseCase _sendTransferUseCase;
+  final send_transfer_usecase.SendTransferUseCase _sendTransferUseCase;
   final GetTransferHistoryUseCase _getTransferHistoryUseCase;
 
   TransferBloc({
-    required SendTransferUseCase sendTransferUseCase,
+    required send_transfer_usecase.SendTransferUseCase sendTransferUseCase,
     required GetTransferHistoryUseCase getTransferHistoryUseCase,
   })  : _sendTransferUseCase = sendTransferUseCase,
         _getTransferHistoryUseCase = getTransferHistoryUseCase,
@@ -273,24 +273,31 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
     emit(const TransferLoadingState());
 
     try {
-      final result = await _sendTransferUseCase(SendTransferParams(
-        type: event.type,
-        fromWallet: event.fromWallet,
-        recipient: event.recipient,
-        amount: event.amount,
-        memo: event.memo,
-        bankCode: event.bankCode,
-        recipientName: event.recipientName,
-      ));
-
-      result.fold(
-        (failure) => emit(TransferErrorState(message: failure.message)),
-        (transfer) {
-          emit(TransferSuccessState(transfer: transfer));
-          // Reload transfer data to show the new transfer
-          add(const LoadTransferDataEvent());
-        },
+      final result = await _sendTransferUseCase.execute(
+        send_transfer_usecase.SendTransferParams(
+          fromWalletId: event.fromWallet,
+          recipientEmail: event.recipient,
+          amount: event.amount,
+          currency: 'USD',
+          description: event.memo,
+        ),
       );
+
+      // Result is now a TransferResult
+      final transfer = Transfer(
+        id: result.id,
+        userId: 'current',
+        type: TransferType.instant,
+        fromWallet: event.fromWallet,
+        toAddress: event.recipient,
+        amount: event.amount,
+        currency: 'USD',
+        status: TransferStatus.completed,
+        createdAt: result.createdAt,
+      );
+      emit(TransferSuccessState(transfer: transfer));
+      // Reload transfer data to show the new transfer
+      add(const LoadTransferDataEvent());
     } catch (e) {
       emit(TransferErrorState(message: e.toString()));
     }
@@ -301,25 +308,27 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
     Emitter<TransferState> emit,
   ) async {
     try {
-      final result = await _getTransferHistoryUseCase(
-        GetTransferHistoryParams(
-          page: event.page,
-          limit: event.limit,
-          status: event.status,
-          type: event.type,
-        ),
+      final transfers = await _getTransferHistoryUseCase.execute(
+        limit: event.limit,
+        offset: (event.page - 1) * event.limit,
       );
 
-      result.fold(
-        (failure) => emit(TransferErrorState(message: failure.message)),
-        (transfers) {
-          if (state is TransferLoadedState) {
-            emit((state as TransferLoadedState).copyWith(
-              recentTransfers: transfers,
-            ));
-          }
-        },
-      );
+      if (state is TransferLoadedState) {
+        final newTransfers = transfers.map((t) => Transfer(
+          id: t.id,
+          userId: 'current',
+          type: TransferType.instant,
+          fromWallet: t.fromWalletId,
+          toAddress: t.toEmail ?? '',
+          amount: t.amount,
+          currency: t.currency,
+          status: t.status == 'completed' ? TransferStatus.completed : TransferStatus.pending,
+          createdAt: t.createdAt,
+        )).toList();
+        emit((state as TransferLoadedState).copyWith(
+          recentTransfers: newTransfers,
+        ));
+      }
     } catch (e) {
       emit(TransferErrorState(message: e.toString()));
     }

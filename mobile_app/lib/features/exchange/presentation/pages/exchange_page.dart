@@ -39,7 +39,7 @@ class _ExchangePageState extends State<ExchangePage>
 
   void _loadExchangeData() {
     context.read<ExchangeBloc>().add(
-      LoadExchangeRateEvent(
+      GetExchangeRateEvent(
         fromCurrency: _fromCurrency,
         toCurrency: _toCurrency,
       ),
@@ -84,7 +84,7 @@ class _ExchangePageState extends State<ExchangePage>
     return BlocListener<ExchangeBloc, ExchangeState>(
       listener: (context, state) {
         if (state is ExchangeSuccessState) {
-          _showSuccessDialog(state.transaction);
+          _showSuccessDialog(state.exchangeId);
         } else if (state is ExchangeErrorState) {
           _showErrorSnackBar(state.message);
         }
@@ -97,12 +97,11 @@ class _ExchangePageState extends State<ExchangePage>
             // Exchange Rate Card
             BlocBuilder<ExchangeBloc, ExchangeState>(
               builder: (context, state) {
-                if (state is ExchangeLoadedState) {
+                if (state is ExchangeRateLoadedState) {
                   return ExchangeRateCard(
                     fromCurrency: _fromCurrency,
                     toCurrency: _toCurrency,
-                    rate: state.exchangeRate,
-                    onSwapPressed: _swapCurrencies,
+                    rate: state.rate,
                   );
                 }
                 return const SizedBox.shrink();
@@ -178,7 +177,9 @@ class _ExchangePageState extends State<ExchangePage>
             
             // Quick Amount Buttons
             QuickExchangeAmounts(
-              onAmountSelected: (amount) {
+              amounts: [50.0, 100.0, 250.0, 500.0, 1000.0],
+              currency: _fromCurrency,
+              onSelected: (amount) {
                 _fromAmountController.text = amount.toString();
                 _calculateToAmount(amount.toString());
               },
@@ -375,9 +376,17 @@ class _ExchangePageState extends State<ExchangePage>
         const SizedBox(height: 12),
         BlocBuilder<ExchangeBloc, ExchangeState>(
           builder: (context, state) {
-            if (state is ExchangeLoadedState) {
+            if (state is ExchangeHistoryLoadedState) {
+              final historyItems = state.exchanges.map((e) => ExchangeHistoryItem(
+                fromCurrency: e['from_currency']?.toString() ?? '',
+                toCurrency: e['to_currency']?.toString() ?? '',
+                fromAmount: (e['from_amount'] as num?)?.toDouble() ?? 0.0,
+                toAmount: (e['to_amount'] as num?)?.toDouble() ?? 0.0,
+                date: e['created_at']?.toString() ?? '',
+                status: e['status']?.toString() ?? 'completed',
+              )).toList();
               return ExchangeHistoryList(
-                exchanges: state.recentExchanges,
+                history: historyItems,
               );
             }
             return const SizedBox.shrink();
@@ -407,9 +416,10 @@ class _ExchangePageState extends State<ExchangePage>
     showModalBottomSheet(
       context: context,
       builder: (context) => CurrencySelector(
-        onCurrencySelected: (currency) {
+        selectedCurrency: _fromCurrency,
+        currencies: ['BTC', 'ETH', 'USD', 'EUR'],
+        onChanged: (currency) {
           onCurrencyChanged(currency);
-          Navigator.pop(context);
         },
       ),
     );
@@ -446,11 +456,11 @@ class _ExchangePageState extends State<ExchangePage>
     final amount = double.tryParse(fromAmount);
     if (amount == null) return;
     
+    // Recalculate on change
     context.read<ExchangeBloc>().add(
-      CalculateExchangeEvent(
+      GetExchangeRateEvent(
         fromCurrency: _fromCurrency,
         toCurrency: _toCurrency,
-        amount: amount,
       ),
     );
   }
@@ -514,6 +524,8 @@ class _ExchangePageState extends State<ExchangePage>
               Navigator.pop(context);
               context.read<ExchangeBloc>().add(
                 ExecuteExchangeEvent(
+                  fromWalletId: 'wallet-1', // TODO: Get from state
+                  toWalletId: 'wallet-2', // TODO: Get from state
                   fromCurrency: _fromCurrency,
                   toCurrency: _toCurrency,
                   amount: amount,

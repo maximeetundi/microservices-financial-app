@@ -17,6 +17,7 @@ dependencies:
   google_fonts: ^6.1.0
   animated_splash_screen: ^1.3.0
   flutter_launcher_icons: ^0.13.1
+  go_router: ^14.2.0
   
   # State Management
   flutter_bloc: ^8.1.3
@@ -45,8 +46,8 @@ dependencies:
   syncfusion_flutter_charts: ^23.1.36
   
   # QR Code
-  qr_code_scanner: ^1.0.1
   qr_flutter: ^4.1.0
+  mobile_scanner: ^4.0.1
   
   # Image & Media
   image_picker: ^1.0.4
@@ -57,7 +58,6 @@ dependencies:
   
   # Notifications
   flutter_local_notifications: ^15.1.1
-  firebase_messaging: ^14.7.9
   
   # Biometrics
   local_auth_android: ^1.0.34
@@ -84,10 +84,10 @@ flutter:
     - assets/icons/
     - assets/animations/
     
-  fonts:
-    - family: CustomIcons
-      fonts:
-        - asset: assets/fonts/CustomIcons.ttf
+  # fonts:
+    # - family: CustomIcons
+    #   fonts:
+    #     - asset: assets/fonts/CustomIcons.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"

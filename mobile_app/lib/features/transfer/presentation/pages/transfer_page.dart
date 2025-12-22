@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -539,7 +539,7 @@ class _TransferPageState extends State<TransferPage>
     // Implement QR code scanning
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
+      builder: (context) => SizedBox(
         height: 400,
         child: Column(
           children: [
@@ -554,15 +554,15 @@ class _TransferPageState extends State<TransferPage>
               ],
             ),
             Expanded(
-              child: QRView(
-                key: GlobalKey(debugLabel: 'QR'),
-                onQRViewCreated: (controller) {
-                  controller.scannedDataStream.listen((scanData) {
+              child: MobileScanner(
+                onDetect: (capture) {
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
                     Navigator.pop(context);
                     setState(() {
-                      _recipientController.text = scanData.code ?? '';
+                      _recipientController.text = barcodes.first.rawValue ?? '';
                     });
-                  });
+                  }
                 },
               ),
             ),
