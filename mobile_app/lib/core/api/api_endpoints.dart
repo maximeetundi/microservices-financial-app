@@ -1,13 +1,14 @@
 /// API Endpoints for all microservices
+/// Each service has its own prefix for API Gateway routing
 class ApiEndpoints {
-  // Base paths for each microservice
-  static const String auth = '/api/v1/auth';
-  static const String users = '/api/v1/users';
-  static const String wallets = '/api/v1/wallets';
-  static const String transfers = '/api/v1/transfers';
-  static const String cards = '/api/v1/cards';
-  static const String exchange = '/api/v1/exchange';
-  static const String notifications = '/api/v1/notifications';
+  // Base paths for each microservice (matching API Gateway routing)
+  static const String auth = '/auth-service/api/v1/auth';
+  static const String users = '/auth-service/api/v1/users';
+  static const String wallets = '/wallet-service/api/v1/wallets';
+  static const String transfers = '/transfer-service/api/v1/transfers';
+  static const String cards = '/card-service/api/v1/cards';
+  static const String exchange = '/exchange-service/api/v1';
+  static const String notifications = '/notification-service/api/v1/notifications';
   
   // Auth Service Endpoints
   static const String login = '$auth/login';
@@ -21,13 +22,13 @@ class ApiEndpoints {
   static const String verify2FA = '$auth/2fa/verify';
   
   // User Endpoints
-  static const String profile = '$users/me';
-  static const String updateProfile = '$users/me';
-  static const String changePassword = '$users/me/password';
-  static const String uploadAvatar = '$users/me/avatar';
-  static const String kycStatus = '$users/me/kyc';
-  static const String updateKYC = '$users/me/kyc';
-  static const String lookup = '$users/lookup'; // Added lookup endpoint
+  static const String profile = '$users/profile';
+  static const String updateProfile = '$users/profile';
+  static const String changePassword = '$users/change-password';
+  static const String uploadAvatar = '$users/avatar';
+  static const String kycStatus = '$users/kyc';
+  static const String updateKYC = '$users/kyc';
+  static const String lookup = '$users/lookup';
   
   // Wallet Service Endpoints
   static String walletsList = wallets;
@@ -70,8 +71,8 @@ class ApiEndpoints {
   
   // Exchange Service Endpoints
   static String exchangeRates = '$exchange/rates';
-  static String exchangePair(String from, String to) => '$exchange/rate/$from/$to';
-  static String quote = '$exchange/quote'; // Added quote endpoint
+  static String exchangePair(String from, String to) => '$exchange/rates/$from/$to';
+  static String quote = '$exchange/quote';
   static String executeExchange = '$exchange/execute';
   static String exchangeHistory = '$exchange/history';
   static String exchangeById(String id) => '$exchange/$id';
