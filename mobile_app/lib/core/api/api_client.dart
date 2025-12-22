@@ -3,9 +3,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
-  static const String _baseUrlAndroid = 'http://10.0.2.2:8080';
-  static const String _baseUrlIOS = 'http://localhost:8080';
-  static const String _baseUrlWeb = 'http://localhost:8080';
+  // Production API URL
+  static const String _baseUrlProduction = 'https://api.app.maximeetundi.store';
+  // For local development, use these:
+  // static const String _baseUrlAndroid = 'http://10.0.2.2:8080';
+  // static const String _baseUrlIOS = 'http://localhost:8080';
   
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -28,16 +30,8 @@ class ApiClient {
   }
   
   static String _getBaseUrl() {
-    try {
-      if (Platform.isAndroid) {
-        return _baseUrlAndroid;
-      } else if (Platform.isIOS) {
-        return _baseUrlIOS;
-      }
-    } catch (e) {
-      // Web platform
-    }
-    return _baseUrlWeb;
+    // Always use production URL
+    return _baseUrlProduction;
   }
   
   void _setupInterceptors() {

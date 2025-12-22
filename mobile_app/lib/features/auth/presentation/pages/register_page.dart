@@ -18,9 +18,30 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  DateTime? _dateOfBirth;
+  String? _selectedCountry;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+
+  final List<Map<String, String>> _countries = [
+    {'code': 'CI', 'name': 'Côte d\'Ivoire', 'currency': 'XOF'},
+    {'code': 'SN', 'name': 'Sénégal', 'currency': 'XOF'},
+    {'code': 'ML', 'name': 'Mali', 'currency': 'XOF'},
+    {'code': 'BF', 'name': 'Burkina Faso', 'currency': 'XOF'},
+    {'code': 'FR', 'name': 'France', 'currency': 'EUR'},
+    {'code': 'US', 'name': 'États-Unis', 'currency': 'USD'},
+    {'code': 'GB', 'name': 'Royaume-Uni', 'currency': 'GBP'},
+  ];
+
+  String? _getCurrency() {
+    if (_selectedCountry == null) return null;
+    final country = _countries.firstWhere(
+      (c) => c['code'] == _selectedCountry,
+      orElse: () => {'currency': 'USD'},
+    );
+    return country['currency'];
+  }
 
   @override
   void dispose() {
@@ -41,6 +62,11 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text,
         phoneNumber: _phoneController.text,
         password: _passwordController.text,
+        dateOfBirth: _dateOfBirth != null 
+            ? '${_dateOfBirth!.toIso8601String().split('T')[0]}T00:00:00Z'
+            : null,
+        country: _selectedCountry,
+        currency: _getCurrency(),
       ));
     }
   }
@@ -130,6 +156,56 @@ class _RegisterPageState extends State<RegisterPage> {
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
                     validator: (v) => v!.isEmpty ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Date of Birth
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime(2000, 1, 1),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setState(() => _dateOfBirth = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Date de naissance',
+                        prefixIcon: Icon(Icons.cake_outlined),
+                      ),
+                      child: Text(
+                        _dateOfBirth != null
+                            ? '${_dateOfBirth!.day}/${_dateOfBirth!.month}/${_dateOfBirth!.year}'
+                            : 'Sélectionner',
+                        style: TextStyle(
+                          color: _dateOfBirth != null ? null : Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Country
+                  DropdownButtonFormField<String>(
+                    value: _selectedCountry,
+                    decoration: const InputDecoration(
+                      labelText: 'Pays',
+                      prefixIcon: Icon(Icons.public),
+                    ),
+                    items: _countries.map((country) {
+                      return DropdownMenuItem<String>(
+                        value: country['code'],
+                        child: Text(country['name']!),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedCountry = value);
+                    },
+                    validator: (v) => v == null ? 'Requis' : null,
                   ),
                   const SizedBox(height: 16),
                   

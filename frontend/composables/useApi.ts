@@ -3,6 +3,11 @@ import axios from 'axios'
 // Flag to prevent infinite redirect loop
 let isLoggingOut = false
 
+// Function to reset the logout flag (called after successful login)
+export const resetLogoutFlag = () => {
+    isLoggingOut = false
+}
+
 // Use runtime config in Nuxt context, fallback to production API
 const getApiUrl = () => {
     if (typeof window !== 'undefined') {
@@ -52,6 +57,8 @@ api.interceptors.response.use(
                     localStorage.setItem('accessToken', access_token)
                     localStorage.setItem('refreshToken', refresh_token)
                     originalRequest.headers.Authorization = `Bearer ${access_token}`
+                    // Reset logout flag on successful refresh
+                    isLoggingOut = false
                     return api(originalRequest)
                 } catch {
                     // Prevent infinite loop - only redirect once

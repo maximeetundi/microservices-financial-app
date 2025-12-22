@@ -33,6 +33,9 @@ class AuthApiService {
     required String firstName,
     required String lastName,
     String? phone,
+    String? dateOfBirth,
+    String? country,
+    String? currency,
   }) async {
     final response = await _client.post(
       ApiEndpoints.register,
@@ -42,6 +45,9 @@ class AuthApiService {
         'first_name': firstName,
         'last_name': lastName,
         if (phone != null) 'phone': phone,
+        if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+        if (country != null) 'country': country,
+        if (currency != null) 'currency': currency,
       },
     );
     

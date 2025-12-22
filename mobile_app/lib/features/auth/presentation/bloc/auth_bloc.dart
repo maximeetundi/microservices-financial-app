@@ -36,6 +36,9 @@ class SignUpEvent extends AuthEvent {
   final String firstName;
   final String lastName;
   final String? phoneNumber;
+  final String? dateOfBirth;
+  final String? country;
+  final String? currency;
 
   const SignUpEvent({
     required this.email,
@@ -43,10 +46,13 @@ class SignUpEvent extends AuthEvent {
     required this.firstName,
     required this.lastName,
     this.phoneNumber,
+    this.dateOfBirth,
+    this.country,
+    this.currency,
   });
 
   @override
-  List<Object?> get props => [email, password, firstName, lastName, phoneNumber];
+  List<Object?> get props => [email, password, firstName, lastName, phoneNumber, dateOfBirth, country, currency];
 }
 
 class SignOutEvent extends AuthEvent {
@@ -202,6 +208,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         firstName: event.firstName,
         lastName: event.lastName,
         phone: event.phoneNumber,
+        dateOfBirth: event.dateOfBirth,
+        country: event.country,
+        currency: event.currency,
       );
       
       // Auto-login after registration

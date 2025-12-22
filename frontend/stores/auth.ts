@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import api from '~/composables/useApi'
+import api, { resetLogoutFlag } from '~/composables/useApi'
 
 interface User {
   id: string
@@ -37,6 +37,11 @@ export const useAuthStore = defineStore('auth', {
     async initializeAuth() {
       // Skip initialization if already on auth pages
       if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+        return
+      }
+
+      // Skip if already authenticated
+      if (this.isAuthenticated && this.user) {
         return
       }
 
@@ -78,6 +83,9 @@ export const useAuthStore = defineStore('auth', {
 
         localStorage.setItem('accessToken', access_token)
         localStorage.setItem('refreshToken', refresh_token)
+
+        // Reset the logout flag so API calls work properly
+        resetLogoutFlag()
 
         return { success: true }
       } catch (error: any) {
