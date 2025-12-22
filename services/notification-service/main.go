@@ -9,12 +9,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/streadway/amqp"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/services"
 )
 
 func main() {
 	// Load configuration
 	cfg := config.Load()
+
+	// Initialize Database
+	db, err := database.Initialize(cfg.DBUrl)
+	if err != nil {
+		log.Println("Warning: Database not available, notification storage disabled:", err)
+		// Continue without DB - notifications won't be persisted
+	}
+	if db != nil {
+		defer db.Close()
+	}
 
 	// Initialize RabbitMQ
 	rabbitConn, err := amqp.Dial(cfg.RabbitMQURL)
@@ -54,12 +68,19 @@ func main() {
 		}
 	}
 
-	// Initialize notification service
+	// Initialize notification service (for consuming events)
 	notificationService := services.NewNotificationService(rabbitChannel, cfg)
 
 	// Start consumers
 	if err := notificationService.Start(); err != nil {
 		log.Fatal("Failed to start notification consumers:", err)
+	}
+
+	// Initialize repositories and handlers
+	var notificationHandler *handlers.NotificationHandler
+	if db != nil {
+		notificationRepo := repository.NewNotificationRepository(db)
+		notificationHandler = handlers.NewNotificationHandler(notificationRepo)
 	}
 
 	// Setup Gin for health checks and admin endpoints
@@ -96,6 +117,19 @@ func main() {
 			"message":    "Notification service is consuming events",
 		})
 	})
+
+	// Notification API routes (protected by JWT)
+	if notificationHandler != nil {
+		api := router.Group("/api/v1")
+		api.Use(middleware.JWTAuth(cfg.JWTSecret))
+		{
+			api.GET("/notifications", notificationHandler.GetNotifications)
+			api.GET("/notifications/unread-count", notificationHandler.GetUnreadCount)
+			api.POST("/notifications/:id/read", notificationHandler.MarkAsRead)
+			api.POST("/notifications/read-all", notificationHandler.MarkAllAsRead)
+			api.DELETE("/notifications/:id", notificationHandler.DeleteNotification)
+		}
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {

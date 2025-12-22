@@ -73,6 +73,7 @@
             <p class="text-xs text-muted truncate">{{ userEmail }}</p>
           </div>
           
+          <NotificationCenter />
           <ThemeToggle />
           
           <button @click="handleLogout" class="p-2 text-muted hover:text-error dark:hover:text-red-400 transition-colors" title="Déconnexion">

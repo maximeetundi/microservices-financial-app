@@ -53,7 +53,7 @@ dependencies:
   cached_network_image: ^3.3.0
   
   # Payments & Cards
-  credit_card_scanner: ^2.0.1
+  credit_card_scanner: 1.0.5
   
   # Notifications
   flutter_local_notifications: ^15.1.1

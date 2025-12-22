@@ -347,7 +347,17 @@ export function useApi() {
         paymentApi: paymentAPI,
         adminPaymentApi: adminPaymentAPI,
         supportApi: supportAPI,
+        notificationApi: notificationAPI,
     }
+}
+
+// ========== Notifications ==========
+export const notificationAPI = {
+    getAll: (limit = 20, offset = 0) => api.get(`/notification-service/api/v1/notifications?limit=${limit}&offset=${offset}`),
+    getUnreadCount: () => api.get('/notification-service/api/v1/notifications/unread-count'),
+    markAsRead: (id: string) => api.post(`/notification-service/api/v1/notifications/${id}/read`),
+    markAllAsRead: () => api.post('/notification-service/api/v1/notifications/read-all'),
+    delete: (id: string) => api.delete(`/notification-service/api/v1/notifications/${id}`),
 }
 
 export default api

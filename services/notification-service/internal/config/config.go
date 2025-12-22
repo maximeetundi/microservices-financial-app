@@ -9,6 +9,7 @@ type Config struct {
 	Port        string
 	DBUrl       string
 	RabbitMQURL string
+	JWTSecret   string
 	
 	// Email configuration
 	SMTPHost     string
@@ -34,6 +35,7 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8087"),
 		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		JWTSecret:   getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),
 		
 		// Email
 		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
