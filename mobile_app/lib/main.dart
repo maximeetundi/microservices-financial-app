@@ -12,6 +12,7 @@ import 'features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'features/exchange/presentation/bloc/exchange_bloc.dart';
 import 'features/cards/presentation/bloc/cards_bloc.dart';
 import 'features/portfolio/presentation/bloc/portfolio_bloc.dart';
+import 'features/transfer/presentation/bloc/transfer_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,7 @@ class CryptoBankApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<ExchangeBloc>()),
         BlocProvider(create: (_) => di.sl<CardsBloc>()),
         BlocProvider(create: (_) => di.sl<PortfolioBloc>()),
+        BlocProvider(create: (_) => di.sl<TransferBloc>()),
       ],
       child: MaterialApp.router(
         title: AppConstants.appName,

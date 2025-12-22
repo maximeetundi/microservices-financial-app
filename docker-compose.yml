@@ -131,6 +131,7 @@ services:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -150,6 +151,7 @@ services:
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       # Flutterwave (Africa)
       - FLUTTERWAVE_SECRET_KEY=${FLUTTERWAVE_SECRET_KEY:-}
       - FLUTTERWAVE_PUBLIC_KEY=${FLUTTERWAVE_PUBLIC_KEY:-}
@@ -185,7 +187,7 @@ services:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
-      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key-for-crypto-bank-2024}
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - WALLET_SERVICE_URL=http://wallet-service:8083
     networks:
       - crypto-bank-network
@@ -206,6 +208,7 @@ services:
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -223,6 +226,7 @@ services:
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -274,7 +278,7 @@ services:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
-      - JWT_SECRET=your-super-secret-jwt-key-2024
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
     restart: unless-stopped
