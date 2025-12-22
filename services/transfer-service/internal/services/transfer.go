@@ -54,21 +54,38 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		return nil, fmt.Errorf("insufficient balance for amount plus fees")
 	}
 
+	// Resolve destination wallet ID
+	var destinationWalletID *string
+	
+	// If to_wallet_id is provided, use it directly
+	if req.ToWalletID != nil && *req.ToWalletID != "" {
+		destinationWalletID = req.ToWalletID
+	} else if req.ToEmail != nil || req.ToPhone != nil {
+		// P2P transfer: Find or create recipient wallet based on email/phone
+		recipientWalletID, err := s.resolveOrCreateRecipientWallet(req.ToEmail, req.ToPhone, req.Currency)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve recipient: %w", err)
+		}
+		destinationWalletID = &recipientWalletID
+	}
+
 	// Create transfer record
 	ref := generateReferenceID()
 	transfer := &models.Transfer{
-		ID:           generateID(),
-		FromWalletID: req.FromWalletID,
-		ToWalletID:   req.ToWalletID,
-		TransferType: transferType,
-		Amount:       req.Amount,
-		Fee:          fee,
-		Currency:     req.Currency,
-		Status:       "pending",
-		Reference:    &ref,
-		Description:  req.Description,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:             generateID(),
+		FromWalletID:   req.FromWalletID,
+		ToWalletID:     destinationWalletID,
+		RecipientEmail: req.ToEmail,
+		RecipientPhone: req.ToPhone,
+		TransferType:   transferType,
+		Amount:         req.Amount,
+		Fee:            fee,
+		Currency:       req.Currency,
+		Status:         "pending",
+		Reference:      &ref,
+		Description:    req.Description,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	if err := s.transferRepo.Create(transfer); err != nil {
@@ -82,9 +99,9 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		return nil, fmt.Errorf("failed to debit wallet: %w", err)
 	}
 	
-	// Credit to destination wallet if internal transfer (to_wallet_id provided)
-	if req.ToWalletID != nil && *req.ToWalletID != "" {
-		if err := s.walletRepo.UpdateBalance(*req.ToWalletID, req.Amount); err != nil {
+	// Credit to destination wallet if resolved
+	if destinationWalletID != nil && *destinationWalletID != "" {
+		if err := s.walletRepo.UpdateBalance(*destinationWalletID, req.Amount); err != nil {
 			// Rollback: refund source wallet and mark transfer failed
 			s.walletRepo.UpdateBalance(req.FromWalletID, totalDebit)
 			s.transferRepo.UpdateStatus(transfer.ID, "failed")
@@ -107,6 +124,40 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	s.publishTransferEvent("transfer.initiated", transfer, req.FromWalletID, "")
 
 	return transfer, nil
+}
+
+// resolveOrCreateRecipientWallet finds a recipient's wallet by email or phone, or creates one
+func (s *TransferService) resolveOrCreateRecipientWallet(email, phone *string, currency string) (string, error) {
+	// Find recipient user by email or phone
+	var recipientUserID string
+	var err error
+	
+	if email != nil && *email != "" {
+		recipientUserID, err = s.walletRepo.GetUserIDByEmail(*email)
+	} else if phone != nil && *phone != "" {
+		recipientUserID, err = s.walletRepo.GetUserIDByPhone(*phone)
+	} else {
+		return "", fmt.Errorf("no recipient email or phone provided")
+	}
+	
+	if err != nil {
+		return "", fmt.Errorf("recipient user not found: %w", err)
+	}
+	
+	// Find recipient's wallet in the same currency
+	walletID, err := s.walletRepo.GetWalletIDByUserAndCurrency(recipientUserID, currency)
+	if err == nil && walletID != "" {
+		return walletID, nil
+	}
+	
+	// Wallet doesn't exist - create one for the recipient
+	newWalletID := generateID()
+	err = s.walletRepo.CreateWallet(newWalletID, recipientUserID, currency)
+	if err != nil {
+		return "", fmt.Errorf("failed to create recipient wallet: %w", err)
+	}
+	
+	return newWalletID, nil
 }
 
 func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {

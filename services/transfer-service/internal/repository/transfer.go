@@ -131,3 +131,31 @@ func (r *WalletRepository) UpdateBalance(id string, amount float64) error {
 	_, err := r.db.Exec(query, amount, time.Now(), id)
 	return err
 }
+
+func (r *WalletRepository) GetUserIDByEmail(email string) (string, error) {
+	query := `SELECT id FROM users WHERE email = $1`
+	var userID string
+	err := r.db.QueryRow(query, email).Scan(&userID)
+	return userID, err
+}
+
+func (r *WalletRepository) GetUserIDByPhone(phone string) (string, error) {
+	query := `SELECT id FROM users WHERE phone = $1`
+	var userID string
+	err := r.db.QueryRow(query, phone).Scan(&userID)
+	return userID, err
+}
+
+func (r *WalletRepository) GetWalletIDByUserAndCurrency(userID, currency string) (string, error) {
+	query := `SELECT id FROM wallets WHERE user_id = $1 AND currency = $2 AND is_active = true LIMIT 1`
+	var walletID string
+	err := r.db.QueryRow(query, userID, currency).Scan(&walletID)
+	return walletID, err
+}
+
+func (r *WalletRepository) CreateWallet(id, userID, currency string) error {
+	query := `INSERT INTO wallets (id, user_id, currency, wallet_type, balance, frozen_balance, is_active, created_at, updated_at) 
+			  VALUES ($1, $2, $3, 'fiat', 0, 0, true, $4, $4)`
+	_, err := r.db.Exec(query, id, userID, currency, time.Now())
+	return err
+}
