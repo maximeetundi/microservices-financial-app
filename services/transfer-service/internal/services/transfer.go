@@ -47,6 +47,12 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	// Calculate fee
 	transferType := "domestic" // default type
 	fee := s.calculateFee(transferType, req.Amount)
+	
+	// Check balance covers amount + fee
+	totalDebit := req.Amount + fee
+	if fromWallet.Balance < totalDebit {
+		return nil, fmt.Errorf("insufficient balance for amount plus fees")
+	}
 
 	// Create transfer record
 	ref := generateReferenceID()
@@ -69,7 +75,31 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		return nil, fmt.Errorf("failed to create transfer: %w", err)
 	}
 
-	// Publish to queue for async processing
+	// Debit from source wallet immediately
+	if err := s.walletRepo.UpdateBalance(req.FromWalletID, -totalDebit); err != nil {
+		// Rollback: update transfer status to failed
+		s.transferRepo.UpdateStatus(transfer.ID, "failed")
+		return nil, fmt.Errorf("failed to debit wallet: %w", err)
+	}
+	
+	// Credit to destination wallet if internal transfer (to_wallet_id provided)
+	if req.ToWalletID != nil && *req.ToWalletID != "" {
+		if err := s.walletRepo.UpdateBalance(*req.ToWalletID, req.Amount); err != nil {
+			// Rollback: refund source wallet and mark transfer failed
+			s.walletRepo.UpdateBalance(req.FromWalletID, totalDebit)
+			s.transferRepo.UpdateStatus(transfer.ID, "failed")
+			return nil, fmt.Errorf("failed to credit destination wallet: %w", err)
+		}
+		// Mark as completed for internal transfers
+		s.transferRepo.UpdateStatus(transfer.ID, "completed")
+		transfer.Status = "completed"
+	} else {
+		// External transfers remain pending for async processing
+		s.transferRepo.UpdateStatus(transfer.ID, "processing")
+		transfer.Status = "processing"
+	}
+
+	// Publish to queue for async processing (notifications, etc)
 	msg, _ := json.Marshal(transfer)
 	s.mqClient.Publish("transfers", msg)
 	

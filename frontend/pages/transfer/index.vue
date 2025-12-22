@@ -332,36 +332,41 @@ const submitTransfer = async () => {
       description: form.value.description
     }
 
+    let result = null
+    
     if (selectedType.value === 'p2p') {
        if (p2pSearch.value.includes('@')) payload.to_email = p2pSearch.value
        else payload.to_phone = p2pSearch.value
        
-       await transferApi.create(payload)
-       alert('Transfert réussi!')
+       result = await transferApi.create(payload)
        
     } else if (selectedType.value === 'mobile') {
-      await transferApi.create({
+      result = await transferApi.create({
           type: 'mobile_money',
+          from_wallet_id: form.value.fromWalletId,
           amount: form.value.amount,
           currency: selectedWalletCurrency.value,
           recipient: form.value.recipientPhone,
           description: form.value.description + ` [${form.value.provider} - ${form.value.country}]`
       })
-      alert('Transfert Mobile Money initié!')
     } else if (selectedType.value === 'wire') {
-         await transferApi.create({
+         result = await transferApi.create({
           type: 'wire',
+          from_wallet_id: form.value.fromWalletId,
           amount: form.value.amount,
           currency: selectedWalletCurrency.value,
           recipient: form.value.recipientName,
           description: form.value.description + ` [IBAN: ${form.value.bankAccount}]`
         })
-        alert('Virement bancaire initié!')
     }
 
-    // Reset form
-    form.value.amount = null
-    form.value.description = ''
+    // Show success message and redirect
+    const transferStatus = result?.data?.transfer?.status || 'initiated'
+    alert(`Transfert ${transferStatus === 'completed' ? 'effectué' : 'initié'} avec succès!`)
+    
+    // Redirect to wallet page to see updated balance
+    navigateTo('/wallet')
+    
   } catch (e) {
     console.error(e)
     alert('Erreur lors du transfert: ' + (e.response?.data?.error || e.message))
