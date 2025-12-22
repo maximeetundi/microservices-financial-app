@@ -20,6 +20,9 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/security_page.dart';
 import '../../features/settings/presentation/pages/profile_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/support/support_screen.dart';
+import '../../features/merchant/merchant_screen.dart';
+import '../../features/merchant/scan_pay_screen.dart';
 import '../../main.dart';
 import '../navigation/main_navigation.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
@@ -175,6 +178,37 @@ class AppRouter {
                         builder: (context, state) => TransferDetailPage(
                           transferId: state.pathParameters['transferId']!,
                         ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'support',
+                    name: 'support',
+                    builder: (context, state) => const SupportScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'chat',
+                        name: 'support-chat',
+                        builder: (context, state) {
+                          final ticketId = state.uri.queryParameters['id'];
+                          final agentType = state.uri.queryParameters['agent'] ?? 'ai';
+                          return ChatScreen(
+                            agentType: agentType,
+                            ticketId: ticketId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'merchant',
+                    name: 'merchant',
+                    builder: (context, state) => const MerchantScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'scan',
+                        name: 'merchant-scan',
+                        builder: (context, state) => const ScanPayScreen(),
                       ),
                     ],
                   ),

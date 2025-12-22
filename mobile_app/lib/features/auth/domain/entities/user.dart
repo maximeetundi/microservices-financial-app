@@ -32,6 +32,16 @@ class User extends Equatable {
   });
   
   factory User.fromJson(Map<String, dynamic> json) {
+    // Handle kycLevel which can be int or String from API
+    String kycLevelValue = 'none';
+    if (json['kyc_level'] != null) {
+      if (json['kyc_level'] is int) {
+        kycLevelValue = json['kyc_level'].toString();
+      } else {
+        kycLevelValue = json['kyc_level'].toString();
+      }
+    }
+    
     return User(
       id: json['id'] ?? json['user_id'] ?? '',
       email: json['email'] ?? '',
@@ -47,8 +57,8 @@ class User extends Equatable {
           : null,
       isEmailVerified: json['is_email_verified'] ?? json['email_verified'] ?? false,
       isPhoneVerified: json['is_phone_verified'] ?? json['phone_verified'] ?? false,
-      isTwoFactorEnabled: json['is_two_factor_enabled'] ?? json['two_factor_enabled'] ?? false,
-      kycLevel: json['kyc_level'] ?? 'none',
+      isTwoFactorEnabled: json['is_two_factor_enabled'] ?? json['two_fa_enabled'] ?? json['two_factor_enabled'] ?? false,
+      kycLevel: kycLevelValue,
       preferences: json['preferences'] != null 
           ? UserPreferences.fromJson(json['preferences']) 
           : const UserPreferences(),

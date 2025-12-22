@@ -62,10 +62,19 @@ class SettingsPage extends StatelessWidget {
           ),
           
           _SettingsGroup(
+            title: 'Services',
+            items: [
+              _SettingsItem(icon: Icons.credit_card, title: 'Mes cartes', onTap: () => context.push('/more/cards')),
+              _SettingsItem(icon: Icons.send, title: 'Transferts', onTap: () => context.push('/more/transfer')),
+              _SettingsItem(icon: Icons.storefront, title: 'Espace Marchand', onTap: () => context.push('/more/merchant')),
+            ],
+          ),
+          
+          _SettingsGroup(
             title: 'Support',
             items: [
-              _SettingsItem(icon: Icons.help, title: 'Centre d\'aide', onTap: () {}),
-              _SettingsItem(icon: Icons.chat, title: 'Contacter le support', onTap: () {}),
+              _SettingsItem(icon: Icons.help, title: 'Centre d\'aide', onTap: () => context.push('/more/support')),
+              _SettingsItem(icon: Icons.chat, title: 'Contacter le support', onTap: () => context.push('/more/support')),
               _SettingsItem(icon: Icons.policy, title: 'Politique de confidentialité', onTap: () {}),
               _SettingsItem(icon: Icons.description, title: 'Conditions d\'utilisation', onTap: () {}),
             ],

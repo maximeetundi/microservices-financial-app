@@ -51,16 +51,20 @@ export const useAuthStore = defineStore('auth', {
       if (token && refreshToken) {
         this.accessToken = token
         this.refreshToken = refreshToken
+        // Set authenticated immediately - don't wait for profile
+        this.isAuthenticated = true
+
+        // Sync to cookies for SSR middleware
+        if (typeof document !== 'undefined') {
+          document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Lax`
+        }
+
         try {
           await this.fetchUserProfile()
         } catch (error) {
-          // Clear tokens but don't redirect here - let the API interceptor handle it
-          this.user = null
-          this.accessToken = null
-          this.refreshToken = null
-          this.isAuthenticated = false
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
+          // Profile fetch failed but we still have valid tokens
+          // Don't logout here - the API interceptor will handle 401s
+          console.warn('Profile fetch failed, keeping auth state:', error)
         }
       }
     },
@@ -81,8 +85,15 @@ export const useAuthStore = defineStore('auth', {
         this.user = user
         this.isAuthenticated = true
 
+        // Store in localStorage
         localStorage.setItem('accessToken', access_token)
         localStorage.setItem('refreshToken', refresh_token)
+
+        // Also set cookies for SSR/middleware compatibility
+        if (typeof document !== 'undefined') {
+          document.cookie = `accessToken=${access_token}; path=/; max-age=86400; SameSite=Lax`
+          document.cookie = `refreshToken=${refresh_token}; path=/; max-age=604800; SameSite=Lax`
+        }
 
         // Reset the logout flag so API calls work properly
         resetLogoutFlag()
