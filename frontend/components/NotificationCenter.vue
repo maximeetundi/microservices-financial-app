@@ -1,9 +1,10 @@
 <template>
-  <div class="relative">
+  <div class="notification-center">
     <!-- Bell Button -->
     <button 
       @click="toggleDropdown" 
       class="relative p-2 rounded-xl hover:bg-surface-hover transition-colors"
+      ref="bellButton"
     >
       <svg class="w-6 h-6 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -17,97 +18,125 @@
       </span>
     </button>
 
-    <!-- Dropdown -->
-    <Transition name="dropdown">
-      <div 
-        v-if="isOpen" 
-        class="absolute right-0 top-12 w-80 max-h-96 overflow-y-auto glass-card border border-secondary-200 dark:border-secondary-700 shadow-xl z-50 rounded-xl"
-      >
-        <!-- Header -->
-        <div class="flex items-center justify-between p-3 border-b border-secondary-200 dark:border-secondary-700">
-          <h3 class="font-semibold text-base">Notifications</h3>
-          <button 
-            v-if="unreadCount > 0" 
-            @click="markAllRead" 
-            class="text-xs text-primary hover:underline"
-          >
-            Tout marquer comme lu
-          </button>
-        </div>
+    <!-- Backdrop (click outside to close) -->
+    <Teleport to="body">
+      <div v-if="isOpen" class="notification-backdrop" @click="isOpen = false"></div>
+    </Teleport>
 
-        <!-- Loading -->
-        <div v-if="loading" class="p-8 flex justify-center">
-          <div class="loading-spinner w-6 h-6"></div>
-        </div>
+    <!-- Dropdown (teleported to body to avoid overflow issues) -->
+    <Teleport to="body">
+      <Transition name="dropdown">
+        <div 
+          v-if="isOpen" 
+          class="notification-dropdown"
+          :style="dropdownStyle"
+        >
+          <!-- Header -->
+          <div class="notification-header">
+            <h3 class="font-semibold text-base">Notifications</h3>
+            <button 
+              v-if="unreadCount > 0" 
+              @click="markAllRead" 
+              class="text-xs text-primary hover:underline whitespace-nowrap"
+            >
+              Tout marquer comme lu
+            </button>
+          </div>
 
-        <!-- Empty State -->
-        <div v-else-if="notifications.length === 0" class="p-8 text-center">
-          <div class="text-4xl mb-2">🔔</div>
-          <p class="text-muted text-sm">Aucune notification</p>
-        </div>
+          <!-- Loading -->
+          <div v-if="loading" class="p-8 flex justify-center">
+            <div class="loading-spinner w-6 h-6"></div>
+          </div>
 
-        <!-- Notification List -->
-        <div v-else class="divide-y divide-secondary-200 dark:divide-secondary-700">
-          <div 
-            v-for="notif in notifications" 
-            :key="notif.id"
-            @click="handleClick(notif)"
-            class="p-3 hover:bg-surface-hover cursor-pointer transition-colors"
-            :class="{ 'bg-primary/5': !notif.is_read }"
-          >
-            <div class="flex items-start gap-3">
-              <!-- Icon -->
-              <div 
-                class="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-                :class="getIconClass(notif.type)"
-              >
-                {{ getIcon(notif.type) }}
+          <!-- Empty State -->
+          <div v-else-if="notifications.length === 0" class="p-8 text-center">
+            <div class="text-4xl mb-2">🔔</div>
+            <p class="text-muted text-sm">Aucune notification</p>
+          </div>
+
+          <!-- Notification List -->
+          <div v-else class="notification-list">
+            <div 
+              v-for="notif in notifications" 
+              :key="notif.id"
+              @click="handleClick(notif)"
+              class="notification-item"
+              :class="{ 'unread': !notif.is_read }"
+            >
+              <div class="flex items-start gap-3">
+                <!-- Icon -->
+                <div 
+                  class="notification-icon"
+                  :class="getIconClass(notif.type)"
+                >
+                  {{ getIcon(notif.type) }}
+                </div>
+                <!-- Content -->
+                <div class="notification-content">
+                  <p class="notification-title">{{ notif.title }}</p>
+                  <p class="notification-message">{{ notif.message }}</p>
+                  <p class="notification-time">{{ formatTime(notif.created_at) }}</p>
+                </div>
+                <!-- Unread dot -->
+                <div v-if="!notif.is_read" class="unread-dot"></div>
               </div>
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <p class="font-medium text-sm text-base truncate">{{ notif.title }}</p>
-                <p class="text-xs text-muted line-clamp-2">{{ notif.message }}</p>
-                <p class="text-xs text-muted mt-1">{{ formatTime(notif.created_at) }}</p>
-              </div>
-              <!-- Unread dot -->
-              <div v-if="!notif.is_read" class="w-2 h-2 rounded-full bg-primary mt-2"></div>
             </div>
           </div>
-        </div>
 
-        <!-- Footer -->
-        <div class="p-2 border-t border-secondary-200 dark:border-secondary-700">
-          <NuxtLink 
-            to="/notifications" 
-            class="block text-center text-sm text-primary hover:underline py-2"
-            @click="isOpen = false"
-          >
-            Voir toutes les notifications
-          </NuxtLink>
+          <!-- Footer -->
+          <div class="notification-footer">
+            <NuxtLink 
+              to="/notifications" 
+              class="block text-center text-sm text-primary hover:underline py-2"
+              @click="isOpen = false"
+            >
+              Voir toutes les notifications
+            </NuxtLink>
+          </div>
         </div>
-      </div>
-    </Transition>
-
-    <!-- Backdrop -->
-    <div v-if="isOpen" @click="isOpen = false" class="fixed inset-0 z-40"></div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { notificationAPI } from '~/composables/useApi'
 
 const isOpen = ref(false)
 const loading = ref(false)
 const notifications = ref([])
 const unreadCount = ref(0)
+const bellButton = ref(null)
+const dropdownPosition = ref({ top: 0, right: 0 })
 
 let pollInterval = null
 
-const toggleDropdown = () => {
+const dropdownStyle = computed(() => ({
+  position: 'fixed',
+  top: `${dropdownPosition.value.top}px`,
+  right: `${dropdownPosition.value.right}px`,
+  zIndex: 9999
+}))
+
+const updateDropdownPosition = () => {
+  if (bellButton.value) {
+    const rect = bellButton.value.getBoundingClientRect()
+    dropdownPosition.value = {
+      top: rect.bottom + 8,
+      right: Math.max(16, window.innerWidth - rect.right)
+    }
+  }
+}
+
+const toggleDropdown = async () => {
   isOpen.value = !isOpen.value
-  if (isOpen.value && notifications.value.length === 0) {
-    fetchNotifications()
+  if (isOpen.value) {
+    await nextTick()
+    updateDropdownPosition()
+    if (notifications.value.length === 0) {
+      fetchNotifications()
+    }
   }
 }
 
@@ -142,7 +171,6 @@ const handleClick = async (notif) => {
       console.error('Failed to mark as read:', e)
     }
   }
-  // Could navigate to related page based on notif.type and notif.data
 }
 
 const markAllRead = async () => {
@@ -162,6 +190,7 @@ const getIcon = (type) => {
     security: '🔒',
     promotion: '🎁',
     wallet: '💰',
+    payment: '💳',
     default: '🔔'
   }
   return icons[type] || icons.default
@@ -174,6 +203,7 @@ const getIconClass = (type) => {
     security: 'bg-red-500/20 text-red-500',
     promotion: 'bg-yellow-500/20 text-yellow-500',
     wallet: 'bg-blue-500/20 text-blue-500',
+    payment: 'bg-indigo-500/20 text-indigo-500',
     default: 'bg-gray-500/20 text-gray-500'
   }
   return classes[type] || classes.default
@@ -190,18 +220,145 @@ const formatTime = (date) => {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
+// Handle window resize
+const handleResize = () => {
+  if (isOpen.value) {
+    updateDropdownPosition()
+  }
+}
+
 onMounted(() => {
   fetchUnreadCount()
-  // Poll every 30 seconds
   pollInterval = setInterval(fetchUnreadCount, 30000)
+  window.addEventListener('resize', handleResize)
+  window.addEventListener('scroll', handleResize, true)
 })
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
+  window.removeEventListener('resize', handleResize)
+  window.removeEventListener('scroll', handleResize, true)
 })
 </script>
 
 <style scoped>
+.notification-center {
+  position: relative;
+  display: inline-block;
+}
+
+.notification-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+}
+
+.notification-dropdown {
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(400px, calc(100vh - 100px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.notification-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notification-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.notification-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-item.unread {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.notification-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-text, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-message {
+  font-size: 12px;
+  color: var(--color-muted, #888);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: var(--color-muted, #666);
+  margin-top: 4px;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary, #6366f1);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notification-footer {
+  padding: 8px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+/* Transitions */
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;
@@ -213,10 +370,12 @@ onUnmounted(() => {
   transform: translateY(-10px) scale(0.95);
 }
 
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .notification-dropdown {
+    width: calc(100vw - 24px);
+    right: 12px !important;
+  }
 }
 </style>
+
