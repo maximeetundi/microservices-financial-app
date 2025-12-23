@@ -328,7 +328,97 @@ func (h *AuthHandler) GetSessions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
+	// Get current session token for marking
+	currentToken := ""
+	if authHeader := c.GetHeader("Authorization"); len(authHeader) > 7 {
+		currentToken = authHeader[7:] // Remove "Bearer "
+	}
+
+	// Enrich sessions with parsed device info
+	enrichedSessions := make([]gin.H, len(sessions))
+	for i, session := range sessions {
+		browser, os, deviceType := parseUserAgent(session.UserAgent)
+		
+		enrichedSessions[i] = gin.H{
+			"id":          session.ID,
+			"ip_address":  session.IPAddress,
+			"user_agent":  session.UserAgent,
+			"browser":     browser,
+			"os":          os,
+			"device_type": deviceType,
+			"device_name": browser + " - " + os,
+			"location":    h.getLocationFromIP(session.IPAddress),
+			"created_at":  session.CreatedAt,
+			"last_active": session.CreatedAt, // Use created_at as last_active for now
+			"is_current":  session.SessionToken == currentToken,
+			"is_active":   session.IsActive,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"sessions": enrichedSessions})
+}
+
+// parseUserAgent extracts browser, OS and device type from user agent string
+func parseUserAgent(ua string) (browser, os, deviceType string) {
+	// Default values
+	browser = "Unknown browser"
+	os = "Unknown OS"
+	deviceType = "desktop"
+
+	ua = strings.ToLower(ua)
+
+	// Detect OS
+	switch {
+	case strings.Contains(ua, "windows nt 10"):
+		os = "Windows 10/11"
+	case strings.Contains(ua, "windows nt 6.3"):
+		os = "Windows 8.1"
+	case strings.Contains(ua, "windows nt 6.2"):
+		os = "Windows 8"
+	case strings.Contains(ua, "windows nt 6.1"):
+		os = "Windows 7"
+	case strings.Contains(ua, "windows"):
+		os = "Windows"
+	case strings.Contains(ua, "mac os x"):
+		os = "macOS"
+	case strings.Contains(ua, "android"):
+		os = "Android"
+		deviceType = "mobile"
+	case strings.Contains(ua, "iphone"):
+		os = "iOS (iPhone)"
+		deviceType = "mobile"
+	case strings.Contains(ua, "ipad"):
+		os = "iOS (iPad)"
+		deviceType = "tablet"
+	case strings.Contains(ua, "linux"):
+		os = "Linux"
+	case strings.Contains(ua, "ubuntu"):
+		os = "Ubuntu"
+	case strings.Contains(ua, "chromeos"):
+		os = "Chrome OS"
+	}
+
+	// Detect Browser
+	switch {
+	case strings.Contains(ua, "edg/"):
+		browser = "Microsoft Edge"
+	case strings.Contains(ua, "opr/") || strings.Contains(ua, "opera"):
+		browser = "Opera"
+	case strings.Contains(ua, "brave"):
+		browser = "Brave"
+	case strings.Contains(ua, "vivaldi"):
+		browser = "Vivaldi"
+	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "chromium"):
+		browser = "Google Chrome"
+	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
+		browser = "Safari"
+	case strings.Contains(ua, "firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "msie") || strings.Contains(ua, "trident"):
+		browser = "Internet Explorer"
+	}
+
+	return browser, os, deviceType
 }
 
 func (h *AuthHandler) RevokeSession(c *gin.Context) {

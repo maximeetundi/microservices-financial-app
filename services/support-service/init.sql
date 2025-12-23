@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 
 -- Insert default AI agent
 INSERT INTO agents (id, name, email, type, avatar, is_available, max_chats, rating)
-VALUES ('ai-agent-001', 'Assistant IA CryptoBank', 'ai@cryptobank.com', 'ai', '🤖', true, 1000, 5.0)
+VALUES ('ai-agent-001', 'Assistant IA Zekora', 'ai@zekora.com', 'ai', '🤖', true, 1000, 5.0)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert some quick replies

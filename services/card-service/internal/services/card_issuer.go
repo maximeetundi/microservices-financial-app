@@ -227,15 +227,15 @@ func (s *CardIssuerService) OrderPhysicalCard(externalCardID string, shippingAdd
 func (s *CardIssuerService) getCardProductToken(cardType string) string {
 	// Map card types to issuer product tokens
 	products := map[string]string{
-		"prepaid": "cryptobank_prepaid_card",
-		"virtual": "cryptobank_virtual_card",
-		"gift":    "cryptobank_gift_card",
+		"prepaid": "zekora_prepaid_card",
+		"virtual": "zekora_virtual_card",
+		"gift":    "zekora_gift_card",
 	}
 	
 	if token, ok := products[cardType]; ok {
 		return token
 	}
-	return "cryptobank_prepaid_card"
+	return "zekora_prepaid_card"
 }
 
 // mockIssueCard generates mock card data for development

@@ -297,7 +297,7 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 		INSERT INTO admin_users (email, password_hash, first_name, last_name, role_id, is_active)
 		VALUES ($1, $2, $3, $4, $5, TRUE)
 		ON CONFLICT (email) DO NOTHING
-	`, "admin@cryptobank.com", defaultPasswordHash, "Super", "Admin", roleID)
+	`, "admin@zekora.com", defaultPasswordHash, "Super", "Admin", roleID)
 	
 	if err != nil {
 		return fmt.Errorf("failed to create default admin: %w", err)
@@ -305,7 +305,7 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 
 	fmt.Println("===========================================")
 	fmt.Println("DEFAULT SUPER ADMIN CREATED")
-	fmt.Println("Email: admin@cryptobank.com")
+	fmt.Println("Email: admin@zekora.com")
 	fmt.Println("Password: Admin123!")
 	fmt.Println("⚠️  CHANGE THIS PASSWORD IMMEDIATELY!")
 	fmt.Println("===========================================")

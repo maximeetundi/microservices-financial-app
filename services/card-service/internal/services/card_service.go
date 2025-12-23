@@ -778,7 +778,7 @@ func (s *CardService) GenerateCardQR(userID, cardID string) (string, error) {
 	}
 	
 	// Generate QR code data (in production, this would be encrypted)
-	qrData := fmt.Sprintf("CRYPTOBANK:%s:%s", card.ID, card.CardNumber)
+	qrData := fmt.Sprintf("ZEKORA:%s:%s", card.ID, card.CardNumber)
 	return qrData, nil
 }
 

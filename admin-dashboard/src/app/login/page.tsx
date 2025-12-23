@@ -54,7 +54,7 @@ export default function LoginPage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="input"
-                                placeholder="admin@cryptobank.com"
+                                placeholder="admin@zekora.com"
                                 required
                             />
                         </div>

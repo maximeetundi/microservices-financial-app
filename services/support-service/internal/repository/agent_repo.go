@@ -188,7 +188,7 @@ func (r *AgentRepository) GetAIAgent() (*models.Agent, error) {
 		// Create default AI agent if not exists
 		agent = &models.Agent{
 			Name:        "Assistant IA",
-			Email:       "ai@cryptobank.com",
+			Email:       "ai@zekora.com",
 			Type:        models.AgentTypeAI,
 			Avatar:      "🤖",
 			IsAvailable: true,

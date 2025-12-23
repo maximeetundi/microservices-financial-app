@@ -92,19 +92,87 @@
         </div>
         
         <div v-else class="sessions-list">
-          <div v-for="session in sessions" :key="session.id" class="session-item">
-            <div class="device-icon">{{ session.device_type === 'mobile' ? '📱' : '💻' }}</div>
+          <div v-for="session in sessions" :key="session.id" class="session-item enhanced">
+            <div class="device-icon">{{ getDeviceIcon(session.device_type) }}</div>
             <div class="session-info">
-              <div class="session-name">
-                {{ session.device_name || 'Appareil inconnu' }}
-                <span v-if="session.is_current" class="current-badge">Actuel</span>
+              <div class="session-header">
+                <span class="session-name">
+                  {{ session.browser || 'Navigateur inconnu' }}
+                  <span v-if="session.is_current" class="current-badge">Actuel</span>
+                </span>
               </div>
-              <span class="session-meta">{{ session.location }} • {{ formatSessionDate(session.last_active) }}</span>
+              <div class="session-details">
+                <span class="detail-item">
+                  <span class="icon">💻</span> {{ session.os || 'OS inconnu' }}
+                </span>
+                <span class="detail-item">
+                  <span class="icon">🌐</span> {{ session.ip_address || 'IP inconnue' }}
+                </span>
+              </div>
+              <div class="session-meta">
+                {{ session.location || 'Localisation inconnue' }} • {{ formatSessionDate(session.last_active || session.created_at) }}
+              </div>
             </div>
-            <button v-if="!session.is_current" @click="revokeSession(session.id)" class="revoke-btn">✕</button>
+            <div class="session-actions">
+              <button @click="showSessionDetails(session)" class="info-btn" title="Voir les détails">ℹ️</button>
+              <button v-if="!session.is_current" @click="revokeSession(session.id)" class="revoke-btn" title="Déconnecter cet appareil">✕</button>
+            </div>
           </div>
           
           <div v-if="sessions.length === 0" class="empty">Aucune session active</div>
+        </div>
+      </div>
+
+      <!-- Session Details Modal -->
+      <div v-if="selectedSession" class="modal-overlay" @click="selectedSession = null">
+        <div class="modal-content session-modal" @click.stop>
+          <div class="modal-header">
+            <h3>📱 Détails de l'appareil</h3>
+            <button @click="selectedSession = null" class="close-btn">✕</button>
+          </div>
+          
+          <div class="session-detail-grid">
+            <div class="detail-row">
+              <span class="label">Appareil</span>
+              <span class="value">{{ getDeviceIcon(selectedSession.device_type) }} {{ selectedSession.device_name || 'Inconnu' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Système</span>
+              <span class="value">{{ selectedSession.os || 'Inconnu' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Navigateur</span>
+              <span class="value">{{ selectedSession.browser || 'Inconnu' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Adresse IP</span>
+              <span class="value code">{{ selectedSession.ip_address || 'Inconnue' }}</span>
+            </div>
+             <div class="detail-row">
+              <span class="label">Localisation</span>
+              <span class="value">{{ selectedSession.location || 'Inconnue' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Première connexion</span>
+              <span class="value">{{ formatSessionDate(selectedSession.created_at) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Dernière activité</span>
+              <span class="value">{{ formatSessionDate(selectedSession.last_active) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Statut</span>
+              <span class="value status-badge" :class="{ 'current': selectedSession.is_current }">
+                {{ selectedSession.is_current ? '🟢 Session Actuelle' : '⚪ Connecté' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="modal-actions" v-if="!selectedSession.is_current">
+            <button @click="revokeSession(selectedSession.id); selectedSession = null" class="btn-danger full-width">
+              Déconnecter cet appareil
+            </button>
+          </div>
         </div>
       </div>
 
@@ -277,8 +345,13 @@ import { userAPI } from '~/composables/useApi'
 const hasPin = ref(false)
 const twoFactorEnabled = ref(false)
 const sessions = ref([])
+const selectedSession = ref(null)
 const loadingSessions = ref(true)
 const passwordLastChanged = ref('il y a 30 jours')
+
+function showSessionDetails(session) {
+  selectedSession.value = session
+}
 
 // Computed Security Score
 const securityScore = computed(() => {
@@ -590,7 +663,22 @@ function formatSessionDate(date) {
   if (diff < 60000) return 'Maintenant'
   if (diff < 3600000) return `Il y a ${Math.floor(diff / 60000)} min`
   if (diff < 86400000) return `Il y a ${Math.floor(diff / 3600000)}h`
-  return d.toLocaleDateString('fr-FR')
+  return d.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function getDeviceIcon(type) {
+  switch (type) {
+    case 'mobile': return '📱'
+    case 'tablet': return '📲'
+    case 'desktop': return '💻'
+    default: return '❓'
+  }
 }
 
 definePageMeta({
@@ -1227,5 +1315,159 @@ definePageMeta({
   justify-content: center;
   background: rgba(255,255,255,0.05);
   border-radius: 0.75rem;
+}
+
+/* Enhanced Session List */
+.session-item.enhanced {
+  align-items: flex-start;
+  padding: 1.25rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.session-header .session-name {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.session-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+}
+
+.detail-item .icon {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.session-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.session-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.info-btn {
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.info-btn:hover {
+  background: rgba(255,255,255,0.1);
+  transform: scale(1.1);
+}
+
+.session-modal {
+  max-width: 500px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.session-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0.5rem;
+}
+
+.detail-row .label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.detail-row .value {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-row .value.code {
+  font-family: monospace;
+  background: rgba(0,0,0,0.3);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.status-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  background: rgba(255,255,255,0.1);
+}
+
+.status-badge.current {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.full-width {
+  width: 100%;
+  padding: 0.75rem;
+  font-weight: 600;
+  display: block;
 }
 </style>

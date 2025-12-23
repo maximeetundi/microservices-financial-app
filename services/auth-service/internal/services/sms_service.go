@@ -40,7 +40,7 @@ func (s *SMSService) SendVerificationCode(phone string) (string, error) {
 }
 
 func (s *SMSService) SendSecurityAlert(phone, alertType string) error {
-	message := fmt.Sprintf("Zekora Security Alert: %s. If this wasn't you, please contact support immediately or secure your account at app.cryptobank.com", alertType)
+	message := fmt.Sprintf("Zekora Security Alert: %s. If this wasn't you, please contact support immediately or secure your account at app.zekora.com", alertType)
 	
 	return s.sendSMS(phone, message)
 }
