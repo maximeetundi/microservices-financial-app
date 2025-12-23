@@ -111,7 +111,8 @@ type Enable2FAResponse struct {
 }
 
 type Verify2FARequest struct {
-	Code string `json:"code" binding:"required"`
+	Code   string `json:"code" binding:"required"`
+	Secret string `json:"secret"` // The TOTP secret to save when enabling 2FA
 }
 
 // BackupCode represents a one-time backup code for 2FA recovery

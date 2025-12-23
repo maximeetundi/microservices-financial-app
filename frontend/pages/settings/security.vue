@@ -472,17 +472,24 @@ function handleCodeKeydown(e, index) {
 
 async function verify2FACode() {
   if (verifyCode.value.length !== 6) return
+  if (!totpSecret.value) {
+    verifyError.value = 'Erreur: clé secrète non disponible'
+    return
+  }
   
   verifying2FA.value = true
   verifyError.value = ''
   
   try {
-    const res = await userAPI.verify2FA({ code: verifyCode.value })
-    recoveryCodes.value = res.data?.recovery_codes || ['XXXX-XXXX', 'XXXX-XXXX', 'XXXX-XXXX', 'XXXX-XXXX']
+    const res = await userAPI.verify2FA({ 
+      code: verifyCode.value,
+      secret: totpSecret.value  // Pass secret to backend for storage
+    })
+    recoveryCodes.value = res.data?.recovery_codes || []
     setupStep.value = 3
     twoFactorEnabled.value = true
   } catch (e) {
-    verifyError.value = 'Code invalide. Veuillez réessayer.'
+    verifyError.value = e.response?.data?.error || 'Code invalide. Veuillez réessayer.'
   } finally {
     verifying2FA.value = false
   }

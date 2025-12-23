@@ -193,8 +193,8 @@ export const userAPI = {
 
     // 2FA - routes are under /users/2fa/ in backend
     enable2FA: () => api.post('/auth-service/api/v1/users/2fa/setup'),
-    verify2FA: (data: { code: string }) => api.post('/auth-service/api/v1/users/2fa/verify', data),
-    disable2FA: () => api.post('/auth-service/api/v1/users/2fa/disable'),
+    verify2FA: (data: { code: string, secret?: string }) => api.post('/auth-service/api/v1/users/2fa/verify', data),
+    disable2FA: (data?: { code: string }) => api.post('/auth-service/api/v1/users/2fa/disable', data || {}),
 
     // Sessions
     getSessions: () => api.get('/auth-service/api/v1/sessions'),

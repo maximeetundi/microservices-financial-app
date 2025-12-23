@@ -465,6 +465,55 @@ func (s *AuthService) ChangePassword(userID, oldPassword, newPassword string) er
 	return s.userRepo.UpdatePassword(userID, newPassword)
 }
 
+// ======== 2FA Management ========
+
+// Enable2FAForUser saves the TOTP secret and enables 2FA for the user
+func (s *AuthService) Enable2FAForUser(userID, secret string) error {
+	// Save the secret
+	if err := s.userRepo.Update2FASecret(userID, secret); err != nil {
+		return fmt.Errorf("failed to save 2FA secret: %w", err)
+	}
+
+	// Enable 2FA flag
+	if err := s.userRepo.Enable2FA(userID, true); err != nil {
+		return fmt.Errorf("failed to enable 2FA: %w", err)
+	}
+
+	return nil
+}
+
+// Disable2FAForUser verifies the code and disables 2FA for the user
+func (s *AuthService) Disable2FAForUser(userID, code string) error {
+	// Get user to retrieve current 2FA secret
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	// Check if 2FA is actually enabled
+	if !user.TwoFAEnabled || user.TwoFASecret == nil {
+		return fmt.Errorf("2FA is not enabled")
+	}
+
+	// Validate the provided code against the stored secret
+	totpService := NewTOTPService()
+	if !totpService.ValidateCode(*user.TwoFASecret, code) {
+		return fmt.Errorf("invalid code")
+	}
+
+	// Clear the secret
+	if err := s.userRepo.Update2FASecret(userID, ""); err != nil {
+		return fmt.Errorf("failed to clear 2FA secret: %w", err)
+	}
+
+	// Disable 2FA flag
+	if err := s.userRepo.Enable2FA(userID, false); err != nil {
+		return fmt.Errorf("failed to disable 2FA: %w", err)
+	}
+
+	return nil
+}
+
 // ======== PIN Management ========
 
 const (

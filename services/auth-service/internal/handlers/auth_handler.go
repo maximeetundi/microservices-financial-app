@@ -252,16 +252,41 @@ func (h *AuthHandler) Verify2FA(c *gin.Context) {
 		return
 	}
 
-	_, exists := c.Get("user_id")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	// TODO: Get temporary secret from Redis and validate code
-	// If valid, store secret permanently and enable 2FA
+	// Secret must be provided when enabling 2FA
+	if req.Secret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Secret is required to enable 2FA"})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "2FA enabled successfully"})
+	// Validate the TOTP code against the provided secret
+	if !h.totpService.ValidateCode(req.Secret, req.Code) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+		return
+	}
+
+	// Save the secret and enable 2FA
+	if err := h.authService.Enable2FAForUser(userID.(string), req.Secret); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to enable 2FA"})
+		return
+	}
+
+	// Generate backup/recovery codes
+	recoveryCodes, err := h.totpService.GenerateBackupCodes()
+	if err != nil {
+		// Log error but don't fail - 2FA is still enabled
+		recoveryCodes = []string{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "2FA enabled successfully",
+		"recovery_codes": recoveryCodes,
+	})
 }
 
 func (h *AuthHandler) Disable2FA(c *gin.Context) {
@@ -271,14 +296,21 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 		return
 	}
 
-	_, exists := c.Get("user_id")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	// TODO: Verify current 2FA code before disabling
-	// TODO: Disable 2FA in database
+	// Verify current 2FA code before disabling
+	if err := h.authService.Disable2FAForUser(userID.(string), req.Code); err != nil {
+		if strings.Contains(err.Error(), "invalid code") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to disable 2FA"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "2FA disabled successfully"})
 }
