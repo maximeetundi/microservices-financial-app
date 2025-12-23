@@ -238,12 +238,60 @@ CREATE TABLE kyc_documents (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     document_type VARCHAR(50) NOT NULL, -- passport, id_card, driver_license, utility_bill
     file_url VARCHAR(500) NOT NULL,
+    file_name VARCHAR(255),
+    file_path VARCHAR(500),
+    file_size BIGINT,
+    mime_type VARCHAR(100),
     verification_status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
+    status VARCHAR(20) DEFAULT 'pending', -- alias for verification_status
     verified_by UUID REFERENCES users(id),
+    reviewed_by VARCHAR(100),
+    reviewed_at TIMESTAMP,
     rejection_reason TEXT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- User preferences table
+CREATE TABLE user_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    theme VARCHAR(20) DEFAULT 'dark', -- dark, light, system
+    language VARCHAR(10) DEFAULT 'fr', -- fr, en, es, ar
+    currency VARCHAR(10) DEFAULT 'XOF', -- USD, EUR, XOF, etc.
+    timezone VARCHAR(50) DEFAULT 'Europe/Paris',
+    number_format VARCHAR(10) DEFAULT 'fr', -- fr, en
+    date_format VARCHAR(20) DEFAULT 'DD/MM/YYYY',
+    hide_balances BOOLEAN DEFAULT false,
+    analytics_enabled BOOLEAN DEFAULT true,
+    auto_lock_minutes INTEGER DEFAULT 5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notification preferences table
+CREATE TABLE notification_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    push_enabled BOOLEAN DEFAULT true,
+    transfer_received BOOLEAN DEFAULT true,
+    transfer_sent BOOLEAN DEFAULT true,
+    card_payment BOOLEAN DEFAULT true,
+    low_balance BOOLEAN DEFAULT true,
+    new_login BOOLEAN DEFAULT true,
+    password_change BOOLEAN DEFAULT true,
+    otp_via_sms BOOLEAN DEFAULT true,
+    weekly_report BOOLEAN DEFAULT false,
+    newsletter BOOLEAN DEFAULT false,
+    promotions BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for preferences
+CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
+CREATE INDEX idx_notification_prefs_user_id ON notification_preferences(user_id);
 
 -- Audit logs table
 CREATE TABLE audit_logs (

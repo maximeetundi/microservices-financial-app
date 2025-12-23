@@ -217,6 +217,22 @@ export const userAPI = {
         if (query.phone) params.append('phone', query.phone)
         return api.get(`/auth-service/api/v1/users/lookup?${params.toString()}`)
     },
+
+    // KYC
+    getKYCStatus: () => api.get('/auth-service/api/v1/users/kyc/status'),
+    uploadKYCDocument: (formData: FormData) =>
+        api.post('/auth-service/api/v1/users/kyc/documents', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }),
+    getKYCDocuments: () => api.get('/auth-service/api/v1/users/kyc/documents'),
+
+    // Preferences
+    getPreferences: () => api.get('/auth-service/api/v1/users/preferences'),
+    updatePreferences: (data: any) => api.put('/auth-service/api/v1/users/preferences', data),
+
+    // Notification Preferences
+    getNotificationPrefs: () => api.get('/auth-service/api/v1/users/notifications/preferences'),
+    updateNotificationPrefs: (data: any) => api.put('/auth-service/api/v1/users/notifications/preferences', data),
 }
 
 // ========== Wallets ==========

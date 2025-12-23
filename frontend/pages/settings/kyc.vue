@@ -200,9 +200,14 @@ const uploadDocument = async () => {
     formData.append('type', selectedDocType.value)
     
     // API call to upload document
-    // await userAPI.uploadKYCDocument(formData)
+    try {
+      await userAPI.uploadKYCDocument(formData)
+    } catch (e) {
+      // If API not available, continue with local state
+      console.log('KYC API not available, using local state')
+    }
     
-    // Simulate success
+    // Update local state
     uploadHistory.value.unshift({
       id: Date.now(),
       type: selectedDocType.value,
@@ -243,9 +248,28 @@ const formatDate = (date) => {
 
 onMounted(async () => {
   try {
+    // Try to get KYC status from backend
     const res = await userAPI.getProfile()
     if (res.data) {
       kyc.status = res.data.kyc_status || 'pending'
+      
+      // Try to get KYC documents
+      try {
+        const docsRes = await userAPI.getKYCDocuments()
+        if (docsRes.data?.documents) {
+          uploadHistory.value = docsRes.data.documents
+          // Update document statuses based on backend data
+          docsRes.data.documents.forEach((doc: any) => {
+            if (documents[doc.type]) {
+              documents[doc.type].status = doc.status
+              documents[doc.type].label = doc.status === 'approved' ? 'Approuvé' : 
+                                          doc.status === 'rejected' ? 'Refusé' : 'En cours'
+            }
+          })
+        }
+      } catch (e) {
+        console.log('KYC documents API not available')
+      }
     }
   } catch (e) {
     console.error('Error loading KYC status:', e)

@@ -40,6 +40,7 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db, redisClient)
+	prefsRepo := repository.NewPreferencesRepository(db)
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, sessionRepo, cfg, mqChannel)
@@ -50,6 +51,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
+	prefsHandler := handlers.NewPreferencesHandler(prefsRepo)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -124,6 +126,19 @@ func main() {
              users.POST("/pin/setup", authHandler.SetPin)
              users.POST("/pin/verify", authHandler.VerifyPin)
              users.POST("/pin/change", authHandler.ChangePin)
+
+             // User Preferences
+             users.GET("/preferences", prefsHandler.GetPreferences)
+             users.PUT("/preferences", prefsHandler.UpdatePreferences)
+
+             // Notification Preferences
+             users.GET("/notifications/preferences", prefsHandler.GetNotificationPrefs)
+             users.PUT("/notifications/preferences", prefsHandler.UpdateNotificationPrefs)
+
+             // KYC
+             users.GET("/kyc/status", prefsHandler.GetKYCStatus)
+             users.GET("/kyc/documents", prefsHandler.GetKYCDocuments)
+             users.POST("/kyc/documents", prefsHandler.UploadKYCDocument)
 		}
 		
 		// Restore original root for backward compat if needed? No, user wants paradigm fix.

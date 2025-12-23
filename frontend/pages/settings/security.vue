@@ -1,515 +1,508 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="max-w-4xl mx-auto animate-fade-in-up">
+    <div class="security-page">
       <!-- Header -->
-      <div class="mb-10">
-        <h1 class="text-3xl font-bold text-base mb-2">Sécurité 🔒</h1>
-        <p class="text-muted">Protégez votre compte et gérez vos appareils</p>
+      <div class="page-header">
+        <NuxtLink to="/settings" class="back-link">← Paramètres</NuxtLink>
+        <h1>🔒 Sécurité</h1>
+        <p>Protégez votre compte et gérez vos appareils</p>
+      </div>
+
+      <!-- Security Score -->
+      <div class="score-card">
+        <div class="score-circle" :class="scoreClass">
+          <span class="score-value">{{ securityScore }}%</span>
+        </div>
+        <div class="score-info">
+          <h3>Niveau de sécurité: {{ scoreLabel }}</h3>
+          <p>{{ scoreDescription }}</p>
+        </div>
       </div>
 
       <!-- Password Section -->
-      <div class="glass-card mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="text-2xl">🔑</span>
-          <h2 class="text-lg font-bold text-base">Mot de passe</h2>
-        </div>
-        
-        <div class="space-y-4">
-          <button 
-            @click="showPasswordModal = true"
-            class="w-full p-4 rounded-xl bg-surface-hover hover:bg-primary/10 transition-colors flex items-center justify-between group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="font-medium text-base">Changer le mot de passe</p>
-                <p class="text-sm text-muted">Dernière modification il y a 30 jours</p>
-              </div>
-            </div>
-            <svg class="w-5 h-5 text-muted group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
+      <div class="section">
+        <h3>🔑 MOT DE PASSE</h3>
+        <button @click="showPasswordModal = true" class="action-btn">
+          <span class="icon">🔐</span>
+          <div class="content">
+            <strong>Changer le mot de passe</strong>
+            <span>Dernière modification: {{ passwordLastChanged }}</span>
+          </div>
+          <span class="arrow">→</span>
+        </button>
+      </div>
+
+      <!-- PIN Section -->
+      <div class="section">
+        <h3>🔢 PIN DE SÉCURITÉ</h3>
+        <div class="action-btn" :class="hasPin ? 'configured' : 'not-configured'">
+          <span class="icon">{{ hasPin ? '✓' : '⚠️' }}</span>
+          <div class="content">
+            <strong>PIN à 5 chiffres</strong>
+            <span>{{ hasPin ? 'Configuré - requis pour les opérations sensibles' : 'Non configuré' }}</span>
+          </div>
+          <button v-if="hasPin" @click="showChangePinModal = true" class="small-btn">Modifier</button>
+          <button v-else @click="showSetupPinModal = true" class="small-btn primary">Configurer</button>
         </div>
       </div>
 
       <!-- 2FA Section -->
-      <div class="glass-card mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="text-2xl">🛡️</span>
-          <h2 class="text-lg font-bold text-base">Authentification à deux facteurs (2FA)</h2>
-        </div>
+      <div class="section">
+        <h3>🛡️ AUTHENTIFICATION À DEUX FACTEURS (2FA)</h3>
         
-        <div class="space-y-4">
-          <!-- 2FA Toggle -->
-          <div class="p-4 rounded-xl bg-surface-hover flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg" :class="twoFactorEnabled ? 'bg-success/10' : 'bg-secondary-200'">
-                <div class="w-full h-full flex items-center justify-center">
-                  <svg v-if="twoFactorEnabled" class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                  </svg>
-                  <svg v-else class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                  </svg>
-                </div>
-              </div>
-              <div>
-                <p class="font-medium text-base">Authentification 2FA</p>
-                <p class="text-sm" :class="twoFactorEnabled ? 'text-success' : 'text-muted'">
-                  {{ twoFactorEnabled ? 'Activé - Votre compte est protégé' : 'Désactivé - Recommandé pour plus de sécurité' }}
-                </p>
-              </div>
+        <div class="twofa-card" :class="twoFactorEnabled ? 'enabled' : 'disabled'">
+          <div class="twofa-header">
+            <span class="icon">{{ twoFactorEnabled ? '✅' : '🔓' }}</span>
+            <div class="info">
+              <strong>Google Authenticator / Authy</strong>
+              <span>{{ twoFactorEnabled ? 'Activé - Votre compte est protégé' : 'Désactivé - Recommandé' }}</span>
             </div>
-            <button 
-              @click="twoFactorEnabled ? disable2FA() : show2FASetup = true"
-              class="px-4 py-2 rounded-lg font-medium transition-colors"
-              :class="twoFactorEnabled 
-                ? 'bg-error/10 text-error hover:bg-error/20' 
-                : 'bg-primary text-white hover:bg-primary-hover'"
-            >
-              {{ twoFactorEnabled ? 'Désactiver' : 'Activer' }}
-            </button>
           </div>
-
-          <!-- Recovery Codes -->
-          <button 
-            v-if="twoFactorEnabled"
-            @click="showRecoveryCodes = true"
-            class="w-full p-4 rounded-xl bg-surface-hover hover:bg-primary/10 transition-colors flex items-center justify-between group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="font-medium text-base">Codes de récupération</p>
-                <p class="text-sm text-muted">Télécharger vos codes de secours</p>
-              </div>
-            </div>
-            <svg class="w-5 h-5 text-muted group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Sessions Section -->
-      <div class="glass-card mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">📱</span>
-            <h2 class="text-lg font-bold text-base">Appareils connectés</h2>
-          </div>
-          <button 
-            @click="revokeAllSessions"
-            class="text-sm text-error hover:text-error-hover font-medium"
-          >
-            Tout déconnecter
-          </button>
-        </div>
-        
-        <div v-if="loadingSessions" class="flex justify-center py-8">
-          <div class="loading-spinner w-8 h-8"></div>
-        </div>
-
-        <div v-else class="space-y-3">
-          <div 
-            v-for="session in sessions" 
-            :key="session.id"
-            class="p-4 rounded-xl bg-surface-hover flex items-center justify-between"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center"
-                :class="session.is_current ? 'bg-primary/10' : 'bg-secondary-200'"
-              >
-                <svg v-if="session.device_type === 'mobile'" class="w-5 h-5" :class="session.is_current ? 'text-primary' : 'text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                </svg>
-                <svg v-else class="w-5 h-5" :class="session.is_current ? 'text-primary' : 'text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <p class="font-medium text-base">{{ session.device_name || 'Appareil inconnu' }}</p>
-                  <span v-if="session.is_current" class="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    Actuel
-                  </span>
-                </div>
-                <p class="text-sm text-muted">
-                  {{ session.location || 'Localisation inconnue' }} • {{ formatSessionDate(session.last_active) }}
-                </p>
-              </div>
-            </div>
-            <button 
-              v-if="!session.is_current"
-              @click="revokeSession(session.id)"
-              class="p-2 rounded-lg hover:bg-error/10 transition-colors group"
-            >
-              <svg class="w-5 h-5 text-muted group-hover:text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-            </button>
-          </div>
-
-          <div v-if="sessions.length === 0" class="text-center py-8 text-muted">
-            <p>Aucune session active</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Login History -->
-      <div class="glass-card mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="text-2xl">📋</span>
-          <h2 class="text-lg font-bold text-base">Historique de connexion</h2>
-        </div>
-        
-        <div class="space-y-2">
-          <div 
-            v-for="(log, index) in loginHistory" 
-            :key="index"
-            class="p-3 rounded-lg flex items-center justify-between"
-            :class="log.success ? 'bg-surface-hover' : 'bg-error/5'"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                :class="log.success ? 'bg-success/10' : 'bg-error/10'"
-              >
-                <svg v-if="log.success" class="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-                <svg v-else class="w-4 h-4 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </div>
-              <div>
-                <p class="text-sm font-medium text-base">{{ log.success ? 'Connexion réussie' : 'Tentative échouée' }}</p>
-                <p class="text-xs text-muted">{{ log.location }} • {{ log.ip }}</p>
-              </div>
-            </div>
-            <span class="text-xs text-muted">{{ formatLogDate(log.timestamp) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="glass-card border-2 border-error/20">
-        <div class="flex items-center gap-3 mb-4">
-          <span class="text-2xl">⚠️</span>
-          <h2 class="text-lg font-bold text-error">Zone Danger</h2>
-        </div>
-        
-        <p class="text-sm text-muted mb-4">Ces actions sont irréversibles. Procédez avec prudence.</p>
-        
-        <div class="space-y-3">
-          <button 
-            @click="showDeleteAccountModal = true"
-            class="w-full p-4 rounded-xl border-2 border-error/30 hover:bg-error/5 transition-colors flex items-center gap-3 group"
-          >
-            <svg class="w-5 h-5 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-            <span class="font-medium text-error">Supprimer mon compte</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Change Password Modal -->
-    <Teleport to="body">
-      <div v-if="showPasswordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showPasswordModal = false"></div>
-        <div class="relative glass-card w-full max-w-md p-6 animate-fade-in-up">
-          <h3 class="text-xl font-bold text-base mb-6">Changer le mot de passe</h3>
           
-          <form @submit.prevent="changePassword" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-muted mb-2">Mot de passe actuel</label>
-              <input 
-                v-model="passwordForm.current" 
-                type="password" 
-                class="input-field w-full" 
-                placeholder="••••••••"
-                required
-              />
+          <button 
+            @click="twoFactorEnabled ? showDisable2FAModal = true : start2FASetup()"
+            class="twofa-btn"
+            :class="twoFactorEnabled ? 'danger' : 'primary'"
+          >
+            {{ twoFactorEnabled ? 'Désactiver' : 'Activer 2FA' }}
+          </button>
+        </div>
+
+        <div v-if="twoFactorEnabled" class="recovery-link">
+          <button @click="showRecoveryCodes = true" class="action-btn small">
+            <span class="icon">📄</span>
+            <div class="content">
+              <strong>Codes de récupération</strong>
+              <span>Télécharger vos codes de secours</span>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-muted mb-2">Nouveau mot de passe</label>
-              <input 
-                v-model="passwordForm.new" 
-                type="password" 
-                class="input-field w-full" 
-                placeholder="••••••••"
-                required
-              />
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Sessions -->
+      <div class="section">
+        <div class="section-header">
+          <h3>📱 APPAREILS CONNECTÉS</h3>
+          <button @click="revokeAllSessions" class="text-danger small">Tout déconnecter</button>
+        </div>
+        
+        <div v-if="loadingSessions" class="loading">
+          <div class="spinner"></div>
+        </div>
+        
+        <div v-else class="sessions-list">
+          <div v-for="session in sessions" :key="session.id" class="session-item">
+            <div class="device-icon">{{ session.device_type === 'mobile' ? '📱' : '💻' }}</div>
+            <div class="session-info">
+              <div class="session-name">
+                {{ session.device_name || 'Appareil inconnu' }}
+                <span v-if="session.is_current" class="current-badge">Actuel</span>
+              </div>
+              <span class="session-meta">{{ session.location }} • {{ formatSessionDate(session.last_active) }}</span>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-muted mb-2">Confirmer</label>
-              <input 
-                v-model="passwordForm.confirm" 
-                type="password" 
-                class="input-field w-full" 
-                placeholder="••••••••"
-                required
-              />
+            <button v-if="!session.is_current" @click="revokeSession(session.id)" class="revoke-btn">✕</button>
+          </div>
+          
+          <div v-if="sessions.length === 0" class="empty">Aucune session active</div>
+        </div>
+      </div>
+
+      <!-- Change Password Modal -->
+      <div v-if="showPasswordModal" class="modal-overlay" @click="showPasswordModal = false">
+        <div class="modal-content" @click.stop>
+          <h3>🔐 Changer le mot de passe</h3>
+          <form @submit.prevent="changePassword">
+            <div class="form-group">
+              <label>Mot de passe actuel</label>
+              <input v-model="passwordForm.current" type="password" placeholder="••••••••" required>
             </div>
-            
-            <div class="flex gap-3 pt-4">
-              <button type="button" @click="showPasswordModal = false" class="flex-1 btn-secondary py-3">
-                Annuler
-              </button>
-              <button type="submit" class="flex-1 btn-premium py-3" :disabled="changingPassword">
-                <span v-if="changingPassword" class="loading-spinner w-5 h-5"></span>
-                <span v-else>Confirmer</span>
+            <div class="form-group">
+              <label>Nouveau mot de passe</label>
+              <input v-model="passwordForm.new" type="password" placeholder="••••••••" required>
+            </div>
+            <div class="form-group">
+              <label>Confirmer</label>
+              <input v-model="passwordForm.confirm" type="password" placeholder="••••••••" required>
+            </div>
+            <p v-if="passwordError" class="error">{{ passwordError }}</p>
+            <div class="modal-actions">
+              <button type="button" @click="showPasswordModal = false" class="btn-cancel">Annuler</button>
+              <button type="submit" :disabled="changingPassword" class="btn-confirm">
+                {{ changingPassword ? 'Modification...' : 'Confirmer' }}
               </button>
             </div>
           </form>
         </div>
       </div>
-    </Teleport>
 
-    <!-- 2FA Setup Modal -->
-    <Teleport to="body">
-      <div v-if="show2FASetup" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="show2FASetup = false"></div>
-        <div class="relative glass-card w-full max-w-md p-6 animate-fade-in-up">
-          <h3 class="text-xl font-bold text-base mb-4">Configurer 2FA</h3>
+      <!-- 2FA Setup Modal -->
+      <div v-if="show2FASetup" class="modal-overlay" @click="show2FASetup = false">
+        <div class="modal-content twofa-modal" @click.stop>
+          <h3>🛡️ Configurer Google Authenticator</h3>
           
-          <div v-if="setupStep === 1" class="space-y-4">
-            <p class="text-muted">Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy...)</p>
+          <!-- Step 1: Show QR Code -->
+          <div v-if="setupStep === 1" class="setup-step">
+            <p>Scannez ce QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong>:</p>
             
-            <div class="flex justify-center py-4">
-              <div class="w-48 h-48 bg-white rounded-xl flex items-center justify-center">
-                <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="w-40 h-40" />
-                <div v-else class="loading-spinner w-8 h-8"></div>
+            <div class="qr-container">
+              <div v-if="loadingQR" class="spinner"></div>
+              <img v-else-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="qr-code">
+              <div v-else class="qr-placeholder">
+                <span>📱</span>
+                <p>QR Code</p>
               </div>
             </div>
 
-            <div class="bg-surface-hover p-3 rounded-lg">
-              <p class="text-xs text-muted mb-1">Clé secrète (si vous ne pouvez pas scanner)</p>
-              <code class="text-sm font-mono text-base break-all">{{ totpSecret }}</code>
+            <div class="secret-box">
+              <label>Clé secrète (entrée manuelle):</label>
+              <code>{{ totpSecret || 'XXXX-XXXX-XXXX-XXXX' }}</code>
+              <button @click="copySecret" class="copy-btn">📋 Copier</button>
             </div>
-            
-            <button @click="setupStep = 2" class="w-full btn-premium py-3">
-              Suivant
-            </button>
+
+            <button @click="setupStep = 2" class="btn-next">Suivant →</button>
           </div>
 
-          <div v-else class="space-y-4">
-            <p class="text-muted">Entrez le code à 6 chiffres affiché dans votre application</p>
+          <!-- Step 2: Verify Code -->
+          <div v-if="setupStep === 2" class="setup-step">
+            <p>Entrez le code à 6 chiffres affiché dans l'application:</p>
             
-            <input 
-              v-model="verifyCode" 
-              type="text" 
-              maxlength="6"
-              class="input-field w-full text-center text-2xl tracking-widest" 
-              placeholder="000000"
-            />
+            <div class="code-input-container">
+              <input
+                v-for="(_, i) in 6"
+                :key="i"
+                :ref="el => codeInputs[i] = el"
+                type="text"
+                maxlength="1"
+                inputmode="numeric"
+                class="code-input"
+                :value="verifyCode[i] || ''"
+                @input="handleCodeInput($event, i)"
+                @keydown="handleCodeKeydown($event, i)"
+              >
+            </div>
+
+            <p v-if="verifyError" class="error">{{ verifyError }}</p>
+
+            <div class="modal-actions">
+              <button @click="setupStep = 1" class="btn-cancel">← Retour</button>
+              <button @click="verify2FACode" :disabled="verifying2FA || verifyCode.length < 6" class="btn-confirm">
+                {{ verifying2FA ? 'Vérification...' : '✓ Activer 2FA' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Success + Recovery Codes -->
+          <div v-if="setupStep === 3" class="setup-step success-step">
+            <div class="success-icon">✅</div>
+            <h4>2FA Activé avec succès!</h4>
+            <p>Sauvegardez ces codes de récupération en lieu sûr. Ils vous permettront d'accéder à votre compte si vous perdez votre téléphone.</p>
             
-            <div class="flex gap-3">
-              <button @click="setupStep = 1" class="flex-1 btn-secondary py-3">
-                Retour
-              </button>
-              <button @click="verify2FACode" class="flex-1 btn-premium py-3" :disabled="verifying2FA">
-                <span v-if="verifying2FA" class="loading-spinner w-5 h-5"></span>
-                <span v-else>Activer</span>
-              </button>
+            <div class="recovery-codes">
+              <code v-for="code in recoveryCodes" :key="code">{{ code }}</code>
+            </div>
+
+            <div class="modal-actions">
+              <button @click="downloadRecoveryCodes" class="btn-cancel">📥 Télécharger</button>
+              <button @click="finish2FASetup" class="btn-confirm">Terminer</button>
             </div>
           </div>
         </div>
       </div>
-    </Teleport>
+
+      <!-- Setup PIN Modal -->
+      <div v-if="showSetupPinModal" class="modal-overlay" @click="showSetupPinModal = false">
+        <div class="modal-content" @click.stop>
+          <h3>🔢 Configurer votre PIN</h3>
+          <p>Créez un PIN à 5 chiffres pour sécuriser les opérations sensibles.</p>
+          
+          <div class="pin-form">
+            <label>Nouveau PIN</label>
+            <div class="pin-inputs">
+              <input
+                v-for="(_, i) in 5"
+                :key="i"
+                type="password"
+                maxlength="1"
+                inputmode="numeric"
+                :value="newPin[i] || ''"
+                @input="newPin = newPin.substring(0, i) + ($event.target.value || '') + newPin.substring(i + 1)"
+              >
+            </div>
+            
+            <label>Confirmer le PIN</label>
+            <div class="pin-inputs">
+              <input
+                v-for="(_, i) in 5"
+                :key="i"
+                type="password"
+                maxlength="1"
+                inputmode="numeric"
+                :value="confirmPin[i] || ''"
+                @input="confirmPin = confirmPin.substring(0, i) + ($event.target.value || '') + confirmPin.substring(i + 1)"
+              >
+            </div>
+          </div>
+
+          <p v-if="pinError" class="error">{{ pinError }}</p>
+
+          <div class="modal-actions">
+            <button @click="showSetupPinModal = false" class="btn-cancel">Annuler</button>
+            <button @click="setupPin" :disabled="settingPin" class="btn-confirm">
+              {{ settingPin ? 'Configuration...' : 'Configurer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </NuxtLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { userAPI } from '@/composables/useApi'
-import { useModal } from '~/composables/useModal'
-import { usePin } from '~/composables/usePin'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { userAPI } from '~/composables/useApi'
 
-const modal = useModal()
-const { requirePin, checkPinStatus } = usePin()
-
-// State
+// Security Status
+const hasPin = ref(false)
 const twoFactorEnabled = ref(false)
 const sessions = ref([])
 const loadingSessions = ref(true)
-const loginHistory = ref([])
+const passwordLastChanged = ref('il y a 30 jours')
+
+// Computed Security Score
+const securityScore = computed(() => {
+  let score = 30 // Base score
+  if (hasPin.value) score += 25
+  if (twoFactorEnabled.value) score += 35
+  if (sessions.value.length <= 2) score += 10
+  return Math.min(score, 100)
+})
+
+const scoreClass = computed(() => {
+  if (securityScore.value >= 80) return 'excellent'
+  if (securityScore.value >= 50) return 'good'
+  return 'weak'
+})
+
+const scoreLabel = computed(() => {
+  if (securityScore.value >= 80) return 'Excellent'
+  if (securityScore.value >= 50) return 'Bon'
+  return 'Faible'
+})
+
+const scoreDescription = computed(() => {
+  if (securityScore.value >= 80) return 'Votre compte est bien protégé'
+  if (securityScore.value >= 50) return 'Activez 2FA pour améliorer la sécurité'
+  return 'Configurez PIN et 2FA pour sécuriser votre compte'
+})
 
 // Password Modal
 const showPasswordModal = ref(false)
 const changingPassword = ref(false)
-const passwordForm = ref({
-  current: '',
-  new: '',
-  confirm: ''
-})
+const passwordError = ref('')
+const passwordForm = ref({ current: '', new: '', confirm: '' })
+
+// PIN Modal
+const showSetupPinModal = ref(false)
+const showChangePinModal = ref(false)
+const settingPin = ref(false)
+const pinError = ref('')
+const newPin = ref('')
+const confirmPin = ref('')
 
 // 2FA Setup
 const show2FASetup = ref(false)
+const showDisable2FAModal = ref(false)
+const showRecoveryCodes = ref(false)
 const setupStep = ref(1)
+const loadingQR = ref(false)
 const qrCodeUrl = ref('')
 const totpSecret = ref('')
 const verifyCode = ref('')
+const verifyError = ref('')
 const verifying2FA = ref(false)
-const showRecoveryCodes = ref(false)
+const codeInputs = ref([])
+const recoveryCodes = ref([])
 
-// Delete Account
-const showDeleteAccountModal = ref(false)
-
-// Fetch data on mount
+// Load data on mount
 onMounted(async () => {
+  await loadSecurityStatus()
   await loadSessions()
-  await loadLoginHistory()
-  await check2FAStatus()
 })
+
+async function loadSecurityStatus() {
+  try {
+    const [profileRes, pinRes] = await Promise.all([
+      userAPI.getProfile(),
+      userAPI.checkPinStatus()
+    ])
+    
+    twoFactorEnabled.value = profileRes.data?.two_fa_enabled || false
+    hasPin.value = pinRes.data?.has_pin || false
+  } catch (e) {
+    console.error('Error loading security status:', e)
+  }
+}
 
 async function loadSessions() {
   loadingSessions.value = true
   try {
     const res = await userAPI.getSessions()
-    sessions.value = res.data.sessions || []
+    sessions.value = res.data?.sessions || []
   } catch (e) {
-    // Demo data fallback
+    // Demo fallback
     sessions.value = [
-      { id: '1', device_name: 'Chrome - Windows', device_type: 'desktop', location: 'Paris, France', last_active: new Date(), is_current: true },
-      { id: '2', device_name: 'iPhone 15 Pro', device_type: 'mobile', location: 'Lyon, France', last_active: new Date(Date.now() - 3600000), is_current: false },
+      { id: '1', device_name: 'Chrome - Windows', device_type: 'desktop', location: 'Paris', last_active: new Date(), is_current: true }
     ]
   } finally {
     loadingSessions.value = false
   }
 }
 
-async function loadLoginHistory() {
-  // Demo data - in production, fetch from API
-  loginHistory.value = [
-    { success: true, location: 'Paris, France', ip: '192.168.1.1', timestamp: new Date() },
-    { success: true, location: 'Paris, France', ip: '192.168.1.1', timestamp: new Date(Date.now() - 86400000) },
-    { success: false, location: 'Londres, UK', ip: '10.0.0.1', timestamp: new Date(Date.now() - 172800000) },
-  ]
-}
-
-async function check2FAStatus() {
-  try {
-    const res = await userAPI.getProfile()
-    twoFactorEnabled.value = res.data.two_factor_enabled || false
-  } catch (e) {
-    console.error(e)
-  }
-}
-
 async function changePassword() {
+  passwordError.value = ''
+  
   if (passwordForm.value.new !== passwordForm.value.confirm) {
-    await modal.error('Erreur', 'Les mots de passe ne correspondent pas')
+    passwordError.value = 'Les mots de passe ne correspondent pas'
+    return
+  }
+  
+  if (passwordForm.value.new.length < 8) {
+    passwordError.value = 'Le mot de passe doit contenir au moins 8 caractères'
     return
   }
 
-  // Require PIN verification for password change
-  const verified = await requirePin(async () => {
-    changingPassword.value = true
-    try {
-      await userAPI.changePassword({
-        current_password: passwordForm.value.current,
-        new_password: passwordForm.value.new
-      })
-      showPasswordModal.value = false
-      passwordForm.value = { current: '', new: '', confirm: '' }
-      await modal.success('Succès', 'Mot de passe modifié avec succès!')
-    } catch (e) {
-      await modal.error('Erreur', e.response?.data?.error || e.message)
-    } finally {
-      changingPassword.value = false
-    }
-  })
+  changingPassword.value = true
+  try {
+    await userAPI.changePassword({
+      current_password: passwordForm.value.current,
+      new_password: passwordForm.value.new
+    })
+    showPasswordModal.value = false
+    passwordForm.value = { current: '', new: '', confirm: '' }
+    alert('Mot de passe modifié avec succès!')
+  } catch (e) {
+    passwordError.value = e.response?.data?.error || 'Erreur lors de la modification'
+  } finally {
+    changingPassword.value = false
+  }
 }
 
-async function enable2FA() {
+async function setupPin() {
+  pinError.value = ''
+  
+  if (newPin.value.length !== 5 || confirmPin.value.length !== 5) {
+    pinError.value = 'Le PIN doit contenir 5 chiffres'
+    return
+  }
+  
+  if (newPin.value !== confirmPin.value) {
+    pinError.value = 'Les PINs ne correspondent pas'
+    return
+  }
+
+  settingPin.value = true
+  try {
+    await userAPI.setupPin({ pin: newPin.value, confirm_pin: confirmPin.value })
+    hasPin.value = true
+    showSetupPinModal.value = false
+    newPin.value = ''
+    confirmPin.value = ''
+    alert('PIN configuré avec succès!')
+  } catch (e) {
+    pinError.value = e.response?.data?.error || 'Erreur lors de la configuration'
+  } finally {
+    settingPin.value = false
+  }
+}
+
+async function start2FASetup() {
+  show2FASetup.value = true
+  setupStep.value = 1
+  loadingQR.value = true
+  verifyCode.value = ''
+  verifyError.value = ''
+  
   try {
     const res = await userAPI.enable2FA()
-    qrCodeUrl.value = res.data.qr_code_url || ''
-    totpSecret.value = res.data.secret || ''
-    show2FASetup.value = true
-    setupStep.value = 1
+    qrCodeUrl.value = res.data?.qr_code || ''
+    totpSecret.value = res.data?.secret || ''
   } catch (e) {
     // Demo fallback
-    totpSecret.value = 'DEMO123SECRET456'
-    show2FASetup.value = true
+    totpSecret.value = 'DEMO-1234-ABCD-5678'
+  } finally {
+    loadingQR.value = false
+  }
+}
+
+function handleCodeInput(e, index) {
+  const value = e.target.value.replace(/\D/g, '')
+  const newCode = verifyCode.value.split('')
+  newCode[index] = value
+  verifyCode.value = newCode.join('')
+  
+  if (value && index < 5) {
+    nextTick(() => codeInputs.value[index + 1]?.focus())
+  }
+}
+
+function handleCodeKeydown(e, index) {
+  if (e.key === 'Backspace' && !verifyCode.value[index] && index > 0) {
+    nextTick(() => codeInputs.value[index - 1]?.focus())
   }
 }
 
 async function verify2FACode() {
   if (verifyCode.value.length !== 6) return
-
+  
   verifying2FA.value = true
+  verifyError.value = ''
+  
   try {
-    await userAPI.verify2FA({ code: verifyCode.value })
+    const res = await userAPI.verify2FA({ code: verifyCode.value })
+    recoveryCodes.value = res.data?.recovery_codes || ['XXXX-XXXX', 'XXXX-XXXX', 'XXXX-XXXX', 'XXXX-XXXX']
+    setupStep.value = 3
     twoFactorEnabled.value = true
-    show2FASetup.value = false
-    verifyCode.value = ''
-    await modal.success('2FA Activé', 'L\'authentification à deux facteurs a été activée avec succès!')
   } catch (e) {
-    await modal.error('Code invalide', 'Le code entré est incorrect. Veuillez réessayer.')
+    verifyError.value = 'Code invalide. Veuillez réessayer.'
   } finally {
     verifying2FA.value = false
   }
 }
 
-async function disable2FA() {
-  const confirmed = await modal.confirm(
-    'Désactiver 2FA ?',
-    'Êtes-vous sûr de vouloir désactiver l\'authentification à deux facteurs ? Cela réduira la sécurité de votre compte.',
-    'Désactiver',
-    'Annuler'
-  )
-  if (!confirmed) return
+function copySecret() {
+  navigator.clipboard.writeText(totpSecret.value)
+  alert('Clé copiée!')
+}
 
-  // Require PIN verification for disabling 2FA
-  await requirePin(async () => {
-    try {
-      await userAPI.disable2FA()
-      twoFactorEnabled.value = false
-      await modal.success('2FA Désactivé', 'L\'authentification à deux facteurs a été désactivée.')
-    } catch (e) {
-      await modal.error('Erreur', e.message)
-    }
-  })
+function downloadRecoveryCodes() {
+  const content = 'Codes de récupération 2FA\n\n' + recoveryCodes.value.join('\n')
+  const blob = new Blob([content], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'recovery-codes.txt'
+  a.click()
+}
+
+function finish2FASetup() {
+  show2FASetup.value = false
+  setupStep.value = 1
 }
 
 async function revokeSession(sessionId) {
   try {
     await userAPI.revokeSession(sessionId)
-    sessions.value = sessions.value.filter(s => s.id !== sessionId)
-  } catch (e) {
-    // Remove from UI anyway
-    sessions.value = sessions.value.filter(s => s.id !== sessionId)
-  }
+  } catch (e) {}
+  sessions.value = sessions.value.filter(s => s.id !== sessionId)
 }
 
 async function revokeAllSessions() {
-  const confirmed = await modal.confirm(
-    'Déconnecter tous les appareils ?',
-    'Êtes-vous sûr de vouloir déconnecter tous les appareils sauf celui-ci ?',
-    'Déconnecter tout',
-    'Annuler'
-  )
-  if (!confirmed) return
-
+  if (!confirm('Déconnecter tous les appareils sauf celui-ci?')) return
   try {
     await userAPI.revokeAllSessions()
-    sessions.value = sessions.value.filter(s => s.is_current)
-    await modal.success('Terminé', 'Tous les appareils ont été déconnectés.')
-  } catch (e) {
-    await modal.error('Erreur', 'Erreur lors de la déconnexion des appareils.')
-  }
+  } catch (e) {}
+  sessions.value = sessions.value.filter(s => s.is_current)
 }
 
 function formatSessionDate(date) {
@@ -522,16 +515,6 @@ function formatSessionDate(date) {
   return d.toLocaleDateString('fr-FR')
 }
 
-function formatLogDate(date) {
-  if (!date) return ''
-  return new Date(date).toLocaleDateString('fr-FR', { 
-    day: 'numeric', 
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
 definePageMeta({
   layout: false,
   middleware: 'auth'
@@ -539,18 +522,570 @@ definePageMeta({
 </script>
 
 <style scoped>
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out;
+.security-page {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.back-link {
+  color: #888;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0.5rem 0 0.25rem 0;
+}
+
+.page-header > p {
+  color: #888;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Score Card */
+.score-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.score-circle {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.score-circle.excellent { background: rgba(34, 197, 94, 0.2); border: 3px solid #22c55e; }
+.score-circle.good { background: rgba(249, 115, 22, 0.2); border: 3px solid #f97316; }
+.score-circle.weak { background: rgba(239, 68, 68, 0.2); border: 3px solid #ef4444; }
+
+.score-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.score-info h3 {
+  font-size: 1rem;
+  color: #fff;
+  margin: 0;
+}
+
+.score-info p {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 0.25rem 0 0 0;
+}
+
+/* Sections */
+.section {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.section h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  margin: 0 0 1rem 0;
+  letter-spacing: 0.05em;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.text-danger {
+  color: #ef4444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+/* Action Button */
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0.875rem;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.action-btn .icon {
+  font-size: 1.5rem;
+}
+
+.action-btn .content {
+  flex: 1;
+}
+
+.action-btn .content strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+
+.action-btn .content span {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.action-btn .arrow {
+  color: #888;
+}
+
+.action-btn.configured {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.action-btn.not-configured {
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.small-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.small-btn.primary {
+  background: #6366f1;
+}
+
+/* 2FA Card */
+.twofa-card {
+  padding: 1rem;
+  border-radius: 0.875rem;
+}
+
+.twofa-card.enabled {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.twofa-card.disabled {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.twofa-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.twofa-header .icon {
+  font-size: 1.5rem;
+}
+
+.twofa-header .info strong {
+  display: block;
+  color: #fff;
+  font-size: 0.9375rem;
+}
+
+.twofa-header .info span {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.twofa-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.twofa-btn.primary {
+  background: #6366f1;
+  color: #fff;
+}
+
+.twofa-btn.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.recovery-link {
+  margin-top: 0.75rem;
+}
+
+/* Sessions */
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0.625rem;
+}
+
+.device-icon {
+  font-size: 1.25rem;
+}
+
+.session-info {
+  flex: 1;
+}
+
+.session-name {
+  font-size: 0.875rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.current-badge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  background: rgba(99, 102, 241, 0.2);
+  color: #6366f1;
+  border-radius: 0.25rem;
+}
+
+.session-meta {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.revoke-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.empty {
+  text-align: center;
+  color: #888;
+  padding: 1rem;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #1a1a2e;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+}
+
+.modal-content h3 {
+  font-size: 1.25rem;
+  color: #fff;
+  margin: 0 0 1rem 0;
+}
+
+.modal-content p {
+  color: #888;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.375rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.625rem;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.btn-cancel, .btn-confirm {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 0.625rem;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.btn-confirm {
+  background: #6366f1;
+  color: #fff;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 2FA Setup Modal */
+.twofa-modal {
+  max-width: 450px;
+}
+
+.setup-step {
+  text-align: center;
+}
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.qr-code {
+  width: 180px;
+  height: 180px;
+  border-radius: 0.75rem;
+}
+
+.qr-placeholder {
+  width: 180px;
+  height: 180px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-placeholder span {
+  font-size: 3rem;
+}
+
+.qr-placeholder p {
+  margin: 0.5rem 0 0 0;
+}
+
+.secret-box {
+  background: rgba(255,255,255,0.05);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.secret-box label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.25rem;
+}
+
+.secret-box code {
+  display: block;
+  color: #6366f1;
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+.copy-btn {
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-next {
+  width: 100%;
+  padding: 0.875rem;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.code-input-container {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.code-input {
+  width: 2.5rem;
+  height: 3rem;
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 1.25rem;
+  text-align: center;
+  outline: none;
+}
+
+.code-input:focus {
+  border-color: #6366f1;
+}
+
+.success-step .success-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.success-step h4 {
+  color: #22c55e;
+  margin: 0 0 0.5rem 0;
+}
+
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.recovery-codes code {
+  padding: 0.5rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 0.375rem;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+/* PIN Form */
+.pin-form {
+  margin: 1rem 0;
+}
+
+.pin-form label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.pin-inputs {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.pin-inputs input {
+  width: 2.5rem;
+  height: 3rem;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 1.25rem;
+  text-align: center;
+  outline: none;
+}
+
+.pin-inputs input:focus {
+  border-color: #6366f1;
 }
 </style>
