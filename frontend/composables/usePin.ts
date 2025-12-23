@@ -125,19 +125,30 @@ export function usePin() {
 
     // Execute pending action after successful verification
     const executePendingAction = async () => {
-        if (pinState.value.pendingAction) {
+        // Close modal FIRST
+        pinState.value.showSetupModal = false
+        pinState.value.showVerifyModal = false
+
+        const action = pinState.value.pendingAction
+        const callback = pinState.value.verifyCallback
+
+        // Clear state
+        pinState.value.pendingAction = null
+        pinState.value.verifyCallback = null
+
+        // Execute action if exists
+        if (action) {
             try {
-                await pinState.value.pendingAction()
+                await action()
             } catch (error) {
                 console.error('Pending action failed:', error)
             }
-            pinState.value.pendingAction = null
         }
-        if (pinState.value.verifyCallback) {
-            pinState.value.verifyCallback(true)
-            pinState.value.verifyCallback = null
+
+        // Call callback with success
+        if (callback) {
+            callback(true)
         }
-        closeModals()
     }
 
     return {
