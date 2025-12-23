@@ -18,80 +18,74 @@
       </span>
     </button>
 
-    <!-- Backdrop (click outside to close) -->
+    <!-- Modal Overlay -->
     <Teleport to="body">
-      <div v-if="isOpen" class="notification-backdrop" @click="isOpen = false"></div>
-    </Teleport>
-
-    <!-- Dropdown (teleported to body to avoid overflow issues) -->
-    <Teleport to="body">
-      <Transition name="dropdown">
-        <div 
-          v-if="isOpen" 
-          class="notification-dropdown"
-          :style="dropdownStyle"
-        >
-          <!-- Header -->
-          <div class="notification-header">
-            <h3 class="font-semibold text-base">Notifications</h3>
-            <button 
-              v-if="unreadCount > 0" 
-              @click="markAllRead" 
-              class="text-xs text-primary hover:underline whitespace-nowrap"
-            >
-              Tout marquer comme lu
-            </button>
-          </div>
-
-          <!-- Loading -->
-          <div v-if="loading" class="p-8 flex justify-center">
-            <div class="loading-spinner w-6 h-6"></div>
-          </div>
-
-          <!-- Empty State -->
-          <div v-else-if="notifications.length === 0" class="p-8 text-center">
-            <div class="text-4xl mb-2">🔔</div>
-            <p class="text-muted text-sm">Aucune notification</p>
-          </div>
-
-          <!-- Notification List -->
-          <div v-else class="notification-list">
-            <div 
-              v-for="notif in notifications" 
-              :key="notif.id"
-              @click="handleClick(notif)"
-              class="notification-item"
-              :class="{ 'unread': !notif.is_read }"
-            >
-              <div class="flex items-start gap-3">
-                <!-- Icon -->
-                <div 
-                  class="notification-icon"
-                  :class="getIconClass(notif.type)"
+      <Transition name="modal">
+        <div v-if="isOpen" class="notification-overlay" @click.self="isOpen = false">
+          <div class="notification-modal">
+            <!-- Header -->
+            <div class="notification-header">
+              <div class="header-left">
+                <div class="header-icon">🔔</div>
+                <h3 class="header-title">Notifications</h3>
+                <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
+              </div>
+              <div class="header-actions">
+                <button 
+                  v-if="unreadCount > 0" 
+                  @click="markAllRead" 
+                  class="mark-all-btn"
                 >
+                  ✓ Tout marquer lu
+                </button>
+                <button @click="isOpen = false" class="close-btn">✕</button>
+              </div>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loading" class="loading-state">
+              <div class="loading-spinner"></div>
+              <p>Chargement...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="notifications.length === 0" class="empty-state">
+              <div class="empty-icon">🔔</div>
+              <p class="empty-title">Aucune notification</p>
+              <p class="empty-subtitle">Vous serez notifié des nouvelles activités ici</p>
+            </div>
+
+            <!-- Notification List -->
+            <div v-else class="notification-list">
+              <div 
+                v-for="notif in notifications" 
+                :key="notif.id"
+                @click="handleClick(notif)"
+                class="notification-item"
+                :class="{ 'unread': !notif.is_read }"
+              >
+                <div class="notification-icon" :class="getIconClass(notif.type)">
                   {{ getIcon(notif.type) }}
                 </div>
-                <!-- Content -->
                 <div class="notification-content">
                   <p class="notification-title">{{ notif.title }}</p>
                   <p class="notification-message">{{ notif.message }}</p>
                   <p class="notification-time">{{ formatTime(notif.created_at) }}</p>
                 </div>
-                <!-- Unread dot -->
                 <div v-if="!notif.is_read" class="unread-dot"></div>
               </div>
             </div>
-          </div>
 
-          <!-- Footer -->
-          <div class="notification-footer">
-            <NuxtLink 
-              to="/notifications" 
-              class="block text-center text-sm text-primary hover:underline py-2"
-              @click="isOpen = false"
-            >
-              Voir toutes les notifications
-            </NuxtLink>
+            <!-- Footer -->
+            <div class="notification-footer">
+              <NuxtLink 
+                to="/notifications" 
+                class="view-all-link"
+                @click="isOpen = false"
+              >
+                Voir toutes les notifications →
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </Transition>
@@ -100,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { notificationAPI } from '~/composables/useApi'
 
 const isOpen = ref(false)
@@ -108,35 +102,13 @@ const loading = ref(false)
 const notifications = ref([])
 const unreadCount = ref(0)
 const bellButton = ref(null)
-const dropdownPosition = ref({ top: 0, right: 0 })
 
 let pollInterval = null
 
-const dropdownStyle = computed(() => ({
-  position: 'fixed',
-  top: `${dropdownPosition.value.top}px`,
-  right: `${dropdownPosition.value.right}px`,
-  zIndex: 9999
-}))
-
-const updateDropdownPosition = () => {
-  if (bellButton.value) {
-    const rect = bellButton.value.getBoundingClientRect()
-    dropdownPosition.value = {
-      top: rect.bottom + 8,
-      right: Math.max(16, window.innerWidth - rect.right)
-    }
-  }
-}
-
-const toggleDropdown = async () => {
+const toggleDropdown = () => {
   isOpen.value = !isOpen.value
-  if (isOpen.value) {
-    await nextTick()
-    updateDropdownPosition()
-    if (notifications.value.length === 0) {
-      fetchNotifications()
-    }
+  if (isOpen.value && notifications.value.length === 0) {
+    fetchNotifications()
   }
 }
 
@@ -198,13 +170,13 @@ const getIcon = (type) => {
 
 const getIconClass = (type) => {
   const classes = {
-    transfer: 'bg-green-500/20 text-green-500',
-    card: 'bg-purple-500/20 text-purple-500',
-    security: 'bg-red-500/20 text-red-500',
-    promotion: 'bg-yellow-500/20 text-yellow-500',
-    wallet: 'bg-blue-500/20 text-blue-500',
-    payment: 'bg-indigo-500/20 text-indigo-500',
-    default: 'bg-gray-500/20 text-gray-500'
+    transfer: 'icon-green',
+    card: 'icon-purple',
+    security: 'icon-red',
+    promotion: 'icon-yellow',
+    wallet: 'icon-blue',
+    payment: 'icon-indigo',
+    default: 'icon-gray'
   }
   return classes[type] || classes.default
 }
@@ -220,24 +192,22 @@ const formatTime = (date) => {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
-// Handle window resize
-const handleResize = () => {
-  if (isOpen.value) {
-    updateDropdownPosition()
+// Close on escape key
+const handleKeydown = (e) => {
+  if (e.key === 'Escape' && isOpen.value) {
+    isOpen.value = false
   }
 }
 
 onMounted(() => {
   fetchUnreadCount()
   pollInterval = setInterval(fetchUnreadCount, 30000)
-  window.addEventListener('resize', handleResize)
-  window.addEventListener('scroll', handleResize, true)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
-  window.removeEventListener('resize', handleResize)
-  window.removeEventListener('scroll', handleResize, true)
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -247,42 +217,167 @@ onUnmounted(() => {
   display: inline-block;
 }
 
-.notification-backdrop {
+/* Overlay - centered modal */
+.notification-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9998;
-  background: transparent;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 20px;
 }
 
-.notification-dropdown {
-  width: min(320px, calc(100vw - 32px));
-  max-height: min(400px, calc(100vh - 100px));
-  overflow: hidden;
+/* Modal container */
+.notification-modal {
+  width: 100%;
+  max-width: 450px;
+  max-height: calc(100vh - 40px);
+  background: linear-gradient(145deg, #1e1e2e 0%, #181825 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  background: var(--color-surface, #1a1a2e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
 }
 
+/* Header */
 .notification-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  flex-shrink: 0;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon {
+  font-size: 24px;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.unread-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mark-all-btn {
+  font-size: 12px;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.2);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mark-all-btn:hover {
+  background: rgba(99, 102, 241, 0.4);
+  color: #fff;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* Loading state */
+.loading-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #888;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.empty-subtitle {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Notification list */
 .notification-list {
   flex: 1;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  max-height: 400px;
 }
 
 .notification-item {
-  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 20px;
   cursor: pointer;
   transition: background 0.2s;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -301,81 +396,127 @@ onUnmounted(() => {
 }
 
 .notification-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   flex-shrink: 0;
 }
+
+.icon-green { background: rgba(34, 197, 94, 0.2); }
+.icon-purple { background: rgba(168, 85, 247, 0.2); }
+.icon-red { background: rgba(239, 68, 68, 0.2); }
+.icon-yellow { background: rgba(234, 179, 8, 0.2); }
+.icon-blue { background: rgba(59, 130, 246, 0.2); }
+.icon-indigo { background: rgba(99, 102, 241, 0.2); }
+.icon-gray { background: rgba(107, 114, 128, 0.2); }
 
 .notification-content {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
 }
 
 .notification-title {
-  font-weight: 500;
   font-size: 14px;
-  color: var(--color-text, #fff);
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .notification-message {
-  font-size: 12px;
-  color: var(--color-muted, #888);
+  font-size: 13px;
+  color: #888;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.4;
-  margin-top: 2px;
 }
 
 .notification-time {
   font-size: 11px;
-  color: var(--color-muted, #666);
+  color: #666;
   margin-top: 4px;
 }
 
 .unread-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--color-primary, #6366f1);
+  background: #6366f1;
   flex-shrink: 0;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
+/* Footer */
 .notification-footer {
-  padding: 8px 16px;
+  padding: 14px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  flex-shrink: 0;
+  text-align: center;
+}
+
+.view-all-link {
+  font-size: 14px;
+  color: #a5b4fc;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.view-all-link:hover {
+  color: #818cf8;
 }
 
 /* Transitions */
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.2s ease;
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
 }
 
-.dropdown-enter-from,
-.dropdown-leave-to {
+.modal-enter-from,
+.modal-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+}
+
+.modal-enter-from .notification-modal,
+.modal-leave-to .notification-modal {
+  transform: scale(0.9) translateY(-20px);
+  opacity: 0;
+}
+
+.modal-enter-active .notification-modal,
+.modal-leave-active .notification-modal {
+  transition: all 0.3s ease;
 }
 
 /* Mobile adjustments */
 @media (max-width: 480px) {
-  .notification-dropdown {
-    width: calc(100vw - 24px);
-    right: 12px !important;
+  .notification-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+  
+  .notification-modal {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 20px 20px 0 0;
+  }
+  
+  .header-actions {
+    gap: 4px;
+  }
+  
+  .mark-all-btn {
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }
 </style>
+
 
