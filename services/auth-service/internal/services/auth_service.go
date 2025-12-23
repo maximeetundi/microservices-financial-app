@@ -209,31 +209,40 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 }
 
 func (s *AuthService) RefreshToken(refreshToken string) (*models.LoginResponse, error) {
+	log.Printf("RefreshToken: Attempting to refresh with token (first 20 chars): %s...", refreshToken[:min(20, len(refreshToken))])
+	
 	// Get session by refresh token
 	session, err := s.sessionRepo.GetByRefreshToken(refreshToken)
 	if err != nil {
+		log.Printf("RefreshToken: Failed to get session by refresh token: %v", err)
 		return nil, fmt.Errorf("invalid refresh token")
 	}
+	log.Printf("RefreshToken: Found session ID=%s for user ID=%s", session.ID, session.UserID)
 
 	// Get user
 	user, err := s.userRepo.GetByID(session.UserID)
 	if err != nil {
+		log.Printf("RefreshToken: User not found for ID=%s: %v", session.UserID, err)
 		return nil, fmt.Errorf("user not found")
 	}
+	log.Printf("RefreshToken: Found user email=%s", user.Email)
 
 	// Check if user is still active
 	if !user.IsActive {
+		log.Printf("RefreshToken: User %s is deactivated", user.Email)
 		return nil, fmt.Errorf("account is deactivated")
 	}
 
 	// Generate new tokens
 	newAccessToken, err := s.generateAccessToken(user)
 	if err != nil {
+		log.Printf("RefreshToken: Failed to generate access token: %v", err)
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	newRefreshToken, err := s.generateRefreshToken()
 	if err != nil {
+		log.Printf("RefreshToken: Failed to generate refresh token: %v", err)
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
@@ -243,8 +252,10 @@ func (s *AuthService) RefreshToken(refreshToken string) (*models.LoginResponse, 
 	session.ExpiresAt = time.Now().Add(s.config.RefreshTokenExpiry)
 
 	if err := s.sessionRepo.Update(session); err != nil {
+		log.Printf("RefreshToken: Failed to update session: %v", err)
 		return nil, fmt.Errorf("failed to update session: %w", err)
 	}
+	log.Printf("RefreshToken: Successfully refreshed token for user %s", user.Email)
 
 	// Remove sensitive data
 	user.PasswordHash = ""

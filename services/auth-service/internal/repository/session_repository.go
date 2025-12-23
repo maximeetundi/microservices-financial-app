@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
@@ -95,18 +96,24 @@ func (r *SessionRepository) GetByToken(sessionToken string) (*models.Session, er
 func (r *SessionRepository) GetByRefreshToken(refreshToken string) (*models.Session, error) {
 	ctx := context.Background()
 	
+	log.Printf("GetByRefreshToken: Looking for token (first 20 chars): %s...", refreshToken[:min(20, len(refreshToken))])
+	
 	// Try Redis first
 	userID, err := r.redis.Get(ctx, "refresh:"+refreshToken).Result()
 	if err == nil {
+		log.Printf("GetByRefreshToken: Found in Redis for user ID=%s", userID)
 		// Get full session from database
 		return r.getByRefreshTokenFromDB(refreshToken, userID)
 	}
+	log.Printf("GetByRefreshToken: Not found in Redis (error: %v), falling back to DB", err)
 
 	// Fallback to PostgreSQL only
 	return r.getByRefreshTokenFromDB(refreshToken, "")
 }
 
 func (r *SessionRepository) getByRefreshTokenFromDB(refreshToken, userID string) (*models.Session, error) {
+	log.Printf("getByRefreshTokenFromDB: Querying DB for refresh token (first 20 chars): %s...", refreshToken[:min(20, len(refreshToken))])
+	
 	query := `
 		SELECT id, user_id, session_token, refresh_token, ip_address, user_agent,
 			   expires_at, is_active, created_at
@@ -123,11 +130,30 @@ func (r *SessionRepository) getByRefreshTokenFromDB(refreshToken, userID string)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// Check if it exists but is expired or inactive
+			checkQuery := `
+				SELECT id, is_active, expires_at, expires_at < NOW() as is_expired
+				FROM user_sessions 
+				WHERE refresh_token = $1
+			`
+			var id string
+			var isActive bool
+			var expiresAt time.Time
+			var isExpired bool
+			checkErr := r.db.QueryRow(checkQuery, refreshToken).Scan(&id, &isActive, &expiresAt, &isExpired)
+			if checkErr == nil {
+				log.Printf("getByRefreshTokenFromDB: Session found but not valid - ID=%s, is_active=%v, expires_at=%v, is_expired=%v", 
+					id, isActive, expiresAt, isExpired)
+			} else {
+				log.Printf("getByRefreshTokenFromDB: No session found with this refresh token at all")
+			}
 			return nil, fmt.Errorf("refresh token not found")
 		}
+		log.Printf("getByRefreshTokenFromDB: DB error: %v", err)
 		return nil, fmt.Errorf("failed to get session by refresh token: %w", err)
 	}
 
+	log.Printf("getByRefreshTokenFromDB: Found valid session ID=%s for user ID=%s", session.ID, session.UserID)
 	return &session, nil
 }
 
