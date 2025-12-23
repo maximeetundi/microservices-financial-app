@@ -189,17 +189,17 @@ export const userAPI = {
     getProfile: () => api.get('/auth-service/api/v1/users/profile'),
     updateProfile: (data: any) => api.put('/auth-service/api/v1/users/profile', data),
     changePassword: (data: { current_password: string, new_password: string }) =>
-        api.post('/auth-service/api/v1/auth/change-password', data),
+        api.post('/auth-service/api/v1/users/change-password', data),
 
-    // 2FA
-    enable2FA: () => api.post('/auth-service/api/v1/auth/2fa/enable'),
-    verify2FA: (data: { code: string }) => api.post('/auth-service/api/v1/auth/2fa/verify', data),
-    disable2FA: () => api.post('/auth-service/api/v1/auth/2fa/disable'),
+    // 2FA - routes are under /users/2fa/ in backend
+    enable2FA: () => api.post('/auth-service/api/v1/users/2fa/setup'),
+    verify2FA: (data: { code: string }) => api.post('/auth-service/api/v1/users/2fa/verify', data),
+    disable2FA: () => api.post('/auth-service/api/v1/users/2fa/disable'),
 
     // Sessions
-    getSessions: () => api.get('/auth-service/api/v1/auth/sessions'),
-    revokeSession: (sessionId: string) => api.delete(`/auth-service/api/v1/auth/sessions/${sessionId}`),
-    revokeAllSessions: () => api.delete('/auth-service/api/v1/auth/sessions'),
+    getSessions: () => api.get('/auth-service/api/v1/sessions'),
+    revokeSession: (sessionId: string) => api.delete(`/auth-service/api/v1/sessions/${sessionId}`),
+    revokeAllSessions: () => api.delete('/auth-service/api/v1/sessions'),
 
     // PIN (5-digit transaction security PIN)
     checkPinStatus: () => api.get('/auth-service/api/v1/users/pin/status'),
