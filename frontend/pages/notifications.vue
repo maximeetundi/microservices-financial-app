@@ -436,11 +436,17 @@ definePageMeta({
 </script>
 
 <style scoped>
+* {
+  box-sizing: border-box;
+}
+
 .notifications-page {
   min-height: 100vh;
   padding-bottom: 3rem;
+  width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Header Section */
@@ -526,13 +532,12 @@ definePageMeta({
 }
 
 .header-text h1 {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
   color: white;
   margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .header-text p {
@@ -596,6 +601,9 @@ definePageMeta({
   position: relative;
   z-index: 20;
   margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .stats-grid {
@@ -607,13 +615,15 @@ definePageMeta({
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
   background: var(--color-surface, #1a1a2e);
-  border-radius: 1rem;
+  border-radius: 0.875rem;
   border: 1px solid rgba(255,255,255,0.1);
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .stat-card:hover {
