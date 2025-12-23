@@ -240,14 +240,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useCountries } from '~/composables/useCountries'
 
 definePageMeta({ layout: false })
 
 const router = useRouter()
 const config = useRuntimeConfig()
-const { countries, getCurrencyByCountry } = useCountries()
+const { countries, getCurrencyByCountry, getDialCodeByCountry } = useCountries()
 const colorMode = useColorMode()
 
 const isDark = computed(() => colorMode.value === 'dark')
@@ -271,6 +271,17 @@ const form = ref({
   phone: '',
   password: '',
   confirm_password: ''
+})
+
+// Watch country selection to auto-fill phone dial code
+watch(() => form.value.country, (newCountry) => {
+  if (newCountry) {
+    const dialCode = getDialCodeByCountry(newCountry)
+    // Only auto-fill if phone is empty or just contains a dial code
+    if (!form.value.phone || form.value.phone.match(/^\+[\d-]+$/)) {
+      form.value.phone = dialCode + ' '
+    }
+  }
 })
 
 // Password strength
