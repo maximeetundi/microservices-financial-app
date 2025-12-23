@@ -25,6 +25,13 @@ class PushNotificationService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
+    // Skip on web - notifications not supported
+    if (kIsWeb) {
+      debugPrint('PushNotificationService: Web platform - skipping');
+      _isInitialized = true;
+      return;
+    }
+
     // Initialize local notifications
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(

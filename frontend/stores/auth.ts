@@ -40,8 +40,13 @@ export const useAuthStore = defineStore('auth', {
         return
       }
 
-      // Skip if already authenticated
+      // Skip if already authenticated with valid user data
       if (this.isAuthenticated && this.user) {
+        return
+      }
+
+      // Skip if already loading to prevent concurrent initialization
+      if (this.isLoading) {
         return
       }
 
@@ -57,14 +62,26 @@ export const useAuthStore = defineStore('auth', {
         // Sync to cookies for SSR middleware
         if (typeof document !== 'undefined') {
           document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Lax`
+          document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Lax`
         }
 
-        try {
-          await this.fetchUserProfile()
-        } catch (error) {
-          // Profile fetch failed but we still have valid tokens
-          // Don't logout here - the API interceptor will handle 401s
-          console.warn('Profile fetch failed, keeping auth state:', error)
+        // Only fetch profile if we don't already have user data
+        if (!this.user) {
+          try {
+            this.isLoading = true
+            await this.fetchUserProfile()
+          } catch (error: any) {
+            // Profile fetch failed - check if it's a 401 (token expired)
+            if (error.response?.status === 401) {
+              // Token is invalid, let the API interceptor handle refresh
+              console.warn('Profile fetch returned 401, token may need refresh')
+            } else {
+              // Other error - keep auth state, user can retry
+              console.warn('Profile fetch failed, keeping auth state:', error)
+            }
+          } finally {
+            this.isLoading = false
+          }
         }
       }
     },

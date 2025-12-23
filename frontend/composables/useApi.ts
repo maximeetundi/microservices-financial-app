@@ -38,13 +38,33 @@ api.interceptors.request.use((config) => {
     return config
 })
 
+// List of endpoints that should NOT trigger auto-logout on 401
+const AUTH_ENDPOINTS = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/forgot-password',
+    '/auth/reset-password'
+]
+
+// Check if a URL is an auth endpoint
+const isAuthEndpoint = (url: string): boolean => {
+    return AUTH_ENDPOINTS.some(endpoint => url.includes(endpoint))
+}
+
 // Response interceptor
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config
+        const requestUrl = originalRequest?.url || ''
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip 401 handling for auth endpoints to prevent logout loops
+        if (isAuthEndpoint(requestUrl)) {
+            return Promise.reject(error)
+        }
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isLoggingOut) {
             originalRequest._retry = true
 
             const refreshToken = localStorage.getItem('refreshToken')
@@ -54,28 +74,49 @@ api.interceptors.response.use(
                         refresh_token: refreshToken
                     })
                     const { access_token, refresh_token } = response.data
+
+                    // Update tokens in localStorage
                     localStorage.setItem('accessToken', access_token)
                     localStorage.setItem('refreshToken', refresh_token)
+
+                    // Update cookies for SSR compatibility
+                    if (typeof document !== 'undefined') {
+                        document.cookie = `accessToken=${access_token}; path=/; max-age=86400; SameSite=Lax`
+                        document.cookie = `refreshToken=${refresh_token}; path=/; max-age=604800; SameSite=Lax`
+                    }
+
                     originalRequest.headers.Authorization = `Bearer ${access_token}`
                     // Reset logout flag on successful refresh
                     isLoggingOut = false
                     return api(originalRequest)
-                } catch {
-                    // Prevent infinite loop - only redirect once
+                } catch (refreshError) {
+                    console.warn('Token refresh failed:', refreshError)
+                    // Only logout if not already logging out
                     if (!isLoggingOut) {
                         isLoggingOut = true
                         localStorage.removeItem('accessToken')
                         localStorage.removeItem('refreshToken')
+                        // Clear cookies too
+                        if (typeof document !== 'undefined') {
+                            document.cookie = 'accessToken=; path=/; max-age=0'
+                            document.cookie = 'refreshToken=; path=/; max-age=0'
+                        }
                         if (typeof window !== 'undefined') {
                             window.location.href = '/auth/login'
                         }
                     }
                 }
             } else if (!isLoggingOut) {
-                // No refresh token, redirect to login
+                // No refresh token available, must logout
+                console.warn('No refresh token available, logging out')
                 isLoggingOut = true
                 localStorage.removeItem('accessToken')
                 localStorage.removeItem('refreshToken')
+                // Clear cookies too
+                if (typeof document !== 'undefined') {
+                    document.cookie = 'accessToken=; path=/; max-age=0'
+                    document.cookie = 'refreshToken=; path=/; max-age=0'
+                }
                 if (typeof window !== 'undefined') {
                     window.location.href = '/auth/login'
                 }
