@@ -333,6 +333,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { userAPI } from '@/composables/useApi'
+import { useModal } from '~/composables/useModal'
+import { usePin } from '~/composables/usePin'
+
+const modal = useModal()
+const { requirePin, checkPinStatus } = usePin()
 
 // State
 const twoFactorEnabled = ref(false)
@@ -404,24 +409,27 @@ async function check2FAStatus() {
 
 async function changePassword() {
   if (passwordForm.value.new !== passwordForm.value.confirm) {
-    alert('Les mots de passe ne correspondent pas')
+    await modal.error('Erreur', 'Les mots de passe ne correspondent pas')
     return
   }
 
-  changingPassword.value = true
-  try {
-    await userAPI.changePassword({
-      current_password: passwordForm.value.current,
-      new_password: passwordForm.value.new
-    })
-    showPasswordModal.value = false
-    passwordForm.value = { current: '', new: '', confirm: '' }
-    alert('Mot de passe modifié avec succès!')
-  } catch (e) {
-    alert('Erreur: ' + (e.response?.data?.error || e.message))
-  } finally {
-    changingPassword.value = false
-  }
+  // Require PIN verification for password change
+  const verified = await requirePin(async () => {
+    changingPassword.value = true
+    try {
+      await userAPI.changePassword({
+        current_password: passwordForm.value.current,
+        new_password: passwordForm.value.new
+      })
+      showPasswordModal.value = false
+      passwordForm.value = { current: '', new: '', confirm: '' }
+      await modal.success('Succès', 'Mot de passe modifié avec succès!')
+    } catch (e) {
+      await modal.error('Erreur', e.response?.data?.error || e.message)
+    } finally {
+      changingPassword.value = false
+    }
+  })
 }
 
 async function enable2FA() {
@@ -447,24 +455,33 @@ async function verify2FACode() {
     twoFactorEnabled.value = true
     show2FASetup.value = false
     verifyCode.value = ''
-    alert('2FA activé avec succès!')
+    await modal.success('2FA Activé', 'L\'authentification à deux facteurs a été activée avec succès!')
   } catch (e) {
-    alert('Code invalide')
+    await modal.error('Code invalide', 'Le code entré est incorrect. Veuillez réessayer.')
   } finally {
     verifying2FA.value = false
   }
 }
 
 async function disable2FA() {
-  if (!confirm('Êtes-vous sûr de vouloir désactiver 2FA?')) return
+  const confirmed = await modal.confirm(
+    'Désactiver 2FA ?',
+    'Êtes-vous sûr de vouloir désactiver l\'authentification à deux facteurs ? Cela réduira la sécurité de votre compte.',
+    'Désactiver',
+    'Annuler'
+  )
+  if (!confirmed) return
 
-  try {
-    await userAPI.disable2FA()
-    twoFactorEnabled.value = false
-    alert('2FA désactivé')
-  } catch (e) {
-    alert('Erreur: ' + e.message)
-  }
+  // Require PIN verification for disabling 2FA
+  await requirePin(async () => {
+    try {
+      await userAPI.disable2FA()
+      twoFactorEnabled.value = false
+      await modal.success('2FA Désactivé', 'L\'authentification à deux facteurs a été désactivée.')
+    } catch (e) {
+      await modal.error('Erreur', e.message)
+    }
+  })
 }
 
 async function revokeSession(sessionId) {
@@ -478,14 +495,20 @@ async function revokeSession(sessionId) {
 }
 
 async function revokeAllSessions() {
-  if (!confirm('Déconnecter tous les appareils sauf celui-ci?')) return
+  const confirmed = await modal.confirm(
+    'Déconnecter tous les appareils ?',
+    'Êtes-vous sûr de vouloir déconnecter tous les appareils sauf celui-ci ?',
+    'Déconnecter tout',
+    'Annuler'
+  )
+  if (!confirmed) return
 
   try {
     await userAPI.revokeAllSessions()
     sessions.value = sessions.value.filter(s => s.is_current)
-    alert('Tous les appareils ont été déconnectés')
+    await modal.success('Terminé', 'Tous les appareils ont été déconnectés.')
   } catch (e) {
-    alert('Erreur lors de la déconnexion')
+    await modal.error('Erreur', 'Erreur lors de la déconnexion des appareils.')
   }
 }
 

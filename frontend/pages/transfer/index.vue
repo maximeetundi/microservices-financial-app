@@ -207,8 +207,12 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useModal } from '~/composables/useModal'
+import { usePin } from '~/composables/usePin'
 
 const { walletApi, userApi, transferApi } = useApi()
+const modal = useModal()
+const { requirePin, checkPinStatus } = usePin()
 
 const transferTypes = [
   { id: 'p2p', name: 'Interne (P2P)', icon: '👤' },
@@ -321,7 +325,8 @@ const lookupUser = async () => {
   }
 }
 
-const submitTransfer = async () => {
+// Execute the actual transfer (called after PIN verification)
+const executeTransfer = async () => {
   loading.value = true
   try {
     // Construct payload based on type
@@ -360,23 +365,42 @@ const submitTransfer = async () => {
         })
     }
 
-    // Show success message and redirect
+    // Show success message with custom modal
     const transferStatus = result?.data?.transfer?.status || 'initiated'
-    alert(`Transfert ${transferStatus === 'completed' ? 'effectué' : 'initié'} avec succès!`)
+    await modal.success(
+      'Transfert réussi ! 🎉',
+      `Votre transfert de ${formatMoney(form.value.amount, selectedWalletCurrency.value)} a été ${transferStatus === 'completed' ? 'effectué' : 'initié'} avec succès.`
+    )
     
     // Redirect to wallet page to see updated balance
     navigateTo('/wallet')
     
   } catch (e) {
     console.error(e)
-    alert('Erreur lors du transfert: ' + (e.response?.data?.error || e.message))
+    await modal.error(
+      'Échec du transfert',
+      e.response?.data?.error || e.message || 'Une erreur est survenue lors du transfert.'
+    )
   } finally {
     loading.value = false
   }
 }
 
+// Submit transfer - requires PIN verification first
+const submitTransfer = async () => {
+  // Require PIN verification before executing the transfer
+  const verified = await requirePin(executeTransfer)
+  
+  if (!verified) {
+    // User cancelled PIN verification
+    console.log('Transfer cancelled - PIN verification required')
+  }
+}
+
 onMounted(() => {
   fetchWallets()
+  // Check PIN status on mount
+  checkPinStatus()
 })
 
 definePageMeta({
