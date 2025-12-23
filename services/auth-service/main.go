@@ -118,6 +118,12 @@ func main() {
              users.POST("/2fa/setup", authHandler.Enable2FA)
              users.POST("/2fa/verify", authHandler.Verify2FA)
              users.POST("/2fa/disable", authHandler.Disable2FA)
+
+             // PIN routes (5-digit transaction security PIN)
+             users.GET("/pin/status", authHandler.CheckPinStatus)
+             users.POST("/pin/setup", authHandler.SetPin)
+             users.POST("/pin/verify", authHandler.VerifyPin)
+             users.POST("/pin/change", authHandler.ChangePin)
 		}
 		
 		// Restore original root for backward compat if needed? No, user wants paradigm fix.

@@ -24,6 +24,11 @@ CREATE TABLE users (
     last_login_at TIMESTAMP,
     failed_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
+    -- PIN fields (5-digit transaction security PIN)
+    pin_hash VARCHAR(255),
+    pin_set_at TIMESTAMP,
+    pin_failed_attempts INTEGER DEFAULT 0,
+    pin_locked_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -139,16 +139,32 @@
         </div>
       </div>
     </main>
+
+    <!-- Global Modals -->
+    <GlobalModal />
+    <PinSetupModal />
+    <PinVerifyModal />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { computed } from 'vue'
+import { usePin } from '~/composables/usePin'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
+const { checkPinStatus, hasPin, showPinSetup } = usePin()
+
+// Check PIN status on mount
+onMounted(async () => {
+  const hasPinSet = await checkPinStatus()
+  if (!hasPinSet) {
+    // Force PIN setup if user doesn't have one
+    showPinSetup()
+  }
+})
 
 const userName = computed(() => {
   if (authStore.user) {

@@ -435,3 +435,139 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
+
+// SetPin - Set up the 5-digit PIN (required after registration)
+func (h *AuthHandler) SetPin(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req models.SetPinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify PIN is 5 digits only
+	if len(req.Pin) != 5 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "PIN must be exactly 5 digits"})
+		return
+	}
+	for _, ch := range req.Pin {
+		if ch < '0' || ch > '9' {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PIN must contain only digits"})
+			return
+		}
+	}
+
+	// Confirm PIN match
+	if req.Pin != req.ConfirmPin {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "PINs do not match"})
+		return
+	}
+
+	err := h.authService.SetPin(userID.(string), req.Pin)
+	if err != nil {
+		if strings.Contains(err.Error(), "already set") {
+			c.JSON(http.StatusConflict, gin.H{"error": "PIN is already set. Use change PIN endpoint."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set PIN"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "PIN set successfully"})
+}
+
+// VerifyPin - Verify the PIN for sensitive actions
+func (h *AuthHandler) VerifyPin(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req models.VerifyPinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := h.authService.VerifyPin(userID.(string), req.Pin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify PIN"})
+		return
+	}
+
+	if !response.Valid {
+		status := http.StatusUnauthorized
+		if response.LockedUntil != nil {
+			status = http.StatusTooManyRequests
+		}
+		c.JSON(status, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// ChangePin - Change the PIN (requires current PIN)
+func (h *AuthHandler) ChangePin(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req models.ChangePinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify new PINs match
+	if req.NewPin != req.ConfirmPin {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "New PINs do not match"})
+		return
+	}
+
+	// Validate new PIN format
+	if len(req.NewPin) != 5 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "PIN must be exactly 5 digits"})
+		return
+	}
+
+	err := h.authService.ChangePin(userID.(string), req.CurrentPin, req.NewPin)
+	if err != nil {
+		if strings.Contains(err.Error(), "incorrect") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect current PIN"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change PIN"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "PIN changed successfully"})
+}
+
+// CheckPinStatus - Check if user has set their PIN
+func (h *AuthHandler) CheckPinStatus(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	hasPin, err := h.authService.HasPin(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check PIN status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"has_pin": hasPin,
+		"required": true,
+	})
+}

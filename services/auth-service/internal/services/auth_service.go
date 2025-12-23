@@ -464,3 +464,123 @@ func (s *AuthService) ChangePassword(userID, oldPassword, newPassword string) er
 	// Update
 	return s.userRepo.UpdatePassword(userID, newPassword)
 }
+
+// ======== PIN Management ========
+
+const (
+	MaxPinAttempts    = 3
+	PinLockoutMinutes = 15
+)
+
+// SetPin sets the 5-digit PIN for a user (first time setup)
+func (s *AuthService) SetPin(userID string, pin string) error {
+	// Check if PIN is already set
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	if user.PinHash != nil && *user.PinHash != "" {
+		return fmt.Errorf("PIN already set")
+	}
+
+	// Hash the PIN
+	pinHash, err := s.userRepo.HashPassword(pin)
+	if err != nil {
+		return fmt.Errorf("failed to hash PIN: %w", err)
+	}
+
+	// Save PIN
+	return s.userRepo.SetPin(userID, pinHash)
+}
+
+// VerifyPin verifies the user's PIN
+func (s *AuthService) VerifyPin(userID string, pin string) (*models.VerifyPinResponse, error) {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Check if PIN is set
+	if user.PinHash == nil || *user.PinHash == "" {
+		return &models.VerifyPinResponse{
+			Valid:   false,
+			Message: "PIN not set",
+		}, nil
+	}
+
+	// Check if locked
+	if user.PinLockedUntil != nil && time.Now().Before(*user.PinLockedUntil) {
+		return &models.VerifyPinResponse{
+			Valid:       false,
+			LockedUntil: user.PinLockedUntil,
+			Message:     "PIN is temporarily locked due to too many failed attempts",
+		}, nil
+	}
+
+	// Verify PIN
+	err = s.userRepo.VerifyPassword(*user.PinHash, pin)
+	if err != nil {
+		// Wrong PIN - increment attempts
+		newAttempts := user.PinFailedAttempts + 1
+		var lockUntil *time.Time
+
+		if newAttempts >= MaxPinAttempts {
+			t := time.Now().Add(time.Duration(PinLockoutMinutes) * time.Minute)
+			lockUntil = &t
+		}
+
+		s.userRepo.IncrementPinFailedAttempts(userID, newAttempts, lockUntil)
+
+		attemptsLeft := MaxPinAttempts - newAttempts
+		if attemptsLeft < 0 {
+			attemptsLeft = 0
+		}
+
+		return &models.VerifyPinResponse{
+			Valid:        false,
+			AttemptsLeft: attemptsLeft,
+			LockedUntil:  lockUntil,
+			Message:      "Incorrect PIN",
+		}, nil
+	}
+
+	// PIN correct - reset failed attempts
+	s.userRepo.ResetPinFailedAttempts(userID)
+
+	return &models.VerifyPinResponse{
+		Valid:   true,
+		Message: "PIN verified successfully",
+	}, nil
+}
+
+// ChangePin changes the user's PIN
+func (s *AuthService) ChangePin(userID string, currentPin string, newPin string) error {
+	// Verify current PIN first
+	response, err := s.VerifyPin(userID, currentPin)
+	if err != nil {
+		return err
+	}
+	if !response.Valid {
+		return fmt.Errorf("incorrect current PIN")
+	}
+
+	// Hash new PIN
+	pinHash, err := s.userRepo.HashPassword(newPin)
+	if err != nil {
+		return fmt.Errorf("failed to hash PIN: %w", err)
+	}
+
+	// Update PIN
+	return s.userRepo.SetPin(userID, pinHash)
+}
+
+// HasPin checks if a user has set their PIN
+func (s *AuthService) HasPin(userID string) (bool, error) {
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return false, err
+	}
+
+	return user.PinHash != nil && *user.PinHash != "", nil
+}

@@ -28,6 +28,13 @@ type User struct {
 	// Security fields
 	FailedAttempts int        `json:"-" db:"failed_attempts"`
 	LockedUntil    *time.Time `json:"-" db:"locked_until"`
+	
+	// PIN fields (5-digit PIN for transaction security)
+	PinHash           *string    `json:"-" db:"pin_hash"`
+	PinSetAt          *time.Time `json:"pin_set_at,omitempty" db:"pin_set_at"`
+	PinFailedAttempts int        `json:"-" db:"pin_failed_attempts"`
+	PinLockedUntil    *time.Time `json:"-" db:"pin_locked_until"`
+	HasPin            bool       `json:"has_pin" db:"-"` // Computed field, not in DB
 }
 
 type Session struct {
@@ -133,4 +140,30 @@ type AuditLog struct {
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" binding:"required"`
 	NewPassword     string `json:"new_password" binding:"required,min=8"`
+}
+
+// SetPinRequest for setting the 5-digit PIN
+type SetPinRequest struct {
+	Pin        string `json:"pin" binding:"required,len=5"`
+	ConfirmPin string `json:"confirm_pin" binding:"required,len=5"`
+}
+
+// VerifyPinRequest for verifying the PIN before sensitive actions
+type VerifyPinRequest struct {
+	Pin string `json:"pin" binding:"required,len=5"`
+}
+
+// VerifyPinResponse returned after PIN verification
+type VerifyPinResponse struct {
+	Valid          bool   `json:"valid"`
+	AttemptsLeft   int    `json:"attempts_left,omitempty"`
+	LockedUntil    *time.Time `json:"locked_until,omitempty"`
+	Message        string `json:"message,omitempty"`
+}
+
+// ChangePinRequest for changing the PIN
+type ChangePinRequest struct {
+	CurrentPin string `json:"current_pin" binding:"required,len=5"`
+	NewPin     string `json:"new_pin" binding:"required,len=5"`
+	ConfirmPin string `json:"confirm_pin" binding:"required,len=5"`
 }

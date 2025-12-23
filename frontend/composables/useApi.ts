@@ -3,10 +3,17 @@ import axios from 'axios'
 // Flag to prevent infinite redirect loop
 let isLoggingOut = false
 
-// Function to reset the logout flag (called after successful login)
+// Function to reset the logout and refresh flags (called after successful login)
 export const resetLogoutFlag = () => {
     isLoggingOut = false
+    // Also reset refresh state in case there was a pending refresh
+    isRefreshingGlobal = false
+    refreshSubscribersGlobal = []
 }
+
+// Global refresh state (declared here, used in interceptor)
+let isRefreshingGlobal = false
+let refreshSubscribersGlobal: Array<(token: string) => void> = []
 
 // Use runtime config in Nuxt context, fallback to production API
 const getApiUrl = () => {
@@ -52,6 +59,22 @@ const isAuthEndpoint = (url: string): boolean => {
     return AUTH_ENDPOINTS.some(endpoint => url.includes(endpoint))
 }
 
+// Subscribe to refresh completion
+const subscribeToRefresh = (callback: (token: string) => void) => {
+    refreshSubscribersGlobal.push(callback)
+}
+
+// Notify all subscribers with new token
+const onRefreshComplete = (token: string) => {
+    refreshSubscribersGlobal.forEach(callback => callback(token))
+    refreshSubscribersGlobal = []
+}
+
+// Notify all subscribers of refresh failure
+const onRefreshFailed = () => {
+    refreshSubscribersGlobal = []
+}
+
 // Response interceptor
 api.interceptors.response.use(
     (response) => response,
@@ -68,58 +91,81 @@ api.interceptors.response.use(
             originalRequest._retry = true
 
             const refreshToken = localStorage.getItem('refreshToken')
-            if (refreshToken) {
-                try {
-                    const response = await axios.post(`${API_URL}/auth-service/api/v1/auth/refresh`, {
-                        refresh_token: refreshToken
-                    })
-                    const { access_token, refresh_token } = response.data
-
-                    // Update tokens in localStorage
-                    localStorage.setItem('accessToken', access_token)
-                    localStorage.setItem('refreshToken', refresh_token)
-
-                    // Update cookies for SSR compatibility
-                    if (typeof document !== 'undefined') {
-                        document.cookie = `accessToken=${access_token}; path=/; max-age=86400; SameSite=Lax`
-                        document.cookie = `refreshToken=${refresh_token}; path=/; max-age=604800; SameSite=Lax`
-                    }
-
-                    originalRequest.headers.Authorization = `Bearer ${access_token}`
-                    // Reset logout flag on successful refresh
-                    isLoggingOut = false
-                    return api(originalRequest)
-                } catch (refreshError) {
-                    console.warn('Token refresh failed:', refreshError)
-                    // Only logout if not already logging out
-                    if (!isLoggingOut) {
-                        isLoggingOut = true
-                        localStorage.removeItem('accessToken')
-                        localStorage.removeItem('refreshToken')
-                        // Clear cookies too
-                        if (typeof document !== 'undefined') {
-                            document.cookie = 'accessToken=; path=/; max-age=0'
-                            document.cookie = 'refreshToken=; path=/; max-age=0'
-                        }
-                        if (typeof window !== 'undefined') {
-                            window.location.href = '/auth/login'
-                        }
-                    }
-                }
-            } else if (!isLoggingOut) {
+            if (!refreshToken) {
                 // No refresh token available, must logout
-                console.warn('No refresh token available, logging out')
-                isLoggingOut = true
-                localStorage.removeItem('accessToken')
-                localStorage.removeItem('refreshToken')
-                // Clear cookies too
+                if (!isLoggingOut) {
+                    console.warn('No refresh token available, logging out')
+                    isLoggingOut = true
+                    localStorage.removeItem('accessToken')
+                    localStorage.removeItem('refreshToken')
+                    if (typeof document !== 'undefined') {
+                        document.cookie = 'accessToken=; path=/; max-age=0'
+                        document.cookie = 'refreshToken=; path=/; max-age=0'
+                    }
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/auth/login'
+                    }
+                }
+                return Promise.reject(error)
+            }
+
+            // If already refreshing, wait for the refresh to complete
+            if (isRefreshingGlobal) {
+                return new Promise((resolve) => {
+                    subscribeToRefresh((token: string) => {
+                        originalRequest.headers.Authorization = `Bearer ${token}`
+                        resolve(api(originalRequest))
+                    })
+                })
+            }
+
+            // Start refreshing
+            isRefreshingGlobal = true
+
+            try {
+                const response = await axios.post(`${API_URL}/auth-service/api/v1/auth/refresh`, {
+                    refresh_token: refreshToken
+                })
+                const { access_token, refresh_token } = response.data
+
+                // Update tokens in localStorage
+                localStorage.setItem('accessToken', access_token)
+                localStorage.setItem('refreshToken', refresh_token)
+
+                // Update cookies for SSR compatibility
                 if (typeof document !== 'undefined') {
-                    document.cookie = 'accessToken=; path=/; max-age=0'
-                    document.cookie = 'refreshToken=; path=/; max-age=0'
+                    document.cookie = `accessToken=${access_token}; path=/; max-age=86400; SameSite=Lax`
+                    document.cookie = `refreshToken=${refresh_token}; path=/; max-age=604800; SameSite=Lax`
                 }
-                if (typeof window !== 'undefined') {
-                    window.location.href = '/auth/login'
+
+                // Reset logout flag on successful refresh
+                isLoggingOut = false
+                isRefreshingGlobal = false
+
+                // Notify all waiting requests
+                onRefreshComplete(access_token)
+
+                originalRequest.headers.Authorization = `Bearer ${access_token}`
+                return api(originalRequest)
+            } catch (refreshError) {
+                console.warn('Token refresh failed:', refreshError)
+                isRefreshingGlobal = false
+                onRefreshFailed()
+
+                // Only logout if not already logging out
+                if (!isLoggingOut) {
+                    isLoggingOut = true
+                    localStorage.removeItem('accessToken')
+                    localStorage.removeItem('refreshToken')
+                    if (typeof document !== 'undefined') {
+                        document.cookie = 'accessToken=; path=/; max-age=0'
+                        document.cookie = 'refreshToken=; path=/; max-age=0'
+                    }
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/auth/login'
+                    }
                 }
+                return Promise.reject(refreshError)
             }
         }
         return Promise.reject(error)
@@ -154,6 +200,15 @@ export const userAPI = {
     getSessions: () => api.get('/auth-service/api/v1/auth/sessions'),
     revokeSession: (sessionId: string) => api.delete(`/auth-service/api/v1/auth/sessions/${sessionId}`),
     revokeAllSessions: () => api.delete('/auth-service/api/v1/auth/sessions'),
+
+    // PIN (5-digit transaction security PIN)
+    checkPinStatus: () => api.get('/auth-service/api/v1/users/pin/status'),
+    setupPin: (data: { pin: string, confirm_pin: string }) =>
+        api.post('/auth-service/api/v1/users/pin/setup', data),
+    verifyPin: (data: { pin: string }) =>
+        api.post('/auth-service/api/v1/users/pin/verify', data),
+    changePin: (data: { current_pin: string, new_pin: string, confirm_pin: string }) =>
+        api.post('/auth-service/api/v1/users/pin/change', data),
 
     // User lookup
     lookup: (query: { email?: string, phone?: string }) => {

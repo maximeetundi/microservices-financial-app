@@ -103,7 +103,8 @@ func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 	query := `
 		SELECT id, email, phone, first_name, last_name, date_of_birth, country,
 			   kyc_status, kyc_level, is_active, two_fa_enabled, email_verified,
-			   phone_verified, last_login_at, created_at, updated_at
+			   phone_verified, last_login_at, created_at, updated_at,
+			   pin_hash, pin_set_at, pin_failed_attempts, pin_locked_until
 		FROM users WHERE id = $1
 	`
 
@@ -113,6 +114,7 @@ func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 		&user.DateOfBirth, &user.Country, &user.KYCStatus, &user.KYCLevel, &user.IsActive,
 		&user.TwoFAEnabled, &user.EmailVerified, &user.PhoneVerified,
 		&user.LastLoginAt, &user.CreatedAt, &user.UpdatedAt,
+		&user.PinHash, &user.PinSetAt, &user.PinFailedAttempts, &user.PinLockedUntil,
 	)
 
 	if err != nil {
@@ -121,6 +123,9 @@ func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
+
+	// Set computed field
+	user.HasPin = user.PinHash != nil && *user.PinHash != ""
 
 	return &user, nil
 }
@@ -347,5 +352,37 @@ func (r *UserRepository) Update(user *models.User) error {
 		WHERE id = $6
 	`
 	_, err := r.db.Exec(query, user.FirstName, user.LastName, user.Phone, user.DateOfBirth, user.Country, user.ID)
+	return err
+}
+
+// ======== PIN Management Methods ========
+
+// HashPassword creates a bcrypt hash (used for PIN too)
+func (r *UserRepository) HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash: %w", err)
+	}
+	return string(hashedPassword), nil
+}
+
+// SetPin sets or updates the user's PIN
+func (r *UserRepository) SetPin(userID string, pinHash string) error {
+	query := `UPDATE users SET pin_hash = $1, pin_set_at = NOW(), pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $2`
+	_, err := r.db.Exec(query, pinHash, userID)
+	return err
+}
+
+// IncrementPinFailedAttempts increments the PIN failed attempts counter
+func (r *UserRepository) IncrementPinFailedAttempts(userID string, attempts int, lockUntil *time.Time) error {
+	query := `UPDATE users SET pin_failed_attempts = $1, pin_locked_until = $2 WHERE id = $3`
+	_, err := r.db.Exec(query, attempts, lockUntil, userID)
+	return err
+}
+
+// ResetPinFailedAttempts resets the PIN failed attempts counter
+func (r *UserRepository) ResetPinFailedAttempts(userID string) error {
+	query := `UPDATE users SET pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $1`
+	_, err := r.db.Exec(query, userID)
 	return err
 }

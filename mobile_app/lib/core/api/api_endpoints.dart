@@ -30,6 +30,12 @@ class ApiEndpoints {
   static const String updateKYC = '$users/kyc';
   static const String lookup = '$users/lookup';
   
+  // PIN Management Endpoints (5-digit transaction security PIN)
+  static const String checkPinStatus = '$users/pin/status';
+  static const String setupPin = '$users/pin/setup';
+  static const String verifyPin = '$users/pin/verify';
+  static const String changePin = '$users/pin/change';
+  
   // Wallet Service Endpoints
   static String walletsList = wallets;
   static String createWallet = wallets;
