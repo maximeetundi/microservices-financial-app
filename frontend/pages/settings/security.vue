@@ -54,7 +54,7 @@
           <div class="twofa-header">
             <span class="icon">{{ twoFactorEnabled ? '✅' : '🔓' }}</span>
             <div class="info">
-              <strong>Google Authenticator / Authy</strong>
+              <strong>Application d'authentification (TOTP)</strong>
               <span>{{ twoFactorEnabled ? 'Activé - Votre compte est protégé' : 'Désactivé - Recommandé' }}</span>
             </div>
           </div>
@@ -139,28 +139,37 @@
       <!-- 2FA Setup Modal -->
       <div v-if="show2FASetup" class="modal-overlay" @click="show2FASetup = false">
         <div class="modal-content twofa-modal" @click.stop>
-          <h3>🛡️ Configurer Google Authenticator</h3>
+          <h3>🛡️ Configurer l'authentification 2FA</h3>
           
           <!-- Step 1: Show QR Code -->
           <div v-if="setupStep === 1" class="setup-step">
-            <p>Scannez ce QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong>:</p>
+            <p>Scannez ce QR code avec une application d'authentification:</p>
+            <div class="app-icons">
+              <span title="Google Authenticator">🔐</span>
+              <span title="Authy">Authy</span>
+              <span title="Microsoft Authenticator">📱</span>
+            </div>
             
             <div class="qr-container">
               <div v-if="loadingQR" class="spinner"></div>
               <img v-else-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="qr-code">
-              <div v-else class="qr-placeholder">
-                <span>📱</span>
-                <p>QR Code</p>
+              <div v-else-if="qrError" class="qr-error">
+                <span>⚠️</span>
+                <p>{{ qrError }}</p>
+                <button @click="start2FASetup" class="retry-btn">Réessayer</button>
+              </div>
+              <div v-else class="qr-loading">
+                <div class="spinner"></div>
               </div>
             </div>
 
-            <div class="secret-box">
+            <div v-if="totpSecret" class="secret-box">
               <label>Clé secrète (entrée manuelle):</label>
-              <code>{{ totpSecret || 'XXXX-XXXX-XXXX-XXXX' }}</code>
+              <code>{{ totpSecret }}</code>
               <button @click="copySecret" class="copy-btn">📋 Copier</button>
             </div>
 
-            <button @click="setupStep = 2" class="btn-next">Suivant →</button>
+            <button @click="setupStep = 2" :disabled="!totpSecret" class="btn-next">Suivant →</button>
           </div>
 
           <!-- Step 2: Verify Code -->
@@ -317,6 +326,7 @@ const showRecoveryCodes = ref(false)
 const setupStep = ref(1)
 const loadingQR = ref(false)
 const qrCodeUrl = ref('')
+const qrError = ref('')
 const totpSecret = ref('')
 const verifyCode = ref('')
 const verifyError = ref('')
@@ -422,14 +432,22 @@ async function start2FASetup() {
   loadingQR.value = true
   verifyCode.value = ''
   verifyError.value = ''
+  qrError.value = ''
+  qrCodeUrl.value = ''
+  totpSecret.value = ''
   
   try {
     const res = await userAPI.enable2FA()
-    qrCodeUrl.value = res.data?.qr_code || ''
+    // Backend may return qr_code or qr_code_url
+    qrCodeUrl.value = res.data?.qr_code || res.data?.qr_code_url || ''
     totpSecret.value = res.data?.secret || ''
+    
+    if (!qrCodeUrl.value && !totpSecret.value) {
+      qrError.value = 'Erreur lors de la génération du QR code'
+    }
   } catch (e) {
-    // Demo fallback
-    totpSecret.value = 'DEMO-1234-ABCD-5678'
+    console.error('2FA setup error:', e)
+    qrError.value = e.response?.data?.error || 'Erreur de connexion au serveur'
   } finally {
     loadingQR.value = false
   }
@@ -1087,5 +1105,67 @@ definePageMeta({
 
 .pin-inputs input:focus {
   border-color: #6366f1;
+}
+
+/* App icons for 2FA setup */
+.app-icons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+  color: #888;
+}
+
+.app-icons span {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 0.375rem;
+}
+
+/* QR error state */
+.qr-error {
+  width: 180px;
+  height: 180px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+}
+
+.qr-error span {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.qr-error p {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin: 0 0 0.75rem 0;
+}
+
+.retry-btn {
+  padding: 0.375rem 0.75rem;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.qr-loading {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 0.75rem;
 }
 </style>

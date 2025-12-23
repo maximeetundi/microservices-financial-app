@@ -362,15 +362,22 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":         user.ID,
-		"email":      user.Email,
-		"first_name": user.FirstName,
-		"last_name":  user.LastName,
-		"phone":      user.Phone,
-		"country":    user.Country,
-		"kyc_level":  user.KYCLevel,
-		"created_at": user.CreatedAt,
-		// Add other non-sensitive fields
+		"id":              user.ID,
+		"email":           user.Email,
+		"first_name":      user.FirstName,
+		"last_name":       user.LastName,
+		"phone":           user.Phone,
+		"country":         user.Country,
+		"date_of_birth":   user.DateOfBirth,
+		"kyc_level":       user.KYCLevel,
+		"kyc_status":      user.KYCStatus,
+		"two_fa_enabled":  user.TwoFAEnabled,
+		"email_verified":  user.EmailVerified,
+		"phone_verified":  user.PhoneVerified,
+		"is_active":       user.IsActive,
+		"has_pin":         user.HasPin,
+		"created_at":      user.CreatedAt,
+		"last_login_at":   user.LastLoginAt,
 	})
 }
 
