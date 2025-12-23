@@ -1,9 +1,22 @@
 <template>
   <div class="min-h-screen flex bg-base transition-colors duration-300">
+    <!-- Mobile Overlay -->
+    <div 
+      v-if="sidebarOpen" 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+      @click="sidebarOpen = false"
+    ></div>
+
     <!-- Sidebar -->
-    <aside class="w-72 fixed h-full bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50">
-      <!-- Logo -->
-      <div class="p-6 border-b border-secondary-100 dark:border-secondary-800">
+    <aside 
+      :class="[
+        'fixed h-full bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        'w-72'
+      ]"
+    >
+      <!-- Logo & Close Button -->
+      <div class="p-6 border-b border-secondary-100 dark:border-secondary-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
             <span class="text-2xl">🏦</span>
@@ -13,21 +26,30 @@
             <p class="text-xs text-muted font-medium">Premium Banking</p>
           </div>
         </div>
+        <!-- Close button (mobile only) -->
+        <button 
+          @click="sidebarOpen = false" 
+          class="lg:hidden p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+        >
+          <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
       <!-- Navigation -->
       <nav class="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
-        <NuxtLink to="/dashboard" class="nav-item" active-class="active">
+        <NuxtLink to="/dashboard" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">📊</span>
           <span>Tableau de bord</span>
         </NuxtLink>
 
-        <NuxtLink to="/wallet" class="nav-item" active-class="active">
+        <NuxtLink to="/wallet" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">👛</span>
           <span>Portefeuilles</span>
         </NuxtLink>
 
-        <NuxtLink to="/cards" class="nav-item" active-class="active">
+        <NuxtLink to="/cards" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">💳</span>
           <span>Mes Cartes</span>
         </NuxtLink>
@@ -36,12 +58,12 @@
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Échange</p>
         </div>
 
-        <NuxtLink to="/exchange/crypto" class="nav-item" active-class="active">
+        <NuxtLink to="/exchange/crypto" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">₿</span>
           <span>Crypto</span>
         </NuxtLink>
 
-        <NuxtLink to="/exchange/fiat" class="nav-item" active-class="active">
+        <NuxtLink to="/exchange/fiat" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">💱</span>
           <span>Fiat</span>
         </NuxtLink>
@@ -50,13 +72,12 @@
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
         </div>
 
-        <NuxtLink to="/transfer" class="nav-item" active-class="active">
+        <NuxtLink to="/transfer" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">💸</span>
           <span>Virements</span>
         </NuxtLink>
         
-        <!-- Only show merchant link if user is merchant - TODO: logic -->
-        <NuxtLink to="/merchant" class="nav-item" active-class="active">
+        <NuxtLink to="/merchant" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">🏪</span>
           <span>Espace Marchand</span>
         </NuxtLink>
@@ -86,19 +107,48 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 ml-72 p-8 transition-all duration-300">
-      <div class="max-w-7xl mx-auto animate-fade-in-up">
-        <slot />
+    <main class="flex-1 lg:ml-72 transition-all duration-300">
+      <!-- Mobile Header with Hamburger -->
+      <header class="lg:hidden sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-4 py-3 flex items-center justify-between">
+        <button 
+          @click="sidebarOpen = true" 
+          class="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+        >
+          <svg class="w-6 h-6 text-base" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+            <span class="text-lg">🏦</span>
+          </div>
+          <span class="font-bold text-base">CryptoBank</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <NotificationCenter />
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="p-4 lg:p-8">
+        <div class="max-w-7xl mx-auto animate-fade-in-up">
+          <slot />
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { computed } from 'vue'
 
 const authStore = useAuthStore()
+const sidebarOpen = ref(false)
 
 const userName = computed(() => {
   if (authStore.user) {
@@ -118,6 +168,13 @@ const userInitials = computed(() => {
 
 const handleLogout = () => {
   authStore.logout()
+}
+
+const closeSidebarOnMobile = () => {
+  // Only close on mobile (smaller than lg breakpoint)
+  if (window.innerWidth < 1024) {
+    sidebarOpen.value = false
+  }
 }
 </script>
 
@@ -154,3 +211,4 @@ const handleLogout = () => {
   }
 }
 </style>
+

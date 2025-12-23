@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,19 @@ class ApiClient {
   // Flag to prevent multiple logout calls
   bool _isLoggingOut = false;
   
+  // Mutex for token refresh - prevents multiple concurrent refresh calls
+  Completer<bool>? _refreshCompleter;
+  bool _isRefreshing = false;
+  
+  // Auth endpoints that should NOT trigger token refresh on 401
+  static const List<String> _authEndpoints = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+  ];
+  
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
   
@@ -44,6 +58,11 @@ class ApiClient {
     return _baseUrlProduction;
   }
   
+  /// Check if a URL is an auth endpoint (should skip refresh on 401)
+  bool _isAuthEndpoint(String url) {
+    return _authEndpoints.any((endpoint) => url.contains(endpoint));
+  }
+  
   void _setupInterceptors() {
     // Auth Interceptor - Add JWT token to requests
     _dio.interceptors.add(InterceptorsWrapper(
@@ -58,14 +77,31 @@ class ApiClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
+        final requestPath = error.requestOptions.path;
+        
+        // Skip refresh for auth endpoints to prevent loops
+        if (_isAuthEndpoint(requestPath)) {
+          debugPrint('ApiClient: Auth endpoint 401, not attempting refresh: $requestPath');
+          return handler.next(error);
+        }
+        
         if (error.response?.statusCode == 401 && !_isLoggingOut) {
+          debugPrint('ApiClient: Got 401 on $requestPath, attempting token refresh...');
+          
           // Token expired, try to refresh
-          final refreshed = await _refreshToken();
+          final refreshed = await _refreshTokenWithMutex();
           if (refreshed) {
+            debugPrint('ApiClient: Token refreshed successfully, retrying request...');
             // Retry the request
-            final retryResponse = await _retry(error.requestOptions);
-            return handler.resolve(retryResponse);
+            try {
+              final retryResponse = await _retry(error.requestOptions);
+              return handler.resolve(retryResponse);
+            } catch (retryError) {
+              debugPrint('ApiClient: Retry failed after refresh: $retryError');
+              return handler.next(error);
+            }
           } else {
+            debugPrint('ApiClient: Token refresh failed, logging out...');
             // Refresh failed - Auto logout
             await _handleLogout();
           }
@@ -79,6 +115,7 @@ class ApiClient {
       requestBody: true,
       responseBody: true,
       error: true,
+      logPrint: (log) => debugPrint('API: $log'),
     ));
   }
   
@@ -102,30 +139,66 @@ class ApiClient {
     }
   }
   
-  Future<bool> _refreshToken() async {
+  /// Refresh token with mutex to prevent concurrent refresh calls
+  Future<bool> _refreshTokenWithMutex() async {
+    // If already refreshing, wait for the result
+    if (_isRefreshing && _refreshCompleter != null) {
+      debugPrint('ApiClient: Already refreshing, waiting for result...');
+      return await _refreshCompleter!.future;
+    }
+    
+    // Start refresh
+    _isRefreshing = true;
+    _refreshCompleter = Completer<bool>();
+    
+    try {
+      final result = await _doRefreshToken();
+      _refreshCompleter!.complete(result);
+      return result;
+    } catch (e) {
+      _refreshCompleter!.complete(false);
+      return false;
+    } finally {
+      _isRefreshing = false;
+      _refreshCompleter = null;
+    }
+  }
+  
+  Future<bool> _doRefreshToken() async {
     try {
       final refreshToken = await _storage.read(key: 'refresh_token');
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        debugPrint('ApiClient: No refresh token available');
+        return false;
+      }
       
+      debugPrint('ApiClient: Sending refresh token request...');
+      
+      // Use a new Dio instance to avoid interceptors
       final response = await Dio().post(
         '${_getBaseUrl()}/auth-service/api/v1/auth/refresh',
         data: {'refresh_token': refreshToken},
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ),
       );
       
       if (response.statusCode == 200) {
-        await _storage.write(
-          key: 'access_token',
-          value: response.data['access_token'],
-        );
-        await _storage.write(
-          key: 'refresh_token',
-          value: response.data['refresh_token'],
-        );
-        return true;
+        final newAccessToken = response.data['access_token'];
+        final newRefreshToken = response.data['refresh_token'];
+        
+        if (newAccessToken != null && newRefreshToken != null) {
+          await _storage.write(key: 'access_token', value: newAccessToken);
+          await _storage.write(key: 'refresh_token', value: newRefreshToken);
+          debugPrint('ApiClient: Tokens saved successfully');
+          return true;
+        }
       }
+      debugPrint('ApiClient: Refresh response invalid: ${response.statusCode}');
     } catch (e) {
-      // Refresh failed
-      print('Token refresh failed: $e');
+      debugPrint('ApiClient: Token refresh error: $e');
     }
     return false;
   }
@@ -173,15 +246,28 @@ class ApiClient {
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     await _storage.write(key: 'access_token', value: accessToken);
     await _storage.write(key: 'refresh_token', value: refreshToken);
+    debugPrint('ApiClient: Tokens saved after login');
   }
   
   Future<void> clearTokens() async {
     await _storage.delete(key: 'access_token');
     await _storage.delete(key: 'refresh_token');
+    debugPrint('ApiClient: Tokens cleared');
   }
   
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: 'access_token');
     return token != null;
   }
+  
+  /// Force refresh tokens - can be called manually
+  Future<bool> forceRefreshTokens() async {
+    return await _refreshTokenWithMutex();
+  }
+  
+  /// Reset logout flag - call after successful login
+  void resetLogoutFlag() {
+    _isLoggingOut = false;
+  }
 }
+

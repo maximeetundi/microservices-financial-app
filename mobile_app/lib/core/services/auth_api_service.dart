@@ -21,6 +21,8 @@ class AuthApiService {
         data['access_token'],
         data['refresh_token'],
       );
+      // Reset the logout flag so API calls work properly
+      _client.resetLogoutFlag();
       return data;
     }
     throw Exception(response.data['error'] ?? 'Login failed');
