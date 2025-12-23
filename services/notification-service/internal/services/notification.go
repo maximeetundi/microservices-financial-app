@@ -232,6 +232,17 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Data:     event,
 			Channels: []string{"push", "email", "sms"}, // SMS pour transferts réussis (important)
 		}
+	case "transfer.sent":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		return &Notification{
+			Title:    "💸 Argent envoyé",
+			Body:     fmt.Sprintf("Vous avez envoyé %.2f %s avec succès.", amount, currency),
+			Type:     "transfer",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"}, // Push et email pour l'émetteur
+		}
 	case "transfer.failed":
 		return &Notification{
 			Title:    "❌ Transfert échoué",

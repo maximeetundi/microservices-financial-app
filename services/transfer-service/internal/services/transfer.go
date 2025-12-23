@@ -120,8 +120,31 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	msg, _ := json.Marshal(transfer)
 	s.mqClient.Publish("transfers", msg)
 	
-	// Publish event for notification service
-	s.publishTransferEvent("transfer.initiated", transfer, req.FromWalletID, "")
+	// Get sender user ID from wallet
+	senderUserID := fromWallet.UserID
+	
+	// Get recipient user ID (if internal transfer)
+	var recipientUserID string
+	if destinationWalletID != nil && *destinationWalletID != "" {
+		toWallet, err := s.walletRepo.GetByID(*destinationWalletID)
+		if err == nil && toWallet != nil {
+			recipientUserID = toWallet.UserID
+		}
+	}
+	
+	// Publish notification events for BOTH sender and recipient
+	if transfer.Status == "completed" {
+		// Notification for sender (money sent)
+		s.publishTransferEvent("transfer.sent", transfer, senderUserID, recipientUserID)
+		
+		// Notification for recipient (money received)
+		if recipientUserID != "" && recipientUserID != senderUserID {
+			s.publishTransferEvent("transfer.received", transfer, recipientUserID, senderUserID)
+		}
+	} else {
+		// Transfer initiated but not yet completed
+		s.publishTransferEvent("transfer.initiated", transfer, senderUserID, recipientUserID)
+	}
 
 	return transfer, nil
 }
