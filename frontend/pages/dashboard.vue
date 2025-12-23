@@ -243,7 +243,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { dashboardAPI, exchangeAPI, cardAPI, walletAPI } from '~/composables/useApi'
+import { dashboardAPI, exchangeAPI, cardAPI, walletAPI, transferAPI } from '~/composables/useApi'
 
 const authStore = useAuthStore()
 
@@ -326,13 +326,14 @@ const fetchDashboardData = async () => {
   loading.value = true
   try {
     // Fetch all required data in parallel
-    const [summaryRes, activityRes, marketsRes, cardsRes, ratesRes, walletsRes] = await Promise.all([
+    const [summaryRes, activityRes, marketsRes, cardsRes, ratesRes, walletsRes, transfersRes] = await Promise.all([
       dashboardAPI.getSummary().catch(() => ({ data: { totalBalance: 0, cryptoBalance: 0, cardsBalance: 0, activeCards: 0, monthlyTransfers: 0, monthlyVolume: 0 } })),
       dashboardAPI.getRecentActivity().catch(() => ({ data: [] })),
       exchangeAPI.getMarkets().catch(() => ({ data: [] })),
       cardAPI.getAll().catch(() => ({ data: { cards: [] } })),
       exchangeAPI.getRates().catch(() => ({ data: {} })),
-      walletAPI.getAll().catch(() => ({ data: { wallets: [] } }))
+      walletAPI.getAll().catch(() => ({ data: { wallets: [] } })),
+      transferAPI.getAll(100, 0).catch(() => ({ data: { transfers: [] } }))
     ])
     
     // Calculate totals from wallets with currency conversion to USD
@@ -387,6 +388,20 @@ const fetchDashboardData = async () => {
          rate: rate.Rate || rate, // Handle if rate is object or value
          change: rate.Change24h || 0
        })).filter(r => r.pair.includes('USD') || r.pair.includes('EUR')).slice(0, 6)
+    }
+
+    // Calculate monthly transfers stats
+    if (transfersRes?.data?.transfers) {
+      const transfers = transfersRes.data.transfers
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      
+      const monthlyTransfers = transfers.filter(t => new Date(t.created_at) >= startOfMonth)
+      stats.value.monthlyTransfers = monthlyTransfers.length
+      stats.value.monthlyVolume = monthlyTransfers.reduce((sum, t) => {
+        const amount = Number(t.amount) || 0
+        return sum + convertToUSD(amount, t.currency)
+      }, 0)
     }
 
   } catch (error) {
