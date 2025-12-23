@@ -188,6 +188,8 @@ onMounted(async () => {
   await loadPayment()
   if (isAuthenticated.value) {
     await loadWallets()
+    // Initialize PIN status to avoid always showing setup modal
+    await checkPinStatus()
   }
 })
 
