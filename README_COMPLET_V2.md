@@ -1,4 +1,4 @@
-# 🏦 CryptoBank v2.0 - Application Bancaire Crypto Complète
+# 🏦 Zekora v2.0 - Application Bancaire Crypto Complète
 
 ## 🎯 Nouvelle Architecture avec Routes Préfixées
 
@@ -348,7 +348,7 @@ POST /gateway/card-service/gift/
 ## 📈 **Avantages Compétitifs**
 
 ### 💰 **Frais Réduits**
-| Service | CryptoBank | Banques Trad. | Économies |
+| Service | Zekora | Banques Trad. | Économies |
 |---------|------------|---------------|-----------|
 | **Conversion fiat** | 0.15-0.25% | 3.5% + 15€ | ~90% |
 | **Trading crypto** | 0.1-0.5% | 1-3% | ~80% |
@@ -408,9 +408,9 @@ make test-card-creation
 - **Trading algorithmique** : Bots automatisés
 - **DAO Governance** : Gouvernance décentralisée
 
-### 🌟 **CryptoBank : La Banque du Futur**
+### 🌟 **Zekora : La Banque du Futur**
 
-Avec CryptoBank v2.0, vous avez accès à l'écosystème financier le plus complet :
+Avec Zekora v2.0, vous avez accès à l'écosystème financier le plus complet :
 
 ✅ **Trading crypto** professionnel avec ordres avancés  
 ✅ **Conversion fiat** instantanée 20+ devises  

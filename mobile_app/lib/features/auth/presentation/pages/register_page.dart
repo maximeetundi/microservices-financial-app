@@ -100,7 +100,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Rejoignez CryptoBank',
+                    'Rejoignez Zekora',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),

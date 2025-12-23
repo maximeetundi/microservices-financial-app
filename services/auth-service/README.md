@@ -1,7 +1,7 @@
 # Auth Service
 
 ## Description
-Service d'authentification et gestion des sessions pour CryptoBank.
+Service d'authentification et gestion des sessions pour Zekora.
 
 ## Port
 `8081`
@@ -95,4 +95,4 @@ auth-service/
 | `audit.events` | `security.login.failed` | Tentative échouée |
 
 ---
-*CryptoBank Auth Service - v2.0*
+*Zekora Auth Service - v2.0*

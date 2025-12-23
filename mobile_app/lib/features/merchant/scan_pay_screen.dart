@@ -618,11 +618,11 @@ class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserv
       setState(() {
         _payment = {
           'payment_id': paymentId,
-          'title': 'Boutique CryptoBank',
+          'title': 'Boutique Zekora',
           'description': 'Achat en magasin',
           'amount': 5000.0,
           'currency': 'XOF',
-          'merchant': 'CryptoBank Store',
+          'merchant': 'Zekora Store',
         };
         _scanning = false;
       });

@@ -153,4 +153,4 @@ type PayoutProvider interface {
 | `transfer.events` | `transfer.failed` | Échec |
 
 ---
-*CryptoBank Transfer Service - v2.0*
+*Zekora Transfer Service - v2.0*

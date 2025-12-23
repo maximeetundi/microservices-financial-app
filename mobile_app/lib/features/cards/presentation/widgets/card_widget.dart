@@ -44,7 +44,7 @@ class CardWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'CryptoBank',
+                  'Zekora',
                   style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Row(

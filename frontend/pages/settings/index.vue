@@ -91,7 +91,7 @@
 
       <!-- App Info -->
       <div class="app-info">
-        <p>CryptoBank v1.0.0</p>
+        <p>Zekora v1.0.0</p>
         <div class="info-links">
           <NuxtLink to="/support">Aide</NuxtLink>
           <span>•</span>

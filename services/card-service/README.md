@@ -113,4 +113,4 @@ type Card struct {
 - 3 tentatives PIN max
 
 ---
-*CryptoBank Card Service - v2.0*
+*Zekora Card Service - v2.0*

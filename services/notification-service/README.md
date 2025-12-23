@@ -120,7 +120,7 @@ Bonjour,
 {message}
 
 ---
-CryptoBank - Votre banque digitale
+Zekora - Votre banque digitale
 ```
 
 ## Limitations SMS
@@ -130,4 +130,4 @@ CryptoBank - Votre banque digitale
 - Réservé aux événements critiques uniquement
 
 ---
-*CryptoBank Notification Service - v2.0*
+*Zekora Notification Service - v2.0*

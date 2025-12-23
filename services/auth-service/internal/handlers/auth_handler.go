@@ -229,7 +229,7 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	userEmail, _ := c.Get("user_email")
 	
 	// Generate TOTP secret and QR code
-	totpSetup, err := h.totpService.GenerateSecret(userEmail.(string), "CryptoBank")
+	totpSetup, err := h.totpService.GenerateSecret(userEmail.(string), "Zekora")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate 2FA setup"})
 		return

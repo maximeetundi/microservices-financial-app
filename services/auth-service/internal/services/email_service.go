@@ -16,8 +16,8 @@ func NewEmailService(cfg *config.Config) *EmailService {
 }
 
 func (s *EmailService) SendVerificationEmail(email, token string) error {
-	subject := "Verify your email address - CryptoBank"
-	verificationURL := fmt.Sprintf("https://app.cryptobank.com/verify-email?token=%s", token)
+	subject := "Verify your email address - Zekora"
+	verificationURL := fmt.Sprintf("https://app.zekora.com/verify-email?token=%s", token)
 	
 	body := fmt.Sprintf(`
 <!DOCTYPE html>
@@ -28,9 +28,9 @@ func (s *EmailService) SendVerificationEmail(email, token string) error {
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px;">
-        <h1 style="color: #2c3e50; text-align: center;">Welcome to CryptoBank!</h1>
+        <h1 style="color: #2c3e50; text-align: center;">Welcome to Zekora!</h1>
         <p style="color: #34495e; font-size: 16px;">
-            Thank you for registering with CryptoBank. To complete your registration, please verify your email address by clicking the button below:
+            Thank you for registering with Zekora. To complete your registration, please verify your email address by clicking the button below:
         </p>
         <div style="text-align: center; margin: 30px 0;">
             <a href="%s" style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
@@ -47,7 +47,7 @@ func (s *EmailService) SendVerificationEmail(email, token string) error {
         </p>
         <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
         <p style="color: #95a5a6; font-size: 12px; text-align: center;">
-            © 2024 CryptoBank. All rights reserved.
+            © 2024 Zekora. All rights reserved.
         </p>
     </div>
 </body>
@@ -57,8 +57,8 @@ func (s *EmailService) SendVerificationEmail(email, token string) error {
 }
 
 func (s *EmailService) SendPasswordResetEmail(email, token string) error {
-	subject := "Reset your password - CryptoBank"
-	resetURL := fmt.Sprintf("https://app.cryptobank.com/reset-password?token=%s", token)
+	subject := "Reset your password - Zekora"
+	resetURL := fmt.Sprintf("https://app.zekora.com/reset-password?token=%s", token)
 	
 	body := fmt.Sprintf(`
 <!DOCTYPE html>
@@ -71,7 +71,7 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px;">
         <h1 style="color: #e74c3c; text-align: center;">Password Reset Request</h1>
         <p style="color: #34495e; font-size: 16px;">
-            We received a request to reset your password for your CryptoBank account. Click the button below to reset your password:
+            We received a request to reset your password for your Zekora account. Click the button below to reset your password:
         </p>
         <div style="text-align: center; margin: 30px 0;">
             <a href="%s" style="background-color: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
@@ -91,7 +91,7 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
         </p>
         <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
         <p style="color: #95a5a6; font-size: 12px; text-align: center;">
-            © 2024 CryptoBank. All rights reserved.
+            © 2024 Zekora. All rights reserved.
         </p>
     </div>
 </body>
@@ -101,20 +101,20 @@ func (s *EmailService) SendPasswordResetEmail(email, token string) error {
 }
 
 func (s *EmailService) SendWelcomeEmail(email, firstName string) error {
-	subject := "Welcome to CryptoBank!"
+	subject := "Welcome to Zekora!"
 	
 	body := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Welcome to CryptoBank</title>
+    <title>Welcome to Zekora</title>
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px;">
-        <h1 style="color: #27ae60; text-align: center;">Welcome to CryptoBank, %s! 🎉</h1>
+        <h1 style="color: #27ae60; text-align: center;">Welcome to Zekora, %s! 🎉</h1>
         <p style="color: #34495e; font-size: 16px;">
-            Congratulations! Your email has been verified and your CryptoBank account is now active.
+            Congratulations! Your email has been verified and your Zekora account is now active.
         </p>
         <h3 style="color: #2c3e50;">What's next?</h3>
         <ul style="color: #34495e; font-size: 14px;">
@@ -124,16 +124,16 @@ func (s *EmailService) SendWelcomeEmail(email, firstName string) error {
             <li>Explore our exchange rates and trading features</li>
         </ul>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://app.cryptobank.com/dashboard" style="background-color: #27ae60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            <a href="https://app.zekora.com/dashboard" style="background-color: #27ae60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                 Go to Dashboard
             </a>
         </div>
         <p style="color: #7f8c8d; font-size: 14px;">
-            Need help? Our support team is available 24/7 at support@cryptobank.com
+            Need help? Our support team is available 24/7 at support@zekora.com
         </p>
         <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
         <p style="color: #95a5a6; font-size: 12px; text-align: center;">
-            © 2024 CryptoBank. All rights reserved.
+            © 2024 Zekora. All rights reserved.
         </p>
     </div>
 </body>
@@ -170,13 +170,13 @@ func (s *EmailService) SendSecurityAlert(email, alertType, details string) error
             <li>Contact our support team</li>
         </ul>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="https://app.cryptobank.com/security" style="background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            <a href="https://app.zekora.com/security" style="background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                 Review Security Settings
             </a>
         </div>
         <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
         <p style="color: #95a5a6; font-size: 12px; text-align: center;">
-            © 2024 CryptoBank. All rights reserved.
+            © 2024 Zekora. All rights reserved.
         </p>
     </div>
 </body>

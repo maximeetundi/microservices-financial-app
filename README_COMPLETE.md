@@ -1,4 +1,4 @@
-# 🏦 CryptoBank - Plateforme Bancaire Numérique Complète
+# 🏦 Zekora - Plateforme Bancaire Numérique Complète
 
 Une application bancaire moderne et sécurisée supportant les cryptomonnaies et les devises fiduciaires, avec des fonctionnalités de transfert mobile money et de cartes prépayées.
 

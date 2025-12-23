@@ -151,7 +151,7 @@ func (f *FlutterwaveCollectionProvider) InitiateCollection(ctx context.Context, 
 			"name":         req.CardHolderName,
 		},
 		"customizations": map[string]string{
-			"title":       "CryptoBank Deposit",
+			"title":       "Zekora Deposit",
 			"description": "Deposit funds to your wallet",
 		},
 		"meta": req.Metadata,

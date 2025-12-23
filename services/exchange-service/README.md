@@ -110,4 +110,4 @@ BTC, ETH, USDT, USDC, BNB, SOL, XRP
 | `exchange.events` | `trade.executed` | Trade crypto exécuté |
 
 ---
-*CryptoBank Exchange Service - v2.0*
+*Zekora Exchange Service - v2.0*

@@ -1,8 +1,8 @@
-# 🏦 CryptoBank - Guide Complet d'Utilisation
+# 🏦 Zekora - Guide Complet d'Utilisation
 
 ## 🎯 Application Bancaire Crypto Complète
 
-CryptoBank est une plateforme bancaire numérique moderne qui combine les services bancaires traditionnels avec les cryptomonnaies. Vous pouvez acheter/vendre des cryptos, utiliser des cartes prépayées, faire des transferts internationaux et bien plus.
+Zekora est une plateforme bancaire numérique moderne qui combine les services bancaires traditionnels avec les cryptomonnaies. Vous pouvez acheter/vendre des cryptos, utiliser des cartes prépayées, faire des transferts internationaux et bien plus.
 
 ## 🚀 Démarrage Rapide
 
@@ -570,9 +570,9 @@ make health
 
 ---
 
-## 🏆 CryptoBank : La Banque du Futur
+## 🏆 Zekora : La Banque du Futur
 
-Avec CryptoBank, vous avez accès à tous les outils financiers modernes en un seul endroit :
+Avec Zekora, vous avez accès à tous les outils financiers modernes en un seul endroit :
 - ✅ **Trading crypto** professionnel
 - ✅ **Cartes prépayées** crypto et fiat
 - ✅ **Conversion** instantanée multi-devises

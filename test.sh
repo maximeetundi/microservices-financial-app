@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CryptoBank Application Test Suite
+# Zekora Application Test Suite
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,7 +19,7 @@ ACCESS_TOKEN=""
 USER_ID=""
 WALLET_ID=""
 
-echo -e "${BLUE}🧪 CryptoBank Application Test Suite${NC}"
+echo -e "${BLUE}🧪 Zekora Application Test Suite${NC}"
 echo "========================================"
 
 # Function to make API calls
@@ -337,7 +337,7 @@ main() {
     echo -e "${RED}Tests Failed: $TESTS_FAILED${NC}"
     
     if [[ $TESTS_FAILED -eq 0 ]]; then
-        echo -e "\n${GREEN}🎉 All tests passed! CryptoBank is working correctly.${NC}"
+        echo -e "\n${GREEN}🎉 All tests passed! Zekora is working correctly.${NC}"
         exit 0
     else
         echo -e "\n${RED}⚠️  Some tests failed. Please check the output above.${NC}"

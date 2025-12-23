@@ -37,7 +37,7 @@ func NewMerchantPaymentService(
 ) *MerchantPaymentService {
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
-		baseURL = "https://app.cryptobank.com"
+		baseURL = "https://app.zekora.com"
 	}
 	
 	return &MerchantPaymentService{
@@ -105,7 +105,7 @@ func (s *MerchantPaymentService) CreatePaymentRequest(merchantID string, req *mo
 
 	// Create QR code data
 	qrData := models.QRCodeData{
-		Type:         "cryptobank_payment",
+		Type:         "zekora_payment",
 		Version:      1,
 		PaymentID:    paymentID,
 		MerchantName: merchantID, // TODO: Get merchant name from user service

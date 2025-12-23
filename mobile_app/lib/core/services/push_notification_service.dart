@@ -81,8 +81,8 @@ class PushNotificationService {
   }) async {
     final androidDetails = AndroidNotificationDetails(
       channelId ?? 'crypto_bank_channel',
-      channelName ?? 'CryptoBank Notifications',
-      channelDescription: 'Notifications from CryptoBank',
+      channelName ?? 'Zekora Notifications',
+      channelDescription: 'Notifications from Zekora',
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,

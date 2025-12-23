@@ -557,7 +557,7 @@ func (s *NotificationService) createEmailHTML(notification *Notification) string
 			<p>{{.Body}}</p>
 		</div>
 		<div class="footer">
-			<p>CryptoBank - Votre banque digitale</p>
+			<p>Zekora - Votre banque digitale</p>
 			<p>Cet email a été envoyé automatiquement, ne pas répondre.</p>
 		</div>
 	</div>

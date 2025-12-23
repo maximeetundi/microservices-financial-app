@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# CryptoBank Application Startup Script
+# Zekora Application Startup Script
 
-echo "🚀 Starting CryptoBank Application..."
+echo "🚀 Starting Zekora Application..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -114,7 +114,7 @@ else
     echo -e "${YELLOW}⚠️  Frontend might still be loading...${NC}"
 fi
 
-echo -e "\n${GREEN}🎉 CryptoBank Application is now running!${NC}"
+echo -e "\n${GREEN}🎉 Zekora Application is now running!${NC}"
 
 show_service_urls
 

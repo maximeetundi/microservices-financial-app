@@ -75,7 +75,7 @@ func Load() *Config {
 		SMTPPort:     smtpPort,
 		SMTPUsername: getEnv("SMTP_USERNAME", ""),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
-		FromEmail:    getEnv("FROM_EMAIL", "noreply@cryptobank.com"),
+		FromEmail:    getEnv("FROM_EMAIL", "noreply@zekora.com"),
 
 		// SMS settings
 		TwilioAccountSID: getEnv("TWILIO_ACCOUNT_SID", ""),
@@ -95,7 +95,7 @@ func Load() *Config {
 		PhoneVerificationExpiry: phoneVerificationExpiry,
 
 		// 2FA settings
-		TOTPIssuer: getEnv("TOTP_ISSUER", "CryptoBank"),
+		TOTPIssuer: getEnv("TOTP_ISSUER", "Zekora"),
 	}
 }
 

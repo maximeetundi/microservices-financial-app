@@ -153,7 +153,7 @@
              <div class="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
                <div class="flex items-center gap-3">
                  <div class="w-8 h-8 rounded-full bg-success flex items-center justify-center text-white text-xs">Cb</div>
-                 <span class="font-bold text-base">CryptoBank</span>
+                 <span class="font-bold text-base">Zekora</span>
                </div>
                <span class="font-bold text-success">{{ ourFee }}%</span>
              </div>
@@ -392,7 +392,7 @@ onMounted(() => {
 
 // SEO
 definePageMeta({
-  title: 'Conversion Fiat - CryptoBank',
+  title: 'Conversion Fiat - Zekora',
   description: 'Convertissez instantanément entre différentes monnaies fiduciaires avec des frais réduits'
 })
 </script>

@@ -40,7 +40,7 @@ func Load() *Config {
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
 		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		BaseURL:     getEnv("BASE_URL", "https://app.cryptobank.com"),
+		BaseURL:     getEnv("BASE_URL", "https://app.zekora.com"),
 		
 		// Crypto settings
 		EncryptionKey: getEnv("ENCRYPTION_KEY", "32-byte-encryption-key-for-crypto"),

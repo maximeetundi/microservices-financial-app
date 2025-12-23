@@ -28,7 +28,7 @@ func (a *AIAgent) GenerateResponse(message string, conversation *models.Conversa
 	
 	// Greeting responses
 	if containsAny(messageLower, []string{"bonjour", "salut", "hello", "hi", "bonsoir"}) {
-		return "Bonjour ! 👋 Je suis l'assistant virtuel de CryptoBank. Comment puis-je vous aider aujourd'hui ?"
+		return "Bonjour ! 👋 Je suis l'assistant virtuel de Zekora. Comment puis-je vous aider aujourd'hui ?"
 	}
 	
 	// Account related
@@ -53,7 +53,7 @@ func (a *AIAgent) GenerateResponse(message string, conversation *models.Conversa
 	
 	// Crypto related
 	if containsAny(messageLower, []string{"bitcoin", "btc", "ethereum", "eth", "crypto", "cryptomonnaie"}) {
-		return "CryptoBank vous permet d'acheter, vendre et stocker des cryptomonnaies :\n• BTC, ETH, USDT, et plus encore\n• Frais compétitifs (0.5-0.75%)\n• Wallet sécurisé intégré\n\nPour acheter des cryptos, allez dans Exchange → Acheter Crypto."
+		return "Zekora vous permet d'acheter, vendre et stocker des cryptomonnaies :\n• BTC, ETH, USDT, et plus encore\n• Frais compétitifs (0.5-0.75%)\n• Wallet sécurisé intégré\n\nPour acheter des cryptos, allez dans Exchange → Acheter Crypto."
 	}
 	
 	// Fees related
@@ -73,7 +73,7 @@ func (a *AIAgent) GenerateResponse(message string, conversation *models.Conversa
 	
 	// Goodbye
 	if containsAny(messageLower, []string{"bye", "aurevoir", "au revoir", "bonne journée", "à bientôt"}) {
-		return "Au revoir ! 👋 N'hésitez pas à revenir si vous avez d'autres questions. L'équipe CryptoBank vous souhaite une excellente journée !"
+		return "Au revoir ! 👋 N'hésitez pas à revenir si vous avez d'autres questions. L'équipe Zekora vous souhaite une excellente journée !"
 	}
 	
 	// Default response
@@ -137,5 +137,5 @@ func (a *AIAgent) GetWelcomeMessage() string {
 		greeting = "Bonsoir"
 	}
 	
-	return greeting + " ! 👋 Je suis l'assistant virtuel CryptoBank. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?"
+	return greeting + " ! 👋 Je suis l'assistant virtuel Zekora. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?"
 }

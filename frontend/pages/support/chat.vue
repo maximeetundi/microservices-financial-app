@@ -210,7 +210,7 @@ const conversation = ref({
   status: 'active'
 })
 
-const agentName = ref('Support CryptoBank')
+const agentName = ref('Support Zekora')
 const messages = ref([])
 const newMessage = ref('')
 const isTyping = ref(false)
@@ -296,13 +296,13 @@ const generateAIResponse = (message) => {
     return "📊 Voici nos frais :\n\n• Transferts SEPA : Gratuit\n• Crypto-Crypto : 0.5%\n• Fiat-Crypto : 0.75%\n• Fiat-Fiat : 0.15-0.25%\n\nNous sommes jusqu'à 8x moins chers que les banques traditionnelles !"
   }
   if (lower.includes('carte')) {
-    return "Pour commander votre carte CryptoBank :\n\n1. Allez dans le menu 'Cartes'\n2. Cliquez sur 'Commander une carte'\n3. Choisissez entre virtuelle (gratuite) ou physique (9.99€)\n4. Suivez les étapes de personnalisation\n\nVotre carte virtuelle est disponible instantanément !"
+    return "Pour commander votre carte Zekora :\n\n1. Allez dans le menu 'Cartes'\n2. Cliquez sur 'Commander une carte'\n3. Choisissez entre virtuelle (gratuite) ou physique (9.99€)\n4. Suivez les étapes de personnalisation\n\nVotre carte virtuelle est disponible instantanément !"
   }
   if (lower.includes('humain') || lower.includes('agent')) {
     return "Je comprends que vous souhaitez parler à un conseiller humain. Utilisez le bouton '👤 Parler à un humain' en haut de l'écran pour être mis en relation avec un de nos conseillers.\n\n⏱️ Temps d'attente estimé : 2-5 minutes."
   }
   if (lower.includes('merci') || lower.includes('super') || lower.includes('parfait')) {
-    return "Je vous en prie ! 😊 Ravi d'avoir pu vous aider. N'hésitez pas si vous avez d'autres questions.\n\nBonne journée et à bientôt sur CryptoBank !"
+    return "Je vous en prie ! 😊 Ravi d'avoir pu vous aider. N'hésitez pas si vous avez d'autres questions.\n\nBonne journée et à bientôt sur Zekora !"
   }
   
   return "Je comprends votre demande. Pourriez-vous me donner plus de détails ?\n\nJe peux vous aider avec :\n• 💳 Compte et cartes\n• 💸 Transferts\n• ₿ Cryptomonnaies\n• 📊 Frais\n• 🔐 Sécurité\n\nOu utilisez le bouton '👤 Parler à un humain' pour une assistance personnalisée."
@@ -371,7 +371,7 @@ const loadConversation = async () => {
       id: 'welcome',
       sender_type: 'agent',
       sender_name: 'Assistant IA',
-      content: "Bonjour ! 👋 Je suis l'assistant virtuel CryptoBank. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?",
+      content: "Bonjour ! 👋 Je suis l'assistant virtuel Zekora. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?",
       created_at: new Date().toISOString()
     }
   ]

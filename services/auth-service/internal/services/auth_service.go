@@ -149,7 +149,19 @@ func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent strin
 			log.Printf("Login failed: 2FA code required for user %s", user.Email)
 			return nil, fmt.Errorf("2FA code required")
 		}
-		// 2FA verification will be handled separately
+		
+		// Validate the 2FA code against the stored secret
+		if user.TwoFASecret == nil || *user.TwoFASecret == "" {
+			log.Printf("Login failed: 2FA is enabled but no secret stored for user %s", user.Email)
+			return nil, fmt.Errorf("2FA configuration error")
+		}
+		
+		totpService := NewTOTPService()
+		if !totpService.ValidateCode(*user.TwoFASecret, req.TwoFACode) {
+			log.Printf("Login failed: Invalid 2FA code for user %s", user.Email)
+			return nil, fmt.Errorf("invalid 2FA code")
+		}
+		log.Printf("Login: 2FA code verified successfully for user %s", user.Email)
 	}
 
 	// Check if user is active

@@ -15,7 +15,7 @@
           <span class="text-3xl">🏦</span>
         </NuxtLink>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-1 tracking-tight">Créer votre compte</h1>
-        <p class="text-gray-600 dark:text-indigo-200/70 text-sm">Rejoignez CryptoBank en quelques étapes</p>
+        <p class="text-gray-600 dark:text-indigo-200/70 text-sm">Rejoignez Zekora en quelques étapes</p>
       </div>
 
       <!-- Theme Toggle Button -->

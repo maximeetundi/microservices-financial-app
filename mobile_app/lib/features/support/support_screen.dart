@@ -381,7 +381,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _messages.add(ChatMessage(
       id: '1',
       content: widget.agentType == 'ai'
-          ? 'Bonjour ! 👋 Je suis l\'assistant virtuel CryptoBank.\n\nComment puis-je vous aider ?\n\n• 💳 Cartes bancaires\n• 💸 Transferts\n• ₿ Cryptomonnaies\n• 📊 Frais\n• 🔐 Sécurité'
+          ? 'Bonjour ! 👋 Je suis l\'assistant virtuel Zekora.\n\nComment puis-je vous aider ?\n\n• 💳 Cartes bancaires\n• 💸 Transferts\n• ₿ Cryptomonnaies\n• 📊 Frais\n• 🔐 Sécurité'
           : 'Bonjour ! Un conseiller va prendre en charge votre demande sous peu.\n\n⏱️ Temps d\'attente estimé : 2-5 minutes.',
       isUser: false,
       timestamp: DateTime.now(),

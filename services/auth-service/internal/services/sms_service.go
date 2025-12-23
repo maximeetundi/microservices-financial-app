@@ -30,7 +30,7 @@ func (s *SMSService) SendVerificationCode(phone string) (string, error) {
 		return "", fmt.Errorf("failed to generate verification code: %w", err)
 	}
 
-	message := fmt.Sprintf("Your CryptoBank verification code is: %s. This code will expire in 5 minutes. Do not share this code with anyone.", code)
+	message := fmt.Sprintf("Your Zekora verification code is: %s. This code will expire in 5 minutes. Do not share this code with anyone.", code)
 
 	if err := s.sendSMS(phone, message); err != nil {
 		return "", fmt.Errorf("failed to send SMS: %w", err)
@@ -40,19 +40,19 @@ func (s *SMSService) SendVerificationCode(phone string) (string, error) {
 }
 
 func (s *SMSService) SendSecurityAlert(phone, alertType string) error {
-	message := fmt.Sprintf("CryptoBank Security Alert: %s. If this wasn't you, please contact support immediately or secure your account at app.cryptobank.com", alertType)
+	message := fmt.Sprintf("Zekora Security Alert: %s. If this wasn't you, please contact support immediately or secure your account at app.cryptobank.com", alertType)
 	
 	return s.sendSMS(phone, message)
 }
 
 func (s *SMSService) SendTransactionAlert(phone, transactionType, amount, currency string) error {
-	message := fmt.Sprintf("CryptoBank: %s of %s %s completed. If you didn't authorize this, contact support immediately.", transactionType, amount, currency)
+	message := fmt.Sprintf("Zekora: %s of %s %s completed. If you didn't authorize this, contact support immediately.", transactionType, amount, currency)
 	
 	return s.sendSMS(phone, message)
 }
 
 func (s *SMSService) SendLoginAlert(phone, location string) error {
-	message := fmt.Sprintf("CryptoBank: New login detected from %s. If this wasn't you, secure your account immediately.", location)
+	message := fmt.Sprintf("Zekora: New login detected from %s. If this wasn't you, secure your account immediately.", location)
 	
 	return s.sendSMS(phone, message)
 }

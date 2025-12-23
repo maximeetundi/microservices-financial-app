@@ -14,7 +14,7 @@
         <NuxtLink to="/" class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
           <span class="text-4xl">🏦</span>
         </NuxtLink>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">CryptoBank</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Zekora</h1>
         <p class="text-gray-600 dark:text-indigo-200/80">Connectez-vous à votre espace sécurisé</p>
       </div>
 

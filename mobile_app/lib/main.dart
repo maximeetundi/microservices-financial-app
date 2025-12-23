@@ -55,11 +55,11 @@ void main() async {
     ),
   );
   
-  runApp(const CryptoBankApp());
+  runApp(const ZekoraApp());
 }
 
-class CryptoBankApp extends StatelessWidget {
-  const CryptoBankApp({Key? key}) : super(key: key);
+class ZekoraApp extends StatelessWidget {
+  const ZekoraApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

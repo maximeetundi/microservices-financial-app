@@ -43,7 +43,7 @@ class CardDetailPage extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('CryptoBank', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text('Zekora', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       const Icon(Icons.credit_card, color: Colors.white, size: 32),
                     ],
                   ),

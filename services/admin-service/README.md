@@ -1,7 +1,7 @@
 # Admin Service
 
 ## Description
-Service d'administration de la plateforme CryptoBank.
+Service d'administration de la plateforme Zekora.
 
 ## Port
 `8088`
@@ -98,4 +98,4 @@ type AuditLog struct {
 ```
 
 ---
-*CryptoBank Admin Service - v2.0*
+*Zekora Admin Service - v2.0*

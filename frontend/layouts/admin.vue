@@ -10,7 +10,7 @@
           </div>
           <div>
             <h1 class="font-bold text-white">Admin Panel</h1>
-            <p class="text-xs text-slate-400">CryptoBank</p>
+            <p class="text-xs text-slate-400">Zekora</p>
           </div>
         </div>
       </div>

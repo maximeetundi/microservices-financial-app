@@ -127,4 +127,4 @@ wallet-service/
 | `payment.events` | `payment.completed` | Paiement marchand reçu |
 
 ---
-*CryptoBank Wallet Service - v2.0*
+*Zekora Wallet Service - v2.0*

@@ -22,7 +22,7 @@
             <span class="text-2xl">🏦</span>
           </div>
           <div>
-            <h1 class="text-lg font-bold bg-gradient-to-r from-secondary-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">CryptoBank</h1>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-secondary-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">Zekora</h1>
             <p class="text-xs text-muted font-medium">Premium Banking</p>
           </div>
         </div>
@@ -138,7 +138,7 @@
           <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
             <span class="text-lg">🏦</span>
           </div>
-          <span class="font-bold text-base">CryptoBank</span>
+          <span class="font-bold text-base">Zekora</span>
         </div>
 
         <div class="flex items-center gap-1">

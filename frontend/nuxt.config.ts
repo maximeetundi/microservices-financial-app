@@ -21,14 +21,14 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl: 'https://api.app.maximeetundi.store',
-      appName: 'CryptoBank',
+      appName: 'Zekora',
       appVersion: '1.0.0'
     }
   },
   ssr: true,
   app: {
     head: {
-      title: 'CryptoBank - Secure Digital Banking',
+      title: 'Zekora - Secure Digital Banking',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
