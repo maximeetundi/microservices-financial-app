@@ -1,71 +1,61 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="max-w-6xl mx-auto animate-fade-in-up">
+    <div class="tx-page">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h1 class="text-3xl font-bold text-base mb-2">Historique des Transactions 📊</h1>
-          <p class="text-muted">Consultez toutes vos transactions</p>
-        </div>
-        <div class="flex gap-3">
-          <select v-model="filterType" class="select-field">
-            <option value="">Tous les types</option>
-            <option value="deposit">Dépôts</option>
-            <option value="withdraw">Retraits</option>
-            <option value="transfer">Transferts</option>
-            <option value="exchange">Échanges</option>
-          </select>
-          <select v-model="filterPeriod" class="select-field">
-            <option value="all">Toute période</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-          </select>
-        </div>
+      <div class="page-header">
+        <h1>📊 Transactions</h1>
+        <p>Historique de vos transactions</p>
       </div>
 
-      <!-- Transactions List -->
-      <div class="glass-card p-6">
-        <div v-if="loading" class="py-16 text-center">
-          <div class="loading-spinner w-8 h-8 mx-auto mb-4"></div>
-          <p class="text-muted">Chargement des transactions...</p>
-        </div>
+      <!-- Filters -->
+      <div class="filters">
+        <select v-model="filterType" class="filter-select">
+          <option value="">Tous types</option>
+          <option value="deposit">Dépôts</option>
+          <option value="withdraw">Retraits</option>
+          <option value="transfer">Transferts</option>
+          <option value="exchange">Échanges</option>
+        </select>
+        <select v-model="filterPeriod" class="filter-select">
+          <option value="all">Toujours</option>
+          <option value="today">Aujourd'hui</option>
+          <option value="week">7 jours</option>
+          <option value="month">30 jours</option>
+        </select>
+      </div>
 
-        <div v-else-if="filteredTransactions.length > 0" class="space-y-3">
-          <div v-for="tx in filteredTransactions" :key="tx.id" 
-              class="flex items-center justify-between p-4 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-secondary-100 dark:hover:border-secondary-800">
-            <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner" 
-                  :class="getTypeColor(tx.type)">
-                {{ getTypeIcon(tx.type) }}
-              </div>
-              <div>
-                <p class="font-bold text-base">{{ tx.title }}</p>
-                <p class="text-sm text-muted">{{ tx.description }}</p>
-              </div>
-            </div>
-            <div class="text-right">
-              <p class="font-bold text-lg" :class="tx.amount >= 0 ? 'text-emerald-500' : 'text-base'">
-                {{ tx.amount >= 0 ? '+' : '' }}{{ formatMoney(tx.amount, tx.currency) }}
-              </p>
-              <p class="text-xs text-muted">{{ formatDate(tx.date) }}</p>
-            </div>
+      <!-- Loading -->
+      <div v-if="loading" class="state-container">
+        <div class="spinner"></div>
+        <p>Chargement...</p>
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="filteredTransactions.length === 0" class="state-container">
+        <span class="empty-icon">📜</span>
+        <p>Aucune transaction</p>
+      </div>
+
+      <!-- List -->
+      <div v-else class="tx-list">
+        <div v-for="tx in filteredTransactions" :key="tx.id" class="tx-item">
+          <div class="tx-icon" :class="getTypeColorClass(tx.type)">
+            {{ getTypeIcon(tx.type) }}
           </div>
-
-          <!-- Load More -->
-          <button v-if="hasMore" @click="loadMore" 
-                  class="w-full py-3 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors font-medium">
-            Charger plus
-          </button>
-        </div>
-
-        <div v-else class="text-center py-16">
-          <div class="w-16 h-16 rounded-full bg-surface-hover flex items-center justify-center mx-auto mb-4">
-             <span class="text-3xl grayscale opacity-50">📜</span>
+          <div class="tx-info">
+            <div class="tx-title">{{ tx.title }}</div>
+            <div class="tx-desc">{{ tx.description }}</div>
           </div>
-          <p class="text-muted font-medium mb-2">Aucune transaction</p>
-          <p class="text-sm text-muted">Vos transactions apparaîtront ici</p>
+          <div class="tx-amount" :class="{ positive: tx.amount >= 0 }">
+            <span>{{ tx.amount >= 0 ? '+' : '' }}{{ formatMoney(tx.amount, tx.currency) }}</span>
+            <small>{{ formatDate(tx.date) }}</small>
+          </div>
         </div>
+
+        <!-- Load More -->
+        <button v-if="hasMore" @click="loadMore" class="load-more-btn">
+          Charger plus ↓
+        </button>
       </div>
     </div>
   </NuxtLayout>
@@ -122,10 +112,7 @@ const formatMoney = (amount, currency = 'USD') => {
 const formatDate = (date) => {
   return new Intl.DateTimeFormat('fr-FR', { 
     day: '2-digit', 
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit', 
-    minute: '2-digit' 
+    month: 'short'
   }).format(new Date(date))
 }
 
@@ -140,28 +127,26 @@ const getTypeIcon = (type) => {
   return icons[type] || '💰'
 }
 
-const getTypeColor = (type) => {
+const getTypeColorClass = (type) => {
   const colors = {
-    deposit: 'bg-emerald-500/10 text-emerald-500',
-    withdraw: 'bg-rose-500/10 text-rose-500',
-    transfer: 'bg-purple-500/10 text-purple-500',
-    exchange: 'bg-blue-500/10 text-blue-500',
-    payment: 'bg-orange-500/10 text-orange-500'
+    deposit: 'icon-green',
+    withdraw: 'icon-red',
+    transfer: 'icon-purple',
+    exchange: 'icon-blue',
+    payment: 'icon-orange'
   }
-  return colors[type] || 'bg-gray-500/10 text-gray-500'
+  return colors[type] || 'icon-gray'
 }
 
 const fetchTransactions = async () => {
   loading.value = true
   try {
-    // Get all wallets first
     const walletsRes = await walletAPI.getAll()
     if (!walletsRes.data?.wallets) {
       transactions.value = []
       return
     }
     
-    // Fetch transactions from all wallets
     const allTransactions = []
     for (const wallet of walletsRes.data.wallets) {
       try {
@@ -172,7 +157,7 @@ const fetchTransactions = async () => {
               id: tx.id,
               type: tx.transaction_type || 'transfer',
               title: getTransactionTitle(tx.transaction_type),
-              description: tx.description || `${wallet.currency} - ${tx.reference_id || 'N/A'}`,
+              description: tx.description || `${wallet.currency}`,
               amount: tx.from_wallet_id === wallet.id ? -tx.amount : tx.amount,
               currency: tx.currency || wallet.currency,
               date: tx.created_at
@@ -184,7 +169,6 @@ const fetchTransactions = async () => {
       }
     }
     
-    // Sort by date descending
     allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date))
     transactions.value = allTransactions
     hasMore.value = allTransactions.length >= limit
@@ -223,22 +207,223 @@ definePageMeta({
 </script>
 
 <style scoped>
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out;
+.tx-page {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.page-header {
+  margin-bottom: 1rem;
 }
 
-.select-field {
-  @apply px-4 py-2 rounded-xl bg-surface border border-secondary-200 dark:border-secondary-700 text-base focus:outline-none focus:ring-2 focus:ring-primary-500;
+.page-header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 0.25rem 0;
+}
+
+.page-header p {
+  font-size: 0.875rem;
+  color: #888;
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  flex: 1;
+  min-width: 120px;
+  max-width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.625rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  border-color: #6366f1;
+}
+
+.state-container {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #888;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  opacity: 0.5;
+}
+
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1rem;
+  padding: 0.5rem;
+}
+
+.tx-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  transition: background 0.2s;
+}
+
+.tx-item:active {
+  background: rgba(255,255,255,0.05);
+}
+
+.tx-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.icon-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.icon-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.icon-purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.icon-blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.icon-orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.icon-gray { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+.tx-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tx-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-desc {
+  font-size: 0.75rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-amount {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.tx-amount span {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.tx-amount.positive span {
+  color: #22c55e;
+}
+
+.tx-amount small {
+  font-size: 0.625rem;
+  color: #666;
+}
+
+.load-more-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  background: transparent;
+  color: #6366f1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: background 0.2s;
+}
+
+.load-more-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Desktop */
+@media (min-width: 640px) {
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .filters {
+    flex-wrap: nowrap;
+  }
+  
+  .filter-select {
+    flex: 0 0 auto;
+    width: auto;
+  }
+  
+  .tx-list {
+    padding: 0.75rem;
+  }
+  
+  .tx-item {
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .tx-icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.25rem;
+  }
+  
+  .tx-title {
+    font-size: 1rem;
+  }
+  
+  .tx-desc {
+    font-size: 0.875rem;
+  }
+  
+  .tx-amount span {
+    font-size: 1rem;
+  }
 }
 </style>

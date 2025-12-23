@@ -178,6 +178,9 @@ const canPay = computed(() => {
   const amount = payment.value?.amount || amountToPay.value
   if (!amount || amount <= 0) return false
   
+  // Check minimum amount for variable payments
+  if (payment.value?.min_amount && amount < payment.value.min_amount) return false
+  
   const wallet = wallets.value.find(w => w.id === selectedWallet.value)
   if (!wallet || wallet.balance < amount) return false
   
