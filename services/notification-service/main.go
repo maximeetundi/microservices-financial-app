@@ -68,18 +68,23 @@ func main() {
 		}
 	}
 
-	// Initialize notification service (for consuming events)
-	notificationService := services.NewNotificationService(rabbitChannel, cfg)
+	// Initialize repositories first (needed for both API and event consumers)
+	var notificationRepo *repository.NotificationRepository
+	if db != nil {
+		notificationRepo = repository.NewNotificationRepository(db)
+	}
+
+	// Initialize notification service (for consuming events) - pass repository for persistence
+	notificationService := services.NewNotificationService(rabbitChannel, cfg, notificationRepo)
 
 	// Start consumers
 	if err := notificationService.Start(); err != nil {
 		log.Fatal("Failed to start notification consumers:", err)
 	}
 
-	// Initialize repositories and handlers
+	// Initialize handlers
 	var notificationHandler *handlers.NotificationHandler
-	if db != nil {
-		notificationRepo := repository.NewNotificationRepository(db)
+	if notificationRepo != nil {
 		notificationHandler = handlers.NewNotificationHandler(notificationRepo)
 	}
 

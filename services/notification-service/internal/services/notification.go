@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/repository"
 	"github.com/streadway/amqp"
 )
 
@@ -21,13 +23,15 @@ import (
 type NotificationService struct {
 	channel *amqp.Channel
 	config  *config.Config
+	repo    *repository.NotificationRepository
 }
 
 // NewNotificationService creates a new notification service
-func NewNotificationService(channel *amqp.Channel, cfg *config.Config) *NotificationService {
+func NewNotificationService(channel *amqp.Channel, cfg *config.Config, repo *repository.NotificationRepository) *NotificationService {
 	return &NotificationService{
 		channel: channel,
 		config:  cfg,
+		repo:    repo,
 	}
 }
 
@@ -647,7 +651,34 @@ func (s *NotificationService) sendPush(userID string, notification *Notification
 }
 
 func (s *NotificationService) logNotification(userID string, notification *Notification) {
-	// TODO: Save notification to database for user notification center
-	log.Printf("[LOG] 📝 Notification logged: user=%s, type=%s, priority=%s, title=%s", 
-		userID, notification.Type, notification.Priority, notification.Title)
+	// Save notification to database for user notification center
+	if s.repo != nil && userID != "" {
+		// Convert data to JSON string
+		var dataStr *string
+		if notification.Data != nil {
+			dataBytes, err := json.Marshal(notification.Data)
+			if err == nil {
+				str := string(dataBytes)
+				dataStr = &str
+			}
+		}
+
+		dbNotification := &models.Notification{
+			UserID:  userID,
+			Type:    notification.Type,
+			Title:   notification.Title,
+			Message: notification.Body,
+			Data:    dataStr,
+		}
+
+		if err := s.repo.Create(dbNotification); err != nil {
+			log.Printf("[LOG] ❌ Failed to save notification: %v", err)
+		} else {
+			log.Printf("[LOG] ✅ Notification saved: user=%s, type=%s, title=%s", 
+				userID, notification.Type, notification.Title)
+		}
+	} else {
+		log.Printf("[LOG] 📝 Notification logged (no DB): user=%s, type=%s, priority=%s, title=%s", 
+			userID, notification.Type, notification.Priority, notification.Title)
+	}
 }
