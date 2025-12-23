@@ -160,7 +160,7 @@ func (r *SessionRepository) getByRefreshTokenFromDB(refreshToken, userID string)
 func (r *SessionRepository) Update(session *models.Session) error {
 	query := `
 		UPDATE user_sessions 
-		SET session_token = $1, refresh_token = $2, expires_at = $3, updated_at = NOW()
+		SET session_token = $1, refresh_token = $2, expires_at = $3
 		WHERE id = $4
 	`
 
