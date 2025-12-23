@@ -91,6 +91,11 @@
           <span class="icon">🔔</span>
           <span>Notifications</span>
         </NuxtLink>
+
+        <NuxtLink to="/settings" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">⚙️</span>
+          <span>Paramètres</span>
+        </NuxtLink>
       </nav>
 
       <!-- User Section -->
