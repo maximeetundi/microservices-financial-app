@@ -1,8 +1,23 @@
 <template>
   <NuxtLayout name="dashboard">
     <div class="profile-page">
-      <!-- PIN Verification Modal -->
-      <div v-if="!isUnlocked" class="pin-overlay">
+      <!-- PIN Not Configured - Force Setup -->
+      <div v-if="needsPinSetup" class="pin-overlay">
+        <div class="pin-modal">
+          <div class="pin-icon">⚠️</div>
+          <h2>Configuration requise</h2>
+          <p>Pour accéder à vos informations personnelles, vous devez d'abord configurer votre PIN de sécurité à 5 chiffres.</p>
+          
+          <NuxtLink to="/settings/security" class="setup-btn">
+            🔐 Configurer mon PIN
+          </NuxtLink>
+
+          <NuxtLink to="/settings" class="back-link">← Retour aux paramètres</NuxtLink>
+        </div>
+      </div>
+
+      <!-- PIN Verification Required -->
+      <div v-else-if="!isUnlocked" class="pin-overlay">
         <div class="pin-modal">
           <div class="pin-icon">🔐</div>
           <h2>Vérification requise</h2>
@@ -197,6 +212,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { userAPI } from '~/composables/useApi'
 
 const isUnlocked = ref(false)
+const needsPinSetup = ref(false)
 const loading = ref(true)
 const pinDigits = ref(['', '', '', '', ''])
 const pinInputs = ref([])
@@ -319,17 +335,16 @@ onMounted(async () => {
   try {
     const pinStatus = await userAPI.checkPinStatus()
     if (!pinStatus.data?.has_pin) {
-      // No PIN configured, skip verification
-      isUnlocked.value = true
-      loadProfile()
+      // No PIN configured, force user to set it up
+      needsPinSetup.value = true
     } else {
       // PIN required, focus first input
+      needsPinSetup.value = false
       nextTick(() => pinInputs.value[0]?.focus())
     }
   } catch (e) {
-    // If error, allow access (fallback)
-    isUnlocked.value = true
-    loadProfile()
+    // If error checking PIN status, require PIN setup to be safe
+    needsPinSetup.value = true
   }
 })
 
@@ -430,6 +445,21 @@ definePageMeta({
 .verify-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.setup-btn {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 1rem;
 }
 
 .back-link {
