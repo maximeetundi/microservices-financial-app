@@ -86,6 +86,11 @@
           <span class="icon">📷</span>
           <span>Scanner / Payer</span>
         </NuxtLink>
+
+        <NuxtLink to="/notifications" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">🔔</span>
+          <span>Notifications</span>
+        </NuxtLink>
       </nav>
 
       <!-- User Section -->

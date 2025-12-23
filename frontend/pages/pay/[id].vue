@@ -159,7 +159,7 @@ const amountToPay = ref(null)
 
 const isAuthenticated = computed(() => {
   if (process.client) {
-    return !!localStorage.getItem('token')
+    return !!localStorage.getItem('accessToken')
   }
   return false
 })

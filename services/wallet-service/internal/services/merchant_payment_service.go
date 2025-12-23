@@ -363,27 +363,53 @@ func (s *MerchantPaymentService) publishPaymentEvent(eventType string, payment *
 		return
 	}
 
-	event := map[string]interface{}{
-		"type":         eventType,
-		"payment_id":   payment.ID,
-		"merchant_id":  payment.MerchantID,
-		"customer_id":  customerID,
-		"amount":       amount,
-		"currency":     payment.Currency,
-		"title":        payment.Title,
-		"timestamp":    time.Now(),
+	// Notification for Customer (payer) - "Vous avez payé..."
+	customerEvent := map[string]interface{}{
+		"type":        "payment.sent",
+		"user_id":     customerID,
+		"payment_id":  payment.ID,
+		"merchant_id": payment.MerchantID,
+		"amount":      amount,
+		"currency":    payment.Currency,
+		"title":       payment.Title,
+		"timestamp":   time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
+	customerEventJSON, _ := json.Marshal(customerEvent)
 
 	s.mqChannel.Publish(
-		"payment.events",
-		eventType,
+		"wallet.events",
+		"payment.sent",
 		false,
 		false,
 		amqp.Publishing{
 			ContentType: "application/json",
-			Body:        eventJSON,
+			Body:        customerEventJSON,
+		},
+	)
+
+	// Notification for Merchant (receiver) - "Vous avez reçu un paiement..."
+	merchantEvent := map[string]interface{}{
+		"type":        "payment.received",
+		"user_id":     payment.MerchantID,
+		"payment_id":  payment.ID,
+		"customer_id": customerID,
+		"amount":      amount,
+		"currency":    payment.Currency,
+		"title":       payment.Title,
+		"timestamp":   time.Now(),
+	}
+
+	merchantEventJSON, _ := json.Marshal(merchantEvent)
+
+	s.mqChannel.Publish(
+		"wallet.events",
+		"payment.received",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        merchantEventJSON,
 		},
 	)
 }

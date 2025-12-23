@@ -268,6 +268,32 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Data:     event,
 			Channels: []string{"push", "email", "sms"}, // SMS pour réception
 		}
+
+	// ===== PAYMENT (MERCHANT QR) EVENTS =====
+	case "payment.sent":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		title, _ := event["title"].(string)
+		return &Notification{
+			Title:    "💳 Paiement effectué",
+			Body:     fmt.Sprintf("Vous avez payé %.2f %s pour \"%s\".", amount, currency, title),
+			Type:     "transfer",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+	case "payment.received":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		title, _ := event["title"].(string)
+		return &Notification{
+			Title:    "💰 Paiement reçu",
+			Body:     fmt.Sprintf("Vous avez reçu %.2f %s pour \"%s\".", amount, currency, title),
+			Type:     "transfer",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email", "sms"}, // SMS pour le marchand
+		}
 		
 	// ===== EXCHANGE EVENTS =====
 	case "exchange.completed":
