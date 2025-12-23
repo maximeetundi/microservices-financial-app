@@ -124,7 +124,7 @@ type CreatePaymentRequestDTO struct {
 
 // PayPaymentRequestDTO is the request to pay a payment request
 type PayPaymentRequestDTO struct {
-	PaymentRequestID string  `json:"payment_request_id" binding:"required"`
+	PaymentRequestID string  `json:"payment_request_id"` // Set from URL path, not body
 	FromWalletID     string  `json:"from_wallet_id" binding:"required"`
 	Amount           float64 `json:"amount"` // Required for variable type
 	PIN              string  `json:"pin"`    // Optional security PIN
