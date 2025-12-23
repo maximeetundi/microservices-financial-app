@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
 import '../../../core/widgets/security_confirmation.dart';
@@ -17,7 +18,9 @@ class ScanPayScreen extends StatefulWidget {
 
 class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserver {
   MobileScannerController? _cameraController;
+  final ImagePicker _imagePicker = ImagePicker();
   bool _scanning = true;
+  bool _pickingImage = false;
   Map<String, dynamic>? _payment;
   String? _error;
   bool _processing = false;
@@ -171,15 +174,16 @@ class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserv
           child: Column(
             children: [
               const Text(
-                'Ou entrez le code manuellement',
+                'Autres options',
                 style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
               ),
               const SizedBox(height: 12),
+              // Manual code entry
               TextField(
                 onSubmitted: _onCodeScanned,
                 decoration: InputDecoration(
-                  hintText: 'Code de paiement (pay_xxx)',
-                  hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
+                  hintText: 'Entrer le code manuellement (pay_xxx)',
+                  hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
@@ -190,10 +194,34 @@ class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserv
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
+                  prefixIcon: const Icon(Icons.keyboard, color: Color(0xFF64748B)),
                   suffixIcon: const Icon(Icons.arrow_forward, color: Color(0xFF667eea)),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // Upload QR image button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _pickingImage ? null : _pickAndScanImage,
+                  icon: _pickingImage 
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_library),
+                  label: Text(_pickingImage ? 'Analyse en cours...' : 'Choisir une image QR'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF667eea),
+                    side: const BorderSide(color: Color(0xFF667eea)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               // Demo button for testing
               TextButton.icon(
                 onPressed: () => _onCodeScanned('pay_demo'),
@@ -208,6 +236,60 @@ class _ScanPayScreenState extends State<ScanPayScreen> with WidgetsBindingObserv
         ),
       ],
     );
+  }
+
+  /// Pick an image from gallery and scan for QR code
+  Future<void> _pickAndScanImage() async {
+    setState(() => _pickingImage = true);
+    
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+      
+      if (image == null) {
+        setState(() => _pickingImage = false);
+        return;
+      }
+
+      // Use MobileScanner to analyze the image
+      final BarcodeCapture? result = await _cameraController?.analyzeImage(image.path);
+      
+      if (result != null && result.barcodes.isNotEmpty) {
+        final code = result.barcodes.first.rawValue;
+        if (code != null) {
+          _hasScanned = true;
+          _onCodeScanned(code);
+          return;
+        }
+      }
+      
+      // No QR found
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aucun QR code trouvé dans cette image'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error picking/scanning image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _pickingImage = false);
+      }
+    }
   }
 
   Widget _buildPaymentDetails() {
