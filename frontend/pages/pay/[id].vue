@@ -1,5 +1,5 @@
 <template>
-  <div class="pay-page">
+  <NuxtLayout name="dashboard">
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
@@ -135,16 +135,19 @@
         </div>
       </div>
     </div>
-  </div>
+    <PinVerifyModal />
+  </NuxtLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useApi } from '~/composables/useApi'
+import { usePin } from '~/composables/usePin'
 
 const route = useRoute()
 const { paymentApi, walletApi } = useApi()
+const { requirePin, checkPinStatus } = usePin()
 
 const loading = ref(true)
 const error = ref(null)
@@ -210,9 +213,8 @@ async function loadWallets() {
   }
 }
 
-async function processPayment() {
-  if (!canPay.value) return
-  
+// Execute the actual payment (called after PIN verification)
+async function executePayment() {
   processing.value = true
   try {
     const amount = payment.value.amount || amountToPay.value
@@ -225,9 +227,23 @@ async function processPayment() {
     paidAmount.value = amount
     paymentSuccess.value = true
   } catch (err) {
-    alert('Erreur: ' + (err.message || 'Paiement échoué'))
+    console.error('Payment error:', err)
+    const errorMsg = err.response?.data?.error || err.message || 'Paiement échoué'
+    alert('Erreur: ' + errorMsg)
   } finally {
     processing.value = false
+  }
+}
+
+// Process payment with PIN verification
+async function processPayment() {
+  if (!canPay.value) return
+  
+  // Require PIN verification before executing the payment
+  const verified = await requirePin(executePayment)
+  
+  if (!verified) {
+    console.log('Payment cancelled - PIN verification required')
   }
 }
 
