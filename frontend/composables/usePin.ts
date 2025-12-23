@@ -37,6 +37,10 @@ export function usePin() {
             await userAPI.setupPin({ pin, confirm_pin: confirmPin })
             pinState.value.hasPin = true
             pinState.value.showSetupModal = false
+            // Persist to session storage
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('has_pin', 'true')
+            }
             return { success: true, message: 'PIN défini avec succès' }
         } catch (error: any) {
             const message = error.response?.data?.error || 'Échec de la définition du PIN'

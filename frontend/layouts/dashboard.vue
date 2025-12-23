@@ -155,14 +155,32 @@ import { usePin } from '~/composables/usePin'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
-const { checkPinStatus, hasPin, showPinSetup } = usePin()
+const { checkPinStatus, hasPin, showPinSetup, state: pinState } = usePin()
 
-// Check PIN status on mount
+// Check PIN status on mount (only once per session)
 onMounted(async () => {
-  const hasPinSet = await checkPinStatus()
-  if (!hasPinSet) {
-    // Force PIN setup if user doesn't have one
-    showPinSetup()
+  // Skip if already checked in this session or PIN is set
+  const alreadyChecked = sessionStorage.getItem('pin_status_checked')
+  const pinAlreadySet = sessionStorage.getItem('has_pin') === 'true'
+  
+  if (pinAlreadySet || pinState.value.hasPin) {
+    return // PIN already set, no need to show modal
+  }
+  
+  if (!alreadyChecked) {
+    sessionStorage.setItem('pin_status_checked', 'true')
+    try {
+      const hasPinSet = await checkPinStatus()
+      if (hasPinSet) {
+        sessionStorage.setItem('has_pin', 'true')
+      } else {
+        // Force PIN setup if user doesn't have one
+        showPinSetup()
+      }
+    } catch (error) {
+      console.error('Failed to check PIN status:', error)
+      // Don't show modal on error - let user continue
+    }
   }
 })
 
