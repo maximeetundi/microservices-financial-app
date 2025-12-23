@@ -259,7 +259,7 @@ onMounted(async () => {
         if (docsRes.data?.documents) {
           uploadHistory.value = docsRes.data.documents
           // Update document statuses based on backend data
-          docsRes.data.documents.forEach((doc: any) => {
+          docsRes.data.documents.forEach((doc) => {
             if (documents[doc.type]) {
               documents[doc.type].status = doc.status
               documents[doc.type].label = doc.status === 'approved' ? 'Approuvé' : 
