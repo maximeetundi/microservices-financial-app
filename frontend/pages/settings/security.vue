@@ -227,28 +227,30 @@
           
           <div class="pin-form">
             <label>Nouveau PIN</label>
-            <div class="pin-inputs">
+            <div class="pin-inputs" ref="newPinInputs">
               <input
                 v-for="(_, i) in 5"
-                :key="i"
+                :key="'new-'+i"
                 type="password"
                 maxlength="1"
                 inputmode="numeric"
                 :value="newPin[i] || ''"
-                @input="newPin = newPin.substring(0, i) + ($event.target.value || '') + newPin.substring(i + 1)"
+                @input="handleNewPinInput($event, i)"
+                @keydown="handlePinKeydown($event, i, 'new')"
               >
             </div>
             
             <label>Confirmer le PIN</label>
-            <div class="pin-inputs">
+            <div class="pin-inputs" ref="confirmPinInputs">
               <input
                 v-for="(_, i) in 5"
-                :key="i"
+                :key="'confirm-'+i"
                 type="password"
                 maxlength="1"
                 inputmode="numeric"
                 :value="confirmPin[i] || ''"
-                @input="confirmPin = confirmPin.substring(0, i) + ($event.target.value || '') + confirmPin.substring(i + 1)"
+                @input="handleConfirmPinInput($event, i)"
+                @keydown="handlePinKeydown($event, i, 'confirm')"
               >
             </div>
           </div>
@@ -318,6 +320,57 @@ const settingPin = ref(false)
 const pinError = ref('')
 const newPin = ref('')
 const confirmPin = ref('')
+const newPinInputs = ref(null)
+const confirmPinInputs = ref(null)
+
+// PIN Input Handlers - auto-advance to next field
+function handleNewPinInput(event, index) {
+  const value = event.target.value.replace(/\D/g, '') // Only digits
+  newPin.value = newPin.value.substring(0, index) + value + newPin.value.substring(index + 1)
+  
+  // Auto-advance to next input
+  if (value && index < 4 && newPinInputs.value) {
+    const inputs = newPinInputs.value.querySelectorAll('input')
+    if (inputs[index + 1]) {
+      nextTick(() => inputs[index + 1].focus())
+    }
+  }
+  // Move to confirm PIN inputs when newPin is complete
+  else if (value && index === 4 && confirmPinInputs.value) {
+    const inputs = confirmPinInputs.value.querySelectorAll('input')
+    if (inputs[0]) {
+      nextTick(() => inputs[0].focus())
+    }
+  }
+}
+
+function handleConfirmPinInput(event, index) {
+  const value = event.target.value.replace(/\D/g, '') // Only digits
+  confirmPin.value = confirmPin.value.substring(0, index) + value + confirmPin.value.substring(index + 1)
+  
+  // Auto-advance to next input
+  if (value && index < 4 && confirmPinInputs.value) {
+    const inputs = confirmPinInputs.value.querySelectorAll('input')
+    if (inputs[index + 1]) {
+      nextTick(() => inputs[index + 1].focus())
+    }
+  }
+}
+
+function handlePinKeydown(event, index, type) {
+  // Handle backspace - go to previous input
+  if (event.key === 'Backspace') {
+    const container = type === 'new' ? newPinInputs.value : confirmPinInputs.value
+    const currentValue = type === 'new' ? newPin.value[index] : confirmPin.value[index]
+    
+    if (!currentValue && index > 0 && container) {
+      const inputs = container.querySelectorAll('input')
+      if (inputs[index - 1]) {
+        nextTick(() => inputs[index - 1].focus())
+      }
+    }
+  }
+}
 
 // 2FA Setup
 const show2FASetup = ref(false)
