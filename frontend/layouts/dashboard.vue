@@ -81,6 +81,11 @@
           <span class="icon">🏪</span>
           <span>Espace Marchand</span>
         </NuxtLink>
+
+        <NuxtLink to="/scan" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">📷</span>
+          <span>Scanner / Payer</span>
+        </NuxtLink>
       </nav>
 
       <!-- User Section -->

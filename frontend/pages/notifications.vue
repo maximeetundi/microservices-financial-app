@@ -347,7 +347,8 @@ definePageMeta({
 }
 
 .action-btn.text-error:hover {
-  @apply text-error bg-error/10;
+  color: rgb(239 68 68);
+  background-color: rgb(239 68 68 / 0.1);
 }
 
 /* Skeleton */
