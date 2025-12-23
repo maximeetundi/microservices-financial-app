@@ -480,7 +480,11 @@ export function useApi() {
 
 // ========== Notifications ==========
 export const notificationAPI = {
-    getAll: (limit = 20, offset = 0) => api.get(`/notification-service/api/v1/notifications?limit=${limit}&offset=${offset}`),
+    getAll: (options: { limit?: number; offset?: number } = {}) => {
+        const limit = options.limit || 20
+        const offset = options.offset || 0
+        return api.get(`/notification-service/api/v1/notifications?limit=${limit}&offset=${offset}`)
+    },
     getUnreadCount: () => api.get('/notification-service/api/v1/notifications/unread-count'),
     markAsRead: (id: string) => api.post(`/notification-service/api/v1/notifications/${id}/read`),
     markAllAsRead: () => api.post('/notification-service/api/v1/notifications/read-all'),
