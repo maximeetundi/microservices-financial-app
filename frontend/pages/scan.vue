@@ -13,23 +13,97 @@
       <!-- Method Tabs -->
       <div class="flex gap-2 mb-6">
         <button 
-          @click="activeTab = 'code'"
+          @click="switchTab('camera')"
+          class="flex-1 py-3 px-4 rounded-xl font-medium transition-all"
+          :class="activeTab === 'camera' 
+            ? 'bg-primary text-white shadow-lg shadow-primary/30' 
+            : 'bg-surface-hover text-muted hover:text-base'"
+        >
+          📷 Scanner
+        </button>
+        <button 
+          @click="switchTab('code')"
           class="flex-1 py-3 px-4 rounded-xl font-medium transition-all"
           :class="activeTab === 'code' 
             ? 'bg-primary text-white shadow-lg shadow-primary/30' 
             : 'bg-surface-hover text-muted hover:text-base'"
         >
-          ⌨️ Saisir le code
+          ⌨️ Code
         </button>
         <button 
-          @click="activeTab = 'image'"
+          @click="switchTab('image')"
           class="flex-1 py-3 px-4 rounded-xl font-medium transition-all"
           :class="activeTab === 'image' 
             ? 'bg-primary text-white shadow-lg shadow-primary/30' 
             : 'bg-surface-hover text-muted hover:text-base'"
         >
-          🖼️ Uploader QR
+          🖼️ Image
         </button>
+      </div>
+
+      <!-- Camera Scanner Tab -->
+      <div v-if="activeTab === 'camera'" class="glass-card">
+        <div class="space-y-4">
+          <!-- Camera Permission Error -->
+          <div v-if="cameraError" class="p-4 rounded-xl bg-error/10 border border-error/20 text-error text-center">
+            <p class="font-medium mb-2">{{ cameraError }}</p>
+            <button @click="startCamera" class="text-sm underline">Réessayer</button>
+          </div>
+
+          <!-- Camera View -->
+          <div v-else class="relative">
+            <div class="aspect-square rounded-2xl overflow-hidden bg-black relative">
+              <video 
+                ref="videoElement" 
+                class="w-full h-full object-cover"
+                playsinline
+              ></video>
+              
+              <!-- Scanning Overlay -->
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="scanner-frame">
+                  <div class="scanner-corner top-left"></div>
+                  <div class="scanner-corner top-right"></div>
+                  <div class="scanner-corner bottom-left"></div>
+                  <div class="scanner-corner bottom-right"></div>
+                  <div v-if="cameraActive" class="scanner-line"></div>
+                </div>
+              </div>
+
+              <!-- Camera Loading -->
+              <div v-if="!cameraActive && !cameraError" class="absolute inset-0 flex items-center justify-center bg-black/80">
+                <div class="text-center text-white">
+                  <div class="loading-spinner w-10 h-10 mx-auto mb-4"></div>
+                  <p class="text-sm">Activation de la caméra...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Camera Controls -->
+            <div v-if="cameraActive" class="flex justify-center gap-4 mt-4">
+              <button 
+                v-if="hasFlash"
+                @click="toggleFlash"
+                class="p-3 rounded-xl bg-surface-hover hover:bg-secondary-200 dark:hover:bg-secondary-700 transition-colors"
+                :title="flashOn ? 'Désactiver le flash' : 'Activer le flash'"
+              >
+                <span class="text-xl">{{ flashOn ? '🔦' : '💡' }}</span>
+              </button>
+              <button 
+                v-if="cameras.length > 1"
+                @click="switchCamera"
+                class="p-3 rounded-xl bg-surface-hover hover:bg-secondary-200 dark:hover:bg-secondary-700 transition-colors"
+                title="Changer de caméra"
+              >
+                <span class="text-xl">🔄</span>
+              </button>
+            </div>
+          </div>
+
+          <p class="text-xs text-muted text-center">
+            Placez le QR code dans le cadre pour scanner automatiquement
+          </p>
+        </div>
       </div>
 
       <!-- Code Entry Tab -->
@@ -71,7 +145,7 @@
             :class="isDragging ? 'border-primary bg-primary/10' : 'border-secondary-300 dark:border-secondary-600 hover:border-primary'"
           >
             <div v-if="!selectedImage">
-              <span class="text-5xl mb-4 block">📷</span>
+              <span class="text-5xl mb-4 block">🖼️</span>
               <p class="font-medium text-base mb-1">Cliquez ou glissez une image</p>
               <p class="text-sm text-muted">PNG, JPG jusqu'à 5MB</p>
             </div>
@@ -118,10 +192,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import QrScanner from 'qr-scanner'
 
-const activeTab = ref('code')
+const activeTab = ref('camera')
 const paymentCode = ref('')
 const selectedImage = ref(null)
 const selectedFile = ref(null)
@@ -130,6 +204,150 @@ const loading = ref(false)
 const scanning = ref(false)
 const error = ref('')
 const fileInput = ref(null)
+
+// Camera state
+const videoElement = ref(null)
+const qrScanner = ref(null)
+const cameraActive = ref(false)
+const cameraError = ref('')
+const cameras = ref([])
+const currentCameraIndex = ref(0)
+const hasFlash = ref(false)
+const flashOn = ref(false)
+
+// Initialize camera on mount
+onMounted(async () => {
+  // Get available cameras
+  try {
+    cameras.value = await QrScanner.listCameras(true)
+  } catch (e) {
+    console.log('Could not list cameras:', e)
+  }
+  
+  // Start camera if we're on camera tab
+  if (activeTab.value === 'camera') {
+    await nextTick()
+    startCamera()
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  stopCamera()
+})
+
+const startCamera = async () => {
+  cameraError.value = ''
+  cameraActive.value = false
+  
+  await nextTick()
+  
+  if (!videoElement.value) {
+    cameraError.value = 'Élément vidéo non disponible'
+    return
+  }
+
+  try {
+    // Create scanner
+    qrScanner.value = new QrScanner(
+      videoElement.value,
+      (result) => {
+        handleScanResult(result.data)
+      },
+      {
+        returnDetailedScanResult: true,
+        highlightScanRegion: false,
+        highlightCodeOutline: true,
+        preferredCamera: cameras.value.length > 1 ? 'environment' : undefined
+      }
+    )
+
+    await qrScanner.value.start()
+    cameraActive.value = true
+
+    // Check flash availability
+    hasFlash.value = await qrScanner.value.hasFlash()
+  } catch (e) {
+    console.error('Camera error:', e)
+    if (e.name === 'NotAllowedError') {
+      cameraError.value = 'Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres de votre navigateur.'
+    } else if (e.name === 'NotFoundError') {
+      cameraError.value = 'Aucune caméra trouvée sur cet appareil.'
+    } else {
+      cameraError.value = 'Impossible d\'accéder à la caméra. Essayez le mode "Image" ou "Code".'
+    }
+  }
+}
+
+const stopCamera = () => {
+  if (qrScanner.value) {
+    qrScanner.value.stop()
+    qrScanner.value.destroy()
+    qrScanner.value = null
+  }
+  cameraActive.value = false
+}
+
+const handleScanResult = (data) => {
+  if (!data) return
+  
+  // Stop camera
+  stopCamera()
+  
+  let code = data
+  
+  // Parse if JSON
+  try {
+    const json = JSON.parse(code)
+    code = json.payment_id || json.id || code
+  } catch {
+    // Not JSON, try URL parsing
+    if (code.includes('/pay/')) {
+      code = code.split('/pay/').pop()
+    }
+  }
+  
+  // Navigate to payment
+  navigateTo(`/pay/${code}`)
+}
+
+const switchTab = async (tab) => {
+  // Stop camera when leaving camera tab
+  if (activeTab.value === 'camera' && tab !== 'camera') {
+    stopCamera()
+  }
+  
+  activeTab.value = tab
+  error.value = ''
+  
+  // Start camera when switching to camera tab
+  if (tab === 'camera') {
+    await nextTick()
+    startCamera()
+  }
+}
+
+const switchCamera = async () => {
+  if (cameras.value.length <= 1) return
+  
+  currentCameraIndex.value = (currentCameraIndex.value + 1) % cameras.value.length
+  const camera = cameras.value[currentCameraIndex.value]
+  
+  if (qrScanner.value) {
+    await qrScanner.value.setCamera(camera.id)
+  }
+}
+
+const toggleFlash = async () => {
+  if (!qrScanner.value || !hasFlash.value) return
+  
+  try {
+    await qrScanner.value.toggleFlash()
+    flashOn.value = await qrScanner.value.isFlashOn()
+  } catch (e) {
+    console.error('Flash toggle failed:', e)
+  }
+}
 
 const openFilePicker = () => {
   fileInput.value?.click()
@@ -195,20 +413,7 @@ const scanImage = async () => {
     })
     
     if (result?.data) {
-      let code = result.data
-      
-      // Parse if JSON
-      try {
-        const json = JSON.parse(code)
-        code = json.payment_id || json.id || code
-      } catch {
-        // Not JSON, try URL parsing
-        if (code.includes('/pay/')) {
-          code = code.split('/pay/').pop()
-        }
-      }
-      
-      navigateTo(`/pay/${code}`)
+      handleScanResult(result.data)
     } else {
       error.value = 'Aucun QR code trouvé dans cette image'
     }
@@ -230,4 +435,73 @@ definePageMeta({
 .glass-card {
   @apply bg-surface rounded-2xl p-6 shadow-lg border border-secondary-200 dark:border-secondary-700;
 }
+
+/* Scanner frame styling */
+.scanner-frame {
+  width: 70%;
+  height: 70%;
+  position: relative;
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-color: rgba(102, 126, 234, 0.9);
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-corner.top-left {
+  top: 0;
+  left: 0;
+  border-top-width: 4px;
+  border-left-width: 4px;
+  border-top-left-radius: 12px;
+}
+
+.scanner-corner.top-right {
+  top: 0;
+  right: 0;
+  border-top-width: 4px;
+  border-right-width: 4px;
+  border-top-right-radius: 12px;
+}
+
+.scanner-corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 4px;
+  border-left-width: 4px;
+  border-bottom-left-radius: 12px;
+}
+
+.scanner-corner.bottom-right {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-bottom-right-radius: 12px;
+}
+
+.scanner-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.9), transparent);
+  animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0;
+  }
+}
 </style>
+
