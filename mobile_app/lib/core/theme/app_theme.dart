@@ -2,31 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Primary Colors
-  static const Color primaryColor = Color(0xFF2563EB);
-  static const Color primaryLightColor = Color(0xFF3B82F6);
-  static const Color primaryDarkColor = Color(0xFF1E40AF);
+  // Primary Colors (Indigo)
+  static const Color primaryColor = Color(0xFF6366F1); // Indigo 500
+  static const Color primaryLightColor = Color(0xFF818CF8); // Indigo 400
+  static const Color primaryDarkColor = Color(0xFF4F46E5); // Indigo 600
   
-  // Secondary Colors
-  static const Color secondaryColor = Color(0xFF10B981);
-  static const Color secondaryLightColor = Color(0xFF34D399);
-  static const Color secondaryDarkColor = Color(0xFF059669);
+  // Secondary Colors (Violet)
+  static const Color secondaryColor = Color(0xFF8B5CF6); // Violet 500
+  static const Color secondaryLightColor = Color(0xFFA78BFA); // Violet 400
+  static const Color secondaryDarkColor = Color(0xFF7C3AED); // Violet 600
   
-  // Neutral Colors
-  static const Color backgroundColor = Color(0xFFF8FAFC);
-  static const Color surfaceColor = Color(0xFFFFFFFF);
+  // Neutral Colors (Slate)
+  static const Color backgroundColor = Color(0xFFFAFBFC); // Web Base
+  static const Color surfaceColor = Color(0xFFF8FAFC); // Web Surface
   static const Color cardColor = Color(0xFFFFFFFF);
   
-  // Text Colors
-  static const Color textPrimaryColor = Color(0xFF1E293B);
-  static const Color textSecondaryColor = Color(0xFF64748B);
-  static const Color textTertiaryColor = Color(0xFF94A3B8);
+  // Text Colors (Slate)
+  static const Color textPrimaryColor = Color(0xFF1E293B); // Slate 800
+  static const Color textSecondaryColor = Color(0xFF64748B); // Slate 500
+  static const Color textTertiaryColor = Color(0xFF94A3B8); // Slate 400
   
   // Status Colors
-  static const Color successColor = Color(0xFF10B981);
-  static const Color warningColor = Color(0xFFF59E0B);
-  static const Color errorColor = Color(0xFFEF4444);
-  static const Color infoColor = Color(0xFF3B82F6);
+  static const Color successColor = Color(0xFF10B981); // Emerald 500
+  static const Color warningColor = Color(0xFFF59E0B); // Amber 500
+  static const Color errorColor = Color(0xFFEF4444); // Red 500
+  static const Color infoColor = Color(0xFF3B82F6); // Blue 500
   
   // Currency Colors
   static const Color bitcoinColor = Color(0xFFF7931A);
@@ -39,19 +39,19 @@ class AppTheme {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryColor, primaryLightColor],
+    colors: [primaryColor, secondaryColor], // Indigo to Violet
   );
   
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
   );
   
   static const LinearGradient successGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [successColor, secondaryColor],
+    colors: [successColor, Color(0xFF059669)],
   );
 
   // Light Theme
@@ -312,9 +312,9 @@ class AppTheme {
 
   // Dark Theme
   static ThemeData get darkTheme {
-    const darkBackground = Color(0xFF0F172A);
-    const darkSurface = Color(0xFF1E293B);
-    const darkCard = Color(0xFF1E293B);
+    const darkBackground = Color(0xFF020617); // Slate 950
+    const darkSurface = Color(0xFF0F172A); // Slate 900
+    const darkCard = Color(0xFF1E293B); // Slate 800
     const darkTextPrimary = Color(0xFFE2E8F0);
     const darkTextSecondary = Color(0xFF94A3B8);
     const darkTextTertiary = Color(0xFF64748B);

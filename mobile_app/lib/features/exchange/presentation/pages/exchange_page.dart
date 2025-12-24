@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/loading_widget.dart';
+import '../../../../core/widgets/glass_container.dart';
 import '../bloc/exchange_bloc.dart';
 import '../widgets/currency_selector.dart';
 import '../widgets/exchange_rate_card.dart';
@@ -48,39 +49,93 @@ class _ExchangePageState extends State<ExchangePage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Exchange'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              // Navigate to exchange history
-            },
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Exchange'),
-            Tab(text: 'Trading'),
-            Tab(text: 'P2P'),
-          ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildExchangeTab(),
-          _buildTradingTab(),
-          _buildP2PTab(),
-        ],
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     const SizedBox(width: 48), // Spacer
+                     Text(
+                       'Échange',
+                       style: GoogleFonts.inter(
+                         fontSize: 20,
+                         fontWeight: FontWeight.bold,
+                         color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                       ),
+                     ),
+                      GlassContainer(
+                        padding: EdgeInsets.zero,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        child: IconButton(
+                          icon: Icon(Icons.history, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                          onPressed: () {
+                             // Navigate to exchange history
+                          },
+                        ),
+                     ),
+                   ],
+                 ),
+               ),
+               // Tab Bar
+               Container(
+                 margin: const EdgeInsets.symmetric(horizontal: 16),
+                 decoration: BoxDecoration(
+                   color: isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
+                   borderRadius: BorderRadius.circular(16),
+                 ),
+                 child: TabBar(
+                   controller: _tabController,
+                   indicatorColor: AppTheme.primaryColor,
+                   labelColor: AppTheme.primaryColor,
+                   unselectedLabelColor: isDark ? Colors.white54 : Colors.grey,
+                   labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                   tabs: const [
+                     Tab(text: 'Convertir'),
+                     Tab(text: 'Trading'),
+                     Tab(text: 'P2P'),
+                   ],
+                 ),
+               ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildExchangeTab(),
+                    _buildTradingTab(),
+                    _buildP2PTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildExchangeTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return BlocListener<ExchangeBloc, ExchangeState>(
       listener: (context, state) {
         if (state is ExchangeSuccessState) {
@@ -112,7 +167,7 @@ class _ExchangePageState extends State<ExchangePage>
             
             // From Currency Selection
             _buildCurrencySection(
-              title: 'From',
+              title: 'De',
               currency: _fromCurrency,
               controller: _fromAmountController,
               onCurrencyChanged: (currency) {
@@ -137,7 +192,7 @@ class _ExchangePageState extends State<ExchangePage>
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
+                      gradient: AppTheme.primaryGradient,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -161,7 +216,7 @@ class _ExchangePageState extends State<ExchangePage>
             
             // To Currency Selection
             _buildCurrencySection(
-              title: 'To',
+              title: 'Vers',
               currency: _toCurrency,
               controller: _toAmountController,
               onCurrencyChanged: (currency) {
@@ -192,10 +247,24 @@ class _ExchangePageState extends State<ExchangePage>
               builder: (context, state) {
                 final isLoading = state is ExchangeLoadingState;
                 
-                return CustomButton(
-                  text: isLoading ? 'Processing...' : 'Exchange',
-                  onPressed: isLoading ? null : _handleExchange,
-                  isLoading: isLoading,
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: CustomButton(
+                    text: isLoading ? 'Traitement...' : 'Échanger',
+                    onPressed: isLoading ? null : _handleExchange,
+                    isLoading: isLoading,
+                    backgroundColor: AppTheme.primaryColor,
+                    textColor: Colors.white,
+                  ),
                 );
               },
             ),
@@ -280,76 +349,88 @@ class _ExchangePageState extends State<ExchangePage>
     Function(String)? onAmountChanged,
     bool isReadOnly = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.transparent, // Use glass container instead
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              // Currency Selector
-              GestureDetector(
-                onTap: () => _showCurrencyPicker(onCurrencyChanged),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      _getCurrencyIcon(currency),
-                      const SizedBox(width: 8),
-                      Text(
-                        currency,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+      child: GlassContainer(
+        padding: const EdgeInsets.all(16),
+        borderRadius: 16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Currency Selector
+                GestureDetector(
+                  onTap: () => _showCurrencyPicker(onCurrencyChanged),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.black26 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        _getCurrencyIcon(currency),
+                        const SizedBox(width: 8),
+                        Text(
+                          currency,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 20,
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              // Amount Input
-              Expanded(
-                child: TextFormField(
-                  controller: controller,
-                  readOnly: isReadOnly,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                
+                const SizedBox(width: 16),
+                
+                // Amount Input
+                Expanded(
+                  child: TextFormField(
+                    controller: controller,
+                    readOnly: isReadOnly,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                     style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0.00',
+                      hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.grey.shade400),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: onAmountChanged,
                   ),
-                  decoration: const InputDecoration(
-                    hintText: '0.00',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: onAmountChanged,
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

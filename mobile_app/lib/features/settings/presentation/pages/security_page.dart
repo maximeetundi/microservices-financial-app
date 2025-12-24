@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_container.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../security/pin_code_screen.dart';
@@ -133,30 +136,57 @@ class _SecurityPageState extends State<SecurityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Sécurité 🔒',
-          style: TextStyle(
-            color: Color(0xFF1a1a2e),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
           ),
         ),
-        centerTitle: true,
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar Area
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40,
+                       height: 40, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.pop(),
+                      ),
+                     ),
+                     Text(
+                        'Sécurité 🔒',
+                         style: GoogleFonts.inter(
+                           fontSize: 20,
+                           fontWeight: FontWeight.bold,
+                           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                         ),
+                      ),
+                      const SizedBox(width: 40), // Spacer
+                   ],
+                 ),
+               ),
+               Expanded(
+                 child: _loading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
                 // PIN Section
                 _buildSection(
                   title: 'Code PIN',
@@ -338,8 +368,13 @@ class _SecurityPageState extends State<SecurityPage> {
                     ],
                   ),
                 ),
-              ],
-            ),
+                  ],
+                ),
+               ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -348,40 +383,37 @@ class _SecurityPageState extends State<SecurityPage> {
     required IconData icon,
     required List<Widget> children,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Icon(icon, size: 18, color: const Color(0xFF667eea)),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF64748B),
-                  ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          ...children,
-        ],
-      ),
+        ),
+        GlassContainer(
+          borderRadius: 20,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ],
     );
   }
 
@@ -393,18 +425,35 @@ class _SecurityPageState extends State<SecurityPage> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF64748B)),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: isDark ? Colors.white70 : Colors.grey.shade600, size: 20),
+      ),
       title: Text(
         title,
-        style: TextStyle(
-          color: titleColor ?? const Color(0xFF1a1a2e),
+        style: GoogleFonts.inter(
+          color: titleColor ?? (isDark ? Colors.white : AppTheme.textPrimaryColor),
           fontWeight: FontWeight.w500,
+          fontSize: 15,
         ),
       ),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)) : null),
+      subtitle: subtitle != null ? Text(
+        subtitle, 
+        style: GoogleFonts.inter(
+          color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
+          fontSize: 13,
+        ),
+      ) : null,
+      trailing: trailing ?? (onTap != null ? Icon(Icons.chevron_right, color: isDark ? Colors.white30 : Colors.grey.shade400) : null),
       onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
@@ -415,19 +464,36 @@ class _SecurityPageState extends State<SecurityPage> {
     required bool value,
     required Function(bool) onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SwitchListTile(
-      secondary: Icon(icon, color: const Color(0xFF64748B)),
+      secondary: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: isDark ? Colors.white70 : Colors.grey.shade600, size: 20),
+      ),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF1a1a2e),
-          fontWeight: FontWeight.w500,
+        style: GoogleFonts.inter(
+           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+           fontWeight: FontWeight.w500,
+           fontSize: 15,
         ),
       ),
-      subtitle: subtitle != null ? Text(subtitle) : null,
+      subtitle: subtitle != null ? Text(
+        subtitle,
+        style: GoogleFonts.inter(
+          color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
+          fontSize: 13,
+        ),
+      ) : null,
       value: value,
-      activeColor: const Color(0xFF667eea),
+      activeColor: AppTheme.primaryColor,
       onChanged: onChanged,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 

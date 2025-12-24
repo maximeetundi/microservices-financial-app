@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class CardStatsSection extends StatelessWidget {
   final double monthlySpend;
@@ -15,11 +17,19 @@ class CardStatsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percentUsed = (monthlySpend / limit * 100).clamp(0, 100);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Statistiques du mois', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          'Statistiques du mois', 
+          style: GoogleFonts.inter(
+            fontSize: 16, 
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : AppTheme.textPrimaryColor
+          )
+        ),
         const SizedBox(height: 16),
         
         // Progress bar
@@ -29,8 +39,19 @@ class CardStatsSection extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('\$${monthlySpend.toStringAsFixed(0)} dépensés', style: const TextStyle(fontWeight: FontWeight.w500)),
-                Text('sur \$${limit.toStringAsFixed(0)}', style: TextStyle(color: Colors.grey[600])),
+                Text(
+                  '\$${monthlySpend.toStringAsFixed(0)} dépensés', 
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white70 : AppTheme.textPrimaryColor
+                  )
+                ),
+                Text(
+                  'sur \$${limit.toStringAsFixed(0)}', 
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white38 : AppTheme.textSecondaryColor
+                  )
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -39,14 +60,20 @@ class CardStatsSection extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: percentUsed / 100,
                 minHeight: 8,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  percentUsed > 80 ? Colors.red : (percentUsed > 50 ? Colors.orange : Colors.green),
+                  percentUsed > 80 ? AppTheme.errorColor : (percentUsed > 50 ? Colors.orange : AppTheme.successColor),
                 ),
               ),
             ),
             const SizedBox(height: 4),
-            Text('${percentUsed.toStringAsFixed(0)}% utilisé', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            Text(
+              '${percentUsed.toStringAsFixed(0)}% utilisé', 
+              style: GoogleFonts.inter(
+                fontSize: 12, 
+                color: isDark ? Colors.white38 : AppTheme.textSecondaryColor
+              )
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -68,7 +95,7 @@ class CardStatsSection extends StatelessWidget {
                 icon: Icons.trending_up,
                 label: 'Moyenne',
                 value: '\$${(monthlySpend / (transactionCount > 0 ? transactionCount : 1)).toStringAsFixed(0)}',
-                color: Colors.green,
+                color: AppTheme.successColor,
               ),
             ),
           ],
@@ -93,11 +120,14 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -106,8 +136,21 @@ class _StatCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                label, 
+                style: GoogleFonts.inter(
+                  fontSize: 12, 
+                  color: isDark ? Colors.white54 : AppTheme.textSecondaryColor
+                )
+              ),
+              Text(
+                value, 
+                style: GoogleFonts.inter(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppTheme.textPrimaryColor
+                )
+              ),
             ],
           ),
         ],

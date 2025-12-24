@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/security_confirmation.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
 import '../bloc/transfer_bloc.dart';
@@ -66,86 +70,109 @@ class _TransferPageState extends State<TransferPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Envoyer de l\'argent 💸',
-          style: TextStyle(
-            color: Color(0xFF1a1a2e),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
           ),
         ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Subtitle
-            const Text(
-              'Transferts P2P, Mobile Money, et virements bancaires',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            
-            // Transfer Type Selector
-            _buildTypeSelector(),
-            const SizedBox(height: 24),
-            
-            // Transfer Form Card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar Area
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40, 
+                       height: 40,
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.pop(),
+                      ),
+                     ),
+                     Text(
+                        'Envoyer de l\'argent 💸',
+                         style: GoogleFonts.inter(
+                           fontSize: 20,
+                           fontWeight: FontWeight.bold,
+                           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                         ),
+                      ),
+                      const SizedBox(width: 40), // Spacer
+                   ],
+                 ),
+               ),
+               Expanded(
+                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Subtitle
+                      Text(
+                        'Transferts P2P, Mobile Money, et virements bancaires',
+                        style: GoogleFonts.inter(
+                          color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
+                          fontSize: 14
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Transfer Type Selector
+                      _buildTypeSelector(),
+                      const SizedBox(height: 24),
+                      
+                      // Transfer Form Card
+                      GlassContainer(
+                        padding: const EdgeInsets.all(24),
+                        borderRadius: 24,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // From Wallet
+                            _buildWalletSelector(),
+                            const SizedBox(height: 24),
+                            
+                            // Amount
+                            _buildAmountField(),
+                            const SizedBox(height: 24),
+                            
+                            // Type-specific fields
+                            _buildTypeSpecificFields(),
+                            const SizedBox(height: 24),
+                            
+                            // Description
+                            _buildDescriptionField(),
+                            const SizedBox(height: 24),
+                            
+                            // Summary
+                            _buildSummary(),
+                            const SizedBox(height: 24),
+                            
+                            // Submit Button
+                            _buildSubmitButton(),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // From Wallet
-                    _buildWalletSelector(),
-                    const SizedBox(height: 24),
-                    
-                    // Amount
-                    _buildAmountField(),
-                    const SizedBox(height: 24),
-                    
-                    // Type-specific fields
-                    _buildTypeSpecificFields(),
-                    const SizedBox(height: 24),
-                    
-                    // Description
-                    _buildDescriptionField(),
-                    const SizedBox(height: 24),
-                    
-                    // Summary
-                    _buildSummary(),
-                    const SizedBox(height: 24),
-                    
-                    // Submit Button
-                    _buildSubmitButton(),
-                  ],
                 ),
-              ),
-            ),
-          ],
+               ),
+            ],
+          ),
         ),
       ),
     );

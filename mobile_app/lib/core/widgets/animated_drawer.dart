@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui';
+import '../theme/app_theme.dart';
 
 /// Modern animated drawer with glassmorphism effect
 class AnimatedDrawer extends StatefulWidget {
@@ -88,9 +89,8 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF1a1a2e),
-                    Color(0xFF16213e),
-                    Color(0xFF0f3460),
+                    AppTheme.darkTheme.colorScheme.background,
+                    AppTheme.darkTheme.colorScheme.surface,
                   ],
                 ),
               ),
@@ -255,9 +255,7 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-            ),
+            gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(

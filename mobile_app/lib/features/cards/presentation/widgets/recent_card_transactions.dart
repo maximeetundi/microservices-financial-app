@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RecentCardTransactions extends StatelessWidget {
   final String cardId;
@@ -11,15 +13,21 @@ class RecentCardTransactions extends StatelessWidget {
   });
 
   @override
+  @override
   Widget build(BuildContext context) {
     if (transactions.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('Aucune transaction récente', style: TextStyle(color: Colors.grey)),
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'Aucune transaction récente', 
+            style: GoogleFonts.inter(color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : AppTheme.textSecondaryColor)
+          ),
         ),
       );
     }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,32 +35,65 @@ class RecentCardTransactions extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Transactions récentes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: () {}, child: const Text('Voir tout')),
+            Text(
+              'Transactions récentes', 
+              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppTheme.textPrimaryColor)
+            ),
+            TextButton(
+              onPressed: () {}, 
+              child: Text(
+                'Voir tout',
+                style: GoogleFonts.inter(color: AppTheme.primaryColor),
+              )
+            ),
           ],
         ),
-        ...transactions.take(5).map((tx) => _buildTransactionTile(tx)),
+        ...transactions.take(5).map((tx) => _buildTransactionTile(context, tx, isDark)),
       ],
     );
   }
 
-  Widget _buildTransactionTile(CardTransaction tx) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Center(child: Text(_getMerchantIcon(tx.merchant), style: const TextStyle(fontSize: 20))),
-      ),
-      title: Text(tx.merchant, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text(tx.date, style: const TextStyle(fontSize: 12)),
-      trailing: Text(
-        '-\$${tx.amount.toStringAsFixed(2)}',
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+  Widget _buildTransactionTile(BuildContext context, CardTransaction tx, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text(_getMerchantIcon(tx.merchant), style: const TextStyle(fontSize: 20))),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tx.merchant, 
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                  )
+                ),
+                Text(
+                  tx.date, 
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
+                  )
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '-\$${tx.amount.toStringAsFixed(2)}',
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFFEF4444)),
+          ),
+        ],
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
 
 import '../../../../core/widgets/animated_drawer.dart';
+import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
 
@@ -41,37 +43,50 @@ class _ModernHomePageState extends State<ModernHomePage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return AnimatedDrawer(
       key: _drawerKey,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Modern App Bar
-            _buildModernAppBar(context),
-            
-            // Content
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  // Balance Card
-                  _buildBalanceCard(),
-                  
-                  // Quick Actions - TRANSFER FOCUSED
-                  _buildQuickActions(context),
-                  
-                  // Recent Activity
-                  _buildRecentActivity(),
-                  
-                  // Services Section
-                  _buildServicesGrid(context),
-                  
-                  const SizedBox(height: 100),
-                ],
-              ),
+        backgroundColor: Colors.transparent, // Allow gradient to show
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark 
+                  ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                  : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
             ),
-          ],
+          ),
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Modern App Bar
+              _buildModernAppBar(context),
+              
+              // Content
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    // Balance Card
+                    _buildBalanceCard(),
+                    
+                    // Quick Actions - TRANSFER FOCUSED
+                    _buildQuickActions(context),
+                    
+                    // Recent Activity
+                    _buildRecentActivity(),
+                    
+                    // Services Section
+                    _buildServicesGrid(context),
+                    
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         
         // Floating Send Money Button
@@ -79,13 +94,11 @@ class _ModernHomePageState extends State<ModernHomePage>
           scale: _fabAnimationController,
           child: Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              ),
+              gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF667eea).withOpacity(0.4),
+                  color: AppTheme.primaryColor.withOpacity(0.4),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -112,54 +125,51 @@ class _ModernHomePageState extends State<ModernHomePage>
   }
 
   Widget _buildModernAppBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return SliverAppBar(
       expandedHeight: 120,
       floating: false,
       pinned: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-              ),
-            ],
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GlassContainer(
+          borderRadius: 12,
+          blur: 10,
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
+          child: IconButton(
+            icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+            onPressed: () => _drawerKey.currentState?.toggleDrawer(),
           ),
-          child: const Icon(Icons.menu_rounded, color: Color(0xFF1a1a2e)),
         ),
-        onPressed: () => _drawerKey.currentState?.toggleDrawer(),
       ),
       actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
+          child: GlassContainer(
+            borderRadius: 12,
+            blur: 10,
+            width: 48,
+            height: 48,
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
             child: Stack(
               children: [
-                const Icon(Icons.notifications_outlined, color: Color(0xFF1a1a2e)),
+                Center(
+                  child: IconButton(
+                    icon: Icon(Icons.notifications_outlined, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                    onPressed: () => context.push('/dashboard/notifications'),
+                  ),
+                ),
                 Positioned(
-                  right: 0,
-                  top: 0,
+                  right: 12,
+                  top: 12,
                   child: Container(
                     width: 8,
                     height: 8,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
+                      color: AppTheme.errorColor,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -167,18 +177,13 @@ class _ModernHomePageState extends State<ModernHomePage>
               ],
             ),
           ),
-          onPressed: () => context.push('/dashboard/notifications'),
         ),
         const SizedBox(width: 8),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-            ),
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient,
           ),
           child: SafeArea(
             child: Padding(
@@ -206,7 +211,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                       
                       return Text(
                         '$greeting, $name!',
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -226,39 +231,28 @@ class _ModernHomePageState extends State<ModernHomePage>
   Widget _buildBalanceCard() {
     return Container(
       margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1a1a2e), Color(0xFF16213e)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1a1a2e).withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
+      child: GlassContainer(
+        gradient: AppTheme.cardGradient,
+        padding: const EdgeInsets.all(24),
+        borderRadius: 24,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Solde Total',
-                style: TextStyle(
-                  color: Colors.white60,
+                style: GoogleFonts.inter(
+                  color: Colors.white.withOpacity(0.8),
                   fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -267,15 +261,15 @@ class _ModernHomePageState extends State<ModernHomePage>
                       width: 6,
                       height: 6,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
+                        color: AppTheme.successColor,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
+                    Text(
                       'Actif',
-                      style: TextStyle(
-                        color: Color(0xFF10B981),
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -299,7 +293,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                 children: [
                   Text(
                     '\$${totalBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
@@ -307,13 +301,14 @@ class _ModernHomePageState extends State<ModernHomePage>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       'USD',
-                      style: TextStyle(
-                        color: Colors.white60,
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8),
                         fontSize: 16,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -350,6 +345,7 @@ class _ModernHomePageState extends State<ModernHomePage>
             ],
           ),
         ],
+      ),
       ),
     );
   }
@@ -451,19 +447,9 @@ class _ModernHomePageState extends State<ModernHomePage>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+        borderRadius: 16,
         child: Column(
           children: [
             Container(
@@ -478,10 +464,12 @@ class _ModernHomePageState extends State<ModernHomePage>
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1a1a2e),
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white 
+                    : AppTheme.textPrimaryColor,
               ),
             ),
           ],
@@ -498,12 +486,12 @@ class _ModernHomePageState extends State<ModernHomePage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Activité Récente',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1a1a2e),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
                 ),
               ),
               TextButton(
@@ -517,35 +505,26 @@ class _ModernHomePageState extends State<ModernHomePage>
             builder: (context, state) {
               if (state is WalletLoadedState) {
                 // Show empty state with link to wallet for transactions
-                return Container(
+                return GlassContainer(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
+                  borderRadius: 16,
                   child: Column(
                     children: [
                       const Text('📊', style: TextStyle(fontSize: 40)),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'Consultez vos transactions',
-                        style: TextStyle(
-                          color: Color(0xFF1a1a2e),
+                        style: GoogleFonts.inter(
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Accédez à vos portefeuilles pour voir l\'historique complet',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFF64748B)),
+                        style: GoogleFonts.inter(color: AppTheme.textSecondaryColor),
                       ),
                       const SizedBox(height: 16),
                       GestureDetector(
@@ -553,14 +532,12 @@ class _ModernHomePageState extends State<ModernHomePage>
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                            ),
+                            gradient: AppTheme.primaryGradient,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Voir les portefeuilles',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -570,12 +547,9 @@ class _ModernHomePageState extends State<ModernHomePage>
               }
               
               // Loading state
-              return Container(
+              return GlassContainer(
                 padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                borderRadius: 16,
                 child: const Center(
                   child: CircularProgressIndicator(),
                 ),
@@ -719,12 +693,12 @@ class _ModernHomePageState extends State<ModernHomePage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Services',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1a1a2e),
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -780,20 +754,10 @@ class _ModernHomePageState extends State<ModernHomePage>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: GlassContainer(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        borderRadius: 16,
+        borderColor: color.withOpacity(0.2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,

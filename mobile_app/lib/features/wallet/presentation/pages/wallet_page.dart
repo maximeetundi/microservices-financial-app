@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_widget.dart';
+import '../../../../core/widgets/glass_container.dart';
 import '../bloc/wallet_bloc.dart';
 import '../widgets/deposit_bottom_sheet.dart';
 import '../widgets/wallet_widgets.dart';
@@ -30,35 +31,75 @@ class _WalletPageState extends State<WalletPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Wallets'),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showCreateWalletBottomSheet,
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
           ),
-        ],
-      ),
-      body: BlocBuilder<WalletBloc, WalletState>(
-        builder: (context, state) {
-          if (state is WalletLoadingState) {
-            return const LoadingWidget();
-          } else if (state is WalletLoadedState) {
-            return _buildWalletContent(state);
-          } else if (state is WalletErrorState) {
-            return _buildErrorState(state.message);
-          }
-          return const SizedBox.shrink();
-        },
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar Area
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     const SizedBox(width: 48), // Spacer for centering
+                     Text(
+                       'Mes Portefeuilles',
+                       style: GoogleFonts.inter(
+                         fontSize: 20,
+                         fontWeight: FontWeight.bold,
+                         color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                       ),
+                     ),
+                     GlassContainer(
+                        padding: EdgeInsets.zero,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        child: IconButton(
+                          icon: Icon(Icons.add, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                          onPressed: _showCreateWalletBottomSheet,
+                        ),
+                     ),
+                   ],
+                 ),
+               ),
+               Expanded(
+                 child: BlocBuilder<WalletBloc, WalletState>(
+                    builder: (context, state) {
+                      if (state is WalletLoadingState) {
+                        return const LoadingWidget();
+                      } else if (state is WalletLoadedState) {
+                        return _buildWalletContent(state);
+                      } else if (state is WalletErrorState) {
+                        return _buildErrorState(state.message);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+               ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildWalletContent(WalletLoadedState state) {
     final wallets = state.wallets;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return RefreshIndicator(
       onRefresh: () async {
@@ -70,64 +111,64 @@ class _WalletPageState extends State<WalletPage> {
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Total Portfolio Value',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
+              child: GlassContainer(
+                gradient: AppTheme.cardGradient,
+                padding: const EdgeInsets.all(24),
+                borderRadius: 24,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Valeur Totale',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$${state.totalValue.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 8),
+                    Text(
+                      '\$${state.totalValue.toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Icon(
-                        state.dailyChange >= 0 ? Icons.trending_up : Icons.trending_down,
-                        color: state.dailyChange >= 0 ? Colors.green : Colors.red,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${state.dailyChange >= 0 ? '+' : ''}${state.dailyChange.toStringAsFixed(2)}%',
-                        style: TextStyle(
-                          color: state.dailyChange >= 0 ? Colors.green : Colors.red,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: state.dailyChange >= 0 ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            state.dailyChange >= 0 ? Icons.trending_up : Icons.trending_down,
+                            color: state.dailyChange >= 0 ? Colors.greenAccent : Colors.redAccent,
+                            size: 16,
+                          ),
                         ),
-                      ),
-                      const Text(
-                        ' Today',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
+                        const SizedBox(width: 8),
+                        Text(
+                          '${state.dailyChange >= 0 ? '+' : ''}${state.dailyChange.toStringAsFixed(2)}%',
+                          style: GoogleFonts.inter(
+                            color: state.dailyChange >= 0 ? Colors.greenAccent : Colors.redAccent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Text(
+                          ' Aujourd\'hui',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -181,20 +222,34 @@ class _WalletPageState extends State<WalletPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Recent Transactions',
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        'Transactions Récentes',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
                           // Navigate to all transactions
                         },
-                        child: const Text('View All'),
+                        child: Text(
+                          'Voir tout',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  RecentTransactionsList(
-                    transactions: state.recentTransactions,
+                  GlassContainer(
+                    padding: const EdgeInsets.all(12),
+                    borderRadius: 16,
+                     child: RecentTransactionsList(
+                      transactions: state.recentTransactions,
+                    ),
                   ),
                 ],
               ),

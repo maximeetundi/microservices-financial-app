@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_container.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../bloc/wallet_bloc.dart';
 
 class WalletDetailPage extends StatefulWidget {
@@ -20,143 +23,282 @@ class _WalletDetailPageState extends State<WalletDetailPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Détails du portefeuille'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
+          ),
         ),
-        actions: [
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
-        ],
-      ),
-      body: BlocBuilder<WalletBloc, WalletState>(
-        builder: (context, state) {
-          if (state is WalletLoadingState) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          if (state is WalletErrorState) {
-            return Center(child: Text('Erreur: ${state.message}'));
-          }
-          
-          if (state is WalletLoadedState) {
-            final wallet = state.wallets.firstWhere(
-              (w) => w.id == widget.walletId,
-              orElse: () => state.wallets.first,
-            );
-            
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Balance Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue[700]!, Colors.blue[500]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40,
+                       height: 40, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.pop(),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          wallet.currency,
-                          style: const TextStyle(color: Colors.white70, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _ActionButton(
-                        icon: Icons.arrow_upward,
-                        label: 'Envoyer',
-                        onTap: () => context.push('/transfer'),
+                     ),
+                     Text(
+                        'Détails du portefeuille',
+                         style: GoogleFonts.inter(
+                           fontSize: 20,
+                           fontWeight: FontWeight.bold,
+                           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                         ),
                       ),
-                      _ActionButton(
-                        icon: Icons.arrow_downward,
-                        label: 'Recevoir',
-                        onTap: () => _showReceiveDialog(context),
+                      GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40,
+                       height: 40, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.more_horiz, size: 24, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () {},
                       ),
-                      _ActionButton(
-                        icon: Icons.swap_horiz,
-                        label: 'Échanger',
-                        onTap: () => context.push('/exchange'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  
-                  // Transactions
-                  const Text(
-                    'Transactions récentes',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  if (state.recentTransactions.isEmpty)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text('Aucune transaction', style: TextStyle(color: Colors.grey)),
-                      ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: state.recentTransactions.length,
-                      itemBuilder: (context, index) {
-                        final tx = state.recentTransactions[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: tx.isIncoming ? Colors.green[100] : Colors.red[100],
-                            child: Icon(
-                              tx.isIncoming ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: tx.isIncoming ? Colors.green : Colors.red,
+                     ),
+                   ],
+                 ),
+               ),
+              Expanded(
+                child: BlocBuilder<WalletBloc, WalletState>(
+                  builder: (context, state) {
+                    if (state is WalletLoadingState) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    
+                    if (state is WalletErrorState) {
+                      return Center(child: Text('Erreur: ${state.message}', style: TextStyle(color: AppTheme.errorColor)));
+                    }
+                    
+                    if (state is WalletLoadedState) {
+                      final wallet = state.wallets.firstWhere(
+                        (w) => w.id == widget.walletId,
+                        orElse: () => state.wallets.first,
+                      );
+                      
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Balance Card
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryColor.withOpacity(0.3),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Text(
+                                          wallet.currency.substring(0, 1),
+                                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        wallet.currency,
+                                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    '${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Solde Disponible',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white54,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          title: Text(tx.memo ?? tx.type.name),
-                          subtitle: Text(tx.createdAt.toString().substring(0, 16)),
-                          trailing: Text(
-                            '${tx.isIncoming ? '+' : '-'}${tx.amount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: tx.isIncoming ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 24),
+                            
+                            // Actions
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Expanded(
+                                  child: _ActionButton(
+                                    icon: Icons.arrow_upward_rounded,
+                                    label: 'Envoyer',
+                                    onTap: () => context.push('/transfer'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _ActionButton(
+                                    icon: Icons.arrow_downward_rounded,
+                                    label: 'Recevoir',
+                                    onTap: () => _showReceiveDialog(context),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _ActionButton(
+                                    icon: Icons.swap_horiz_rounded,
+                                    label: 'Échanger',
+                                    onTap: () => context.push('/exchange'),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                ],
+                            const SizedBox(height: 32),
+                            
+                            // Transactions
+                            Text(
+                              'Transactions récentes',
+                              style: GoogleFonts.inter(
+                                fontSize: 18, 
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : AppTheme.textPrimaryColor
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            if (state.recentTransactions.isEmpty)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.history, size: 48, color: isDark ? Colors.white24 : Colors.black12),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Aucune transaction', 
+                                        style: GoogleFonts.inter(color: isDark ? Colors.white54 : AppTheme.textSecondaryColor)
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: state.recentTransactions.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final tx = state.recentTransactions[index];
+                                  final isIncoming = tx.isIncoming;
+                                  
+                                  return GlassContainer(
+                                    padding: const EdgeInsets.all(16),
+                                    borderRadius: 16,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: isIncoming ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFEF4444).withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            isIncoming ? Icons.arrow_downward : Icons.arrow_upward,
+                                            color: isIncoming ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                tx.memo ?? tx.type.name,
+                                                style: GoogleFonts.inter(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              Text(
+                                                tx.createdAt.toString().substring(0, 16),
+                                                style: GoogleFonts.inter(
+                                                  color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '${isIncoming ? '+' : '-'}${tx.amount.toStringAsFixed(2)}',
+                                          style: GoogleFonts.inter(
+                                            color: isIncoming ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    return const SizedBox();
+                  },
+                ),
               ),
-            );
-          }
-          
-          return const SizedBox();
-        },
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -194,24 +336,30 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return GlassContainer(
+      padding: EdgeInsets.zero,
+      borderRadius: 16,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            children: [
+              Icon(icon, color: isDark ? Colors.white : AppTheme.primaryColor),
+              const SizedBox(height: 8),
+              Text(
+                label, 
+                style: GoogleFonts.inter(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : AppTheme.textSecondaryColor
+                ),
               ),
-              child: Icon(icon, color: Theme.of(context).primaryColor),
-            ),
-            const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontSize: 12)),
-          ],
+            ],
+          ),
         ),
       ),
     );

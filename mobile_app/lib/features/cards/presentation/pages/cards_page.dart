@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_widget.dart';
+import '../../../../core/widgets/glass_container.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../bloc/cards_bloc.dart';
 import '../widgets/card_widget.dart';
 import '../widgets/card_stats_section.dart';
@@ -33,29 +35,70 @@ class _CardsPageState extends State<CardsPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Cards'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_card),
-            onPressed: _showOrderCardBottomSheet,
+      backgroundColor: Colors.transparent, // Allow gradient to show
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
+                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
           ),
-        ],
-      ),
-      body: BlocBuilder<CardsBloc, CardsState>(
-        builder: (context, state) {
-          if (state is CardsLoadingState) {
-            return const LoadingWidget();
-          } else if (state is CardsLoadedState) {
-            return _buildCardsContent(state);
-          } else if (state is CardsErrorState) {
-            return _buildErrorState(state.message);
-          }
-          return const SizedBox.shrink();
-        },
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+               // Custom App Bar Area
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                 child: Row(
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     const SizedBox(width: 48), // Spacer
+                     Text(
+                        'Mes Cartes 💳',
+                         style: GoogleFonts.inter(
+                           fontSize: 20,
+                           fontWeight: FontWeight.bold,
+                           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                         ),
+                      ),
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 48, 
+                       height: 48,
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.add_card, size: 24, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: _showOrderCardBottomSheet,
+                      ),
+                     ),
+                   ],
+                 ),
+               ),
+              Expanded(
+                child: BlocBuilder<CardsBloc, CardsState>(
+                  builder: (context, state) {
+                    if (state is CardsLoadingState) {
+                      return const LoadingWidget();
+                    } else if (state is CardsLoadedState) {
+                      return _buildCardsContent(state);
+                    } else if (state is CardsErrorState) {
+                      return _buildErrorState(state.message);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -134,7 +177,7 @@ class _CardsPageState extends State<CardsPage> {
                   Expanded(
                     child: _buildActionButton(
                       icon: Icons.add,
-                      label: 'Top Up',
+                      label: 'Recharger',
                       onTap: () => _showTopUpDialog(cards[_currentCardIndex]),
                     ),
                   ),
@@ -142,7 +185,7 @@ class _CardsPageState extends State<CardsPage> {
                   Expanded(
                     child: _buildActionButton(
                       icon: Icons.ac_unit,
-                      label: 'Freeze',
+                      label: 'Geler',
                       onTap: () => _freezeCard(cards[_currentCardIndex]),
                     ),
                   ),
@@ -150,7 +193,7 @@ class _CardsPageState extends State<CardsPage> {
                   Expanded(
                     child: _buildActionButton(
                       icon: Icons.settings,
-                      label: 'Settings',
+                      label: 'Réglages',
                       onTap: () => context.push('/more/cards/${cards[_currentCardIndex]['id']}'),
                     ),
                   ),
@@ -182,14 +225,21 @@ class _CardsPageState extends State<CardsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Recent Transactions',
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        'Transactions Récentes',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
                           // Navigate to all transactions
                         },
-                        child: const Text('View All'),
+                        child: Text(
+                          'Voir tout',
+                          style: GoogleFonts.inter(color: AppTheme.primaryColor),
+                        ),
                       ),
                     ],
                   ),
@@ -363,31 +413,34 @@ class _CardsPageState extends State<CardsPage> {
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: AppTheme.primaryColor,
-              size: 24,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return GlassContainer(
+      padding: EdgeInsets.zero,
+      borderRadius: 16,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isDark ? Colors.white : AppTheme.primaryColor,
+                size: 24,
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
