@@ -424,9 +424,9 @@ definePageMeta({
 <style scoped>
 .quick-action-btn {
   @apply flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-300;
-  /* Light Mode Default */
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  /* Light Mode Default - Softer */
+  background: rgba(241, 245, 249, 0.5); /* Slate-100/50% */
+  border: 1px solid rgba(226, 232, 240, 0.8); /* Slate-200/80% */
   color: #475569;
 }
 
@@ -438,15 +438,17 @@ definePageMeta({
 }
 
 .quick-action-btn:hover {
-  background: #eef2ff; /* indigo-50 */
+  background: #ffffff;
   border-color: #c7d2fe; /* indigo-200 */
   color: #4f46e5; /* indigo-600 */
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1);
 }
 
 .dark .quick-action-btn:hover {
   background: rgba(99, 102, 241, 0.15);
   border-color: rgba(99, 102, 241, 0.3);
   color: white;
+  box-shadow: none;
 }
 </style>

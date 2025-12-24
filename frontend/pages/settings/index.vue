@@ -173,256 +173,287 @@ definePageMeta({
 })
 </script>
 
-<style scoped>
+/* ========== Settings Page Styles ========== */
 .settings-page {
-  width: 100%;
-  max-width: 100%;
-  padding: 0;
+  @apply w-full max-w-full p-0;
 }
 
 .page-header {
-  margin-bottom: 1.5rem;
+  @apply mb-6;
 }
 
 .page-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  @apply text-2xl font-bold mb-1;
+  color: #1e293b; /* Light mode text */
+}
+
+.dark .page-header h1 {
   color: #fff;
-  margin: 0 0 0.25rem 0;
 }
 
 .page-header p {
-  font-size: 0.875rem;
-  color: #888;
-  margin: 0;
+  @apply text-sm m-0;
+  color: #64748b;
+}
+
+.dark .page-header p {
+  color: #94a3b8;
 }
 
 .settings-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
+  @apply flex flex-col gap-3 mb-8;
 }
 
+/* Settings Card */
 .settings-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  @apply flex items-center gap-4 p-4 rounded-2xl transition-all duration-200 no-underline cursor-pointer;
+  /* Light mode */
+  background: white;
+  border: 1px solid #e2e8f0; /* Slate-200 */
+  color: #1e293b;
+}
+
+.dark .settings-card {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 1rem;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.2s;
+  color: white;
 }
 
 .settings-card:active {
-  background: rgba(255,255,255,0.08);
+  @apply scale-[0.98];
 }
 
+.settings-card:hover {
+  border-color: #cbd5e1; /* Slate-300 */
+  background: #f8fafc; /* Slate-50 */
+}
+
+.dark .settings-card:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(255,255,255,0.05);
+}
+
+/* Icons */
 .card-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.875rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  flex-shrink: 0;
+  @apply w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0;
 }
 
-.card-icon.blue { background: rgba(59, 130, 246, 0.15); }
-.card-icon.green { background: rgba(34, 197, 94, 0.15); }
-.card-icon.purple { background: rgba(168, 85, 247, 0.15); }
-.card-icon.orange { background: rgba(249, 115, 22, 0.15); }
-.card-icon.pink { background: rgba(236, 72, 153, 0.15); }
-.card-icon.teal { background: rgba(20, 184, 166, 0.15); }
+/* Icon Colors - Light/Dark compatible opacity */
+.card-icon.blue { @apply bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400; }
+.card-icon.green { @apply bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400; }
+.card-icon.purple { @apply bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400; }
+.card-icon.orange { @apply bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400; }
+.card-icon.pink { @apply bg-pink-50 text-pink-600 dark:bg-pink-500/15 dark:text-pink-400; }
+.card-icon.teal { @apply bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400; }
 
 .card-content {
-  flex: 1;
-  min-width: 0;
+  @apply flex-1 min-w-0;
 }
 
 .card-content h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
-  margin: 0 0 0.125rem 0;
+  @apply text-base font-semibold mb-0.5;
+  color: #1e293b;
+}
+
+.dark .card-content h3 {
+  color: white;
 }
 
 .card-content p {
-  font-size: 0.75rem;
-  color: #888;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  @apply text-xs m-0 truncate;
+  color: #64748b;
 }
 
+.dark .card-content p {
+  color: #94a3b8;
+}
+
+/* Status Badge */
 .card-status {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgba(239, 68, 68, 0.15);
+  @apply px-2 py-1 rounded-lg text-xs font-semibold;
+  background: #fef2f2; /* Red-50 */
   color: #ef4444;
 }
 
+.dark .card-status {
+  background: rgba(239, 68, 68, 0.15);
+}
+
 .card-status.active {
-  background: rgba(34, 197, 94, 0.15);
+  background: #f0fdf4; /* Green-50 */
   color: #22c55e;
 }
 
+.dark .card-status.active {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+/* Badge */
 .card-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  @apply px-2 py-1 rounded-lg text-[10px] font-bold uppercase;
 }
 
 .card-badge.verified {
-  background: rgba(34, 197, 94, 0.15);
+  background: #f0fdf4;
   color: #22c55e;
 }
 
+.dark .card-badge.verified {
+  background: rgba(34, 197, 94, 0.15);
+}
+
 .card-badge.pending {
-  background: rgba(249, 115, 22, 0.15);
+  background: #fff7ed;
   color: #f97316;
 }
 
-.card-arrow {
-  color: #666;
-  font-size: 1.25rem;
+.dark .card-badge.pending {
+  background: rgba(249, 115, 22, 0.15);
 }
 
+.card-arrow {
+  @apply text-xl;
+  color: #cbd5e1;
+}
+
+.dark .card-arrow {
+  color: #666; /* or white/20 */
+}
+
+/* Quick App Actions */
 .quick-section {
-  margin-bottom: 2rem;
+  @apply mb-8;
 }
 
 .quick-section h2 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #888;
-  margin: 0 0 0.75rem 0;
-  text-transform: uppercase;
+  @apply text-sm font-semibold mb-3 uppercase tracking-wider;
+  color: #64748b;
+}
+
+.dark .quick-section h2 {
+  color: #94a3b8;
 }
 
 .quick-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  @apply flex flex-wrap gap-3;
 }
 
 .quick-btn {
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255,255,255,0.1);
+  @apply px-4 py-3 rounded-xl text-sm font-medium cursor-pointer transition-all border;
+  background: white;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.dark .quick-btn {
   background: transparent;
+  border-color: rgba(255,255,255,0.1);
   color: #fff;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .quick-btn:hover {
+  background: #f8fafc;
+}
+
+.dark .quick-btn:hover {
   background: rgba(255,255,255,0.05);
 }
 
 .quick-btn.danger {
   color: #ef4444;
+  border-color: #fecaca;
+}
+
+.dark .quick-btn.danger {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
 .quick-btn.danger:hover {
+  background: #fef2f2;
+}
+
+.dark .quick-btn.danger:hover {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* App Info */
 .app-info {
-  text-align: center;
-  padding: 2rem 0;
-  color: #666;
-  font-size: 0.75rem;
+  @apply text-center py-8 text-xs;
+  color: #94a3b8;
 }
 
 .info-links {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  @apply flex justify-center gap-2 mt-2;
 }
 
 .info-links a {
-  color: #888;
-  text-decoration: none;
+  color: #64748b;
+  @apply no-underline hover:text-indigo-500 transition-colors;
 }
 
+.dark .info-links a {
+  color: #94a3b8;
+  @apply hover:text-white;
+}
+
+/* Modal */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 1rem;
+  @apply fixed inset-0 flex items-center justify-center z-50 p-4;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
+  @apply rounded-2xl p-6 w-full max-w-sm shadow-2xl;
+  background: white;
+}
+
+.dark .modal-content {
   background: #1a1a2e;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 400px;
-  width: 100%;
 }
 
 .modal-content h3 {
-  font-size: 1.25rem;
-  margin: 0 0 0.75rem 0;
-  color: #fff;
+  @apply text-xl font-bold mb-3;
+  color: #1e293b;
+}
+
+.dark .modal-content h3 {
+  color: white;
 }
 
 .modal-content p {
-  color: #888;
-  margin: 0 0 1.5rem 0;
-  font-size: 0.875rem;
+  @apply text-sm mb-6;
+  color: #64748b;
+}
+
+.dark .modal-content p {
+  color: #94a3b8;
 }
 
 .modal-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-cancel, .btn-delete {
-  flex: 1;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  border: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
+  @apply flex gap-3;
 }
 
 .btn-cancel {
+  @apply block flex-1 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.dark .btn-cancel {
   background: rgba(255,255,255,0.1);
-  color: #fff;
+  color: white;
 }
 
 .btn-delete {
+  @apply block flex-1 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer;
   background: #ef4444;
-  color: #fff;
+  color: white;
 }
 
 @media (min-width: 640px) {
   .settings-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .settings-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(99, 102, 241, 0.3);
+    @apply grid grid-cols-2;
   }
 }
 </style>

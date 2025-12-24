@@ -354,175 +354,140 @@ definePageMeta({
 })
 </script>
 
-<style scoped>
+/* ========== Profile Page Styles ========== */
 .profile-page {
-  width: 100%;
-  max-width: 700px;
-  margin: 0 auto;
+  @apply w-full max-w-3xl mx-auto;
 }
 
+/* PIN Overlay */
 .pin-overlay {
-  position: fixed;
-  inset: 0;
+  @apply fixed inset-0 flex items-center justify-center z-50 p-4;
   background: rgba(0,0,0,0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 1rem;
 }
 
 .pin-modal {
-  background: #1a1a2e;
-  border-radius: 1.5rem;
-  padding: 2rem;
-  text-align: center;
-  max-width: 400px;
-  width: 100%;
+  @apply rounded-3xl p-8 text-center w-full max-w-sm shadow-2xl;
+  background: #1a1a2e; /* Always dark for security modal */
 }
 
 .pin-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  @apply text-5xl mb-4;
 }
 
 .pin-modal h2 {
-  font-size: 1.5rem;
-  color: #fff;
-  margin: 0 0 0.5rem 0;
+  @apply text-2xl font-bold mb-2 text-white;
 }
 
 .pin-modal > p {
-  color: #888;
-  font-size: 0.875rem;
-  margin: 0 0 1.5rem 0;
+  @apply text-sm mb-6 text-gray-400;
 }
 
 .pin-input-container {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-  margin-bottom: 1rem;
+  @apply flex gap-3 justify-center mb-4;
 }
 
 .pin-input {
-  width: 3rem;
-  height: 3.5rem;
-  border: 2px solid rgba(99, 102, 241, 0.3);
-  border-radius: 0.75rem;
+  @apply w-12 h-14 border-2 rounded-xl text-2xl text-center outline-none transition-all;
+  border-color: rgba(99, 102, 241, 0.3);
   background: rgba(255,255,255,0.05);
   color: #fff;
-  font-size: 1.5rem;
-  text-align: center;
-  outline: none;
-  transition: all 0.2s;
 }
 
 .pin-input:focus {
-  border-color: #6366f1;
+  @apply border-indigo-500;
   background: rgba(99, 102, 241, 0.1);
 }
 
 .pin-error {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
+  @apply text-red-500 text-sm mb-4;
 }
 
 .verify-btn {
-  width: 100%;
-  padding: 1rem;
-  border: none;
-  border-radius: 0.875rem;
+  @apply w-full p-4 rounded-xl border-none text-base font-semibold cursor-pointer mb-4 text-white hover:opacity-90 transition-opacity;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-bottom: 1rem;
 }
 
 .verify-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 .setup-btn {
-  display: block;
-  width: 100%;
-  padding: 1rem;
-  border: none;
-  border-radius: 0.875rem;
+  @apply block w-full p-4 rounded-xl border-none text-base font-semibold text-center no-underline mb-4 text-white hover:opacity-90 transition-opacity;
   background: linear-gradient(135deg, #f97316, #ef4444);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: center;
-  text-decoration: none;
-  margin-bottom: 1rem;
 }
 
 .back-link {
+  @apply text-sm no-underline hover:text-white transition-colors;
   color: #888;
-  text-decoration: none;
-  font-size: 0.875rem;
 }
 
+/* Header */
 .page-header {
-  margin-bottom: 1.5rem;
+  @apply mb-6;
 }
 
 .page-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  @apply text-2xl font-bold mb-1;
+  color: #1e293b;
+}
+
+.dark .page-header h1 {
   color: #fff;
-  margin: 0.5rem 0 0.25rem 0;
 }
 
 .page-header > p {
-  color: #888;
-  font-size: 0.875rem;
-  margin: 0;
+  @apply text-sm m-0;
+  color: #64748b;
 }
 
+.dark .page-header > p {
+  color: #94a3b8;
+}
+
+/* Notice Card */
 .notice-card {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem;
+  @apply flex gap-3 p-4 rounded-2xl mb-6 border;
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.dark .notice-card {
   background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 1rem;
-  margin-bottom: 1.5rem;
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
 .notice-icon {
-  font-size: 1.5rem;
+  @apply text-2xl;
 }
 
 .notice-card strong {
+  @apply text-sm block;
+  color: #2563eb;
+}
+
+.dark .notice-card strong {
   color: #3b82f6;
-  font-size: 0.875rem;
 }
 
 .notice-card p {
-  color: #888;
-  font-size: 0.75rem;
-  margin: 0.25rem 0 0 0;
+  @apply text-xs mt-1;
+  color: #64748b;
 }
 
+.dark .notice-card p {
+  color: #94a3b8;
+}
+
+/* Loading */
 .loading {
-  text-align: center;
-  padding: 3rem;
+  @apply text-center py-12;
 }
 
 .spinner {
-  width: 3rem;
-  height: 3rem;
-  border: 3px solid rgba(99, 102, 241, 0.2);
+  @apply w-12 h-12 border-4 rounded-full mx-auto mb-4;
+  border-color: rgba(99, 102, 241, 0.2);
   border-top-color: #6366f1;
-  border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
 }
 
 @keyframes spin {
@@ -530,196 +495,217 @@ definePageMeta({
 }
 
 .loading p {
-  color: #888;
+  color: #64748b;
 }
 
+.dark .loading p {
+  color: #94a3b8;
+}
+
+/* Profile Header Card */
 .profile-header-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
+  @apply flex items-center gap-4 p-6 rounded-2xl mb-6 border;
+  background: white;
+  border-color: #e2e8f0;
+}
+
+.dark .profile-header-card {
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 1rem;
-  margin-bottom: 1.5rem;
+  border-color: rgba(255,255,255,0.08);
 }
 
 .avatar {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 1rem;
+  @apply w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white flex-shrink-0;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
 }
 
 .basic-info h2 {
-  font-size: 1.25rem;
+  @apply text-xl font-bold m-0;
+  color: #1e293b;
+}
+
+.dark .basic-info h2 {
   color: #fff;
-  margin: 0;
 }
 
 .basic-info .email {
-  color: #888;
-  font-size: 0.875rem;
-  margin: 0.25rem 0 0.5rem 0;
+  @apply text-sm mt-1 mb-2;
+  color: #64748b;
+}
+
+.dark .basic-info .email {
+  color: #94a3b8;
 }
 
 .badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  @apply flex flex-wrap gap-2;
 }
 
 .badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  font-size: 0.625rem;
-  font-weight: 600;
+  @apply px-2 py-1 rounded-md text-[10px] font-bold uppercase;
 }
 
 .badge.verified {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.dark .badge.verified {
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
 }
 
 .badge.pending {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.dark .badge.pending {
   background: rgba(249, 115, 22, 0.15);
   color: #f97316;
 }
 
+/* Content Sections */
 .section {
+  @apply p-5 rounded-2xl mb-4 border;
+  background: white;
+  border-color: #e2e8f0;
+}
+
+.dark .section {
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 1rem;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  border-color: rgba(255,255,255,0.08);
 }
 
 .section h3 {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #888;
-  margin: 0 0 1rem 0;
-  letter-spacing: 0.05em;
+  @apply text-xs font-bold mb-4 uppercase tracking-wider;
+  color: #64748b;
+}
+
+.dark .section h3 {
+  color: #94a3b8;
 }
 
 .info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  @apply grid grid-cols-2 gap-4;
 }
 
 .info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  @apply flex flex-col gap-1;
 }
 
 .info-item.full {
-  grid-column: span 2;
+  @apply col-span-2;
 }
 
 .info-item label {
-  font-size: 0.75rem;
-  color: #666;
-  text-transform: uppercase;
+  @apply text-xs uppercase font-medium;
+  color: #64748b;
+}
+
+.dark .info-item label {
+  color: #94a3b8;
 }
 
 .info-item span {
-  font-size: 0.9375rem;
+  @apply text-sm font-medium;
+  color: #1e293b;
+}
+
+.dark .info-item span {
   color: #fff;
 }
 
 .kyc-level {
-  color: #6366f1 !important;
-  font-weight: 600;
+  @apply text-indigo-500 font-bold !important;
 }
 
 .status-active {
-  color: #22c55e !important;
+  @apply text-emerald-500 !important;
 }
 
 .status-inactive {
-  color: #ef4444 !important;
+  @apply text-red-500 !important;
 }
 
+/* Verifications Grid */
 .verifications {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  @apply grid grid-cols-2 gap-3;
 }
 
 .verify-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
+  @apply flex items-center gap-2 p-3 rounded-xl border;
+  background: #f8fafc;
+  border-color: transparent;
+}
+
+.dark .verify-item {
   background: rgba(255,255,255,0.03);
-  border-radius: 0.75rem;
 }
 
 .verify-item .icon {
-  font-size: 1.25rem;
+  @apply text-xl;
 }
 
 .verify-item .label {
-  flex: 1;
-  font-size: 0.875rem;
+  @apply flex-1 text-sm font-medium;
+  color: #334155;
+}
+
+.dark .verify-item .label {
   color: #fff;
 }
 
 .verify-item .status {
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
+  @apply text-[10px] font-bold uppercase px-2 py-1 rounded-md;
 }
 
 .verify-item.verified .status {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.dark .verify-item.verified .status {
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
 }
 
 .verify-item.pending .status {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.dark .verify-item.pending .status {
   background: rgba(107, 114, 128, 0.15);
   color: #9ca3af;
 }
 
+/* Support Section */
 .support-section {
-  text-align: center;
-  padding: 1.5rem 0;
+  @apply text-center py-6;
 }
 
 .support-btn {
-  display: inline-block;
-  padding: 1rem 1.5rem;
+  @apply inline-block px-6 py-4 rounded-xl font-bold text-white no-underline shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all hover:-translate-y-0.5;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  text-decoration: none;
-  border-radius: 0.875rem;
-  font-weight: 600;
 }
 
 .support-section p {
-  color: #666;
-  font-size: 0.75rem;
-  margin-top: 0.75rem;
+  @apply text-xs mt-3;
+  color: #64748b;
+}
+
+.dark .support-section p {
+  color: #94a3b8;
 }
 
 @media (max-width: 480px) {
   .info-grid, .verifications {
-    grid-template-columns: 1fr;
+    @apply grid-cols-1;
   }
   
   .info-item.full {
-    grid-column: span 1;
+    @apply col-span-1;
   }
 }
 </style>

@@ -37,9 +37,11 @@
         /* Backgrounds - softer, warmer tones */
         --color-bg-base: 250 251 252;
         /* Very light gray with warmth */
-        --color-bg-surface: 255 255 255;
+        --color-bg-surface: 248 250 252;
+        /* Slate-50 - Softer than pure white */
         /* White */
-        --color-bg-surface-hover: 247 249 251;
+        --color-bg-surface-hover: 241 245 249;
+        /* Slate-100 */
         /* Subtle hover */
 
         /* Text - less harsh black */
@@ -58,6 +60,10 @@
         /* Red 500 */
         --color-info: 59 130 246;
         /* Blue 500 */
+
+        /* Sidebar specific */
+        --sidebar-bg-light: rgba(241, 245, 249, 0.95);
+        /* Slate-100/50 mix */
     }
 
     .dark {
@@ -146,12 +152,12 @@ body {
 
 .glass-card {
     @apply relative overflow-hidden;
-    /* Light mode styles */
-    background: rgba(255, 255, 255, 0.9);
+    /* Light mode styles - Softer White */
+    background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     border-radius: 24px;
 }
 
@@ -248,9 +254,10 @@ body {
 
 .stat-card {
     @apply glass-card p-6;
-    /* Light mode - solid white with subtle gradient */
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    /* Light mode - softer slate background */
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    /* Slate-50/100 */
+    border: 1px solid rgba(0, 0, 0, 0.05);
     color: #1e293b;
 }
 
@@ -341,12 +348,10 @@ body {
 .nav-sidebar {
     @apply fixed left-0 top-0 h-full w-72 z-50;
     /* Light mode */
-    background: var(--sidebar-bg-light, rgba(248, 250, 252, 0.98));
+    background: var(--sidebar-bg-light, rgba(241, 245, 249, 0.95));
     backdrop-filter: blur(20px);
     border-right: 1px solid rgba(0, 0, 0, 0.05);
-    /* Softer border */
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.03);
-    /* Softer shadow */
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
 }
 
 .dark .nav-sidebar {

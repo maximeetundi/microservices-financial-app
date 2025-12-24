@@ -15,21 +15,21 @@
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5">
+        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-surface dark:bg-white/5">
           <div class="p-4 rounded-xl bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-2xl shadow-sm">💰</div>
           <div>
             <span class="block text-3xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(stats.totalAmount) }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total reçu</span>
           </div>
         </div>
-        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5">
+        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-surface dark:bg-white/5">
           <div class="p-4 rounded-xl bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-2xl shadow-sm">📊</div>
           <div>
             <span class="block text-3xl font-bold text-gray-900 dark:text-white">{{ stats.totalPayments }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400 font-medium">Paiements</span>
           </div>
         </div>
-        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5">
+        <div class="glass-card p-6 flex items-center gap-4 hover:scale-105 transition-transform duration-300 border border-gray-100 dark:border-white/10 bg-surface dark:bg-white/5">
           <div class="p-4 rounded-xl bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-2xl shadow-sm">⏳</div>
           <div>
             <span class="block text-3xl font-bold text-gray-900 dark:text-white">{{ pendingPayments.length }}</span>
@@ -39,7 +39,7 @@
       </div>
 
       <!-- Payment Requests List -->
-      <div class="glass-card bg-white dark:bg-slate-900 border border-gray-100 dark:border-white/10 shadow-xl dark:shadow-none overflow-hidden rounded-2xl">
+      <div class="glass-card bg-surface dark:bg-slate-900 border border-gray-100 dark:border-white/10 shadow-xl dark:shadow-none overflow-hidden rounded-2xl">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-b border-gray-100 dark:border-gray-800">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">Demandes de paiement</h2>
           <div class="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">

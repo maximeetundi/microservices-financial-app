@@ -20,7 +20,7 @@
       </div>
 
       <!-- Total Balance Card -->
-      <div class="glass-card mb-8 p-8 bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-white/10 relative overflow-hidden group">
+      <div class="glass-card mb-8 p-8 dark:bg-slate-900/80 border border-gray-200 dark:border-white/10 relative overflow-hidden group">
         <!-- Background Effects -->
         <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-500"></div>
         
@@ -47,7 +47,7 @@
               Recharger
             </button>
             <!-- Envoyer / Send -->
-            <NuxtLink to="/transfer" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-slate-700 transition-all transform hover:-translate-y-0.5">
+            <NuxtLink to="/transfer" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/50 dark:bg-slate-800 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-slate-700 transition-all transform hover:-translate-y-0.5">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               Envoyer
             </NuxtLink>
@@ -58,7 +58,7 @@
       <!-- Wallets Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div v-for="wallet in wallets" :key="wallet.id" 
-            class="glass-card p-6 cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 relative overflow-hidden group bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10"
+            class="glass-card p-6 cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 relative overflow-hidden group dark:bg-slate-900 border border-gray-200 dark:border-white/10"
             :class="{'ring-2 ring-indigo-500 dark:ring-indigo-400': selectedWallet?.id === wallet.id}"
             @click="selectWallet(wallet)">
             
