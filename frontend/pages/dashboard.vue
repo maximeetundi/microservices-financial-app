@@ -93,10 +93,10 @@
             <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Portefeuilles</span>
           </NuxtLink>
 
-          <button @click="showQRModal = true" class="quick-action-btn">
-            <span class="text-3xl mb-2">📱</span>
-            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Recevoir</span>
-          </button>
+          <NuxtLink to="/scan" class="quick-action-btn">
+            <span class="text-3xl mb-2">📷</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Scanner</span>
+          </NuxtLink>
         </div>
       </div>
 
