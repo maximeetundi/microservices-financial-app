@@ -173,6 +173,7 @@ definePageMeta({
 })
 </script>
 
+<style scoped>
 /* ========== Settings Page Styles ========== */
 .settings-page {
   @apply w-full max-w-full p-0;
