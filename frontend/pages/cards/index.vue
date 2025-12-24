@@ -4,8 +4,8 @@
       <!-- Header -->
       <div class="flex items-center justify-between mb-8">
         <div>
-          <h1 class="text-3xl font-bold text-base mb-2">Mes Cartes 💳</h1>
-          <p class="text-muted">Gérez vos cartes virtuelles et physiques</p>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Mes Cartes 💳</h1>
+          <p class="text-gray-500 dark:text-gray-400">Gérez vos cartes virtuelles et physiques</p>
         </div>
         <NuxtLink to="/cards/new" class="btn-primary flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,90 +56,90 @@
         </div>
 
         <!-- Add Card Button -->
-        <NuxtLink to="/cards/new" class="group flex flex-col items-center justify-center h-full min-h-[220px] rounded-3xl border-2 border-dashed border-secondary-200 dark:border-secondary-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all bg-surface/50 hover:bg-surface-hover/50">
+        <NuxtLink to="/cards/new" class="group flex flex-col items-center justify-center h-full min-h-[220px] rounded-3xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all bg-gray-50/50 dark:bg-slate-800/50 hover:bg-gray-100/50 dark:hover:bg-slate-800">
           <div class="text-center group-hover:scale-105 transition-transform duration-300">
-            <div class="w-16 h-16 rounded-full bg-surface shadow-inner flex items-center justify-center mx-auto mb-4 group-hover:shadow-primary-500/20 group-hover:shadow-lg transition-all">
-              <svg class="w-8 h-8 text-muted group-hover:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-16 h-16 rounded-full bg-white dark:bg-slate-700 shadow-inner flex items-center justify-center mx-auto mb-4 group-hover:shadow-indigo-500/20 group-hover:shadow-lg transition-all">
+              <svg class="w-8 h-8 text-gray-400 dark:text-gray-500 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
               </svg>
             </div>
-            <p class="text-muted font-medium group-hover:text-primary-500 transition-colors">Commander une carte</p>
+            <p class="text-gray-500 dark:text-gray-400 font-medium group-hover:text-indigo-500 transition-colors">Commander une carte</p>
           </div>
         </NuxtLink>
       </div>
 
       <!-- Selected Card Details -->
-      <div v-if="selectedCard" class="glass-card p-8 mb-8">
+      <div v-if="selectedCard" class="glass-card p-8 mb-8 bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-white/10">
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h3 class="text-xl font-bold text-base">Détails de la carte</h3>
-            <p class="text-muted text-sm">Gérez les paramètres de votre carte</p>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Détails de la carte</h3>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Gérez les paramètres de votre carte</p>
           </div>
           <div class="flex gap-3">
             <button @click="freezeCard" class="px-4 py-2 rounded-xl text-sm font-medium transition-colors border"
                 :class="selectedCard.status === 'frozen' 
                   ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20' 
-                  : 'bg-secondary-100 dark:bg-secondary-800 text-muted border-secondary-200 dark:border-secondary-700 hover:text-base hover:border-secondary-300'">
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:text-gray-900 dark:hover:text-white hover:border-gray-300'">
               {{ selectedCard.status === 'frozen' ? '🔓 Dégeler la carte' : '🔒 Geler la carte' }}
             </button>
-            <button @click="showTopUp = true" class="px-5 py-2 rounded-xl bg-success text-white font-medium text-sm shadow-lg shadow-success/20 hover:bg-success-600 transition-all hover:-translate-y-0.5">
+            <button @click="showTopUp = true" class="px-5 py-2 rounded-xl bg-emerald-500 text-white font-medium text-sm shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all hover:-translate-y-0.5">
                Recharger
             </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 p-6 rounded-xl bg-surface-hover/50 border border-secondary-100 dark:border-secondary-800/50">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 p-6 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700/50">
           <div>
-            <p class="text-muted text-xs uppercase tracking-wider mb-2 font-semibold">Numéro</p>
-            <p class="text-base font-mono text-lg">•••• •••• •••• {{ selectedCard.last4 }}</p>
+            <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 font-semibold">Numéro</p>
+            <p class="font-mono text-lg text-gray-900 dark:text-white">•••• •••• •••• {{ selectedCard.last4 }}</p>
           </div>
           <div>
-            <p class="text-muted text-xs uppercase tracking-wider mb-2 font-semibold">Expiration</p>
-            <p class="text-base text-lg">{{ selectedCard.expiry }}</p>
+            <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 font-semibold">Expiration</p>
+            <p class="text-lg text-gray-900 dark:text-white">{{ selectedCard.expiry }}</p>
           </div>
           <div>
-            <p class="text-muted text-xs uppercase tracking-wider mb-2 font-semibold">CVV</p>
-            <p class="text-base font-mono text-lg">•••</p>
+            <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 font-semibold">CVV</p>
+            <p class="font-mono text-lg text-gray-900 dark:text-white">•••</p>
           </div>
           <div>
-            <p class="text-muted text-xs uppercase tracking-wider mb-2 font-semibold">Limite quotidienne</p>
-            <p class="text-base font-medium text-lg">{{ formatMoney(selectedCard.dailyLimit || 5000, selectedCard.currency) }}</p>
+            <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 font-semibold">Limite quotidienne</p>
+            <p class="font-medium text-lg text-gray-900 dark:text-white">{{ formatMoney(selectedCard.dailyLimit || 5000, selectedCard.currency) }}</p>
           </div>
         </div>
       </div>
 
       <!-- Transactions -->
-      <div class="glass-card p-6">
-        <h3 class="text-lg font-bold text-base mb-6">Transactions récentes</h3>
+      <div class="glass-card p-6 bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-white/10">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Transactions récentes</h3>
         
-        <div v-if="loading" class="py-10 text-center text-muted">A few seconds please...</div>
+        <div v-if="loading" class="py-10 text-center text-gray-400">A few seconds please...</div>
         <div v-else-if="transactions.length > 0" class="space-y-3">
           <div v-for="tx in transactions" :key="tx.id" 
-              class="flex items-center justify-between p-4 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-secondary-100 dark:hover:border-secondary-800">
+              class="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
             <div class="flex items-center gap-4">
               <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner" 
                   :class="tx.type === 'credit' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'">
                 {{ tx.type === 'credit' ? '↓' : '↑' }}
               </div>
               <div>
-                <p class="font-bold text-base">{{ tx.description }}</p>
-                <p class="text-sm text-muted">{{ formatDate(tx.date) }}</p>
+                <p class="font-bold text-gray-900 dark:text-white">{{ tx.description }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ formatDate(tx.date) }}</p>
               </div>
             </div>
             <div class="text-right">
-              <p class="font-bold text-lg" :class="tx.type === 'credit' ? 'text-emerald-500' : 'text-base'">
+              <p class="font-bold text-lg" :class="tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'">
                 {{ tx.type === 'credit' ? '+' : '-' }}{{ formatMoney(tx.amount, tx.currency) }}
               </p>
-              <p class="text-xs text-muted font-medium uppercase tracking-wide">{{ tx.category }}</p>
+              <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">{{ tx.category }}</p>
             </div>
           </div>
         </div>
         
         <div v-else class="text-center py-16">
-          <div class="w-16 h-16 rounded-full bg-surface-hover flex items-center justify-center mx-auto mb-4">
+          <div class="w-16 h-16 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
              <span class="text-3xl grayscale opacity-50">🧾</span>
           </div>
-          <p class="text-muted font-medium">Aucune transaction récente</p>
+          <p class="text-gray-500 dark:text-gray-400 font-medium">Aucune transaction récente</p>
         </div>
       </div>
     </div>

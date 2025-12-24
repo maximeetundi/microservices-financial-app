@@ -1321,10 +1321,15 @@ definePageMeta({
 .session-item.enhanced {
   align-items: flex-start;
   padding: 1.25rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: #f8fafc; /* Light mode */
+  border: 1px solid #e2e8f0;
   border-radius: 1rem;
   margin-bottom: 0.75rem;
+}
+
+.dark .session-item.enhanced {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .session-header {
@@ -1337,6 +1342,11 @@ definePageMeta({
 .session-header .session-name {
   font-size: 1rem;
   margin: 0;
+  color: #1e293b; /* Light text */
+}
+
+.dark .session-header .session-name {
+  color: #fff;
 }
 
 .session-details {
@@ -1351,10 +1361,15 @@ definePageMeta({
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8rem;
-  color: #94a3b8;
-  background: rgba(255,255,255,0.05);
+  color: #475569; /* Light text */
+  background: #e2e8f0; /* Light bg */
   padding: 0.25rem 0.6rem;
   border-radius: 0.5rem;
+}
+
+.dark .detail-item {
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
 }
 
 .detail-item .icon {
@@ -1374,9 +1389,9 @@ definePageMeta({
 }
 
 .info-btn {
-  background: rgba(255,255,255,0.05);
+  background: #e2e8f0;
   border: none;
-  color: #fff;
+  color: #475569;
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -1388,13 +1403,29 @@ definePageMeta({
   transition: all 0.2s;
 }
 
+.dark .info-btn {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+
 .info-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: #cbd5e1;
   transform: scale(1.1);
+}
+
+.dark .info-btn:hover {
+  background: rgba(255,255,255,0.1);
 }
 
 .session-modal {
   max-width: 500px;
+  background: #ffffff; /* Light modal */
+  color: #1e293b;
+}
+
+.dark .session-modal {
+  background: #1e1e2f; /* Dark modal fallback if not handled by glass */
+  color: #fff;
 }
 
 .modal-header {
@@ -1429,13 +1460,23 @@ definePageMeta({
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(255,255,255,0.03);
+  background: #f8fafc; /* Light bg */
   border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.dark .detail-row {
+  background: rgba(255,255,255,0.03);
+  border: none;
 }
 
 .detail-row .label {
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.9rem;
+}
+
+.dark .detail-row .label {
+  color: #94a3b8;
 }
 
 .detail-row .value {
@@ -1447,16 +1488,28 @@ definePageMeta({
 
 .detail-row .value.code {
   font-family: monospace;
-  background: rgba(0,0,0,0.3);
+  background: #e2e8f0;
+  color: #334155;
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
+}
+
+.dark .detail-row .value.code {
+  background: rgba(0,0,0,0.3);
+  color: #fff;
 }
 
 .status-badge {
   padding: 0.2rem 0.6rem;
   border-radius: 1rem;
   font-size: 0.8rem;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.dark .status-badge {
   background: rgba(255,255,255,0.1);
+  color: #fff;
 }
 
 .status-badge.current {

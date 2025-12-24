@@ -113,7 +113,7 @@
           
           <div class="space-y-4">
             <div v-for="crypto in cryptoMarkets" :key="crypto.symbol" 
-                class="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 transition-colors cursor-pointer border border-slate-700/50">
+                class="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors cursor-pointer border border-gray-100 dark:border-slate-700/50">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="crypto.bgColor">
                   <span class="text-white font-bold">{{ crypto.symbol?.slice(0, 2) || '??' }}</span>
@@ -144,7 +144,7 @@
           
           <div class="space-y-4">
             <div v-for="activity in recentActivities" :key="activity.id" 
-                class="flex items-center gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50">
               <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="activity.bgColor">
                 <span class="text-lg">{{ activity.icon }}</span>
               </div>
@@ -199,14 +199,14 @@
           </div>
 
           <!-- Add Card -->
-          <NuxtLink v-if="userCards.length > 0" to="/cards/new" class="credit-card flex items-center justify-center border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors bg-slate-800/30">
+          <NuxtLink v-if="userCards.length > 0" to="/cards/new" class="credit-card flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-500 transition-colors bg-gray-50 dark:bg-slate-800/30">
             <div class="text-center">
-              <div class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-16 h-16 rounded-full bg-gray-200 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
               </div>
-              <p class="text-slate-400 font-medium">Nouvelle Carte</p>
+              <p class="text-gray-500 dark:text-slate-400 font-medium">Nouvelle Carte</p>
             </div>
           </NuxtLink>
         </div>
@@ -215,7 +215,7 @@
       <!-- Exchange Rates -->
       <div class="glass-card p-6">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-white">💱 Taux de Change</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">💱 Taux de Change</h3>
           <button @click="refreshRates" class="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium">
             <svg class="w-4 h-4" :class="{ 'animate-spin': refreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -226,10 +226,10 @@
         
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <div v-for="rate in fiatRates" :key="rate.pair" 
-              class="p-4 rounded-xl bg-slate-800/50 text-center hover:bg-slate-700/50 transition-colors border border-slate-700/50">
-            <p class="text-sm font-medium text-slate-400 mb-1">{{ rate.pair }}</p>
-            <p class="text-lg font-bold text-white">{{ rate.rate.toFixed(4) }}</p>
-            <p class="text-xs" :class="rate.change >= 0 ? 'text-emerald-400' : 'text-red-400'">
+              class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 text-center hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors border border-gray-100 dark:border-slate-700/50">
+            <p class="text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">{{ rate.pair }}</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ rate.rate.toFixed(4) }}</p>
+            <p class="text-xs" :class="rate.change >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
               {{ rate.change >= 0 ? '+' : '' }}{{ (rate.change * 100).toFixed(2) }}%
             </p>
           </div>
@@ -424,14 +424,29 @@ definePageMeta({
 <style scoped>
 .quick-action-btn {
   @apply flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-300;
+  /* Light Mode Default */
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.dark .quick-action-btn {
+  /* Dark Mode Overrides */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
 }
 
 .quick-action-btn:hover {
+  background: #eef2ff; /* indigo-50 */
+  border-color: #c7d2fe; /* indigo-200 */
+  color: #4f46e5; /* indigo-600 */
+  transform: translateY(-2px);
+}
+
+.dark .quick-action-btn:hover {
   background: rgba(99, 102, 241, 0.15);
   border-color: rgba(99, 102, 241, 0.3);
-  transform: translateY(-2px);
+  color: white;
 }
 </style>

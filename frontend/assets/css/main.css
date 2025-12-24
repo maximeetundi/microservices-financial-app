@@ -522,6 +522,11 @@ body {
 
 .table-premium thead {
     @apply text-left text-xs uppercase tracking-wider;
+    /* Light mode text color fix */
+    color: #64748b;
+}
+
+.dark .table-premium thead {
     color: rgba(255, 255, 255, 0.5);
 }
 
@@ -530,7 +535,13 @@ body {
 }
 
 .table-premium tbody tr {
-    @apply border-t border-white/5 transition-colors;
+    @apply border-t transition-colors;
+    border-color: rgba(0, 0, 0, 0.05);
+    /* Light mode border */
+}
+
+.dark .table-premium tbody tr {
+    border-color: rgba(255, 255, 255, 0.05);
 }
 
 .table-premium tbody tr:hover {
@@ -539,6 +550,12 @@ body {
 
 .table-premium td {
     @apply px-6 py-4;
+    color: #334155;
+    /* Slate 700 for light mode */
+}
+
+.dark .table-premium td {
+    color: #e2e8f0;
 }
 
 /* ========== Charts ========== */

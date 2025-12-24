@@ -89,7 +89,7 @@
 
           <!-- 2FA Field -->
           <div v-if="show2FA" class="space-y-2 animate-fade-in-up">
-            <label for="totp" class="block text-sm font-medium text-indigo-100">
+            <label for="totp" class="block text-sm font-medium text-gray-700 dark:text-indigo-100">
               Code d'authentification
             </label>
             <div class="relative">
@@ -100,11 +100,11 @@
                 maxlength="6"
                 pattern="[0-9]{6}"
                 required
-                class="input-premium text-center text-2xl tracking-[0.5em] font-mono bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                class="input-premium text-center text-2xl tracking-[0.5em] font-mono bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                 placeholder="000000"
               />
             </div>
-            <p class="text-xs text-indigo-300 text-center">
+            <p class="text-xs text-gray-500 dark:text-indigo-300 text-center">
               Entrez le code à 6 chiffres de votre application
             </p>
           </div>
@@ -276,7 +276,7 @@ onMounted(() => {
   animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
 }
 
-/* Autofill Hack for Dark Theme */
+/* Autofill Hack for Dark/Light Theme */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -285,6 +285,14 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: white !important;
   transition: background-color 5000s ease-in-out 0s;
   background-color: transparent !important;
+}
+
+.bg-gradient-to-br input:-webkit-autofill,
+.bg-gradient-to-br input:-webkit-autofill:hover,
+.bg-gradient-to-br input:-webkit-autofill:focus,
+.bg-gradient-to-br input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #f9fafb inset !important;
+  -webkit-text-fill-color: #1f2937 !important;
 }
 
 /* Custom Scrollbar if needed */

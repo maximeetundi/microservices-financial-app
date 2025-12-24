@@ -35,14 +35,14 @@
             class="flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm transition-all duration-300"
             :class="currentStep >= step 
               ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30' 
-              : 'bg-white/10 text-white/50'"
+              : 'bg-black/10 dark:bg-white/10 text-gray-400 dark:text-white/50'"
           >
             <svg v-if="currentStep > step" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
             <span v-else>{{ step }}</span>
           </div>
-          <div v-if="step < 3" class="w-12 h-1 rounded-full transition-all duration-300" :class="currentStep > step ? 'bg-indigo-500' : 'bg-white/10'"></div>
+          <div v-if="step < 3" class="w-12 h-1 rounded-full transition-all duration-300" :class="currentStep > step ? 'bg-indigo-500' : 'bg-black/10 dark:bg-white/10'"></div>
         </template>
       </div>
 
@@ -56,38 +56,37 @@
       <!-- Register Card -->
       <div class="glass-card p-8 border border-gray-200 dark:border-white/10 shadow-2xl backdrop-blur-xl bg-white/90 dark:bg-white/5 relative overflow-hidden">
         <form @submit.prevent="handleSubmit">
-          
-          <!-- Step 1: Identity -->
+            <!-- Step 1: Identity -->
           <div v-show="currentStep === 1" class="space-y-5">
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-indigo-100">Prénom</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Prénom</label>
                 <input
                   v-model="form.first_name"
                   type="text"
                   required
-                  class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                   placeholder="John"
                 />
               </div>
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-indigo-100">Nom</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Nom</label>
                 <input
                   v-model="form.last_name"
                   type="text"
                   required
-                  class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                   placeholder="Doe"
                 />
               </div>
             </div>
             <div class="space-y-2">
-              <label class="block text-sm font-medium text-indigo-100">Date de naissance</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Date de naissance</label>
               <input
                 v-model="form.date_of_birth"
                 type="date"
                 required
-                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50 [color-scheme:dark]"
+                class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
           </div>
@@ -95,8 +94,8 @@
           <!-- Step 2: Contact -->
           <div v-show="currentStep === 2" class="space-y-5">
             <div class="space-y-2">
-              <label class="flex items-center gap-2 text-sm font-medium text-indigo-100">
-                <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-indigo-100">
+                <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                 </svg>
                 Email
@@ -105,30 +104,30 @@
                 v-model="form.email"
                 type="email"
                 required
-                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                 placeholder="exemple@email.com"
               />
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-indigo-100">Pays</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Pays</label>
                 <select
                   v-model="form.country"
                   required
-                  class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50 appearance-none"
+                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none"
                 >
-                  <option value="" disabled class="bg-slate-900 text-gray-400">Sélectionner</option>
-                  <option v-for="country in countries" :key="country.code" :value="country.code" class="bg-slate-900 text-white">
+                  <option value="" disabled class="text-gray-400">Sélectionner</option>
+                  <option v-for="country in countries" :key="country.code" :value="country.code" class="text-gray-900 dark:text-white bg-white dark:bg-slate-900">
                     {{ country.name }}
                   </option>
                 </select>
               </div>
               <div class="space-y-2">
-                <label class="block text-sm font-medium text-indigo-100">Téléphone</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Téléphone</label>
                 <input
                   v-model="form.phone"
                   type="tel"
-                  class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                   placeholder="+33 6..."
                 />
               </div>
@@ -138,44 +137,44 @@
           <!-- Step 3: Security -->
           <div v-show="currentStep === 3" class="space-y-5">
             <div class="space-y-2">
-              <label class="block text-sm font-medium text-indigo-100">Mot de passe</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Mot de passe</label>
               <div class="relative">
                 <input
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   required
                   minlength="8"
-                  class="input-premium pr-12 w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                  class="input-premium pr-12 w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                   placeholder="••••••••"
                 />
-                <button type="button" @click="showPassword = !showPassword" class="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white transition-colors">
+                <button type="button" @click="showPassword = !showPassword" class="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 hover:text-indigo-600 dark:hover:text-white transition-colors">
                   <svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path></svg>
                   <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                 </button>
               </div>
               <!-- Password Strength -->
               <div class="flex gap-1 mt-2">
-                <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full transition-all" :class="passwordStrength >= i ? strengthColors[passwordStrength] : 'bg-white/10'"></div>
+                <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full transition-all" :class="passwordStrength >= i ? strengthColors[passwordStrength] : 'bg-gray-200 dark:bg-white/10'"></div>
               </div>
               <p class="text-xs" :class="strengthTextColors[passwordStrength]">{{ strengthTexts[passwordStrength] }}</p>
             </div>
             <div class="space-y-2">
-              <label class="block text-sm font-medium text-indigo-100">Confirmer</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Confirmer</label>
               <input
                 v-model="form.confirm_password"
                 :type="showPassword ? 'text' : 'password'"
                 required
-                class="input-premium w-full bg-black/20 focus:bg-black/30 border-white/10 focus:border-indigo-500/50"
+                class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
                 placeholder="••••••••"
               />
             </div>
             <label class="flex items-start gap-3 cursor-pointer group pt-2">
               <div class="relative flex items-center pt-0.5">
-                <input v-model="acceptTerms" type="checkbox" class="peer appearance-none w-5 h-5 rounded border border-white/20 bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer"/>
+                <input v-model="acceptTerms" type="checkbox" class="peer appearance-none w-5 h-5 rounded border border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-white/5 checked:bg-indigo-500 checked:border-indigo-500 transition-all cursor-pointer"/>
                 <svg class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
               </div>
-              <span class="text-sm text-indigo-200/80 group-hover:text-white transition-colors">
-                J'accepte les <NuxtLink to="/legal/terms" class="text-indigo-400 hover:underline">conditions</NuxtLink> et la <NuxtLink to="/legal/privacy" class="text-indigo-400 hover:underline">confidentialité</NuxtLink>
+              <span class="text-sm text-gray-600 dark:text-indigo-200/80 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">
+                J'accepte les <NuxtLink to="/legal/terms" class="text-indigo-500 dark:text-indigo-400 hover:underline">conditions</NuxtLink> et la <NuxtLink to="/legal/privacy" class="text-indigo-500 dark:text-indigo-400 hover:underline">confidentialité</NuxtLink>
               </span>
             </label>
           </div>
@@ -200,7 +199,7 @@
               v-if="currentStep > 1"
               type="button"
               @click="currentStep--"
-              class="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-white/10 hover:bg-white/20 transition-all"
+              class="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 dark:text-white bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-all"
             >
               Retour
             </button>
@@ -228,9 +227,9 @@
 
           <!-- Login Link -->
           <div class="text-center pt-4">
-            <p class="text-indigo-200/60 text-sm">
+            <p class="text-gray-500 dark:text-indigo-200/60 text-sm">
               Déjà un compte ?
-              <NuxtLink to="/auth/login" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline ml-1">Se connecter</NuxtLink>
+              <NuxtLink to="/auth/login" class="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 font-semibold hover:underline ml-1">Se connecter</NuxtLink>
             </p>
           </div>
         </form>
@@ -378,5 +377,10 @@ const handleSubmit = async () => {
 input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.2) inset !important;
   -webkit-text-fill-color: white !important;
+}
+
+.bg-gradient-to-br input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px #f9fafb inset !important;
+  -webkit-text-fill-color: #1f2937 !important;
 }
 </style>

@@ -35,15 +35,15 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         
         <!-- Card Visual -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-6">Your Card</h3>
+        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-800">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Your Card</h3>
           
-          <div class="relative rounded-xl p-6 text-gray-900 shadow-lg mb-6"
+          <div class="relative rounded-xl p-6 text-white shadow-lg mb-6"
                :class="getCardGradient(card.type)">
             
             <!-- Card Type Badge -->
             <div class="absolute top-4 right-4">
-              <span class="px-2 py-1 bg-white bg-opacity-20 rounded text-xs uppercase font-semibold">
+              <span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded text-xs uppercase font-semibold">
                 {{ card.type }}
               </span>
             </div>
@@ -55,7 +55,7 @@
                 {{ showFullNumber ? card.card_number : formatCardNumber(card.card_number) }}
               </div>
               <button @click="showFullNumber = !showFullNumber" 
-                      class="text-sm mt-2 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded">
+                      class="text-sm mt-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1 rounded transition-colors">
                 {{ showFullNumber ? 'Hide' : 'Show' }} Full Number
               </button>
             </div>
@@ -70,7 +70,7 @@
                 <div class="text-xs opacity-75 mb-1">CVV</div>
                 <div class="text-sm font-mono">
                   {{ showCVV ? card.cvv : '***' }}
-                  <button @click="showCVV = !showCVV" class="ml-2 text-xs opacity-75">
+                  <button @click="showCVV = !showCVV" class="ml-2 text-xs opacity-75 hover:opacity-100 underline">
                     {{ showCVV ? 'Hide' : 'Show' }}
                   </button>
                 </div>
@@ -89,11 +89,11 @@
           <!-- Card Actions -->
           <div class="grid grid-cols-2 gap-4">
             <button @click="showChangePin = true" 
-                    class="bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 font-medium">
+                    class="bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 font-medium transition-colors">
               Change PIN
             </button>
             <button @click="showSettings = true" 
-                    class="bg-blue-600 text-gray-900 py-3 px-4 rounded-lg hover:bg-blue-700 font-medium">
+                    class="bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-lg shadow-blue-500/20">
               Card Settings
             </button>
           </div>
