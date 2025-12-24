@@ -354,6 +354,7 @@ definePageMeta({
 })
 </script>
 
+<style scoped>
 /* ========== Profile Page Styles ========== */
 .profile-page {
   @apply w-full max-w-3xl mx-auto;
