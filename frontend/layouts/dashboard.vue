@@ -10,7 +10,7 @@
     <!-- Sidebar -->
     <aside 
       :class="[
-        'fixed h-full bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
+        'fixed h-full bg-slate-100 dark:bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         'w-72'
       ]"
@@ -124,7 +124,7 @@
     <!-- Main Content -->
     <main class="flex-1 lg:ml-72 transition-all duration-300">
       <!-- Mobile Header with Hamburger -->
-      <header class="lg:hidden sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-4 py-3 flex items-center justify-between">
+      <header class="lg:hidden sticky top-0 z-30 bg-slate-100/95 dark:bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-4 py-3 flex items-center justify-between">
         <button 
           @click="sidebarOpen = true" 
           class="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"

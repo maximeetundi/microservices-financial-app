@@ -99,7 +99,7 @@
               </div>
               
                <div class="mt-2 text-sm text-muted">
-                 1 {{ fromCurrency }} = {{ exchangeRate?.rate?.toFixed(4) || '...' }} {{ toCurrency }}
+                 1 {{ fromCurrency }} = {{ (Number(exchangeRate?.rate) || 0).toFixed(4) }} {{ toCurrency }}
                </div>
             </div>
 
@@ -248,7 +248,7 @@ const currentSourceBalance = computed(() => {
 
 const ourFee = computed(() => {
   if (!exchangeRate.value) return '0.25'
-  return (exchangeRate.value.fee_percentage || 0.25).toFixed(2)
+  return Number(exchangeRate.value.fee_percentage || 0.25).toFixed(2)
 })
 
 const calculateFee = computed(() => {
