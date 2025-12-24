@@ -68,6 +68,26 @@
       <div class="glass-card p-6 mb-8">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">🚀 Actions Rapides</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <NuxtLink to="/scan" class="quick-action-btn">
+            <span class="text-3xl mb-2">📷</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Scanner</span>
+          </NuxtLink>
+
+          <NuxtLink to="/transfer" class="quick-action-btn">
+            <span class="text-3xl mb-2">💸</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Envoyer</span>
+          </NuxtLink>
+
+          <NuxtLink to="/cards" class="quick-action-btn">
+            <span class="text-3xl mb-2">💳</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Mes Cartes</span>
+          </NuxtLink>
+
+          <NuxtLink to="/wallet" class="quick-action-btn">
+            <span class="text-3xl mb-2">👛</span>
+            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Portefeuilles</span>
+          </NuxtLink>
+
           <NuxtLink to="/exchange/crypto" class="quick-action-btn">
             <span class="text-3xl mb-2">₿</span>
             <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Acheter Crypto</span>
@@ -76,26 +96,6 @@
           <NuxtLink to="/exchange/fiat" class="quick-action-btn">
             <span class="text-3xl mb-2">💱</span>
             <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Convertir</span>
-          </NuxtLink>
-
-          <NuxtLink to="/cards" class="quick-action-btn">
-            <span class="text-3xl mb-2">💳</span>
-            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Mes Cartes</span>
-          </NuxtLink>
-
-          <NuxtLink to="/transfer" class="quick-action-btn">
-            <span class="text-3xl mb-2">💸</span>
-            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Envoyer</span>
-          </NuxtLink>
-
-          <NuxtLink to="/wallet" class="quick-action-btn">
-            <span class="text-3xl mb-2">👛</span>
-            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Portefeuilles</span>
-          </NuxtLink>
-
-          <NuxtLink to="/scan" class="quick-action-btn">
-            <span class="text-3xl mb-2">📷</span>
-            <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Scanner</span>
           </NuxtLink>
         </div>
       </div>
