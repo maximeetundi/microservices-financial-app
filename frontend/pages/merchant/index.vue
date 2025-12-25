@@ -288,9 +288,9 @@
             </div>
 
             <div class="grid grid-cols-3 gap-3 w-full mb-6">
-              <button class="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors" @click="copyPaymentLink">
+              <button class="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors" @click="copyPaymentCode">
                 <span class="text-xl">📋</span>
-                <span class="text-xs font-bold">Copier</span>
+                <span class="text-xs font-bold">Code</span>
               </button>
               <button class="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors" @click="downloadQR">
                 <span class="text-xl">⬇️</span>
@@ -302,11 +302,26 @@
               </button>
             </div>
 
-            <div class="relative w-full">
-              <input type="text" :value="selectedPayment?.payment_link" readonly class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-lg text-xs py-3 pl-3 pr-10 text-gray-500 font-mono" />
-               <button @click="copyPaymentLink" class="absolute right-2 top-1/2 -translate-y-1/2 text-primary-600 hover:scale-110 transition-transform">
-                 📋
-               </button>
+            <!-- Payment Code Display -->
+            <div class="w-full mb-4">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Code de paiement</label>
+              <div class="relative">
+                <input type="text" :value="getPaymentCode()" readonly class="w-full bg-indigo-50 dark:bg-indigo-900/30 border-2 border-indigo-200 dark:border-indigo-700 rounded-xl text-lg py-3 pl-4 pr-12 text-indigo-600 dark:text-indigo-400 font-mono font-bold text-center" />
+                <button @click="copyPaymentCode" class="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600 hover:scale-110 transition-transform text-xl" title="Copier le code">
+                  📋
+                </button>
+              </div>
+            </div>
+
+            <!-- Full Link Display -->
+            <div class="w-full">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Lien de paiement</label>
+              <div class="relative">
+                <input type="text" :value="selectedPayment?.payment_link" readonly class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-lg text-xs py-3 pl-3 pr-10 text-gray-500 font-mono" />
+                <button @click="copyPaymentLink" class="absolute right-2 top-1/2 -translate-y-1/2 text-primary-600 hover:scale-110 transition-transform">
+                  📋
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -449,6 +464,33 @@ function copyPaymentLink() {
   if (selectedPayment.value?.payment_link) {
       navigator.clipboard.writeText(selectedPayment.value.payment_link)
       alert('Lien copié!')
+  }
+}
+
+function getPaymentCode() {
+  if (!selectedPayment.value) return ''
+  // Extract code from payment_id or payment_link
+  const paymentId = selectedPayment.value.payment_id || selectedPayment.value.id
+  if (paymentId) {
+    // If it's already prefixed with pay_, return as is
+    if (String(paymentId).startsWith('pay_')) {
+      return paymentId
+    }
+    return `pay_${paymentId}`
+  }
+  // Try to extract from payment_link
+  const link = selectedPayment.value.payment_link
+  if (link && link.includes('/pay/')) {
+    return link.split('/pay/').pop()
+  }
+  return paymentId || ''
+}
+
+function copyPaymentCode() {
+  const code = getPaymentCode()
+  if (code) {
+    navigator.clipboard.writeText(code)
+    alert('Code copié: ' + code)
   }
 }
 

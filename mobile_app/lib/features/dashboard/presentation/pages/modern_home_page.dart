@@ -564,7 +564,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => context.push('/wallet'),
+                  onTap: () => context.push('/transactions'),
                   child: Text(
                     'Voir tout →',
                     style: GoogleFonts.inter(
@@ -594,7 +594,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Accédez à vos portefeuilles pour voir l\'historique complet',
+                    'Voir l\'historique complet de vos transactions',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,
@@ -603,7 +603,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => context.push('/wallet'),
+                    onTap: () => context.push('/transactions'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
@@ -611,7 +611,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Voir les portefeuilles',
+                        'Voir les transactions',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

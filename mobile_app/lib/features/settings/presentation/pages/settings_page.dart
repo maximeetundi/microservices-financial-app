@@ -154,7 +154,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          onTap: () {},
+          onTap: () => context.go('/more/kyc'),
           isDark: isDark,
         ),
         _buildSettingsCard(
@@ -162,7 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Préférences',
           subtitle: 'Thème, langue, notifications',
           color: const Color(0xFFF97316),
-          onTap: () {},
+          onTap: () => context.go('/more/preferences'),
           isDark: isDark,
         ),
         _buildSettingsCard(
@@ -178,7 +178,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Moyens de paiement',
           subtitle: 'Cartes, comptes bancaires',
           color: const Color(0xFF14B8A6),
-          onTap: () => context.go('/more/cards'),
+          onTap: () => context.go('/more/payment-methods'),
           isDark: isDark,
         ),
       ],

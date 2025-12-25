@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'dart:io';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_container.dart';
+import '../../core/services/api_service.dart';
 
-/// Scan & Pay Screen matching web design exactly
+/// Scan & Pay Screen matching web design exactly - with real QR scanning
 class ScanPayScreen extends StatefulWidget {
   const ScanPayScreen({super.key});
 
@@ -14,27 +18,106 @@ class ScanPayScreen extends StatefulWidget {
 }
 
 class _ScanPayScreenState extends State<ScanPayScreen> {
+  final ApiService _api = ApiService();
+  final ImagePicker _picker = ImagePicker();
+  
   String _activeTab = 'camera';
   final _codeController = TextEditingController();
   bool _loading = false;
   String? _error;
-  bool _cameraActive = false;
+  bool _cameraActive = true;
+  MobileScannerController? _scannerController;
+  bool _hasScanned = false;
 
   @override
   void initState() {
     super.initState();
-    // Simulate camera activation
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted && _activeTab == 'camera') {
-        setState(() => _cameraActive = true);
-      }
-    });
+    _initScanner();
+  }
+
+  void _initScanner() {
+    _scannerController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
   }
 
   @override
   void dispose() {
     _codeController.dispose();
+    _scannerController?.dispose();
     super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_hasScanned) return;
+    
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      final code = barcode.rawValue;
+      if (code != null && code.isNotEmpty) {
+        setState(() => _hasScanned = true);
+        _processPaymentCode(code);
+        break;
+      }
+    }
+  }
+
+  Future<void> _processPaymentCode(String code) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      // Extract payment ID from URL or code
+      String paymentId = code;
+      if (code.contains('/pay/')) {
+        paymentId = code.split('/pay/').last.split('?').first;
+      } else if (code.startsWith('pay_')) {
+        paymentId = code;
+      }
+
+      // Fetch payment details
+      final paymentDetails = await _api.merchant.getPaymentDetails(paymentId);
+      
+      if (mounted) {
+        setState(() => _loading = false);
+        _showPaymentConfirmation(paymentDetails, paymentId);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Code de paiement invalide ou expiré';
+          _hasScanned = false;
+        });
+      }
+    }
+  }
+
+  void _showPaymentConfirmation(Map<String, dynamic> payment, String paymentId) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PaymentConfirmationSheet(
+        payment: payment,
+        paymentId: paymentId,
+        api: _api,
+        onComplete: () {
+          Navigator.pop(context);
+          context.go('/dashboard');
+        },
+        onCancel: () {
+          Navigator.pop(context);
+          setState(() => _hasScanned = false);
+        },
+      ),
+    );
   }
 
   @override
@@ -62,18 +145,12 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // Header with icon
                       _buildHeader(isDark),
                       const SizedBox(height: 24),
-                      
-                      // Method tabs
                       _buildMethodTabs(isDark),
                       const SizedBox(height: 20),
-                      
-                      // Active tab content
                       _buildTabContent(isDark),
                       
-                      // Error message
                       if (_error != null) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -83,18 +160,24 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
                             border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.2)),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Text(
-                            _error!,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFEF4444),
-                              fontSize: 14,
-                            ),
-                            textAlign: TextAlign.center,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Color(0xFFEF4444)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFEF4444),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                       
-                      // Help text
                       const SizedBox(height: 24),
                       _buildHelpText(isDark),
                     ],
@@ -204,12 +287,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         setState(() {
           _activeTab = value;
           _error = null;
-          if (value == 'camera') {
-            _cameraActive = false;
-            Future.delayed(const Duration(seconds: 1), () {
-              if (mounted) setState(() => _cameraActive = true);
-            });
-          }
+          _hasScanned = false;
         });
       },
       child: AnimatedContainer(
@@ -268,35 +346,18 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       borderRadius: 20,
       child: Column(
         children: [
-          // Camera view with scanner frame
-          AspectRatio(
-            aspectRatio: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
+          // Camera view with scanner
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              height: 300,
               child: Stack(
                 children: [
-                  // Camera loading or placeholder
-                  if (!_cameraActive)
-                    const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(color: Color(0xFF6366F1)),
-                          SizedBox(height: 16),
-                          Text(
-                            'Activation de la caméra...',
-                            style: TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    const Center(
-                      child: Icon(Icons.camera_alt, size: 64, color: Colors.white24),
-                    ),
+                  // Real QR Scanner
+                  MobileScanner(
+                    controller: _scannerController,
+                    onDetect: _onDetect,
+                  ),
                   
                   // Scanner frame overlay
                   Center(
@@ -309,9 +370,24 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
                     ),
                   ),
                   
-                  // Scanning animation line
-                  if (_cameraActive)
-                    _ScannerLine(),
+                  // Loading overlay
+                  if (_loading)
+                    Container(
+                      color: Colors.black.withOpacity(0.7),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: Color(0xFF6366F1)),
+                            SizedBox(height: 16),
+                            Text(
+                              'Chargement...',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -320,15 +396,24 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
           const SizedBox(height: 16),
           
           // Camera controls
-          if (_cameraActive)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildCameraControl(Icons.flash_on, 'Flash', isDark),
-                const SizedBox(width: 20),
-                _buildCameraControl(Icons.cameraswitch, 'Changer', isDark),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildCameraControl(
+                Icons.flash_on, 
+                'Flash', 
+                isDark,
+                onTap: () => _scannerController?.toggleTorch(),
+              ),
+              const SizedBox(width: 20),
+              _buildCameraControl(
+                Icons.cameraswitch, 
+                'Changer', 
+                isDark,
+                onTap: () => _scannerController?.switchCamera(),
+              ),
+            ],
+          ),
           
           const SizedBox(height: 16),
           Text(
@@ -344,9 +429,9 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
     );
   }
 
-  Widget _buildCameraControl(IconData icon, String label, bool isDark) {
+  Widget _buildCameraControl(IconData icon, String label, bool isDark, {VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -431,7 +516,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _loading ? null : _submitCode,
+              onPressed: _loading ? null : () => _processPaymentCode(_codeController.text),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
                 foregroundColor: Colors.white,
@@ -471,9 +556,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       child: Column(
         children: [
           GestureDetector(
-            onTap: () {
-              // Open image picker
-            },
+            onTap: _pickImage,
             child: Container(
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
@@ -508,35 +591,37 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: null, // Disabled until image selected
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: isDark 
-                    ? const Color(0xFF334155)
-                    : const Color(0xFFE2E8F0),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                'Scanner le QR code →',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() => _loading = true);
+      
+      try {
+        // Analyze image for QR code
+        final result = await _scannerController?.analyzeImage(image.path);
+        if (result != null && result.barcodes.isNotEmpty) {
+          final code = result.barcodes.first.rawValue;
+          if (code != null) {
+            await _processPaymentCode(code);
+            return;
+          }
+        }
+        setState(() {
+          _loading = false;
+          _error = 'Aucun QR code trouvé dans l\'image';
+        });
+      } catch (e) {
+        setState(() {
+          _loading = false;
+          _error = 'Erreur lors de l\'analyse de l\'image';
+        });
+      }
+    }
   }
 
   Widget _buildHelpText(bool isDark) {
@@ -562,24 +647,6 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         ),
       ),
     );
-  }
-
-  void _submitCode() {
-    if (_codeController.text.isEmpty) return;
-    
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _loading = false);
-        // Navigate to payment page
-        context.go('/pay/${_codeController.text}');
-      }
-    });
   }
 }
 
@@ -632,58 +699,266 @@ class ScannerFramePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Animated scanner line
-class _ScannerLine extends StatefulWidget {
+/// Payment confirmation bottom sheet
+class _PaymentConfirmationSheet extends StatefulWidget {
+  final Map<String, dynamic> payment;
+  final String paymentId;
+  final ApiService api;
+  final VoidCallback onComplete;
+  final VoidCallback onCancel;
+
+  const _PaymentConfirmationSheet({
+    required this.payment,
+    required this.paymentId,
+    required this.api,
+    required this.onComplete,
+    required this.onCancel,
+  });
+
   @override
-  State<_ScannerLine> createState() => _ScannerLineState();
+  State<_PaymentConfirmationSheet> createState() => _PaymentConfirmationSheetState();
 }
 
-class _ScannerLineState extends State<_ScannerLine> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+class _PaymentConfirmationSheetState extends State<_PaymentConfirmationSheet> {
+  List<Map<String, dynamic>> _wallets = [];
+  String? _selectedWalletId;
+  final _amountController = TextEditingController();
+  bool _loading = false;
+  bool _loadingWallets = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _animation = Tween<double>(begin: 0.15, end: 0.85).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _loadWallets();
+    // Pre-fill amount if fixed
+    if (widget.payment['amount'] != null) {
+      _amountController.text = widget.payment['amount'].toString();
+    }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _loadWallets() async {
+    try {
+      final res = await widget.api.wallet.getWallets();
+      setState(() {
+        _wallets = List<Map<String, dynamic>>.from(
+          res['wallets'] ?? res['data']?['wallets'] ?? res['data'] ?? []
+        );
+        _loadingWallets = false;
+      });
+    } catch (e) {
+      setState(() => _loadingWallets = false);
+    }
+  }
+
+  Future<void> _confirmPayment() async {
+    if (_selectedWalletId == null) {
+      setState(() => _error = 'Veuillez sélectionner un portefeuille');
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Veuillez entrer un montant valide');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await widget.api.merchant.payPayment(
+        widget.paymentId,
+        _selectedWalletId!,
+        amount,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Paiement effectué avec succès!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onComplete();
+      }
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Positioned(
-          left: 40,
-          right: 40,
-          top: _animation.value * (MediaQuery.of(context).size.width - 80),
-          child: Container(
-            height: 2,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  const Color(0xFF6366F1).withOpacity(0.9),
-                  Colors.transparent,
-                ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                const Text('💳', style: TextStyle(fontSize: 32)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.payment['title'] ?? 'Paiement',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (widget.payment['merchant_name'] != null)
+                        Text(
+                          widget.payment['merchant_name'],
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: widget.onCancel,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Amount
+            Text(
+              'Montant à payer',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 8),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              enabled: widget.payment['type'] != 'fixed',
+              style: GoogleFonts.inter(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                suffixText: widget.payment['currency'] ?? 'EUR',
+                filled: true,
+                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Wallet selection
+            Text(
+              'Payer depuis',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_loadingWallets)
+              const Center(child: CircularProgressIndicator())
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedWalletId,
+                    isExpanded: true,
+                    hint: Text('Sélectionner un portefeuille', style: GoogleFonts.inter(
+                      color: const Color(0xFF94A3B8),
+                    )),
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    items: _wallets.map((w) => DropdownMenuItem(
+                      value: w['id'].toString(),
+                      child: Text('${w['currency']} - ${(w['balance'] as num).toStringAsFixed(2)} ${w['currency']}'),
+                    )).toList(),
+                    onChanged: (v) => setState(() => _selectedWalletId = v),
+                    style: GoogleFonts.inter(
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+              ),
+            
+            // Error
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: GoogleFonts.inter(color: const Color(0xFFEF4444)),
+              ),
+            ],
+            
+            const SizedBox(height: 24),
+            
+            // Confirm button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _confirmPayment,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22C55E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Text(
+                        '✓ Confirmer le paiement',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

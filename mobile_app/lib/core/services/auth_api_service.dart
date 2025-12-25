@@ -156,4 +156,78 @@ class AuthApiService {
     }
     throw Exception('User not found');
   }
+
+  // ========== KYC Methods ==========
+
+  /// Get KYC status and documents
+  Future<Map<String, dynamic>> getKYCStatus() async {
+    final response = await _client.get('${ApiEndpoints.users}/kyc/status');
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception('Failed to get KYC status');
+  }
+
+  /// Get KYC documents
+  Future<Map<String, dynamic>> getKYCDocuments() async {
+    final response = await _client.get('${ApiEndpoints.users}/kyc/documents');
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception('Failed to get KYC documents');
+  }
+
+  /// Upload KYC document
+  Future<Map<String, dynamic>> uploadKYCDocument(String type, dynamic file) async {
+    // For file upload, we need to use multipart form data
+    final response = await _client.uploadFile(
+      '${ApiEndpoints.users}/kyc/documents',
+      file,
+      fieldName: 'document',
+      extraFields: {'type': type},
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception(response.data['error'] ?? 'Failed to upload document');
+  }
+
+  // ========== Preferences Methods ==========
+
+  /// Get user preferences
+  Future<Map<String, dynamic>> getPreferences() async {
+    final response = await _client.get('${ApiEndpoints.users}/preferences');
+    if (response.statusCode == 200) {
+      return response.data['preferences'] ?? response.data;
+    }
+    throw Exception('Failed to get preferences');
+  }
+
+  /// Update user preferences
+  Future<Map<String, dynamic>> updatePreferences(Map<String, dynamic> data) async {
+    final response = await _client.put('${ApiEndpoints.users}/preferences', data: data);
+    if (response.statusCode == 200) {
+      return response.data['preferences'] ?? response.data;
+    }
+    throw Exception('Failed to update preferences');
+  }
+
+  /// Get notification preferences
+  Future<Map<String, dynamic>> getNotificationPrefs() async {
+    final response = await _client.get('${ApiEndpoints.users}/notifications/preferences');
+    if (response.statusCode == 200) {
+      return response.data['preferences'] ?? response.data;
+    }
+    throw Exception('Failed to get notification preferences');
+  }
+
+  /// Update notification preferences
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, dynamic> data) async {
+    final response = await _client.put('${ApiEndpoints.users}/notifications/preferences', data: data);
+    if (response.statusCode == 200) {
+      return response.data['preferences'] ?? response.data;
+    }
+    throw Exception('Failed to update notification preferences');
+  }
 }
+

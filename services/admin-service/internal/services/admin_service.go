@@ -211,6 +211,12 @@ func (s *AdminService) GetWallets(limit, offset int) ([]map[string]interface{}, 
 // ========== Admin Actions via RabbitMQ ==========
 
 func (s *AdminService) BlockUser(userID, reason, adminID string) error {
+	// Direct database update for immediate effect
+	if err := s.repo.BlockUser(userID); err != nil {
+		return err
+	}
+	
+	// Also publish to RabbitMQ for other services
 	cmd := map[string]interface{}{
 		"action":    "block_user",
 		"user_id":   userID,
@@ -222,6 +228,12 @@ func (s *AdminService) BlockUser(userID, reason, adminID string) error {
 }
 
 func (s *AdminService) UnblockUser(userID, adminID string) error {
+	// Direct database update for immediate effect
+	if err := s.repo.UnblockUser(userID); err != nil {
+		return err
+	}
+	
+	// Also publish to RabbitMQ for other services
 	cmd := map[string]interface{}{
 		"action":    "unblock_user",
 		"user_id":   userID,
@@ -232,6 +244,19 @@ func (s *AdminService) UnblockUser(userID, adminID string) error {
 }
 
 func (s *AdminService) ApproveKYC(userID, level, adminID string) error {
+	// Direct database update for immediate effect
+	kycLevel := 2 // Default to level 2 for verified
+	if level == "basic" {
+		kycLevel = 1
+	} else if level == "full" {
+		kycLevel = 3
+	}
+	
+	if err := s.repo.UpdateUserKYCStatus(userID, "verified", kycLevel); err != nil {
+		return err
+	}
+	
+	// Also publish to RabbitMQ for other services
 	cmd := map[string]interface{}{
 		"action":    "approve_kyc",
 		"user_id":   userID,
@@ -243,6 +268,12 @@ func (s *AdminService) ApproveKYC(userID, level, adminID string) error {
 }
 
 func (s *AdminService) RejectKYC(userID, reason, adminID string) error {
+	// Direct database update for immediate effect
+	if err := s.repo.UpdateUserKYCStatus(userID, "rejected", 0); err != nil {
+		return err
+	}
+	
+	// Also publish to RabbitMQ for other services
 	cmd := map[string]interface{}{
 		"action":    "reject_kyc",
 		"user_id":   userID,

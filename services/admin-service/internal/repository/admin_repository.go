@@ -382,3 +382,71 @@ func (r *AdminRepository) queryToMaps(db *sql.DB, query string, args ...interfac
 
 	return results, nil
 }
+
+// ========== KYC Management (Write to Main DB) ==========
+
+// UpdateUserKYCStatus updates the KYC status of a user in the main database
+func (r *AdminRepository) UpdateUserKYCStatus(userID, status string, level int) error {
+	query := `UPDATE users SET kyc_status = $1, kyc_level = $2, updated_at = $3 WHERE id = $4`
+	_, err := r.mainDB.Exec(query, status, level, time.Now(), userID)
+	return err
+}
+
+// BlockUser blocks a user in the main database
+func (r *AdminRepository) BlockUser(userID string) error {
+	query := `UPDATE users SET is_active = false, updated_at = $1 WHERE id = $2`
+	_, err := r.mainDB.Exec(query, time.Now(), userID)
+	return err
+}
+
+// UnblockUser unblocks a user in the main database
+func (r *AdminRepository) UnblockUser(userID string) error {
+	query := `UPDATE users SET is_active = true, updated_at = $1 WHERE id = $2`
+	_, err := r.mainDB.Exec(query, time.Now(), userID)
+	return err
+}
+
+// GetUserByID gets a user from the main database
+func (r *AdminRepository) GetUserByID(userID string) (map[string]interface{}, error) {
+	query := `
+		SELECT id, email, first_name, last_name, phone, is_active, kyc_level, kyc_status, created_at
+		FROM users WHERE id = $1
+	`
+	rows, err := r.mainDB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results, err := r.rowsToMaps(rows)
+	if err != nil || len(results) == 0 {
+		return nil, err
+	}
+	return results[0], nil
+}
+
+func (r *AdminRepository) rowsToMaps(rows *sql.Rows) ([]map[string]interface{}, error) {
+	columns, _ := rows.Columns()
+	var results []map[string]interface{}
+
+	for rows.Next() {
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range columns {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		row := make(map[string]interface{})
+		for i, col := range columns {
+			row[col] = values[i]
+		}
+		results = append(results, row)
+	}
+
+	return results, nil
+}
+

@@ -83,6 +83,13 @@ class ApiEndpoints {
   static String exchangeHistory = '$exchange/history';
   static String exchangeById(String id) => '$exchange/$id';
   
+  // Trading Endpoints
+  static String markets = '$exchange/markets';
+  static String tradingPortfolio = '$exchange/trading/portfolio';
+  static String orders = '$exchange/orders';
+  static String executeOrder = '$exchange/orders';
+  static String cancelOrder(String id) => '$exchange/orders/$id/cancel';
+  
   // Notification Endpoints
   static String notificationsList = notifications;
   static String markAsRead(String id) => '$notifications/$id/read';
@@ -90,12 +97,20 @@ class ApiEndpoints {
   static const String notificationSettings = '$notifications/settings';
   
   // Support Service Endpoints
-  static const String support = '/support-service/api/v1';
-  static String supportTickets = '$support/tickets';
-  static String createTicket = '$support/tickets';
-  static String ticketById(String id) => '$support/tickets/$id';
-  static String ticketMessages(String id) => '$support/tickets/$id/messages';
-  static String sendMessage(String id) => '$support/tickets/$id/messages';
-  static String closeTicket(String id) => '$support/tickets/$id/close';
+  static const String support = '/support-service/api/v1/support';
+  static String supportConversations = '$support/conversations';
+  static String createConversation = '$support/conversations';
+  static String conversationById(String id) => '$support/conversations/$id';
+  static String conversationMessages(String id) => '$support/conversations/$id/messages';
+  static String sendConversationMessage(String id) => '$support/conversations/$id/messages';
+  static String closeConversation(String id) => '$support/conversations/$id/close';
   static String supportStats = '$support/stats';
+  
+  // Alias for backwards compatibility
+  static String supportTickets = supportConversations;
+  static String createTicket = createConversation;
+  static String ticketById(String id) => conversationById(id);
+  static String ticketMessages(String id) => conversationMessages(id);
+  static String sendMessage(String id) => sendConversationMessage(id);
+  static String closeTicket(String id) => closeConversation(id);
 }

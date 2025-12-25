@@ -134,4 +134,62 @@ class ExchangeApiService {
     
     return (amount * exchangeRate) - fee;
   }
+  
+  // Trading Methods
+  
+  /// Get all trading markets
+  Future<Map<String, dynamic>> getMarkets() async {
+    final response = await _client.get(ApiEndpoints.markets);
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception('Failed to get markets');
+  }
+  
+  /// Get trading portfolio
+  Future<Map<String, dynamic>> getTradingPortfolio() async {
+    final response = await _client.get(ApiEndpoints.tradingPortfolio);
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception('Failed to get trading portfolio');
+  }
+  
+  /// Get orders history
+  Future<List<Map<String, dynamic>>> getOrders() async {
+    final response = await _client.get(ApiEndpoints.orders);
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(response.data); // Assuming array response
+    }
+    throw Exception('Failed to get orders');
+  }
+  
+  /// Place a new order
+  Future<Map<String, dynamic>> placeOrder({
+    required String symbol,
+    required String side, // 'buy' or 'sell'
+    required String type, // 'market', 'limit', 'stop_loss'
+    required double amount,
+    double? price,
+    double? stopPrice,
+  }) async {
+    final data = {
+      'symbol': symbol,
+      'side': side,
+      'type': type,
+      'amount': amount,
+      if (price != null) 'price': price,
+      if (stopPrice != null) 'stop_price': stopPrice,
+    };
+
+    final response = await _client.post(
+      ApiEndpoints.executeOrder,
+      data: data,
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    }
+    throw Exception(response.data['error'] ?? 'Failed to place order');
+  }
 }

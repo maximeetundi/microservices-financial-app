@@ -121,16 +121,22 @@ export default function DashboardPage() {
                     <h2 className="text-lg font-semibold text-slate-900 mb-4">Actions rapides</h2>
                     <div className="grid grid-cols-2 gap-4">
                         <a href="/dashboard/users" className="btn-secondary text-center">
-                            Gérer les utilisateurs
+                            👥 Utilisateurs
                         </a>
                         <a href="/dashboard/kyc" className="btn-secondary text-center">
-                            Vérifier KYC
+                            📋 Vérifier KYC
                         </a>
                         <a href="/dashboard/transactions" className="btn-secondary text-center">
-                            Voir transactions
+                            💸 Transactions
                         </a>
                         <a href="/dashboard/cards" className="btn-secondary text-center">
-                            Gérer les cartes
+                            💳 Cartes
+                        </a>
+                        <a href="/dashboard/support" className="btn-secondary text-center">
+                            💬 Support
+                        </a>
+                        <a href="/dashboard/logs" className="btn-secondary text-center">
+                            📝 Logs d&apos;audit
                         </a>
                     </div>
                 </div>

@@ -13,12 +13,16 @@ import '../../features/exchange/presentation/pages/exchange_page.dart';
 import '../../features/exchange/presentation/pages/trading_page.dart';
 import '../../features/transfer/presentation/pages/transfer_page.dart';
 import '../../features/transfer/presentation/pages/transfer_detail_page.dart';
+import '../../features/wallet/presentation/pages/transactions_page.dart';
 import '../../features/cards/presentation/pages/cards_page.dart';
 import '../../features/cards/presentation/pages/card_detail_page.dart';
 import '../../features/portfolio/presentation/pages/portfolio_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/security_page.dart';
 import '../../features/settings/presentation/pages/profile_page.dart';
+import '../../features/settings/presentation/pages/kyc_page.dart';
+import '../../features/settings/presentation/pages/preferences_page.dart';
+import '../../features/settings/presentation/pages/payment_methods_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/support/support_screen.dart';
 import '../../features/merchant/merchant_screen.dart';
@@ -112,6 +116,13 @@ class AppRouter {
         builder: (context, state) => const PortfolioPage(),
       ),
       
+      // Transactions Route
+      GoRoute(
+        path: '/transactions',
+        name: 'transactions',
+        builder: (context, state) => const TransactionsPage(),
+      ),
+      
       // More/Settings Route
       GoRoute(
         path: '/more',
@@ -127,6 +138,26 @@ class AppRouter {
             path: 'security',
             name: 'security',
             builder: (context, state) => const SecurityPage(),
+          ),
+          GoRoute(
+            path: 'kyc',
+            name: 'kyc',
+            builder: (context, state) => const KycPage(),
+          ),
+          GoRoute(
+            path: 'preferences',
+            name: 'preferences',
+            builder: (context, state) => const PreferencesPage(),
+          ),
+          GoRoute(
+            path: 'payment-methods',
+            name: 'payment-methods',
+            builder: (context, state) => const PaymentMethodsPage(),
+          ),
+          GoRoute(
+            path: 'settings',
+            name: 'settings',
+            builder: (context, state) => const SettingsPage(),
           ),
           GoRoute(
             path: 'cards',

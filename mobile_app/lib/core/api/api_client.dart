@@ -242,6 +242,36 @@ class ApiClient {
     return _dio.delete(path, data: data);
   }
   
+  /// Upload a file using multipart form data
+  Future<Response> uploadFile(
+    String path,
+    dynamic file, {
+    String fieldName = 'file',
+    Map<String, String>? extraFields,
+  }) async {
+    FormData formData;
+    
+    if (file is File) {
+      formData = FormData.fromMap({
+        fieldName: await MultipartFile.fromFile(
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+        if (extraFields != null) ...extraFields,
+      });
+    } else {
+      throw ArgumentError('File must be of type File');
+    }
+    
+    return _dio.post(
+      path,
+      data: formData,
+      options: Options(
+        contentType: 'multipart/form-data',
+      ),
+    );
+  }
+  
   // Token Management
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     await _storage.write(key: 'access_token', value: accessToken);

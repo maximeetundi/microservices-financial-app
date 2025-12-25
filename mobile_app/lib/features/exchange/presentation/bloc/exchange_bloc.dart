@@ -51,6 +51,40 @@ class LoadExchangeHistoryEvent extends ExchangeEvent {
   const LoadExchangeHistoryEvent();
 }
 
+// Trading Events
+class LoadMarketsEvent extends ExchangeEvent {
+  const LoadMarketsEvent();
+}
+
+class LoadTradingPortfolioEvent extends ExchangeEvent {
+  const LoadTradingPortfolioEvent();
+}
+
+class LoadOrdersEvent extends ExchangeEvent {
+  const LoadOrdersEvent();
+}
+
+class PlaceOrderEvent extends ExchangeEvent {
+  final String symbol;
+  final String side;
+  final String type;
+  final double amount;
+  final double? price;
+  final double? stopPrice;
+
+  const PlaceOrderEvent({
+    required this.symbol,
+    required this.side,
+    required this.type,
+    required this.amount,
+    this.price,
+    this.stopPrice,
+  });
+
+  @override
+  List<Object?> get props => [symbol, side, type, amount, price, stopPrice];
+}
+
 // States
 abstract class ExchangeState extends Equatable {
   const ExchangeState();
@@ -126,6 +160,43 @@ class ExchangeErrorState extends ExchangeState {
   List<Object> get props => [message];
 }
 
+// Trading States
+class MarketsLoadedState extends ExchangeState {
+  final Map<String, dynamic> markets; // Adjust type if needed based on API response
+
+  const MarketsLoadedState({required this.markets});
+
+  @override
+  List<Object> get props => [markets];
+}
+
+class TradingPortfolioLoadedState extends ExchangeState {
+  final Map<String, dynamic> portfolio;
+
+  const TradingPortfolioLoadedState({required this.portfolio});
+
+  @override
+  List<Object> get props => [portfolio];
+}
+
+class OrdersLoadedState extends ExchangeState {
+  final List<Map<String, dynamic>> orders;
+
+  const OrdersLoadedState({required this.orders});
+
+  @override
+  List<Object> get props => [orders];
+}
+
+class OrderPlacedState extends ExchangeState {
+  final Map<String, dynamic> order;
+
+  const OrderPlacedState({required this.order});
+
+  @override
+  List<Object> get props => [order];
+}
+
 // BLoC
 class ExchangeBloc extends Bloc<ExchangeEvent, ExchangeState> {
   final ApiService _apiService;
@@ -138,6 +209,11 @@ class ExchangeBloc extends Bloc<ExchangeEvent, ExchangeState> {
     on<GetExchangeRateEvent>(_onGetRate);
     on<ExecuteExchangeEvent>(_onExecuteExchange);
     on<LoadExchangeHistoryEvent>(_onLoadHistory);
+    // Trading handlers
+    on<LoadMarketsEvent>(_onLoadMarkets);
+    on<LoadTradingPortfolioEvent>(_onLoadTradingPortfolio);
+    on<LoadOrdersEvent>(_onLoadOrders);
+    on<PlaceOrderEvent>(_onPlaceOrder);
   }
 
   Future<void> _onLoadRates(
@@ -211,6 +287,66 @@ class ExchangeBloc extends Bloc<ExchangeEvent, ExchangeState> {
     try {
       final exchanges = await _apiService.exchange.getExchangeHistory();
       emit(ExchangeHistoryLoadedState(exchanges: exchanges));
+    } catch (e) {
+      emit(ExchangeErrorState(message: _getErrorMessage(e)));
+    }
+  }
+
+  // Trading Handlers
+  Future<void> _onLoadMarkets(
+    LoadMarketsEvent event,
+    Emitter<ExchangeState> emit,
+  ) async {
+    emit(const ExchangeLoadingState());
+    try {
+      final markets = await _apiService.exchange.getMarkets();
+      emit(MarketsLoadedState(markets: markets));
+    } catch (e) {
+      emit(ExchangeErrorState(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onLoadTradingPortfolio(
+    LoadTradingPortfolioEvent event,
+    Emitter<ExchangeState> emit,
+  ) async {
+    emit(const ExchangeLoadingState());
+    try {
+      final portfolio = await _apiService.exchange.getTradingPortfolio();
+      emit(TradingPortfolioLoadedState(portfolio: portfolio));
+    } catch (e) {
+      emit(ExchangeErrorState(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onLoadOrders(
+    LoadOrdersEvent event,
+    Emitter<ExchangeState> emit,
+  ) async {
+    emit(const ExchangeLoadingState());
+    try {
+      final orders = await _apiService.exchange.getOrders();
+      emit(OrdersLoadedState(orders: orders));
+    } catch (e) {
+      emit(ExchangeErrorState(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onPlaceOrder(
+    PlaceOrderEvent event,
+    Emitter<ExchangeState> emit,
+  ) async {
+    emit(const ExchangeLoadingState());
+    try {
+      final result = await _apiService.exchange.placeOrder(
+        symbol: event.symbol,
+        side: event.side,
+        type: event.type,
+        amount: event.amount,
+        price: event.price,
+        stopPrice: event.stopPrice,
+      );
+      emit(OrderPlacedState(order: result));
     } catch (e) {
       emit(ExchangeErrorState(message: _getErrorMessage(e)));
     }
