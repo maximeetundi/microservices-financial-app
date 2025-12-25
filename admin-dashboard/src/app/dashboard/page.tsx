@@ -17,9 +17,14 @@ interface Stats {
     transactions_today: number;
     volume_today: number;
     total_cards: number;
+    active_cards: number;
     total_wallets: number;
     pending_kyc: number;
+    verified_kyc: number;
+    new_users_today: number;
+    transfers_today: number;
 }
+
 
 export default function DashboardPage() {
     const [stats, setStats] = useState<Stats | null>(null);

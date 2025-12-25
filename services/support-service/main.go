@@ -89,9 +89,11 @@ func main() {
 			// Conversation management
 			admin.GET("/conversations", supportHandler.AdminGetConversations)
 			admin.GET("/conversations/:id", supportHandler.GetConversation)
+			admin.GET("/conversations/:id/messages", supportHandler.GetMessages)
 			admin.POST("/conversations/:id/messages", supportHandler.AdminSendMessage)
 			admin.PUT("/conversations/:id/assign", supportHandler.AdminAssignAgent)
 			admin.PUT("/conversations/:id/close", supportHandler.CloseConversation)
+
 
 			// Agent management
 			admin.GET("/agents", supportHandler.AdminGetAgents)

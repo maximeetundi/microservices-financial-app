@@ -253,7 +253,7 @@ func (r *AdminRepository) GetAuditLogs(limit, offset int, filters map[string]str
 
 func (r *AdminRepository) GetUsersFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
 	query := `
-		SELECT id, email, first_name, last_name, phone, is_active, kyc_level, created_at
+		SELECT id, email, first_name, last_name, phone, is_active, kyc_level, kyc_status, created_at
 		FROM users
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -319,15 +319,35 @@ func (r *AdminRepository) GetDashboardStats() (map[string]interface{}, error) {
 	r.mainDB.QueryRow("SELECT COUNT(*) FROM cards").Scan(&cardsCount)
 	stats["total_cards"] = cardsCount
 	
+	// Active cards
+	var activeCards int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM cards WHERE status = 'active'").Scan(&activeCards)
+	stats["active_cards"] = activeCards
+	
 	// Wallets
 	var walletsCount int
 	r.mainDB.QueryRow("SELECT COUNT(*) FROM wallets").Scan(&walletsCount)
 	stats["total_wallets"] = walletsCount
 	
-	// Pending KYC
+	// Pending KYC - using kyc_status field
 	var pendingKYC int
-	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE kyc_level = 'pending'").Scan(&pendingKYC)
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE kyc_status = 'pending'").Scan(&pendingKYC)
 	stats["pending_kyc"] = pendingKYC
+	
+	// Verified KYC
+	var verifiedKYC int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE kyc_status = 'verified'").Scan(&verifiedKYC)
+	stats["verified_kyc"] = verifiedKYC
+	
+	// New users today
+	var newUsersToday int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM users WHERE created_at > CURRENT_DATE").Scan(&newUsersToday)
+	stats["new_users_today"] = newUsersToday
+	
+	// Total transfers today
+	var transfersToday int
+	r.mainDB.QueryRow("SELECT COUNT(*) FROM transfers WHERE created_at > CURRENT_DATE").Scan(&transfersToday)
+	stats["transfers_today"] = transfersToday
 	
 	return stats, nil
 }
