@@ -13,6 +13,7 @@ import {
     ShieldCheckIcon,
     ArrowRightOnRectangleIcon,
     WalletIcon,
+    ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import { logout } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -29,9 +30,11 @@ const navigation = [
     { name: 'Cartes', href: '/dashboard/cards', icon: CreditCardIcon },
     { name: 'Portefeuilles', href: '/dashboard/wallets', icon: WalletIcon },
     { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
+    { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
     { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
     { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
 ];
+
 
 export default function DashboardLayout({ children }: SidebarProps) {
     const pathname = usePathname();

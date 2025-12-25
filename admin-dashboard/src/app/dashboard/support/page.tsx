@@ -55,26 +55,26 @@ export default function SupportPage() {
     const fetchConversations = async () => {
         try {
             const response = await getSupportTickets();
-            // Map tickets to conversation format
-            const tickets = response.data?.tickets || [];
-            setConversations(tickets.map((ticket: any) => ({
-                id: ticket.id,
-                user_id: ticket.user_id,
-                user_name: ticket.user_name || 'Utilisateur',
-                user_email: ticket.user_email || '',
-                agent_type: 'human' as const,
-                subject: ticket.subject,
-                category: ticket.category,
-                status: ticket.status,
-                priority: ticket.priority || 'medium',
-                last_message: ticket.description,
-                unread_count: 0,
-                message_count: 1,
-                created_at: ticket.created_at,
-                updated_at: ticket.updated_at || ticket.created_at
+            // Map conversations from backend response
+            const convs = response.data?.conversations || [];
+            setConversations(convs.map((conv: any) => ({
+                id: conv.id,
+                user_id: conv.user_id,
+                user_name: conv.user_name || 'Utilisateur',
+                user_email: conv.user_email || '',
+                agent_type: conv.agent_type || 'ai',
+                subject: conv.subject,
+                category: conv.category,
+                status: conv.status,
+                priority: conv.priority || 'medium',
+                last_message: conv.last_message || conv.subject,
+                unread_count: conv.unread_count || 0,
+                message_count: conv.message_count || 1,
+                created_at: conv.created_at,
+                updated_at: conv.updated_at || conv.created_at
             })));
         } catch (error) {
-            console.error('Failed to fetch tickets:', error);
+            console.error('Failed to fetch conversations:', error);
             // Fallback demo data
             setConversations([
                 {
@@ -98,6 +98,7 @@ export default function SupportPage() {
             setLoading(false);
         }
     };
+
 
     const fetchStats = async () => {
         try {

@@ -126,22 +126,32 @@ supportApi.interceptors.request.use((config) => {
     return config;
 });
 
-export const getSupportTickets = (limit = 50, offset = 0) =>
-    supportApi.get(`/tickets?limit=${limit}&offset=${offset}`);
+// Admin support endpoints - using /admin/support for admin access
+export const getSupportTickets = (limit = 50, offset = 0, status?: string) =>
+    supportApi.get(`/admin/support/conversations?limit=${limit}&offset=${offset}${status ? `&status=${status}` : ''}`);
 
 export const getSupportTicket = (id: string) =>
-    supportApi.get(`/tickets/${id}`);
+    supportApi.get(`/admin/support/conversations/${id}`);
 
-export const getTicketMessages = (ticketId: string) =>
-    supportApi.get(`/tickets/${ticketId}/messages`);
+export const getTicketMessages = (conversationId: string) =>
+    supportApi.get(`/admin/support/conversations/${conversationId}/messages`);
 
-export const sendTicketMessage = (ticketId: string, message: string) =>
-    supportApi.post(`/tickets/${ticketId}/messages`, { message });
+export const sendTicketMessage = (conversationId: string, message: string) =>
+    supportApi.post(`/admin/support/conversations/${conversationId}/messages`, {
+        content: message,
+        content_type: 'text'
+    });
 
-export const closeTicket = (ticketId: string) =>
-    supportApi.post(`/tickets/${ticketId}/close`);
+export const assignAgent = (conversationId: string, agentId: string) =>
+    supportApi.put(`/admin/support/conversations/${conversationId}/assign`, { agent_id: agentId });
+
+export const closeTicket = (conversationId: string, rating?: number, feedback?: string) =>
+    supportApi.put(`/admin/support/conversations/${conversationId}/close`, { rating, feedback });
 
 export const getSupportStats = () =>
-    supportApi.get('/stats');
+    supportApi.get('/admin/support/stats');
+
+export const getSupportAgents = () =>
+    supportApi.get('/admin/support/agents');
 
 export default api;
