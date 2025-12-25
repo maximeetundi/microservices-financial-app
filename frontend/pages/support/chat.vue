@@ -297,6 +297,16 @@ const generateAIResponse = (message) => {
 
 const escalateToHuman = async () => {
   isTyping.value = true
+  
+  try {
+    // Call backend API to escalate
+    if (conversation.value.id && !conversation.value.id.startsWith('demo-')) {
+      await supportAPI.escalate(conversation.value.id, 'User requested human agent')
+    }
+  } catch (error) {
+    console.error('Error escalating:', error)
+  }
+  
   await new Promise(resolve => setTimeout(resolve, 1000))
   
   messages.value.push({
@@ -315,11 +325,20 @@ const escalateToHuman = async () => {
   scrollToBottom()
 }
 
+
 const closeConversation = () => {
   showRatingModal.value = true
 }
 
 const submitRating = async () => {
+  try {
+    // Call backend API to close with rating
+    if (conversation.value.id && !conversation.value.id.startsWith('demo-')) {
+      await supportAPI.closeTicket(conversation.value.id, rating.value, feedback.value)
+    }
+  } catch (error) {
+    console.error('Error submitting rating:', error)
+  }
   showRatingModal.value = false
   navigateToSupport()
 }
@@ -327,6 +346,7 @@ const submitRating = async () => {
 const navigateToSupport = () => {
   router.push('/support')
 }
+
 
 const formatTime = (dateString) => {
   return new Date(dateString).toLocaleTimeString('fr-FR', {

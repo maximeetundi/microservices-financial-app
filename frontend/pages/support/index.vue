@@ -285,14 +285,14 @@ const fetchConversations = async () => {
   loading.value = true
   try {
     const response = await supportAPI.getTickets()
-    // Map tickets to conversation format for UI
-    conversations.value = (response.data?.tickets || []).map(ticket => ({
-      id: ticket.id,
-      subject: ticket.subject,
-      agent_type: 'ai', // Default to AI
-      status: ticket.status,
-      last_message: ticket.description,
-      updated_at: ticket.updated_at || ticket.created_at
+    // Map conversations from backend response
+    conversations.value = (response.data?.conversations || []).map(conv => ({
+      id: conv.id,
+      subject: conv.subject,
+      agent_type: conv.agent_type || 'ai',
+      status: conv.status,
+      last_message: conv.last_message || conv.subject,
+      updated_at: conv.updated_at || conv.created_at
     }))
   } catch (error) {
     console.error('Error fetching conversations:', error)
@@ -301,6 +301,7 @@ const fetchConversations = async () => {
     loading.value = false
   }
 }
+
 
 const getStatusClass = (status) => {
   const classes = {

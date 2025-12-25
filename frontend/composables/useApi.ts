@@ -448,33 +448,47 @@ export const adminPaymentAPI = {
 
 // ========== Support ==========
 export const supportAPI = {
-    // Get all tickets for the current user
+    // Get all conversations for the current user
     getTickets: (limit = 20, offset = 0) =>
-        api.get(`/support-service/api/v1/tickets?limit=${limit}&offset=${offset}`),
+        api.get(`/support-service/api/v1/support/conversations?limit=${limit}&offset=${offset}`),
 
-    // Get a specific ticket
-    getTicket: (id: string) => api.get(`/support-service/api/v1/tickets/${id}`),
+    // Get a specific conversation
+    getTicket: (id: string) => api.get(`/support-service/api/v1/support/conversations/${id}`),
 
-    // Create a new support ticket
+    // Create a new support conversation
     createTicket: (data: {
         subject: string
         description: string
         category: string
         priority?: string
-    }) => api.post('/support-service/api/v1/tickets', data),
+    }) => api.post('/support-service/api/v1/support/conversations', {
+        agent_type: 'ai',
+        subject: data.subject,
+        category: data.category,
+        message: data.description,
+        priority: data.priority || 'medium'
+    }),
 
-    // Add a message to a ticket
-    sendMessage: (ticketId: string, message: string) =>
-        api.post(`/support-service/api/v1/tickets/${ticketId}/messages`, { message }),
+    // Send a message to a conversation
+    sendMessage: (conversationId: string, message: string) =>
+        api.post(`/support-service/api/v1/support/conversations/${conversationId}/messages`, {
+            content: message,
+            content_type: 'text'
+        }),
 
-    // Get messages for a ticket
-    getMessages: (ticketId: string) =>
-        api.get(`/support-service/api/v1/tickets/${ticketId}/messages`),
+    // Get messages for a conversation
+    getMessages: (conversationId: string) =>
+        api.get(`/support-service/api/v1/support/conversations/${conversationId}/messages`),
 
-    // Close a ticket
-    closeTicket: (ticketId: string) =>
-        api.post(`/support-service/api/v1/tickets/${ticketId}/close`),
+    // Escalate to human agent
+    escalate: (conversationId: string, reason: string) =>
+        api.post(`/support-service/api/v1/support/conversations/${conversationId}/escalate`, { reason }),
+
+    // Close a conversation with rating
+    closeTicket: (conversationId: string, rating?: number, feedback?: string) =>
+        api.put(`/support-service/api/v1/support/conversations/${conversationId}/close`, { rating, feedback }),
 }
+
 
 // ========== Composable ==========
 export function useApi() {
