@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_container.dart';
@@ -100,7 +101,7 @@ class _TransferPageState extends State<TransferPage> {
                        borderRadius: 12,
                        child: IconButton(
                         icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
-                        onPressed: () => context.pop(),
+                        onPressed: () => context.go('/dashboard'),
                       ),
                      ),
                      Text(
@@ -111,7 +112,16 @@ class _TransferPageState extends State<TransferPage> {
                            color: isDark ? Colors.white : AppTheme.textPrimaryColor,
                          ),
                       ),
-                      const SizedBox(width: 40), // Spacer
+                      GlassContainer(
+                        padding: EdgeInsets.zero,
+                        width: 40, 
+                        height: 40,
+                        borderRadius: 12,
+                        child: IconButton(
+                         icon: Icon(Icons.home_rounded, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                         onPressed: () => context.go('/dashboard'),
+                       ),
+                      ),
                    ],
                  ),
                ),
@@ -179,6 +189,8 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildTypeSelector() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -199,18 +211,18 @@ class _TransferPageState extends State<TransferPage> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isSelected 
-                  ? const Color(0xFF667eea).withOpacity(0.1)
-                  : Colors.white,
+                  ? const Color(0xFF6366F1).withOpacity(isDark ? 0.3 : 0.1)
+                  : isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected 
-                    ? const Color(0xFF667eea)
-                    : const Color(0xFFE2E8F0),
+                    ? const Color(0xFF6366F1)
+                    : isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: isSelected ? [
                 BoxShadow(
-                  color: const Color(0xFF667eea).withOpacity(0.2),
+                  color: const Color(0xFF6366F1).withOpacity(0.2),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -228,8 +240,8 @@ class _TransferPageState extends State<TransferPage> {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: isSelected 
-                        ? const Color(0xFF667eea)
-                        : const Color(0xFF64748B),
+                        ? const Color(0xFF818CF8)
+                        : isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -241,15 +253,17 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildWalletSelector() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Depuis le portefeuille',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(height: 8),
@@ -264,21 +278,25 @@ class _TransferPageState extends State<TransferPage> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButton<String>(
                   value: _selectedWalletId,
                   isExpanded: true,
                   underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  icon: Icon(Icons.keyboard_arrow_down, color: isDark ? const Color(0xFF64748B) : const Color(0xFF64748B)),
                   items: wallets.map((wallet) {
                     return DropdownMenuItem<String>(
                       value: wallet.id,
                       child: Text(
-                        '${wallet.name} - ${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
-                        style: const TextStyle(fontSize: 15),
+                        '${wallet.name ?? wallet.currency} - ${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -294,24 +312,26 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildAmountField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Montant à envoyer',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
@@ -319,15 +339,15 @@ class _TransferPageState extends State<TransferPage> {
                 child: TextField(
                   controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1a1a2e),
+                    color: isDark ? Colors.white : const Color(0xFF1a1a2e),
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: '0.00',
-                    hintStyle: TextStyle(color: Color(0xFFCBD5E1)),
+                    hintStyle: TextStyle(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -335,13 +355,13 @@ class _TransferPageState extends State<TransferPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withOpacity(isDark ? 0.3 : 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   _getSelectedCurrency(),
                   style: const TextStyle(
-                    color: Color(0xFF667eea),
+                    color: Color(0xFF818CF8),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -366,7 +386,7 @@ class _TransferPageState extends State<TransferPage> {
                     : 'Disponible: ${wallet.balance.toStringAsFixed(2)} ${wallet.currency}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isInsufficient ? Colors.red : const Color(0xFF64748B),
+                  color: isInsufficient ? Colors.red : (isDark ? const Color(0xFF64748B) : const Color(0xFF64748B)),
                   fontWeight: isInsufficient ? FontWeight.w600 : FontWeight.normal,
                 ),
               );

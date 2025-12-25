@@ -1,145 +1,130 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
-    <!-- Header -->
-    <div class="bg-white/5 backdrop-blur-lg border-b border-white/10 flex-shrink-0">
-      <div class="max-w-5xl mx-auto px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <NuxtLink to="/support" class="text-gray-900/60 hover:text-gray-900 transition">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </NuxtLink>
-            <div class="flex items-center gap-3">
-              <div class="relative">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" :class="conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20'">
-                  {{ conversation.agent_type === 'ai' ? '🤖' : '👤' }}
-                </div>
-                <div class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-slate-900"></div>
+  <NuxtLayout name="dashboard">
+    <div class="chat-page">
+      <!-- Chat Header -->
+      <div class="chat-header glass-card">
+        <div class="header-left">
+          <NuxtLink to="/support" class="back-btn">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </NuxtLink>
+          <div class="agent-info">
+            <div class="agent-avatar-wrapper">
+              <div class="agent-avatar" :class="conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20'">
+                {{ conversation.agent_type === 'ai' ? '🤖' : '👤' }}
               </div>
-              <div>
-                <h1 class="text-gray-900 font-semibold text-sm">{{ conversation.agent_type === 'ai' ? 'Assistant IA' : agentName }}</h1>
-                <p class="text-green-400 text-xs flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                  En ligne
-                </p>
-              </div>
+              <div class="online-indicator"></div>
+            </div>
+            <div>
+              <h1 class="agent-name">{{ conversation.agent_type === 'ai' ? 'Assistant IA' : agentName }}</h1>
+              <p class="agent-status">
+                <span class="status-dot"></span>
+                En ligne
+              </p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button 
-              v-if="conversation.agent_type === 'ai' && conversation.status !== 'escalated'"
-              @click="escalateToHuman"
-              class="px-3 py-1.5 bg-orange-500/20 text-orange-400 text-sm rounded-lg hover:bg-orange-500/30 transition"
-            >
-              👤 Parler à un humain
-            </button>
-            <button 
-              @click="closeConversation"
-              class="px-3 py-1.5 bg-white/10 text-gray-900/60 text-sm rounded-lg hover:bg-white/20 transition"
-            >
-              Fermer
-            </button>
-          </div>
+        </div>
+        <div class="header-actions">
+          <button 
+            v-if="conversation.agent_type === 'ai' && conversation.status !== 'escalated'"
+            @click="escalateToHuman"
+            class="btn-escalate"
+          >
+            👤 Humain
+          </button>
+          <button @click="closeConversation" class="btn-close">
+            Fermer
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Messages Area -->
-    <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-6">
-      <div class="max-w-3xl mx-auto space-y-4">
+      <!-- Messages Container -->
+      <div ref="messagesContainer" class="messages-container">
         <!-- Date Separator -->
-        <div class="flex items-center justify-center">
-          <div class="bg-white/10 px-3 py-1 rounded-full">
-            <span class="text-gray-900/50 text-xs">{{ formatDateHeader(new Date()) }}</span>
-          </div>
+        <div class="date-separator">
+          <span>{{ formatDateHeader(new Date()) }}</span>
         </div>
 
         <!-- Messages -->
         <div 
-          v-for="(message, index) in messages" 
+          v-for="message in messages" 
           :key="message.id"
-          class="flex" 
-          :class="message.sender_type === 'user' ? 'justify-end' : 'justify-start'"
+          class="message-wrapper"
+          :class="message.sender_type === 'user' ? 'message-user' : 'message-agent'"
         >
           <!-- Agent/AI Message -->
-          <div v-if="message.sender_type !== 'user'" class="flex items-start gap-3 max-w-[80%]">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0" :class="message.sender_type === 'system' ? 'bg-gray-500/20' : (conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20')">
+          <div v-if="message.sender_type !== 'user'" class="message-bubble-wrapper">
+            <div class="avatar-small" :class="message.sender_type === 'system' ? 'bg-gray-500/20' : (conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20')">
               {{ message.sender_type === 'system' ? '🔔' : (conversation.agent_type === 'ai' ? '🤖' : '👤') }}
             </div>
             <div>
-              <div class="bg-white/10 backdrop-blur-lg rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-                <p class="text-gray-900 whitespace-pre-wrap">{{ message.content }}</p>
+              <div class="message-bubble agent-bubble">
+                <p>{{ message.content }}</p>
               </div>
-              <p class="text-gray-900/40 text-xs mt-1 ml-1">{{ formatTime(message.created_at) }}</p>
+              <p class="message-time">{{ formatTime(message.created_at) }}</p>
             </div>
           </div>
 
           <!-- User Message -->
-          <div v-else class="flex items-start gap-3 max-w-[80%]">
-            <div class="order-2">
-              <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl rounded-tr-sm px-4 py-3">
-                <p class="text-gray-900 whitespace-pre-wrap">{{ message.content }}</p>
+          <div v-else class="message-bubble-wrapper user-wrapper">
+            <div>
+              <div class="message-bubble user-bubble">
+                <p>{{ message.content }}</p>
               </div>
-              <p class="text-gray-900/40 text-xs mt-1 mr-1 text-right">
+              <p class="message-time user-time">
                 {{ formatTime(message.created_at) }}
-                <span v-if="message.is_read" class="text-blue-400 ml-1">✓✓</span>
+                <span v-if="message.is_read" class="read-indicator">✓✓</span>
               </p>
             </div>
           </div>
         </div>
 
         <!-- Typing Indicator -->
-        <div v-if="isTyping" class="flex items-start gap-3">
-          <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm" :class="conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20'">
-            {{ conversation.agent_type === 'ai' ? '🤖' : '👤' }}
-          </div>
-          <div class="bg-white/10 backdrop-blur-lg rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
-            <div class="flex gap-1">
-              <span class="w-2 h-2 bg-white/50 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-              <span class="w-2 h-2 bg-white/50 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-              <span class="w-2 h-2 bg-white/50 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        <div v-if="isTyping" class="message-wrapper message-agent">
+          <div class="message-bubble-wrapper">
+            <div class="avatar-small" :class="conversation.agent_type === 'ai' ? 'bg-blue-500/20' : 'bg-emerald-500/20'">
+              {{ conversation.agent_type === 'ai' ? '🤖' : '👤' }}
+            </div>
+            <div class="message-bubble agent-bubble typing-bubble">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Quick Replies -->
-    <div v-if="quickReplies.length > 0" class="px-4 pb-2 flex-shrink-0">
-      <div class="max-w-3xl mx-auto">
-        <div class="flex flex-wrap gap-2">
-          <button 
-            v-for="reply in quickReplies" 
-            :key="reply"
-            @click="sendQuickReply(reply)"
-            class="px-3 py-1.5 bg-white/10 text-gray-900/80 text-sm rounded-full hover:bg-white/20 transition border border-white/10"
-          >
-            {{ reply }}
-          </button>
-        </div>
+      <!-- Quick Replies -->
+      <div v-if="quickReplies.length > 0" class="quick-replies">
+        <button 
+          v-for="reply in quickReplies" 
+          :key="reply"
+          @click="sendQuickReply(reply)"
+          class="quick-reply-btn"
+        >
+          {{ reply }}
+        </button>
       </div>
-    </div>
 
-    <!-- Input Area -->
-    <div class="bg-white/5 backdrop-blur-lg border-t border-white/10 p-4 flex-shrink-0">
-      <div class="max-w-3xl mx-auto">
-        <form @submit.prevent="sendMessage" class="flex items-end gap-3">
-          <div class="flex-1 relative">
-            <textarea
-              ref="messageInput"
-              v-model="newMessage"
-              @keydown.enter.exact.prevent="sendMessage"
-              placeholder="Écrivez votre message..."
-              rows="1"
-              class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none max-h-32"
-              :disabled="sending"
-            ></textarea>
-          </div>
+      <!-- Input Area -->
+      <div class="input-area glass-card">
+        <form @submit.prevent="sendMessage" class="input-form">
+          <textarea
+            ref="messageInput"
+            v-model="newMessage"
+            @keydown.enter.exact.prevent="sendMessage"
+            placeholder="Écrivez votre message..."
+            rows="1"
+            class="message-input input-premium"
+            :disabled="sending"
+          ></textarea>
           <button 
             type="submit"
             :disabled="!newMessage.trim() || sending"
-            class="p-3 bg-gradient-to-r from-blue-500 to-purple-600 text-gray-900 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="send-btn btn-premium"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -147,53 +132,50 @@
           </button>
         </form>
       </div>
-    </div>
 
-    <!-- Satisfaction Modal -->
-    <div v-if="showRatingModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div class="bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10">
-        <h3 class="text-xl font-bold text-gray-900 mb-4 text-center">Comment évaluez-vous cette conversation ?</h3>
-        <div class="flex justify-center gap-2 mb-6">
-          <button 
-            v-for="star in 5" 
-            :key="star"
-            @click="rating = star"
-            class="text-3xl transition-transform hover:scale-110"
-          >
-            {{ star <= rating ? '⭐' : '☆' }}
-          </button>
+      <!-- Rating Modal -->
+      <Teleport to="body">
+        <div v-if="showRatingModal" class="modal-overlay" @click.self="showRatingModal = false">
+          <div class="modal-content glass-card">
+            <h3 class="modal-title">Comment évaluez-vous cette conversation ?</h3>
+            <div class="rating-stars">
+              <button 
+                v-for="star in 5" 
+                :key="star"
+                @click="rating = star"
+                class="star-btn"
+              >
+                {{ star <= rating ? '⭐' : '☆' }}
+              </button>
+            </div>
+            <textarea
+              v-model="feedback"
+              placeholder="Commentaire (optionnel)"
+              class="feedback-input input-premium"
+              rows="3"
+            ></textarea>
+            <div class="modal-actions">
+              <button @click="submitRating" class="btn-premium">
+                Envoyer
+              </button>
+              <button @click="showRatingModal = false; navigateToSupport()" class="btn-secondary-premium">
+                Passer
+              </button>
+            </div>
+          </div>
         </div>
-        <textarea
-          v-model="feedback"
-          placeholder="Commentaire (optionnel)"
-          class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-gray-900 placeholder-white/40 focus:outline-none focus:border-blue-500 transition resize-none mb-4"
-          rows="3"
-        ></textarea>
-        <div class="flex gap-3">
-          <button 
-            @click="submitRating"
-            class="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-gray-900 rounded-xl"
-          >
-            Envoyer
-          </button>
-          <button 
-            @click="showRatingModal = false; navigateToSupport()"
-            class="flex-1 py-3 bg-white/10 text-gray-900 rounded-xl"
-          >
-            Passer
-          </button>
-        </div>
-      </div>
+      </Teleport>
     </div>
-  </div>
+  </NuxtLayout>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { supportAPI } from '~/composables/useApi'
 
 definePageMeta({
-  layout: 'default',
+  layout: false,
   middleware: 'auth'
 })
 
@@ -257,7 +239,12 @@ const sendMessage = async () => {
   isTyping.value = true
 
   try {
-    // Simulate API call
+    // Try to send to backend
+    if (conversation.value.id && !conversation.value.id.startsWith('demo-')) {
+      await supportAPI.sendMessage(conversation.value.id, content)
+    }
+
+    // Simulate delay for AI response
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500))
 
     // If AI, generate response
@@ -299,13 +286,13 @@ const generateAIResponse = (message) => {
     return "Pour commander votre carte Zekora :\n\n1. Allez dans le menu 'Cartes'\n2. Cliquez sur 'Commander une carte'\n3. Choisissez entre virtuelle (gratuite) ou physique (9.99€)\n4. Suivez les étapes de personnalisation\n\nVotre carte virtuelle est disponible instantanément !"
   }
   if (lower.includes('humain') || lower.includes('agent')) {
-    return "Je comprends que vous souhaitez parler à un conseiller humain. Utilisez le bouton '👤 Parler à un humain' en haut de l'écran pour être mis en relation avec un de nos conseillers.\n\n⏱️ Temps d'attente estimé : 2-5 minutes."
+    return "Je comprends que vous souhaitez parler à un conseiller humain. Utilisez le bouton '👤 Humain' en haut de l'écran pour être mis en relation avec un de nos conseillers.\n\n⏱️ Temps d'attente estimé : 2-5 minutes."
   }
   if (lower.includes('merci') || lower.includes('super') || lower.includes('parfait')) {
     return "Je vous en prie ! 😊 Ravi d'avoir pu vous aider. N'hésitez pas si vous avez d'autres questions.\n\nBonne journée et à bientôt sur Zekora !"
   }
   
-  return "Je comprends votre demande. Pourriez-vous me donner plus de détails ?\n\nJe peux vous aider avec :\n• 💳 Compte et cartes\n• 💸 Transferts\n• ₿ Cryptomonnaies\n• 📊 Frais\n• 🔐 Sécurité\n\nOu utilisez le bouton '👤 Parler à un humain' pour une assistance personnalisée."
+  return "Je comprends votre demande. Pourriez-vous me donner plus de détails ?\n\nJe peux vous aider avec :\n• 💳 Compte et cartes\n• 💸 Transferts\n• ₿ Cryptomonnaies\n• 📊 Frais\n• 🔐 Sécurité\n\nOu utilisez le bouton '👤 Humain' pour une assistance personnalisée."
 }
 
 const escalateToHuman = async () => {
@@ -365,6 +352,27 @@ const loadConversation = async () => {
 
   conversation.value.id = id
 
+  // Try to load existing messages from backend
+  if (!id.startsWith('demo-')) {
+    try {
+      const response = await supportAPI.getMessages(id)
+      if (response.data?.messages && response.data.messages.length > 0) {
+        messages.value = response.data.messages.map(msg => ({
+          id: msg.id,
+          sender_type: msg.sender_type || (msg.is_agent ? 'agent' : 'user'),
+          sender_name: msg.sender_name || (msg.is_agent ? 'Support' : 'Vous'),
+          content: msg.content || msg.message,
+          created_at: msg.created_at,
+          is_read: msg.is_read
+        }))
+        scrollToBottom()
+        return
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error)
+    }
+  }
+
   // Load initial welcome message
   messages.value = [
     {
@@ -386,12 +394,456 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.animate-bounce {
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 8rem);
+  max-height: calc(100vh - 8rem);
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .chat-page {
+    height: calc(100vh - 5rem);
+    max-height: calc(100vh - 5rem);
+  }
+}
+
+/* Chat Header */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.back-btn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1e293b;
+}
+
+.dark .back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.agent-avatar-wrapper {
+  position: relative;
+}
+
+.agent-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.online-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: #22c55e;
+  border: 2px solid white;
+}
+
+.dark .online-indicator {
+  border-color: #0f172a;
+}
+
+.agent-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.dark .agent-name {
+  color: white;
+}
+
+.agent-status {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #22c55e;
+  margin: 0;
+}
+
+.status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #22c55e;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-escalate {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-escalate:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.btn-close {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: rgba(100, 116, 139, 0.2);
+}
+
+/* Messages Container */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.date-separator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.date-separator span {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.dark .date-separator span {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.message-wrapper {
+  display: flex;
+}
+
+.message-user {
+  justify-content: flex-end;
+}
+
+.message-agent {
+  justify-content: flex-start;
+}
+
+.message-bubble-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 80%;
+}
+
+.user-wrapper {
+  flex-direction: row-reverse;
+}
+
+.avatar-small {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.message-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  max-width: 100%;
+}
+
+.message-bubble p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-bubble {
+  background: rgba(100, 116, 139, 0.1);
+  color: #1e293b;
+  border-top-left-radius: 0.25rem;
+}
+
+.dark .agent-bubble {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.user-bubble {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border-top-right-radius: 0.25rem;
+}
+
+.message-time {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  margin: 0.25rem 0 0 0.5rem;
+}
+
+.user-time {
+  text-align: right;
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+.read-indicator {
+  color: #6366f1;
+  margin-left: 0.25rem;
+}
+
+/* Typing Indicator */
+.typing-bubble {
+  padding: 1rem;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.typing-dots span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #64748b;
   animation: bounce 1.4s infinite;
 }
+
+.dark .typing-dots span {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; }
 
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+/* Quick Replies */
+.quick-replies {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.quick-reply-btn {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.05);
+  color: #6366f1;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.dark .quick-reply-btn {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+}
+
+.quick-reply-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* Input Area */
+.input-area {
+  padding: 1rem;
+  flex-shrink: 0;
+}
+
+.input-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.message-input {
+  flex: 1;
+  resize: none;
+  max-height: 8rem;
+  min-height: 2.75rem;
+}
+
+.send-btn {
+  padding: 0.75rem;
+  flex-shrink: 0;
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 24rem;
+  padding: 1.5rem;
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: center;
+  margin: 0 0 1.25rem 0;
+}
+
+.dark .modal-title {
+  color: white;
+}
+
+.rating-stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.star-btn {
+  font-size: 2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.star-btn:hover {
+  transform: scale(1.1);
+}
+
+.feedback-input {
+  margin-bottom: 1.25rem;
+  resize: none;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .chat-header {
+    padding: 0.75rem;
+  }
+  
+  .agent-name {
+    font-size: 0.875rem;
+  }
+  
+  .btn-escalate, .btn-close {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.6875rem;
+  }
+  
+  .messages-container {
+    padding: 0.75rem;
+  }
+  
+  .message-bubble-wrapper {
+    max-width: 90%;
+  }
+  
+  .quick-replies {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+  }
+  
+  .input-area {
+    padding: 0.75rem;
+  }
 }
 </style>

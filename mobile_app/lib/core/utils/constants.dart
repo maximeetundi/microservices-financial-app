@@ -1,6 +1,6 @@
 class AppConstants {
   // App Information
-  static const String appName = 'Crypto Bank';
+  static const String appName = 'Zekora';
   static const String appVersion = '1.0.0';
   static const String appDescription = 'Your Digital Banking Solution';
   
@@ -199,8 +199,8 @@ class AppConstants {
   static const String promotionCategory = 'promotion';
   
   // Deep Link Schemes
-  static const String deepLinkScheme = 'cryptobank';
-  static const String universalLinkDomain = 'cryptobank.com';
+  static const String deepLinkScheme = 'zekora';
+  static const String universalLinkDomain = 'zekora.com';
   
   // Feature Flags
   static const bool enableBiometrics = true;

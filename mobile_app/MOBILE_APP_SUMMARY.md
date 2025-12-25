@@ -1,8 +1,8 @@
-# 📱 Crypto Bank Mobile App - Application Flutter Complète
+# 📱 Zekora Mobile App - Application Flutter Complète
 
 ## 🎯 Vue d'ensemble
 
-Application mobile native **Flutter** complète pour Crypto Bank avec architecture **BLoC** et design moderne **Material Design 3**.
+Application mobile native **Flutter** complète pour Zekora avec architecture **BLoC** et design moderne **Material Design 3**.
 
 ## 📁 Structure de l'Application
 
@@ -323,7 +323,7 @@ stages:
 
 ## 🎯 **Application Mobile Complète et Prête**
 
-L'application mobile **Crypto Bank Flutter** est maintenant **100% fonctionnelle** avec :
+L'application mobile **Zekora Flutter** est maintenant **100% fonctionnelle** avec :
 
 ✅ **Architecture moderne** Clean + BLoC
 ✅ **UI/UX premium** Material Design 3

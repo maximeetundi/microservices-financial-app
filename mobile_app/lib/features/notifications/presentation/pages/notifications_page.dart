@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/services/notification_api_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_container.dart';
 
-/// Modern Notifications Page with API integration
+/// Notifications Page matching web design exactly
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
 
@@ -12,452 +14,418 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  final NotificationApiService _apiService = NotificationApiService();
-  List<NotificationItem> _notifications = [];
-  bool _loading = true;
-  String? _error;
-  int _unreadCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotifications();
+  String _activeFilter = 'all';
+  bool _loading = false;
+  
+  final List<Map<String, String>> _filters = [
+    {'id': 'all', 'label': 'Toutes', 'icon': '📋'},
+    {'id': 'transfer', 'label': 'Transferts', 'icon': '💸'},
+    {'id': 'security', 'label': 'Sécurité', 'icon': '🔐'},
+    {'id': 'card', 'label': 'Cartes', 'icon': '💳'},
+  ];
+  
+  // Sample notifications
+  final List<Map<String, dynamic>> _notifications = [
+    {
+      'id': '1',
+      'type': 'transfer',
+      'title': 'Transfert reçu',
+      'message': 'Vous avez reçu 50 000 XOF de John Doe',
+      'created_at': DateTime.now().subtract(const Duration(minutes: 5)),
+      'is_read': false,
+    },
+    {
+      'id': '2',
+      'type': 'security',
+      'title': 'Nouvelle connexion',
+      'message': 'Connexion détectée depuis Abidjan, Côte d\'Ivoire',
+      'created_at': DateTime.now().subtract(const Duration(hours: 2)),
+      'is_read': false,
+    },
+    {
+      'id': '3',
+      'type': 'card',
+      'title': 'Carte activée',
+      'message': 'Votre carte virtuelle a été activée avec succès',
+      'created_at': DateTime.now().subtract(const Duration(days: 1)),
+      'is_read': true,
+    },
+    {
+      'id': '4',
+      'type': 'transfer',
+      'title': 'Transfert envoyé',
+      'message': 'Votre transfert de 25 000 XOF a été effectué',
+      'created_at': DateTime.now().subtract(const Duration(days: 2)),
+      'is_read': true,
+    },
+  ];
+  
+  List<Map<String, dynamic>> get _filteredNotifications {
+    if (_activeFilter == 'all') return _notifications;
+    return _notifications.where((n) => n['type'] == _activeFilter).toList();
   }
-
-  Future<void> _loadNotifications() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final results = await Future.wait([
-        _apiService.getNotifications(),
-        _apiService.getUnreadCount(),
-      ]);
-      
-      final notificationsData = results[0]['notifications'] as List? ?? [];
-      final unreadData = results[1];
-      
-      setState(() {
-        _notifications = notificationsData.map((n) => NotificationItem.fromJson(n)).toList();
-        _unreadCount = unreadData['unread_count'] ?? 0;
-        _loading = false;
-      });
-    } catch (e) {
-      // Fallback to demo data if API fails
-      setState(() {
-        _notifications = _getDemoNotifications();
-        _unreadCount = _notifications.where((n) => !n.isRead).length;
-        _loading = false;
-      });
-    }
-  }
-
-  List<NotificationItem> _getDemoNotifications() {
-    return [
-      NotificationItem(
-        id: '1',
-        type: 'transfer',
-        title: 'Transfert reçu',
-        message: 'Vous avez reçu 50 000 XOF de Jean Dupont',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-        isRead: false,
-      ),
-      NotificationItem(
-        id: '2',
-        type: 'card',
-        title: 'Paiement carte',
-        message: 'Paiement de 15 000 XOF chez Carrefour',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        isRead: false,
-      ),
-      NotificationItem(
-        id: '3',
-        type: 'security',
-        title: 'Nouvelle connexion',
-        message: 'Connexion détectée depuis Abidjan, Côte d\'Ivoire',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        isRead: true,
-      ),
-      NotificationItem(
-        id: '4',
-        type: 'merchant',
-        title: 'Paiement marchand reçu',
-        message: 'Vous avez reçu 25 000 XOF pour "iPhone 15 Pro"',
-        createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-        isRead: true,
-      ),
-      NotificationItem(
-        id: '5',
-        type: 'promotion',
-        title: 'Offre exclusive 🎁',
-        message: '0% de frais sur vos transferts Mobile Money ce weekend!',
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        isRead: true,
-      ),
-    ];
-  }
-
-  Future<void> _markAsRead(NotificationItem notif) async {
-    if (notif.isRead) return;
-
-    try {
-      await _apiService.markAsRead(notif.id);
-      setState(() {
-        notif.isRead = true;
-        _unreadCount = _notifications.where((n) => !n.isRead).length;
-      });
-    } catch (e) {
-      // Local fallback
-      setState(() {
-        notif.isRead = true;
-        _unreadCount = _notifications.where((n) => !n.isRead).length;
-      });
-    }
-  }
-
-  Future<void> _markAllAsRead() async {
-    try {
-      await _apiService.markAllAsRead();
-      setState(() {
-        for (var n in _notifications) {
-          n.isRead = true;
-        }
-        _unreadCount = 0;
-      });
-    } catch (e) {
-      // Local fallback
-      setState(() {
-        for (var n in _notifications) {
-          n.isRead = true;
-        }
-        _unreadCount = 0;
-      });
-    }
-  }
-
-  Future<void> _deleteNotification(NotificationItem notif) async {
-    try {
-      await _apiService.deleteNotification(notif.id);
-    } catch (e) {
-      // Continue anyway
-    }
-    setState(() {
-      _notifications.remove(notif);
-      _unreadCount = _notifications.where((n) => !n.isRead).length;
-    });
-  }
+  
+  int get _unreadCount => _notifications.where((n) => !n['is_read']).length;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1a1a2e)),
-          onPressed: () => context.pop(),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          // Gradient Header
+          _buildHeader(isDark),
+          
+          // Content
+          Expanded(
+            child: _notifications.isEmpty
+                ? _buildEmptyState(isDark)
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Filter Pills
+                      _buildFilters(isDark),
+                      const SizedBox(height: 16),
+                      
+                      // Notifications List
+                      ..._filteredNotifications.map((n) => _buildNotificationItem(n, isDark)),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
         ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Notifications',
-              style: TextStyle(
-                color: Color(0xFF1a1a2e),
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => context.go('/dashboard'),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '🔔 Notifications',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-            if (_unreadCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          ),
+          if (_unreadCount > 0) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$_unreadCount',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _markAllAsRead,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '$_unreadCount',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  'Tout lire',
+                  style: GoogleFonts.inter(
                     fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),
-            ],
+            ),
+          ],
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _refresh,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh, color: Colors.white, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters(bool isDark) {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = _filters[index];
+          final isActive = _activeFilter == filter['id'];
+          
+          return GestureDetector(
+            onTap: () => setState(() => _activeFilter = filter['id']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isActive 
+                    ? const Color(0xFF6366F1)
+                    : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isActive 
+                      ? const Color(0xFF6366F1)
+                      : (isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: Text(
+                '${filter['icon']} ${filter['label']}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isActive 
+                      ? Colors.white
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationItem(Map<String, dynamic> notification, bool isDark) {
+    final isUnread = !notification['is_read'];
+    
+    return GestureDetector(
+      onTap: () => _handleTap(notification),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isUnread 
+              ? (isDark ? const Color(0xFF6366F1).withOpacity(0.1) : const Color(0xFFEEF2FF))
+              : (isDark ? Colors.white.withOpacity(0.03) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isUnread 
+                ? (isDark ? const Color(0xFF6366F1).withOpacity(0.2) : const Color(0xFFC7D2FE))
+                : (isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  _getTypeIcon(notification['type']),
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification['title'],
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notification['message'],
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatTime(notification['created_at']),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Actions
+            Column(
+              children: [
+                if (isUnread)
+                  GestureDetector(
+                    onTap: () => _markAsRead(notification['id']),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22C55E).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Center(
+                        child: Text('✓', style: TextStyle(fontSize: 12, color: Color(0xFF22C55E))),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () => _deleteNotification(notification['id']),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Center(
+                      child: Text('✕', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        centerTitle: true,
-        actions: [
-          if (_unreadCount > 0)
-            TextButton(
-              onPressed: _markAllAsRead,
-              child: const Text(
-                'Tout lire',
-                style: TextStyle(color: Color(0xFF667eea)),
-              ),
-            ),
-        ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildErrorState()
-              : _notifications.isEmpty
-                  ? _buildEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: _loadNotifications,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _notifications.length,
-                        itemBuilder: (context, index) {
-                          final notif = _notifications[index];
-                          return _buildNotificationCard(notif);
-                        },
-                      ),
-                    ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Text('🔔', style: TextStyle(fontSize: 48)),
-          ),
-          const SizedBox(height: 24),
-          const Text(
+          const Text('🔔', style: TextStyle(fontSize: 64)),
+          const SizedBox(height: 16),
+          Text(
             'Aucune notification',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1a1a2e),
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Vous n\'avez pas encore de notifications',
-            style: TextStyle(color: Color(0xFF64748B)),
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(_error ?? 'Erreur de chargement'),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadNotifications,
-            child: const Text('Réessayer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard(NotificationItem notif) {
-    return Dismissible(
-      key: Key(notif.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (_) => _deleteNotification(notif),
-      child: GestureDetector(
-        onTap: () => _markAsRead(notif),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: notif.isRead ? Colors.white : const Color(0xFF667eea).withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: notif.isRead
-                ? null
-                : Border.all(color: const Color(0xFF667eea).withOpacity(0.2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Icon
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: _getTypeColor(notif.type).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    _getTypeIcon(notif.type),
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notif.title,
-                            style: TextStyle(
-                              fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.bold,
-                              color: const Color(0xFF1a1a2e),
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                        if (!notif.isRead)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF667eea),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notif.message,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatTime(notif.createdAt),
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
   String _getTypeIcon(String type) {
     switch (type) {
-      case 'transfer':
-        return '💸';
-      case 'card':
-        return '💳';
-      case 'security':
-        return '🔒';
-      case 'merchant':
-        return '🏪';
-      case 'promotion':
-        return '🎁';
-      case 'exchange':
-        return '🔄';
-      default:
-        return '🔔';
+      case 'transfer': return '💸';
+      case 'card': return '💳';
+      case 'security': return '🔐';
+      case 'wallet': return '👛';
+      case 'kyc': return '✅';
+      default: return '🔔';
     }
   }
 
-  Color _getTypeColor(String type) {
-    switch (type) {
-      case 'transfer':
-        return const Color(0xFF10B981);
-      case 'card':
-        return const Color(0xFF8B5CF6);
-      case 'security':
-        return const Color(0xFFEF4444);
-      case 'merchant':
-        return const Color(0xFF667eea);
-      case 'promotion':
-        return const Color(0xFFF59E0B);
-      case 'exchange':
-        return const Color(0xFF3B82F6);
-      default:
-        return const Color(0xFF64748B);
-    }
-  }
-
-  String _formatTime(DateTime time) {
-    final diff = DateTime.now().difference(time);
+  String _formatTime(DateTime date) {
+    final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-    if (diff.inDays < 7) return 'Il y a ${diff.inDays} jour(s)';
-    return '${time.day}/${time.month}/${time.year}';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    return '${diff.inDays}j';
   }
-}
 
-class NotificationItem {
-  final String id;
-  final String type;
-  final String title;
-  final String message;
-  final DateTime createdAt;
-  bool isRead;
-  final Map<String, dynamic>? data;
+  void _handleTap(Map<String, dynamic> notification) {
+    if (!notification['is_read']) {
+      _markAsRead(notification['id']);
+    }
+  }
 
-  NotificationItem({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.message,
-    required this.createdAt,
-    required this.isRead,
-    this.data,
-  });
+  void _markAsRead(String id) {
+    setState(() {
+      final notif = _notifications.firstWhere((n) => n['id'] == id);
+      notif['is_read'] = true;
+    });
+  }
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) {
-    return NotificationItem(
-      id: json['id'] ?? json['notification_id'] ?? '',
-      type: json['type'] ?? 'default',
-      title: json['title'] ?? '',
-      message: json['message'] ?? json['body'] ?? '',
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
-      isRead: json['is_read'] ?? json['read'] ?? false,
-      data: json['data'],
-    );
+  void _markAllAsRead() {
+    setState(() {
+      for (var n in _notifications) {
+        n['is_read'] = true;
+      }
+    });
+  }
+
+  void _deleteNotification(String id) {
+    setState(() {
+      _notifications.removeWhere((n) => n['id'] == id);
+    });
+  }
+
+  void _refresh() {
+    setState(() => _loading = true);
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _loading = false);
+    });
   }
 }

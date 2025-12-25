@@ -87,6 +87,11 @@
           <span>Scanner / Payer</span>
         </NuxtLink>
 
+        <NuxtLink to="/support" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">🎧</span>
+          <span>Assistance</span>
+        </NuxtLink>
+
         <NuxtLink to="/notifications" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">🔔</span>
           <span>Notifications</span>

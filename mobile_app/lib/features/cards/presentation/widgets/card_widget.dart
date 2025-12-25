@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+/// Card widget matching web frontend credit card design exactly
+/// Supports virtual, physical card types with web-matching gradients
 class CardWidget extends StatelessWidget {
   final Map<String, dynamic> card;
   final VoidCallback? onTap;
@@ -9,92 +12,232 @@ class CardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardNumber = card['card_number'] ?? '**** **** **** ****';
-    final holderName = card['holder_name'] ?? 'CARD HOLDER';
-    final expiryDate = card['expiry_date'] ?? '--/--';
+    final holderName = card['cardholder_name'] ?? card['holder_name'] ?? 'CARD HOLDER';
+    final expiryMonth = card['expiry_month']?.toString().padLeft(2, '0') ?? '12';
+    final expiryYear = card['expiry_year']?.toString() ?? '28';
+    final expiryDate = '$expiryMonth/${expiryYear.length > 2 ? expiryYear.substring(expiryYear.length - 2) : expiryYear}';
     final isActive = card['status'] == 'active';
+    final isVirtual = card['is_virtual'] == true || card['card_type'] == 'virtual';
+    final balance = (card['balance'] as num?)?.toDouble() ?? 0.0;
+    final currency = card['currency'] ?? 'USD';
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 200,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isActive 
-                ? [Colors.purple[700]!, Colors.purple[400]!]
-                : [Colors.grey[700]!, Colors.grey[500]!],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: AspectRatio(
+        aspectRatio: 16 / 10,
+        child: Container(
+          decoration: BoxDecoration(
+            // Match web: credit-card-virtual or credit-card-physical
+            gradient: isVirtual
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1E1E2F), Color(0xFF3D3D5C)],
+                  ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
+              ),
+            ],
           ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (isActive ? Colors.purple : Colors.grey).withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Zekora',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          child: Stack(
+            children: [
+              // Radial glow effect (matching web ::before)
+              Positioned(
+                top: -50,
+                right: -50,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF6366F1).withOpacity(0.3),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
                 ),
-                Row(
+              ),
+              
+              // Shine effect on hover (simulated with gradient)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.0),
+                        Colors.white.withOpacity(0.05),
+                        Colors.white.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Card content
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!isActive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
+                    // Top row: Status badge and card type icon
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Status badge (matching web backdrop-blur style)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Text(
+                            isActive ? 'Active' : 'Gelée',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
-                        child: const Text('BLOQUÉE', style: TextStyle(color: Colors.red, fontSize: 10)),
+                        Text(
+                          isVirtual ? '🌐' : '💳',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const Spacer(),
+                    
+                    // Card number (with letter spacing matching web tracking-[0.15em])
+                    Text(
+                      _formatCardNumber(cardNumber),
+                      style: GoogleFonts.robotoMono(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 3.0,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.contactless, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(height: 4),
+                    // Card holder name
+                    Text(
+                      holderName.isEmpty ? 'Ma Carte' : holderName.toUpperCase(),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 2.0,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
+                    ),
+                    
+                    const Spacer(),
+                    
+                    // Bottom row: Balance and Expiry
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Solde',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1.0,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatBalance(balance, currency),
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Expire',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1.0,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              expiryDate,
+                              style: GoogleFonts.robotoMono(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-            Text(
-              _formatCardNumber(cardNumber),
-              style: const TextStyle(color: Colors.white, fontSize: 22, letterSpacing: 2),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('TITULAIRE', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                    Text(holderName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('EXPIRE', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                    Text(expiryDate, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  ],
-                ),
-                const Icon(Icons.credit_card, color: Colors.white, size: 32),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   String _formatCardNumber(String number) {
+    // Show last 4 digits with masked prefix
+    if (number.length >= 4) {
+      final last4 = number.substring(number.length - 4);
+      return '•••• •••• •••• $last4';
+    }
     return number.replaceAllMapped(RegExp(r'.{4}'), (m) => '${m.group(0)} ').trim();
+  }
+
+  String _formatBalance(double balance, String currency) {
+    if (currency == 'USD' || currency == 'EUR' || currency == 'GBP') {
+      final symbol = currency == 'USD' ? '\$' : (currency == 'EUR' ? '€' : '£');
+      return '$symbol${balance.toStringAsFixed(2)}';
+    }
+    return '${balance.toStringAsFixed(2)} $currency';
   }
 }

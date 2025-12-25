@@ -6,13 +6,19 @@ class AuthApiService {
   final ApiClient _client = ApiClient();
   
   /// Connexion avec email et mot de passe
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {String? totpCode}) async {
+    final body = {
+      'email': email,
+      'password': password,
+    };
+    
+    if (totpCode != null) {
+      body['two_fa_code'] = totpCode;
+    }
+
     final response = await _client.post(
       ApiEndpoints.login,
-      data: {
-        'email': email,
-        'password': password,
-      },
+      data: body,
     );
     
     if (response.statusCode == 200) {

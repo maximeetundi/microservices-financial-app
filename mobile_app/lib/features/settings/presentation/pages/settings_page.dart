@@ -1,326 +1,481 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_container.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-class SettingsPage extends StatelessWidget {
+/// Settings Page matching web design exactly
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _showDeleteModal = false;
+  int _securityScore = 60;
+  bool _kycVerified = false;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    
     return Scaffold(
-      backgroundColor: Colors.transparent, // Allow gradient to show
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark 
-                ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
-                : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Header
+                _buildHeader(isDark),
+                const SizedBox(height: 24),
+                
+                // Settings Grid
+                _buildSettingsGrid(isDark),
+                const SizedBox(height: 32),
+                
+                // Quick Actions
+                _buildQuickActions(isDark),
+                const SizedBox(height: 32),
+                
+                // App Info
+                _buildAppInfo(isDark),
+              ],
+            ),
+          ),
+          
+          // Delete Modal
+          if (_showDeleteModal) _buildDeleteModal(isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    return Row(
+      children: [
+        GlassContainer(
+          padding: EdgeInsets.zero,
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, size: 20, 
+                color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+            onPressed: () => context.go('/dashboard'),
           ),
         ),
-        child: SafeArea(
+        const SizedBox(width: 16),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Custom App Bar
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                 child: Row(
-                   mainAxisAlignment: MainAxisAlignment.center,
-                   children: [
-                     Text(
-                        'Paramètres',
-                         style: GoogleFonts.inter(
-                           fontSize: 20,
-                           fontWeight: FontWeight.bold,
-                           color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-                         ),
-                      ),
-                   ],
-                 ),
-               ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // Profile Section
-                    GlassContainer(
-                      padding: const EdgeInsets.all(20),
-                      borderRadius: 24,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: AppTheme.primaryGradient,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text('JD', style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'John Doe', 
-                                  style: GoogleFonts.inter(
-                                    fontSize: 20, 
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'john.doe@email.com', 
-                                  style: GoogleFonts.inter(
-                                    color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.edit, color: isDark ? Colors.white70 : AppTheme.primaryColor),
-                            onPressed: () => context.push('/more/profile'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Settings Groups
-                    _SettingsGroup(
-                      title: 'Compte',
-                      items: [
-                        _SettingsItem(icon: Icons.person_outline, title: 'Profil', onTap: () => context.push('/more/profile')),
-                        _SettingsItem(icon: Icons.shield_outlined, title: 'Sécurité', onTap: () => context.push('/more/security')),
-                        _SettingsItem(icon: Icons.notifications_outlined, title: 'Notifications', onTap: () {}),
-                        _SettingsItem(icon: Icons.language, title: 'Langue', subtitle: 'Français', onTap: () {}),
-                      ],
-                    ),
-                    
-                    _SettingsGroup(
-                      title: 'Préférences',
-                      items: [
-                        _SettingsItem(
-                          icon: Icons.dark_mode_outlined, 
-                          title: 'Thème sombre', 
-                          trailing: Switch.adaptive(
-                            value: isDark, 
-                            onChanged: (_) {}, 
-                            activeColor: AppTheme.primaryColor,
-                          ),
-                        ),
-                        _SettingsItem(icon: Icons.currency_exchange, title: 'Devise par défaut', subtitle: 'USD', onTap: () {}),
-                        _SettingsItem(
-                          icon: Icons.fingerprint, 
-                          title: 'Biométrie', 
-                          trailing: Switch.adaptive(
-                            value: true, 
-                            onChanged: (_) {},
-                            activeColor: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    _SettingsGroup(
-                      title: 'Services',
-                      items: [
-                        _SettingsItem(icon: Icons.credit_card_outlined, title: 'Mes cartes', onTap: () => context.push('/more/cards')),
-                        _SettingsItem(icon: Icons.send_outlined, title: 'Transferts', onTap: () => context.push('/more/transfer')),
-                        _SettingsItem(icon: Icons.storefront_outlined, title: 'Espace Marchand', onTap: () => context.push('/more/merchant')),
-                      ],
-                    ),
-                    
-                    _SettingsGroup(
-                      title: 'Support',
-                      items: [
-                        _SettingsItem(icon: Icons.help_outline, title: 'Centre d\'aide', onTap: () => context.push('/more/support')),
-                        _SettingsItem(icon: Icons.chat_bubble_outline, title: 'Contacter le support', onTap: () => context.push('/more/support')),
-                        _SettingsItem(icon: Icons.privacy_tip_outlined, title: 'Politique de confidentialité', onTap: () {}),
-                        _SettingsItem(icon: Icons.description_outlined, title: 'Conditions d\'utilisation', onTap: () {}),
-                      ],
-                    ),
-                    
-                     _SettingsGroup(
-                      title: 'Application',
-                      items: [
-                        _SettingsItem(icon: Icons.info_outline, title: 'Version', subtitle: '1.0.0', onTap: () {}),
-                        _SettingsItem(icon: Icons.star_outline, title: 'Noter l\'application', onTap: () {}),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GlassContainer(
-                        padding: const EdgeInsets.all(4),
-                        borderRadius: 16,
-                        color: Colors.red.withOpacity(0.1),
-                         child: InkWell(
-                          onTap: () {
-                            // Logout logic
-                            context.go('/auth/login');
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                           child: Padding(
-                             padding: const EdgeInsets.symmetric(vertical: 16),
-                             child: Row(
-                               mainAxisAlignment: MainAxisAlignment.center,
-                               children: [
-                                 const Icon(Icons.logout, color: Colors.red),
-                                 const SizedBox(width: 8),
-                                 Text(
-                                   'Déconnexion', 
-                                   style: GoogleFonts.inter(
-                                     color: Colors.red,
-                                     fontWeight: FontWeight.bold,
-                                     fontSize: 16,
-                                   ),
-                                 ),
-                               ],
-                             ),
-                           ),
-                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+              Text(
+                '⚙️ Paramètres',
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                'Gérez votre compte et vos préférences',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
-}
 
-class _SettingsGroup extends StatelessWidget {
-  final String title;
-  final List<Widget> items;
-
-  const _SettingsGroup({required this.title, required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+  Widget _buildSettingsGrid(bool isDark) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Text(
-            title, 
-            style: GoogleFonts.inter(
-              fontSize: 14, 
-              fontWeight: FontWeight.bold, 
-              color: isDark ? Colors.white70 : AppTheme.textSecondaryColor
+        _buildSettingsCard(
+          emoji: '👤',
+          title: 'Profil',
+          subtitle: 'Informations personnelles, coordonnées',
+          color: const Color(0xFF3B82F6),
+          onTap: () => context.go('/more/profile'),
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '🔒',
+          title: 'Sécurité',
+          subtitle: 'Mot de passe, 2FA, sessions',
+          color: const Color(0xFF10B981),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _securityScore >= 80 
+                  ? (isDark ? const Color(0xFF22C55E).withOpacity(0.15) : const Color(0xFFF0FDF4))
+                  : (isDark ? const Color(0xFFEF4444).withOpacity(0.15) : const Color(0xFFFEF2F2)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$_securityScore%',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _securityScore >= 80 ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+              ),
             ),
           ),
+          onTap: () => context.go('/more/security'),
+          isDark: isDark,
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-             color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-             borderRadius: BorderRadius.circular(20),
-             border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200),
+        _buildSettingsCard(
+          emoji: '📋',
+          title: 'Vérification KYC',
+          subtitle: 'Documents d\'identité, validation',
+          color: const Color(0xFFA855F7),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _kycVerified 
+                  ? (isDark ? const Color(0xFF22C55E).withOpacity(0.15) : const Color(0xFFF0FDF4))
+                  : (isDark ? const Color(0xFFF97316).withOpacity(0.15) : const Color(0xFFFFF7ED)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _kycVerified ? 'VÉRIFIÉ' : 'EN ATTENTE',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: _kycVerified ? const Color(0xFF22C55E) : const Color(0xFFF97316),
+              ),
+            ),
           ),
-          child: Column(
-            children: items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final isLast = index == items.length - 1;
-              
-              return Column(
-                children: [
-                  item,
-                  if (!isLast)
-                    Divider(
-                      height: 1, 
-                      color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100,
-                      indent: 56,
-                    ),
-                ],
-              );
-            }).toList(),
-          ),
+          onTap: () {},
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '🎨',
+          title: 'Préférences',
+          subtitle: 'Thème, langue, notifications',
+          color: const Color(0xFFF97316),
+          onTap: () {},
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '🔔',
+          title: 'Notifications',
+          subtitle: 'Alertes email, push, SMS',
+          color: const Color(0xFFEC4899),
+          onTap: () => context.go('/notifications'),
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '💳',
+          title: 'Moyens de paiement',
+          subtitle: 'Cartes, comptes bancaires',
+          color: const Color(0xFF14B8A6),
+          onTap: () => context.go('/more/cards'),
+          isDark: isDark,
         ),
       ],
     );
   }
-}
 
-class _SettingsItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const _SettingsItem({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.trailing,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.1) : AppTheme.primaryColor.withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: isDark ? Colors.white : AppTheme.primaryColor, size: 20),
-      ),
-      title: Text(
-        title, 
-        style: GoogleFonts.inter(
-          color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-          fontWeight: FontWeight.w500,
-          fontSize: 15,
-        ),
-      ),
-      subtitle: subtitle != null ? Text(
-        subtitle!,
-        style: GoogleFonts.inter(
-          color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
-          fontSize: 13,
-        ),
-      ) : null,
-      trailing: trailing ?? Icon(
-        Icons.chevron_right, 
-        color: isDark ? Colors.white30 : Colors.grey.shade400,
-        size: 20,
-      ),
+  Widget _buildSettingsCard({
+    required String emoji,
+    required String title,
+    required String subtitle,
+    required Color color,
+    Widget? trailing,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              trailing,
+              const SizedBox(width: 8),
+            ],
+            Text(
+              '→',
+              style: TextStyle(
+                fontSize: 20,
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ACTIONS RAPIDES',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _buildQuickButton(
+              '📥 Exporter mes données',
+              () {},
+              isDark,
+              false,
+            ),
+            _buildQuickButton(
+              '🗑️ Supprimer mon compte',
+              () => setState(() => _showDeleteModal = true),
+              isDark,
+              true,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickButton(String label, VoidCallback onTap, bool isDark, bool isDanger) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark 
+              ? Colors.transparent 
+              : (isDanger ? Colors.transparent : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDanger 
+                ? (isDark ? const Color(0xFFEF4444).withOpacity(0.3) : const Color(0xFFFECACA))
+                : (isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isDanger 
+                ? const Color(0xFFEF4444)
+                : (isDark ? Colors.white : const Color(0xFF1E293B)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppInfo(bool isDark) {
+    return Column(
+      children: [
+        Text(
+          'Zekora v1.0.0',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => context.go('/more/support'),
+              child: Text(
+                'Aide',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+            Text(' • ', style: TextStyle(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))),
+            Text(
+              'Conditions',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              ),
+            ),
+            Text(' • ', style: TextStyle(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))),
+            Text(
+              'Confidentialité',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeleteModal(bool isDark) {
+    return GestureDetector(
+      onTap: () => setState(() => _showDeleteModal = false),
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '⚠️ Supprimer votre compte',
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Cette action est irréversible. Toutes vos données seront supprimées.',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _showDeleteModal = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Annuler',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _showDeleteModal = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Veuillez contacter le support.')),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Supprimer',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

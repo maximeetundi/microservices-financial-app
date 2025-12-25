@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:ui';
-import '../theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Modern animated drawer with glassmorphism effect
+import '../theme/app_theme.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+
+/// Sidebar drawer matching web frontend design exactly
+/// Simple slide drawer without excessive animations
 class AnimatedDrawer extends StatefulWidget {
   final Widget child;
   final VoidCallback? onMenuTap;
@@ -21,10 +25,7 @@ class AnimatedDrawer extends StatefulWidget {
 class AnimatedDrawerState extends State<AnimatedDrawer>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _slideAnimation;
-  late Animation<double> _rotateAnimation;
-  late Animation<double> _menuScaleAnimation;
 
   bool _isDrawerOpen = false;
 
@@ -33,23 +34,11 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.75).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+      duration: const Duration(milliseconds: 250),
     );
 
     _slideAnimation = Tween<double>(begin: 0.0, end: 280.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-
-    _rotateAnimation = Tween<double>(begin: 0.0, end: -0.1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-
-    _menuScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
   }
 
@@ -77,50 +66,66 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Stack(
       children: [
-        // Animated Drawer Background
-        AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.darkTheme.colorScheme.background,
-                    AppTheme.darkTheme.colorScheme.surface,
-                  ],
-                ),
+        // Drawer Background - matching web sidebar
+        Container(
+          width: 280,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            border: Border(
+              right: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
               ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 24, top: 80, bottom: 40),
-                  child: Transform.scale(
-                    scale: _menuScaleAnimation.value,
-                    alignment: Alignment.centerLeft,
-                    child: Opacity(
-                      opacity: _animationController.value,
-                      child: _buildDrawerContent(context),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Logo Header - matching web
+                _buildLogoHeader(isDark),
+                
+                // Navigation - matching web exactly
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildNavItem('📊', 'Tableau de bord', '/dashboard', isDark),
+                        _buildNavItem('👛', 'Portefeuilles', '/wallet', isDark),
+                        _buildNavItem('💳', 'Mes Cartes', '/more/cards', isDark),
+                        
+                        _buildSectionTitle('Échange', isDark),
+                        _buildNavItem('₿', 'Crypto', '/exchange', isDark),
+                        _buildNavItem('💱', 'Fiat', '/exchange', isDark),
+                        
+                        _buildSectionTitle('Opérations', isDark),
+                        _buildNavItem('💸', 'Virements', '/more/transfer', isDark),
+                        _buildNavItem('🏪', 'Espace Marchand', '/more/merchant', isDark),
+                        _buildNavItem('📷', 'Scanner / Payer', '/more/merchant/scan', isDark),
+                        _buildNavItem('🔔', 'Notifications', '/notifications', isDark),
+                        _buildNavItem('⚙️', 'Paramètres', '/more', isDark),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+                
+                // User Section - matching web
+                _buildUserSection(isDark),
+              ],
+            ),
+          ),
         ),
 
-        // Main Content
+        // Main Content with slide
         AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
-            return Transform(
-              transform: Matrix4.identity()
-                ..translate(_slideAnimation.value, 0.0)
-                ..scale(_scaleAnimation.value)
-                ..rotateZ(_rotateAnimation.value),
-              alignment: Alignment.centerLeft,
+            return Transform.translate(
+              offset: Offset(_slideAnimation.value, 0),
               child: GestureDetector(
                 onTap: _isDrawerOpen ? closeDrawer : null,
                 onHorizontalDragUpdate: (details) {
@@ -130,258 +135,145 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                     closeDrawer();
                   }
                 },
-                child: AbsorbPointer(
-                  absorbing: _isDrawerOpen,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      _isDrawerOpen ? 30 : 0,
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 30,
-                            offset: const Offset(-10, 0),
-                          ),
-                        ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    boxShadow: _isDrawerOpen ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(-5, 0),
                       ),
-                      child: widget.child,
-                    ),
+                    ] : null,
+                  ),
+                  child: AbsorbPointer(
+                    absorbing: _isDrawerOpen,
+                    child: widget.child,
                   ),
                 ),
               ),
             );
           },
         ),
+
+        // Overlay when drawer is open
+        if (_isDrawerOpen)
+          Positioned.fill(
+            left: 280,
+            child: GestureDetector(
+              onTap: closeDrawer,
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildDrawerContent(BuildContext context) {
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height - 140,
+  Widget _buildLogoHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // User Profile Section
-            _buildUserProfile(),
-            const SizedBox(height: 24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text('🏦', style: TextStyle(fontSize: 20)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Zekora',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                'Premium Banking',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Main Menu Items - TRANSFER FOCUSED
-            _buildMenuItem(
-              icon: Icons.home_rounded,
-              title: 'Accueil',
-              onTap: () => _navigateTo(context, '/dashboard'),
-              isActive: true,
-            ),
-            _buildMenuItem(
-              icon: Icons.send_rounded,
-              title: 'Envoyer',
-              onTap: () => _navigateTo(context, '/more/transfer'),
-              badge: 'Rapide',
-              badgeColor: const Color(0xFF10B981),
-            ),
-            _buildMenuItem(
-              icon: Icons.qr_code_scanner_rounded,
-              title: 'Scanner & Payer',
-              onTap: () => _navigateTo(context, '/more/merchant/scan'),
-            ),
-            _buildMenuItem(
-              icon: Icons.account_balance_wallet_rounded,
-              title: 'Portefeuilles',
-              onTap: () => _navigateTo(context, '/wallet'),
-            ),
-            _buildMenuItem(
-              icon: Icons.credit_card_rounded,
-              title: 'Cartes',
-              onTap: () => _navigateTo(context, '/more/cards'),
-            ),
-            
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(color: Colors.white24, indent: 0, endIndent: 40),
-            ),
-            
-            // Secondary Items
-            _buildMenuItem(
-              icon: Icons.swap_horiz_rounded,
-              title: 'Exchange',
-              onTap: () => _navigateTo(context, '/exchange'),
-              subtitle: 'Crypto & Fiat',
-            ),
-            _buildMenuItem(
-              icon: Icons.pie_chart_rounded,
-              title: 'Portfolio',
-              onTap: () => _navigateTo(context, '/portfolio'),
-            ),
-            _buildMenuItem(
-              icon: Icons.storefront_rounded,
-              title: 'Marchand',
-              onTap: () => _navigateTo(context, '/more/merchant'),
-            ),
-
-            const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(color: Colors.white24, indent: 0, endIndent: 40),
-            ),
-
-            // Bottom Items
-            _buildMenuItem(
-              icon: Icons.support_agent_rounded,
-              title: 'Support 24/7',
-              onTap: () => _navigateTo(context, '/more/support'),
-            ),
-            _buildMenuItem(
-              icon: Icons.settings_rounded,
-              title: 'Paramètres',
-              onTap: () => _navigateTo(context, '/more'),
-            ),
-          ],
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24, bottom: 12, left: 16),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
         ),
       ),
     );
   }
 
-  Widget _buildUserProfile() {
-    return Row(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF667eea).withOpacity(0.4),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Text(
-              '👤',
-              style: TextStyle(fontSize: 28),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Bonjour! 👋',
-              style: TextStyle(
-                color: Colors.white60,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Utilisateur',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    String? subtitle,
-    String? badge,
-    Color? badgeColor,
-    bool isActive = false,
-  }) {
+  Widget _buildNavItem(String emoji, String title, String route, bool isDark) {
+    final currentRoute = GoRouterState.of(context).uri.toString();
+    final isActive = currentRoute == route || currentRoute.startsWith(route);
+    
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: () => _navigateTo(context, route),
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isActive 
+                  ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
+                Text(emoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                     color: isActive 
-                        ? Colors.white.withOpacity(0.2)
-                        : Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isActive ? Colors.white : Colors.white70,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              color: isActive ? Colors.white : Colors.white70,
-                              fontSize: 16,
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                            ),
-                          ),
-                          if (badge != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: badgeColor ?? const Color(0xFF667eea),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                badge,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
+                        ? (isDark ? Colors.white : const Color(0xFF1E293B))
+                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   ),
                 ),
               ],
@@ -392,9 +284,101 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
     );
   }
 
+  Widget _buildUserSection(bool isDark) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        String userName = 'Utilisateur';
+        String userEmail = 'user@zekora.com';
+        String initials = 'U';
+        
+        if (state is AuthenticatedState) {
+          userName = state.user.fullName;
+          userEmail = state.user.email;
+          initials = state.user.initials;
+        }
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            color: isDark 
+                ? const Color(0xFF0F172A).withOpacity(0.5)
+                : const Color(0xFFF8FAFC),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      userEmail,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+                onPressed: () {
+                  context.read<AuthBloc>().add(SignOutEvent());
+                  context.go('/auth/login');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _navigateTo(BuildContext context, String route) {
     closeDrawer();
-    Future.delayed(const Duration(milliseconds: 200), () {
+    Future.delayed(const Duration(milliseconds: 150), () {
       if (context.mounted) {
         context.go(route);
       }

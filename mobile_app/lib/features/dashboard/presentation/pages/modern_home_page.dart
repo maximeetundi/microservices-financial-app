@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
 import '../../../../core/widgets/animated_drawer.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/widgets/stat_card.dart';
+import '../../../../core/widgets/quick_action_button.dart';
+import '../../../../core/widgets/credit_card_widget.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
 
-/// Modern Home Page with animated drawer and transfer focus
+/// Modern Home Page matching web frontend design exactly
 class ModernHomePage extends StatefulWidget {
   const ModernHomePage({super.key});
 
@@ -22,6 +25,33 @@ class _ModernHomePageState extends State<ModernHomePage>
     with TickerProviderStateMixin {
   final GlobalKey<AnimatedDrawerState> _drawerKey = GlobalKey();
   late AnimationController _fabAnimationController;
+  bool _refreshingRates = false;
+
+  // Stats data
+  double _totalBalance = 0.0;
+  double _cryptoBalance = 0.0;
+  double _cardsBalance = 0.0;
+  int _activeCards = 0;
+  int _monthlyTransfers = 0;
+  double _monthlyVolume = 0.0;
+
+  // Sample crypto markets data (replace with API)
+  final List<Map<String, dynamic>> _cryptoMarkets = [
+    {'name': 'Bitcoin', 'symbol': 'BTC', 'price': 43250.0, 'change': 2.4, 'bgColor': const Color(0xFFF7931A)},
+    {'name': 'Ethereum', 'symbol': 'ETH', 'price': 2280.0, 'change': -1.2, 'bgColor': const Color(0xFF627EEA)},
+    {'name': 'Solana', 'symbol': 'SOL', 'price': 98.50, 'change': 5.8, 'bgColor': const Color(0xFF9945FF)},
+    {'name': 'BNB', 'symbol': 'BNB', 'price': 312.0, 'change': 0.8, 'bgColor': const Color(0xFFF0B90B)},
+  ];
+
+  // Sample fiat rates (replace with API)
+  final List<Map<String, dynamic>> _fiatRates = [
+    {'pair': 'EUR/USD', 'rate': 1.0832, 'change': 0.0012},
+    {'pair': 'GBP/USD', 'rate': 1.2714, 'change': -0.0008},
+    {'pair': 'USD/XOF', 'rate': 605.50, 'change': 0.15},
+    {'pair': 'EUR/GBP', 'rate': 0.8520, 'change': 0.0005},
+    {'pair': 'USD/CAD', 'rate': 1.3421, 'change': -0.0021},
+    {'pair': 'USD/JPY', 'rate': 149.25, 'change': 0.35},
+  ];
 
   @override
   void initState() {
@@ -41,6 +71,13 @@ class _ModernHomePageState extends State<ModernHomePage>
     super.dispose();
   }
 
+  String _formatMoney(double amount) {
+    return '\$${amount.toStringAsFixed(2).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    )}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -48,38 +85,51 @@ class _ModernHomePageState extends State<ModernHomePage>
     return AnimatedDrawer(
       key: _drawerKey,
       child: Scaffold(
-        backgroundColor: Colors.transparent, // Allow gradient to show
+        backgroundColor: Colors.transparent,
         body: Container(
           decoration: BoxDecoration(
+            // Match web background gradient exactly
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isDark 
-                  ? [const Color(0xFF020617), const Color(0xFF0F172A)] 
-                  : [const Color(0xFFFAFBFC), const Color(0xFFEFF6FF)],
+                  ? [const Color(0xFF0F0F1A), const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+                  : [const Color(0xFFFAFBFC), const Color(0xFFF5F7F9), const Color(0xFFEEF1F5)],
             ),
           ),
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Modern App Bar
-              _buildModernAppBar(context),
-              
-              // Content
+              _buildAppBar(context),
               SliverToBoxAdapter(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Balance Card
-                    _buildBalanceCard(),
+                    // Header with greeting
+                    _buildHeader(context),
+                    const SizedBox(height: 24),
                     
-                    // Quick Actions - TRANSFER FOCUSED
-                    _buildQuickActions(context),
+                    // Stats Cards Grid (4 cards like web)
+                    _buildStatsGrid(),
+                    const SizedBox(height: 32),
                     
-                    // Recent Activity
-                    _buildRecentActivity(),
+                    // Quick Actions
+                    _buildQuickActionsSection(context),
+                    const SizedBox(height: 32),
                     
-                    // Services Section
-                    _buildServicesGrid(context),
+                    // Crypto Markets & Recent Activity (side by side on web, stacked on mobile)
+                    _buildCryptoMarketsSection(context),
+                    const SizedBox(height: 24),
+                    
+                    _buildRecentActivitySection(context),
+                    const SizedBox(height: 32),
+                    
+                    // My Cards Section
+                    _buildCardsSection(context),
+                    const SizedBox(height: 32),
+                    
+                    // Exchange Rates
+                    _buildExchangeRatesSection(context),
                     
                     const SizedBox(height: 100),
                   ],
@@ -109,9 +159,9 @@ class _ModernHomePageState extends State<ModernHomePage>
               backgroundColor: Colors.transparent,
               elevation: 0,
               icon: const Icon(Icons.send_rounded, color: Colors.white),
-              label: const Text(
+              label: Text(
                 'Envoyer',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -124,13 +174,13 @@ class _ModernHomePageState extends State<ModernHomePage>
     );
   }
 
-  Widget _buildModernAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return SliverAppBar(
-      expandedHeight: 120,
-      floating: false,
-      pinned: true,
+      expandedHeight: 0,
+      floating: true,
+      pinned: false,
       backgroundColor: Colors.transparent,
       elevation: 0,
       leading: Padding(
@@ -138,9 +188,12 @@ class _ModernHomePageState extends State<ModernHomePage>
         child: GlassContainer(
           borderRadius: 12,
           blur: 10,
-          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
+          showTopHighlight: false,
           child: IconButton(
-            icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+            icon: Icon(
+              Icons.menu_rounded,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
             onPressed: () => _drawerKey.currentState?.toggleDrawer(),
           ),
         ),
@@ -153,12 +206,15 @@ class _ModernHomePageState extends State<ModernHomePage>
             blur: 10,
             width: 48,
             height: 48,
-            color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
+            showTopHighlight: false,
             child: Stack(
               children: [
                 Center(
                   child: IconButton(
-                    icon: Icon(Icons.notifications_outlined, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                    icon: Icon(
+                      Icons.notifications_outlined,
+                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
                     onPressed: () => context.push('/dashboard/notifications'),
                   ),
                 ),
@@ -180,297 +236,173 @@ class _ModernHomePageState extends State<ModernHomePage>
         ),
         const SizedBox(width: 8),
       ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(60, 20, 60, 20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) {
-                      String greeting = 'Bonjour';
-                      final hour = DateTime.now().hour;
-                      if (hour < 12) {
-                        greeting = 'Bonjour ☀️';
-                      } else if (hour < 18) {
-                        greeting = 'Bon après-midi 👋';
-                      } else {
-                        greeting = 'Bonsoir 🌙';
-                      }
-                      
-                      String name = 'Utilisateur';
-                      if (state is AuthenticatedState) {
-                        name = state.user.firstName ?? 'Utilisateur';
-                      }
-                      
-                      return Text(
-                        '$greeting, $name!',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _buildBalanceCard() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      child: GlassContainer(
-        gradient: AppTheme.cardGradient,
-        padding: const EdgeInsets.all(24),
-        borderRadius: 24,
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Solde Total',
-                style: GoogleFonts.inter(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.successColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Actif',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          BlocBuilder<WalletBloc, WalletState>(
-            builder: (context, state) {
-              double totalBalance = 0.0;
-              if (state is WalletLoadedState) {
-                for (var wallet in state.wallets) {
-                  totalBalance += wallet.balance;
-                }
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '\$${totalBalance.toStringAsFixed(2)}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      'USD',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _buildBalanceAction(
-                  icon: Icons.add_rounded,
-                  label: 'Dépôt',
-                  onTap: () {},
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBalanceAction(
-                  icon: Icons.qr_code_rounded,
-                  label: 'Recevoir',
-                  onTap: () {},
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBalanceAction(
-                  icon: Icons.history_rounded,
-                  label: 'Historique',
-                  onTap: () {},
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  Widget _buildBalanceAction({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.white70, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actions Rapides',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1a1a2e),
-            ),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              String name = 'Utilisateur';
+              if (state is AuthenticatedState) {
+                name = state.user.fullName;
+              }
+              return Text(
+                'Bonjour, $name 👋',
+                style: GoogleFonts.inter(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickActionCard(
-                  icon: Icons.send_rounded,
-                  label: 'Envoyer',
-                  color: const Color(0xFF667eea),
-                  onTap: () => context.push('/more/transfer'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionCard(
-                  icon: Icons.qr_code_scanner_rounded,
-                  label: 'Scanner',
-                  color: const Color(0xFF10B981),
-                  onTap: () => context.push('/more/merchant/scan'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionCard(
-                  icon: Icons.credit_card_rounded,
-                  label: 'Cartes',
-                  color: const Color(0xFFF59E0B),
-                  onTap: () => context.push('/more/cards'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionCard(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Exchange',
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () => context.push('/exchange'),
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            _getFormattedDate(),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    final weekdays = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    final months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
+                    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    return '${weekdays[now.weekday % 7]} ${now.day} ${months[now.month - 1]} ${now.year}';
+  }
+
+  Widget _buildStatsGrid() {
+    return BlocBuilder<WalletBloc, WalletState>(
+      builder: (context, state) {
+        if (state is WalletLoadedState) {
+          _totalBalance = 0.0;
+          _cryptoBalance = 0.0;
+          for (var wallet in state.wallets) {
+            _totalBalance += wallet.balance;
+            if (['BTC', 'ETH', 'USDT', 'USDC', 'SOL'].contains(wallet.currency)) {
+              _cryptoBalance += wallet.balance;
+            }
+          }
+        }
+        _activeCards = 2; // Replace with actual API data
+        _cardsBalance = 3500.0; // Replace with actual API data
+        _monthlyTransfers = 12;
+        _monthlyVolume = 4500.0;
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.0,
+            children: [
+              StatCard(
+                title: 'Solde Total',
+                value: _formatMoney(_totalBalance),
+                badge: '+5.2%',
+                isBadgePositive: true,
+                variant: StatCardVariant.blue,
+                icon: const Icon(Icons.attach_money, color: Color(0xFF60A5FA), size: 24),
+              ),
+              StatCard(
+                title: 'Crypto Portfolio',
+                value: _formatMoney(_cryptoBalance),
+                badge: '+12.8%',
+                isBadgePositive: true,
+                variant: StatCardVariant.green,
+                icon: const Text('₿', style: TextStyle(fontSize: 24, color: Color(0xFF34D399))),
+              ),
+              StatCard(
+                title: 'Cartes Actives',
+                value: _activeCards.toString(),
+                subtitle: 'Solde: ${_formatMoney(_cardsBalance)}',
+                variant: StatCardVariant.purple,
+                icon: const Icon(Icons.credit_card, color: Color(0xFFC084FC), size: 24),
+              ),
+              StatCard(
+                title: 'Transferts ce mois',
+                value: _monthlyTransfers.toString(),
+                subtitle: 'Volume: ${_formatMoney(_monthlyVolume)}',
+                variant: StatCardVariant.orange,
+                icon: const Icon(Icons.swap_horiz, color: Color(0xFFFBBF24), size: 24),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickActionsSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GlassContainer(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        borderRadius: 16,
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 8),
             Text(
-              label,
+              '🚀 Actions Rapides',
               style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark 
-                    ? Colors.white 
-                    : AppTheme.textPrimaryColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
               ),
+            ),
+            const SizedBox(height: 20),
+            QuickActionsGrid(
+              crossAxisCount: 3,
+              actions: [
+                QuickActionItem(
+                  emoji: '📷',
+                  label: 'Scanner',
+                  onTap: () => context.push('/more/merchant/scan'),
+                ),
+                QuickActionItem(
+                  emoji: '💸',
+                  label: 'Envoyer',
+                  onTap: () => context.push('/more/transfer'),
+                ),
+                QuickActionItem(
+                  emoji: '💳',
+                  label: 'Mes Cartes',
+                  onTap: () => context.push('/more/cards'),
+                ),
+                QuickActionItem(
+                  emoji: '👛',
+                  label: 'Portefeuilles',
+                  onTap: () => context.push('/wallet'),
+                ),
+                QuickActionItem(
+                  emoji: '₿',
+                  label: 'Acheter Crypto',
+                  onTap: () => context.push('/exchange'),
+                ),
+                QuickActionItem(
+                  emoji: '💱',
+                  label: 'Convertir',
+                  onTap: () => context.push('/exchange/fiat'),
+                ),
+              ],
             ),
           ],
         ),
@@ -478,178 +410,88 @@ class _ModernHomePageState extends State<ModernHomePage>
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildCryptoMarketsSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Activité Récente',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.push('/wallet'),
-                child: const Text('Voir tout'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          BlocBuilder<WalletBloc, WalletState>(
-            builder: (context, state) {
-              if (state is WalletLoadedState) {
-                // Show empty state with link to wallet for transactions
-                return GlassContainer(
-                  padding: const EdgeInsets.all(24),
-                  borderRadius: 16,
-                  child: Column(
-                    children: [
-                      const Text('📊', style: TextStyle(fontSize: 40)),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Consultez vos transactions',
-                        style: GoogleFonts.inter(
-                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Accédez à vos portefeuilles pour voir l\'historique complet',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: AppTheme.textSecondaryColor),
-                      ),
-                      const SizedBox(height: 16),
-                      GestureDetector(
-                        onTap: () => context.push('/wallet'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Voir les portefeuilles',
-                            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '📊 Marchés Crypto',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
                   ),
-                );
-              }
-              
-              // Loading state
-              return GlassContainer(
-                padding: const EdgeInsets.all(32),
-                borderRadius: 16,
-                child: const Center(
-                  child: CircularProgressIndicator(),
                 ),
-              );
-            },
-          ),
-        ],
+                GestureDetector(
+                  onTap: () => context.push('/exchange'),
+                  child: Text(
+                    'Voir tout →',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF818CF8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...List.generate(_cryptoMarkets.length, (index) {
+              final crypto = _cryptoMarkets[index];
+              return _buildCryptoMarketItem(crypto, isDark);
+            }),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildRealTransactionItem(dynamic tx, String currency) {
-    final isCredit = tx.isIncoming ?? false;
-    final amount = tx.amount ?? 0.0;
-    final type = tx.type?.toString().split('.').last ?? 'transfer';
+  Widget _buildCryptoMarketItem(Map<String, dynamic> crypto, bool isDark) {
+    final change = crypto['change'] as double;
+    final isPositive = change >= 0;
     
-    IconData icon;
-    Color color;
-    String title;
-    String subtitle;
-    
-    switch (type) {
-      case 'deposit':
-      case 'credit':
-        icon = Icons.arrow_downward_rounded;
-        color = const Color(0xFF10B981);
-        title = tx.memo ?? 'Dépôt';
-        subtitle = 'Dépôt';
-        break;
-      case 'withdrawal':
-      case 'debit':
-        icon = Icons.arrow_upward_rounded;
-        color = const Color(0xFFEF4444);
-        title = tx.memo ?? 'Retrait';
-        subtitle = 'Retrait';
-        break;
-      case 'transfer':
-        if (isCredit) {
-          icon = Icons.arrow_downward_rounded;
-          color = const Color(0xFF10B981);
-          title = tx.senderName ?? tx.memo ?? 'Reçu';
-          subtitle = 'Transfert reçu';
-        } else {
-          icon = Icons.arrow_upward_rounded;
-          color = const Color(0xFFEF4444);
-          title = tx.recipientName ?? tx.memo ?? 'Envoi';
-          subtitle = 'Transfert envoyé';
-        }
-        break;
-      case 'payment':
-        icon = Icons.shopping_bag_rounded;
-        color = const Color(0xFFF59E0B);
-        title = tx.merchantName ?? tx.memo ?? 'Paiement';
-        subtitle = 'Paiement';
-        break;
-      case 'exchange':
-        icon = Icons.swap_horiz_rounded;
-        color = const Color(0xFF3B82F6);
-        title = tx.memo ?? 'Échange';
-        subtitle = 'Conversion';
-        break;
-      default:
-        icon = isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded;
-        color = isCredit ? const Color(0xFF10B981) : const Color(0xFFEF4444);
-        title = tx.memo ?? (isCredit ? 'Crédit' : 'Débit');
-        subtitle = type;
-    }
-    
-    final amountStr = '${isCredit ? '+' : '-'}${amount.toStringAsFixed(0)} $currency';
-    
-    return _buildTransactionItem(
-      icon: icon,
-      color: color,
-      title: title,
-      subtitle: subtitle,
-      amount: amountStr,
-      isCredit: isCredit,
-    );
-  }
-
-  Widget _buildTransactionItem({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required String amount,
-    required bool isCredit,
-  }) {
-    return Padding(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark 
+            ? const Color(0xFF1E293B).withOpacity(0.5)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark 
+              ? const Color(0xFF334155).withOpacity(0.5)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
       child: Row(
         children: [
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: (crypto['bgColor'] as Color).withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Center(
+              child: Text(
+                crypto['symbol'].toString().substring(0, 2),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: crypto['bgColor'] as Color,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -657,86 +499,41 @@ class _ModernHomePageState extends State<ModernHomePage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: const TextStyle(
+                  crypto['name'] as String,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    color: Color(0xFF1a1a2e),
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
                   ),
                 ),
                 Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 13,
+                  crypto['symbol'] as String,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: isCredit ? const Color(0xFF10B981) : const Color(0xFF1a1a2e),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServicesGrid(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Services',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.textPrimaryColor,
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _buildServiceCard(
-                icon: '🏦',
-                title: 'Virement Bancaire',
-                subtitle: 'SEPA & Swift',
-                color: const Color(0xFF3B82F6),
-                onTap: () {},
+              Text(
+                '\$${(crypto['price'] as double).toStringAsFixed(crypto['price'] >= 100 ? 0 : 2)}',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
               ),
-              _buildServiceCard(
-                icon: '📱',
-                title: 'Mobile Money',
-                subtitle: 'Orange, MTN...',
-                color: const Color(0xFFF97316),
-                onTap: () {},
-              ),
-              _buildServiceCard(
-                icon: '💳',
-                title: 'Carte Virtuelle',
-                subtitle: 'Instantané',
-                color: const Color(0xFF8B5CF6),
-                onTap: () => context.push('/more/cards'),
-              ),
-              _buildServiceCard(
-                icon: '🛒',
-                title: 'Paiement QR',
-                subtitle: 'Scan & Pay',
-                color: const Color(0xFF10B981),
-                onTap: () => context.push('/more/merchant/scan'),
+              Text(
+                '${isPositive ? '+' : ''}${change.toStringAsFixed(2)}%',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                ),
               ),
             ],
           ),
@@ -745,43 +542,325 @@ class _ModernHomePageState extends State<ModernHomePage>
     );
   }
 
-  Widget _buildServiceCard({
-    required String icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
+  Widget _buildRecentActivitySection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GlassContainer(
-        padding: const EdgeInsets.all(16),
-        borderRadius: 16,
-        borderColor: color.withOpacity(0.2),
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: Color(0xFF1a1a2e),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '🕒 Activité Récente',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/wallet'),
+                  child: Text(
+                    'Voir tout →',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF818CF8),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 12,
+            const SizedBox(height: 16),
+            // Empty state for now - replace with actual transactions
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text('📊', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Consultez vos transactions',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Accédez à vos portefeuilles pour voir l\'historique complet',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => context.push('/wallet'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Voir les portefeuilles',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildCardsSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '💳 Mes Cartes',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/more/cards'),
+                  child: Text(
+                    'Gérer →',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF818CF8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Sample cards - replace with actual data
+            SizedBox(
+              height: 200,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  SizedBox(
+                    width: 320,
+                    child: CreditCardWidget(
+                      type: CreditCardType.virtual,
+                      cardNumber: '•••• •••• •••• 4532',
+                      cardholderName: 'John Doe',
+                      expiryDate: '12/28',
+                      balance: 2500.00,
+                      status: 'Active',
+                      onTap: () => context.push('/more/cards'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Add new card button
+                  GestureDetector(
+                    onTap: () => context.push('/more/cards'),
+                    child: Container(
+                      width: 200,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          width: 2,
+                          style: BorderStyle.solid,
+                        ),
+                        color: isDark 
+                            ? const Color(0xFF1E293B).withOpacity(0.3)
+                            : const Color(0xFFF8FAFC).withOpacity(0.5),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: isDark 
+                                  ? const Color(0xFF334155).withOpacity(0.5)
+                                  : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(32),
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              size: 32,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Nouvelle Carte',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExchangeRatesSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(20),
+        borderRadius: 24,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '💱 Taux de Change',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _refreshRates,
+                  child: Row(
+                    children: [
+                      if (_refreshingRates)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(Icons.refresh, size: 16, color: Color(0xFF818CF8)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Actualiser',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF818CF8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.8,
+              ),
+              itemCount: _fiatRates.length,
+              itemBuilder: (context, index) {
+                final rate = _fiatRates[index];
+                final change = rate['change'] as double;
+                final isPositive = change >= 0;
+                
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark 
+                        ? const Color(0xFF1E293B).withOpacity(0.5)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark 
+                          ? const Color(0xFF334155).withOpacity(0.5)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        rate['pair'] as String,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        (rate['rate'] as double).toStringAsFixed(4),
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${isPositive ? '+' : ''}${(change * 100).toStringAsFixed(2)}%',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _refreshRates() {
+    setState(() => _refreshingRates = true);
+    // Simulate API call
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _refreshingRates = false);
+      }
+    });
   }
 }

@@ -41,7 +41,7 @@ class _ContactSelectorState extends State<ContactSelector> {
         id: '2',
         name: 'Bob Smith',
         email: 'bob@example.com',
-        address: 'bob@cryptobank.com',
+        address: 'bob@zekora.com',
         currency: 'USD',
         type: ContactType.instant,
       ),

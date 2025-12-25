@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/secure_storage_service.dart';
@@ -177,7 +178,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     try {
-      final result = await _apiService.auth.login(event.email, event.password);
+      final result = await _apiService.auth.login(
+        event.email, 
+        event.password,
+        totpCode: event.totpCode,
+      );
       
       // Check if 2FA is required
       if (result['requires_2fa'] == true && event.totpCode == null) {
@@ -193,6 +198,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _secureStorage.saveUserId(user.id);
       
       emit(AuthenticatedState(user: user, token: token));
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        final data = e.response?.data;
+        if (data != null && data is Map<String, dynamic> && data['requires_2fa'] == true) {
+          emit(Auth2FARequiredState(tempToken: data['temp_token'] ?? ''));
+          return;
+        }
+      }
+      emit(AuthErrorState(message: _getErrorMessage(e)));
     } catch (e) {
       emit(AuthErrorState(message: _getErrorMessage(e)));
     }
@@ -334,6 +348,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   String _getErrorMessage(dynamic error) {
     if (error is Exception) {
       final message = error.toString();
+      
+      // Handle DioException messages for 401 Unauthorized
+      if (message.contains('401') || message.contains('Unauthorized')) {
+        return 'Email ou mot de passe incorrect.';
+      }
+      
       if (message.contains('Exception: ')) {
         return message.replaceFirst('Exception: ', '');
       }

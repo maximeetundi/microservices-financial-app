@@ -23,6 +23,7 @@ class CustomTextField extends StatelessWidget {
   final FocusNode? focusNode;
   final TextInputAction? textInputAction;
   final void Function(String)? onSubmitted;
+  final Color? fillColor;
 
   const CustomTextField({
     Key? key,
@@ -46,6 +47,7 @@ class CustomTextField extends StatelessWidget {
     this.focusNode,
     this.textInputAction,
     this.onSubmitted,
+    this.fillColor,
   }) : super(key: key);
 
   @override
@@ -81,7 +83,7 @@ class CustomTextField extends StatelessWidget {
           onFieldSubmitted: onSubmitted,
           validator: validator,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: enabled ? AppTheme.textPrimaryColor : Colors.grey.shade500,
+            color: enabled ? theme.textTheme.bodyLarge?.color : Colors.grey.shade500,
           ),
           decoration: InputDecoration(
             hintText: hint,
@@ -96,7 +98,7 @@ class CustomTextField extends StatelessWidget {
                 : null,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: enabled ? Colors.grey.shade50 : Colors.grey.shade200,
+            fillColor: fillColor ?? (enabled ? Colors.grey.shade50 : Colors.grey.shade200),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),

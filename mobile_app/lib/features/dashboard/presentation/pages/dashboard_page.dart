@@ -81,7 +81,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Welcome to Crypto Bank',
+                            'Welcome to Zekora',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 16,
