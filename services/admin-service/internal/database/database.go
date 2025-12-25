@@ -6,7 +6,9 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
+	"golang.org/x/crypto/bcrypt"
 )
+
 
 // InitializeAdminDB initializes the admin database connection
 func InitializeAdminDB(dbURL string) (*sql.DB, error) {
@@ -289,15 +291,19 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 	}
 
 	// Default password: Admin123!
-	// bcrypt hash generated with cost 10
-	defaultPasswordHash := "$2a$10$Wq5bZpZ9L.OKvJqRGCGCyOlf8.8K1VOy0kDfNjMhB.R5oGpAFUQXq"
+	// Generate bcrypt hash dynamically to ensure it's always valid
+	defaultPassword := "Admin123!"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(defaultPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash default password: %w", err)
+	}
 	
 	// Create default super admin
 	_, err = db.Exec(`
 		INSERT INTO admin_users (email, password_hash, first_name, last_name, role_id, is_active)
 		VALUES ($1, $2, $3, $4, $5, TRUE)
 		ON CONFLICT (email) DO NOTHING
-	`, "admin@zekora.com", defaultPasswordHash, "Super", "Admin", roleID)
+	`, "admin@zekora.com", string(hashedPassword), "Super", "Admin", roleID)
 	
 	if err != nil {
 		return fmt.Errorf("failed to create default admin: %w", err)
@@ -312,6 +318,7 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 
 	return nil
 }
+
 
 // RabbitMQ Client
 type RabbitMQClient struct {
