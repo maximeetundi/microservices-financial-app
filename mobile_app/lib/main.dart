@@ -83,7 +83,7 @@ class ZekoraApp extends StatelessWidget {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               themeMode: themeProvider.themeMode,
-              routerConfig: AppRouter.router,
+              routerConfig: AppRouter.createRouter(context.read<AuthBloc>()),
               builder: (context, child) {
                 return MediaQuery(
                   data: MediaQuery.of(context).copyWith(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/auth_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class PinSetupPage extends StatefulWidget {
@@ -28,9 +30,8 @@ class _PinSetupPageState extends State<PinSetupPage> {
       });
     } else {
       if (pin == _firstPin) {
-        // PINs match, proceed
-        // TODO: Save PIN securely using AuthBloc or API
-        context.go('/auth/biometric-setup');
+        // PINs match, call API
+        context.read<AuthBloc>().add(SetPinRequested(pin));
       } else {
         setState(() {
           _error = 'Les codes PIN ne correspondent pas';
@@ -80,7 +81,18 @@ class _PinSetupPageState extends State<PinSetupPage> {
       ),
     );
 
-    return Scaffold(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthErrorState) {
+          setState(() {
+            _error = state.message;
+            _isConfirming = false;
+            _firstPin = null;
+            _pinController.clear();
+          });
+        }
+      },
+      child: Scaffold(
       body: Container(
          decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -137,7 +149,7 @@ class _PinSetupPageState extends State<PinSetupPage> {
 
                 // Pinput
                 Pinput(
-                  length: 4,
+                  length: 5,
                   controller: _pinController,
                   autofocus: true,
                   obscureText: true,
@@ -166,18 +178,19 @@ class _PinSetupPageState extends State<PinSetupPage> {
                 
                 // Helper text
                  Text(
-                   'Utilisez un code à 4 chiffres facile à mémoriser',
+                   'Utilisez un code à 5 chiffres facile à mémoriser',
                    style: GoogleFonts.inter(
                      fontSize: 12,
                      color: isDark ? Colors.white38 : Colors.grey.shade400,
                    ),
                  ),
-                 const SizedBox(height: 16),
+                const SizedBox(height: 16),
               ],
             ),
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

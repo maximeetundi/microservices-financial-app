@@ -140,6 +140,20 @@ class AuthApiService {
     );
     return response.statusCode == 200;
   }
+  
+  /// Configurer le PIN (5 chiffres)
+  Future<void> setupPin(String pin) async {
+    final response = await _client.post(
+      ApiEndpoints.setupPin,
+      data: {
+        'pin': pin,
+        'confirm_pin': pin,
+      },
+    );
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to setup PIN');
+    }
+  }
 
   /// Rechercher un utilisateur (Email ou Téléphone)
   Future<Map<String, dynamic>> lookupUser({String? email, String? phone}) async {

@@ -90,6 +90,15 @@ class ResetPasswordEvent extends AuthEvent {
   List<Object> get props => [token, newPassword];
 }
 
+class SetPinRequested extends AuthEvent {
+  final String pin;
+
+  const SetPinRequested(this.pin);
+
+  @override
+  List<Object> get props => [pin];
+}
+
 // States
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -172,6 +181,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<BiometricSignInEvent>(_onBiometricSignIn);
     on<ForgotPasswordEvent>(_onForgotPassword);
     on<ResetPasswordEvent>(_onResetPassword);
+    on<SetPinRequested>(_onSetPin);
   }
 
   Future<void> _onSignIn(SignInEvent event, Emitter<AuthState> emit) async {
@@ -342,6 +352,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const PasswordResetSuccessState());
     } catch (e) {
       emit(AuthErrorState(message: _getErrorMessage(e)));
+    }
+  }
+
+  Future<void> _onSetPin(SetPinRequested event, Emitter<AuthState> emit) async {
+    final currentState = state;
+    if (currentState is AuthenticatedState) {
+      try {
+        await _apiService.auth.setupPin(event.pin);
+        
+        final updatedUser = currentState.user.copyWith(hasPin: true);
+        
+        emit(AuthenticatedState(user: updatedUser, token: currentState.token));
+      } catch (e) {
+        emit(AuthErrorState(message: _getErrorMessage(e)));
+        // Restore authenticated state to allow retry
+        emit(currentState);
+      }
     }
   }
   

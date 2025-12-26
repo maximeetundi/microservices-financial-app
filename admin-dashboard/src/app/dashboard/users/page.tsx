@@ -12,6 +12,9 @@ import {
     XMarkIcon,
     ExclamationTriangleIcon,
     LockClosedIcon,
+    CheckCircleIcon,
+    ArrowPathIcon,
+    LockOpenIcon,
 } from '@heroicons/react/24/outline';
 
 interface User {
@@ -24,6 +27,39 @@ interface User {
     kyc_level: number | string;
     created_at: string;
     pin_locked?: boolean;
+}
+
+// Toast Component
+interface ToastProps {
+    message: string;
+    type: 'success' | 'error' | 'info';
+    onClose: () => void;
+}
+
+function Toast({ message, type, onClose }: ToastProps) {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 4000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    const colors = {
+        success: 'from-green-500 to-emerald-600',
+        error: 'from-red-500 to-pink-600',
+        info: 'from-indigo-500 to-purple-600',
+    };
+
+    return (
+        <div className={`fixed bottom-6 right-6 z-50 animate-slide-up`}>
+            <div className={`flex items-center gap-3 px-5 py-4 bg-gradient-to-r ${colors[type]} text-white rounded-xl shadow-2xl`}>
+                {type === 'success' && <CheckCircleIcon className="w-5 h-5" />}
+                {type === 'error' && <ExclamationTriangleIcon className="w-5 h-5" />}
+                <span className="font-medium">{message}</span>
+                <button onClick={onClose} className="ml-2 hover:bg-white/20 p-1 rounded-lg transition-colors">
+                    <XMarkIcon className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
 }
 
 // Modal Component
@@ -72,17 +108,27 @@ function Modal({ isOpen, onClose, title, icon, iconColor = 'bg-indigo-100 text-i
     );
 }
 
+type FilterTab = 'all' | 'active' | 'blocked' | 'pin_locked';
+
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
     // Modal states
     const [blockModal, setBlockModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
     const [unblockModal, setUnblockModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
     const [unlockPinModal, setUnlockPinModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
     const [blockReason, setBlockReason] = useState('');
+
+    // Toast state
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+        setToast({ message, type });
+    };
 
     const fetchUsers = async () => {
         try {
@@ -108,8 +154,10 @@ export default function UsersPage() {
             await fetchUsers();
             setBlockModal({ isOpen: false, user: null });
             setBlockReason('');
+            showToast(`Compte de ${blockModal.user.first_name} ${blockModal.user.last_name} bloqué avec succès`, 'success');
         } catch (error) {
             console.error('Block error:', error);
+            showToast('Erreur lors du blocage du compte', 'error');
         } finally {
             setActionLoading(null);
         }
@@ -122,9 +170,11 @@ export default function UsersPage() {
         try {
             await unblockUser(unblockModal.user.id);
             await fetchUsers();
+            showToast(`Compte de ${unblockModal.user.first_name} ${unblockModal.user.last_name} débloqué`, 'success');
             setUnblockModal({ isOpen: false, user: null });
         } catch (error) {
             console.error('Unblock error:', error);
+            showToast('Erreur lors du déblocage du compte', 'error');
         } finally {
             setActionLoading(null);
         }
@@ -137,21 +187,35 @@ export default function UsersPage() {
         try {
             await unlockUserPin(unlockPinModal.user.id);
             await fetchUsers();
+            showToast(`PIN de ${unlockPinModal.user.first_name} ${unlockPinModal.user.last_name} débloqué`, 'success');
             setUnlockPinModal({ isOpen: false, user: null });
         } catch (error: any) {
             console.error('Unlock PIN error:', error);
+            showToast('Erreur lors du déblocage du PIN', 'error');
         } finally {
             setActionLoading(null);
         }
     };
 
-    // Filter users based on search
-    const filteredUsers = users.filter(user =>
-        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.phone?.includes(searchQuery)
-    );
+    // Filter users based on search and tab
+    const filteredUsers = users.filter(user => {
+        const matchesSearch =
+            user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.phone?.includes(searchQuery);
+
+        switch (activeTab) {
+            case 'active':
+                return matchesSearch && user.is_active;
+            case 'blocked':
+                return matchesSearch && !user.is_active;
+            case 'pin_locked':
+                return matchesSearch && user.pin_locked;
+            default:
+                return matchesSearch;
+        }
+    });
 
     // Compute stats
     const activeUsers = users.filter(u => u.is_active).length;
@@ -159,16 +223,35 @@ export default function UsersPage() {
     const kycVerified = users.filter(u => String(u.kyc_level) === '3' || String(u.kyc_level) === 'verified').length;
     const pinLocked = users.filter(u => u.pin_locked).length;
 
+    const tabs: { key: FilterTab; label: string; count: number; color: string }[] = [
+        { key: 'all', label: 'Tous', count: users.length, color: 'indigo' },
+        { key: 'active', label: 'Actifs', count: activeUsers, color: 'green' },
+        { key: 'blocked', label: 'Bloqués', count: blockedUsers, color: 'red' },
+        { key: 'pin_locked', label: 'PIN Bloqué', count: pinLocked, color: 'orange' },
+    ];
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin"></div>
+                <div className="text-center">
+                    <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin mx-auto"></div>
+                    <p className="mt-4 text-gray-500 font-medium">Chargement des utilisateurs...</p>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
+            {/* Toast */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
+
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
@@ -183,7 +266,8 @@ export default function UsersPage() {
                     onClick={() => fetchUsers()}
                     className="btn-secondary flex items-center gap-2"
                 >
-                    ↻ Actualiser
+                    <ArrowPathIcon className="w-4 h-4" />
+                    Actualiser
                 </button>
             </div>
 
@@ -236,16 +320,39 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="Rechercher par nom, email ou téléphone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input pl-12"
-                />
+            {/* Tabs & Search */}
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                {/* Tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key
+                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm'
+                                }`}
+                        >
+                            {tab.label}
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100'
+                                }`}>
+                                {tab.count}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative w-full lg:w-80">
+                    <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Rechercher..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="input pl-12"
+                    />
+                </div>
             </div>
 
             {/* Users Table */}
@@ -293,7 +400,7 @@ export default function UsersPage() {
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2">
                                             <span className={`status-dot ${user.is_active ? 'status-dot-success' : 'status-dot-danger'}`}></span>
-                                            <span className={user.is_active ? 'text-green-700' : 'text-red-700'}>
+                                            <span className={user.is_active ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
                                                 {user.is_active ? 'Actif' : 'Bloqué'}
                                             </span>
                                         </div>
@@ -311,24 +418,27 @@ export default function UsersPage() {
                                     <div className="flex items-center justify-end gap-2">
                                         <button
                                             onClick={() => setUnlockPinModal({ isOpen: true, user })}
-                                            className="btn-warning text-xs px-3 py-1.5"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
                                             title="Débloquer le PIN"
                                         >
-                                            🔓 PIN
+                                            <LockOpenIcon className="w-3.5 h-3.5" />
+                                            PIN
                                         </button>
                                         {user.is_active ? (
                                             <button
                                                 onClick={() => setBlockModal({ isOpen: true, user })}
-                                                className="btn-danger text-xs px-3 py-1.5"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                                             >
-                                                ⛔ Bloquer
+                                                <NoSymbolIcon className="w-3.5 h-3.5" />
+                                                Bloquer
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={() => setUnblockModal({ isOpen: true, user })}
-                                                className="btn-success text-xs px-3 py-1.5"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
                                             >
-                                                ✓ Débloquer
+                                                <CheckCircleIcon className="w-3.5 h-3.5" />
+                                                Débloquer
                                             </button>
                                         )}
                                     </div>
@@ -357,9 +467,15 @@ export default function UsersPage() {
                 iconColor="bg-red-100 text-red-600"
             >
                 <div className="space-y-4">
-                    <p className="text-gray-600">
-                        Vous êtes sur le point de bloquer <span className="font-semibold text-gray-900">{blockModal.user?.first_name} {blockModal.user?.last_name}</span>.
-                    </p>
+                    <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {blockModal.user?.first_name?.[0]}{blockModal.user?.last_name?.[0]}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">{blockModal.user?.first_name} {blockModal.user?.last_name}</p>
+                            <p className="text-sm text-gray-500">{blockModal.user?.email}</p>
+                        </div>
+                    </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Raison du blocage <span className="text-red-500">*</span>
@@ -389,7 +505,7 @@ export default function UsersPage() {
                                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                                     Blocage...
                                 </span>
-                            ) : '⛔ Confirmer le blocage'}
+                            ) : 'Confirmer le blocage'}
                         </button>
                     </div>
                 </div>
@@ -404,10 +520,16 @@ export default function UsersPage() {
                 iconColor="bg-green-100 text-green-600"
             >
                 <div className="space-y-4">
-                    <p className="text-gray-600">
-                        Voulez-vous débloquer <span className="font-semibold text-gray-900">{unblockModal.user?.first_name} {unblockModal.user?.last_name}</span> ?
-                    </p>
-                    <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {unblockModal.user?.first_name?.[0]}{unblockModal.user?.last_name?.[0]}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">{unblockModal.user?.first_name} {unblockModal.user?.last_name}</p>
+                            <p className="text-sm text-gray-500">{unblockModal.user?.email}</p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">
                         L'utilisateur pourra de nouveau accéder à son compte et effectuer des transactions.
                     </p>
                     <div className="flex gap-3 pt-2">
@@ -427,7 +549,7 @@ export default function UsersPage() {
                                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                                     Déblocage...
                                 </span>
-                            ) : '✓ Confirmer le déblocage'}
+                            ) : 'Confirmer le déblocage'}
                         </button>
                     </div>
                 </div>
@@ -442,14 +564,23 @@ export default function UsersPage() {
                 iconColor="bg-amber-100 text-amber-600"
             >
                 <div className="space-y-4">
-                    <p className="text-gray-600">
-                        Voulez-vous débloquer le code PIN de <span className="font-semibold text-gray-900">{unlockPinModal.user?.first_name} {unlockPinModal.user?.last_name}</span> ?
-                    </p>
-                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-lg">
-                        <p className="text-sm text-amber-800">
-                            <strong>Info:</strong> Le PIN peut être bloqué après trop de tentatives incorrectes.
-                            Cette action réinitialise le compteur de tentatives.
-                        </p>
+                    <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {unlockPinModal.user?.first_name?.[0]}{unlockPinModal.user?.last_name?.[0]}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">{unlockPinModal.user?.first_name} {unlockPinModal.user?.last_name}</p>
+                            <p className="text-sm text-gray-500">{unlockPinModal.user?.email}</p>
+                        </div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl">
+                        <div className="flex items-start gap-3">
+                            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-amber-800">
+                                <p className="font-medium">Information</p>
+                                <p className="mt-1">Le PIN peut être bloqué après trop de tentatives incorrectes. Cette action réinitialise le compteur de tentatives.</p>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button
@@ -468,7 +599,7 @@ export default function UsersPage() {
                                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                                     Déblocage...
                                 </span>
-                            ) : '🔓 Débloquer le PIN'}
+                            ) : 'Débloquer le PIN'}
                         </button>
                     </div>
                 </div>
@@ -510,5 +641,3 @@ function getKYCLabel(level: number | string): string {
             return `Niveau ${level}`;
     }
 }
-
-

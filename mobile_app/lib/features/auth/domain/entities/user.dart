@@ -118,6 +118,7 @@ class User extends Equatable {
     bool? isPhoneVerified,
     bool? isTwoFactorEnabled,
     String? kycLevel,
+    bool? hasPin,
     UserPreferences? preferences,
   }) {
     return User(
@@ -133,6 +134,7 @@ class User extends Equatable {
       isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
       isTwoFactorEnabled: isTwoFactorEnabled ?? this.isTwoFactorEnabled,
       kycLevel: kycLevel ?? this.kycLevel,
+      hasPin: hasPin ?? this.hasPin,
       preferences: preferences ?? this.preferences,
     );
   }

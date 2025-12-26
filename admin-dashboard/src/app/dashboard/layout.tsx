@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -18,10 +18,34 @@ import {
     XMarkIcon,
     SparklesIcon,
     BellIcon,
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
+    UserIcon,
 } from '@heroicons/react/24/outline';
+import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { logout } from '@/lib/api';
+import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import clsx from 'clsx';
+
+interface Notification {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
+}
+
+const notificationTypeConfig: Record<string, { color: string; bgColor: string; icon: React.ComponentType<{ className?: string }> }> = {
+    admin: { color: 'text-purple-600', bgColor: 'bg-purple-100', icon: ShieldCheckIcon },
+    account: { color: 'text-blue-600', bgColor: 'bg-blue-100', icon: UserIcon },
+    security: { color: 'text-red-600', bgColor: 'bg-red-100', icon: ExclamationTriangleIcon },
+    transaction: { color: 'text-green-600', bgColor: 'bg-green-100', icon: CheckCircleIcon },
+    transfer: { color: 'text-emerald-600', bgColor: 'bg-emerald-100', icon: ArrowsRightLeftIcon },
+    card: { color: 'text-amber-600', bgColor: 'bg-amber-100', icon: CreditCardIcon },
+    kyc: { color: 'text-indigo-600', bgColor: 'bg-indigo-100', icon: ShieldCheckIcon },
+};
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -40,13 +64,68 @@ const navigation = [
     { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
 ];
 
+// Helper function to get relative time
+function getRelativeTime(dateString: string): string {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "À l'instant";
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    return `Il y a ${diffDays}j`;
+}
 
 export default function DashboardLayout({ children }: SidebarProps) {
     const pathname = usePathname();
     const { admin } = useAuthStore();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+    // Notification state
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
     const closeMobileMenu = () => setMobileMenuOpen(false);
+
+    // Load notifications
+    const loadNotifications = async () => {
+        try {
+            const response = await api.get('/notifications?limit=5');
+            const data = response.data?.notifications || response.data || [];
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadNotifications();
+        const interval = setInterval(loadNotifications, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setNotificationDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    const getNotificationIcon = (type: string) => {
+        const config = notificationTypeConfig[type] || notificationTypeConfig.admin;
+        const IconComponent = config.icon;
+        return <IconComponent className={`w-4 h-4 ${config.color}`} />;
+    };
 
     return (
         <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
@@ -66,16 +145,36 @@ export default function DashboardLayout({ children }: SidebarProps) {
                     </div>
                     <span className="text-white font-bold text-lg">Zekora Admin</span>
                 </div>
-                <button
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-colors"
-                >
-                    {mobileMenuOpen ? (
-                        <XMarkIcon className="w-6 h-6" />
-                    ) : (
-                        <Bars3Icon className="w-6 h-6" />
-                    )}
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Mobile Notification Bell */}
+                    <div className="relative" ref={notificationRef}>
+                        <button
+                            onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
+                            className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-colors relative"
+                        >
+                            {unreadCount > 0 ? (
+                                <BellSolidIcon className="w-6 h-6 text-amber-400" />
+                            ) : (
+                                <BellIcon className="w-6 h-6" />
+                            )}
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-colors"
+                    >
+                        {mobileMenuOpen ? (
+                            <XMarkIcon className="w-6 h-6" />
+                        ) : (
+                            <Bars3Icon className="w-6 h-6" />
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Sidebar */}
@@ -154,13 +253,128 @@ export default function DashboardLayout({ children }: SidebarProps) {
                 </div>
             </aside>
 
-            {/* Main content */}
-            <main className="flex-1 lg:ml-0 mt-16 lg:mt-0 p-6 lg:p-8 overflow-auto">
-                <div className="max-w-7xl mx-auto">
-                    {children}
-                </div>
-            </main>
+            {/* Main content wrapper */}
+            <div className="flex-1 flex flex-col lg:ml-0">
+                {/* Desktop Header with Notification Bell */}
+                <header className="hidden lg:flex h-16 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 items-center justify-end px-8 sticky top-0 z-20">
+                    {/* Notification Bell */}
+                    <div className="relative" ref={notificationRef}>
+                        <button
+                            onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
+                            className="relative p-3 rounded-xl hover:bg-gray-100 transition-all duration-200 group"
+                        >
+                            {unreadCount > 0 ? (
+                                <BellSolidIcon className="w-6 h-6 text-indigo-600 group-hover:scale-110 transition-transform" />
+                            ) : (
+                                <BellIcon className="w-6 h-6 text-gray-500 group-hover:text-indigo-600 group-hover:scale-110 transition-all" />
+                            )}
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 animate-bounce">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Notification Dropdown */}
+                        {notificationDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-slide-up">
+                                {/* Header */}
+                                <div className="px-5 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-bold text-lg">Notifications</h3>
+                                        {unreadCount > 0 && (
+                                            <span className="px-2.5 py-1 bg-white/20 rounded-full text-sm font-medium">
+                                                {unreadCount} nouvelle{unreadCount > 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Notifications List */}
+                                <div className="max-h-80 overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="p-8 text-center">
+                                            <BellIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                                            <p className="text-gray-500">Aucune notification</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-gray-100">
+                                            {notifications.slice(0, 5).map((notification) => {
+                                                const config = notificationTypeConfig[notification.type] || notificationTypeConfig.admin;
+                                                return (
+                                                    <div
+                                                        key={notification.id}
+                                                        className={clsx(
+                                                            'px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer',
+                                                            !notification.is_read && 'bg-indigo-50/50'
+                                                        )}
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`p-2 rounded-xl ${config.bgColor} flex-shrink-0`}>
+                                                                {getNotificationIcon(notification.type)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={clsx(
+                                                                    'text-sm font-medium truncate',
+                                                                    !notification.is_read ? 'text-gray-900' : 'text-gray-700'
+                                                                )}>
+                                                                    {notification.title}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                                                                    {notification.message}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400 mt-1">
+                                                                    {getRelativeTime(notification.created_at)}
+                                                                </p>
+                                                            </div>
+                                                            {!notification.is_read && (
+                                                                <span className="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0 mt-2" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
+                                    <Link
+                                        href="/dashboard/notifications"
+                                        onClick={() => setNotificationDropdownOpen(false)}
+                                        className="block w-full text-center py-2.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-colors"
+                                    >
+                                        Voir toutes les notifications →
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Admin info */}
+                    <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                            {admin?.first_name?.[0] || 'A'}
+                        </div>
+                        <div className="hidden xl:block">
+                            <p className="text-sm font-semibold text-gray-900">
+                                {admin?.first_name} {admin?.last_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                {admin?.role?.name || 'Administrateur'}
+                            </p>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Main content */}
+                <main className="flex-1 mt-16 lg:mt-0 p-6 lg:p-8 overflow-auto">
+                    <div className="max-w-7xl mx-auto">
+                        {children}
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }
-

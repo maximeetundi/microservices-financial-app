@@ -27,15 +27,20 @@ import '../../features/settings/presentation/pages/payment_methods_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/support/support_screen.dart';
 import '../../features/merchant/merchant_screen.dart';
+import 'dart:async';
 import '../../features/merchant/scan_pay_screen.dart';
 import '../../main.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
 class AppRouter {
-  static final GoRouter router = GoRouter(
-    initialLocation: '/splash',
-    debugLogDiagnostics: true,
-    redirect: _redirect,
+  static late GoRouter router;
+
+  static GoRouter createRouter(AuthBloc authBloc) {
+    return router = GoRouter(
+      initialLocation: '/splash',
+      debugLogDiagnostics: true,
+      refreshListenable: GoRouterRefreshStream(authBloc.stream),
+      redirect: _redirect,
     routes: [
       // Splash Route
       GoRoute(
@@ -245,6 +250,7 @@ class AppRouter {
       ),
     ),
   );
+  }
 
   // Route Guard
   static String? _redirect(BuildContext context, GoRouterState state) {
@@ -276,5 +282,22 @@ class AppRouter {
     }
     
     return null;
+  }
+}
+
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _subscription;
+
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 }
