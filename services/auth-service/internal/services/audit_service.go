@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 )
 
 // AuditService handles security audit logging and event publishing
