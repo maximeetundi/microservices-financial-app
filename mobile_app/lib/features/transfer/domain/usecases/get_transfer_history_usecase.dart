@@ -1,31 +1,33 @@
-// Get Transfer History Use Case (no external import needed - TransferModel is defined below)
+// Get Transfer History Use Case
+
+import '../../../../core/services/transfer_api_service.dart';
 
 // Get Transfer History Use Case
 class GetTransferHistoryUseCase {
+  final TransferApiService _transferApi = TransferApiService();
+  
   Future<List<TransferModel>> execute({int limit = 20, int offset = 0}) async {
-    // This would call the API in a real implementation
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    return [
-      TransferModel(
-        id: 'TRF-001',
-        fromWalletId: 'wallet-1',
-        toEmail: 'john@example.com',
-        amount: 500.0,
-        currency: 'USD',
-        status: 'completed',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      TransferModel(
-        id: 'TRF-002',
-        fromWalletId: 'wallet-1',
-        toEmail: 'jane@example.com',
-        amount: 250.0,
-        currency: 'EUR',
-        status: 'completed',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ];
+    try {
+      final transfers = await _transferApi.getTransfers(limit: limit, offset: offset);
+      
+      return transfers.map((t) => TransferModel(
+        id: t['id']?.toString() ?? '',
+        fromWalletId: t['from_wallet_id']?.toString() ?? '',
+        toWalletId: t['to_wallet_id']?.toString(),
+        toEmail: t['to_email']?.toString(),
+        toPhone: t['to_phone']?.toString(),
+        amount: (t['amount'] as num?)?.toDouble() ?? 0.0,
+        currency: t['currency']?.toString() ?? 'USD',
+        status: t['status']?.toString() ?? 'pending',
+        description: t['description']?.toString(),
+        createdAt: t['created_at'] != null 
+            ? DateTime.tryParse(t['created_at'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+      )).toList();
+    } catch (e) {
+      // Return empty list on API error instead of mock data
+      return [];
+    }
   }
 }
 
@@ -54,3 +56,4 @@ class TransferModel {
     required this.createdAt,
   });
 }
+

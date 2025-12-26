@@ -35,7 +35,7 @@ class _ExchangePageState extends State<ExchangePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadExchangeData();
   }
 
@@ -73,7 +73,16 @@ class _ExchangePageState extends State<ExchangePage>
                  child: Row(
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
-                     const SizedBox(width: 48), // Spacer
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40,
+                       height: 40, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.go('/dashboard'),
+                      ),
+                     ),
                      Text(
                        'Échange',
                        style: GoogleFonts.inter(
@@ -113,7 +122,6 @@ class _ExchangePageState extends State<ExchangePage>
                    tabs: const [
                      Tab(text: 'Convertir'),
                      Tab(text: 'Trading'),
-                     Tab(text: 'P2P'),
                    ],
                  ),
                ),
@@ -123,7 +131,6 @@ class _ExchangePageState extends State<ExchangePage>
                   children: [
                     _buildExchangeTab(),
                     _buildTradingTab(),
-                    _buildP2PTab(),
                   ],
                 ),
               ),

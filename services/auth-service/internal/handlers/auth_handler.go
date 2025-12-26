@@ -700,3 +700,36 @@ func (h *AuthHandler) CheckPinStatus(c *gin.Context) {
 		"required": true,
 	})
 }
+
+// AdminUnlockPin - Admin endpoint to unlock a user's PIN after too many failed attempts
+func (h *AuthHandler) AdminUnlockPin(c *gin.Context) {
+	// Get target user ID from path parameter
+	targetUserID := c.Param("user_id")
+	if targetUserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
+		return
+	}
+
+	// Verify admin role (caller must be admin)
+	role, exists := c.Get("user_role")
+	if !exists || role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	// Unlock the PIN by resetting failed attempts
+	err := h.authService.UnlockUserPin(targetUserID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlock PIN"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "PIN unlocked successfully",
+		"user_id": targetUserID,
+	})
+}

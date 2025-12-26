@@ -219,7 +219,7 @@
                    type="number" 
                    placeholder="0.00"
                    min="1"
-                   class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                   class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                  />
                  <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">{{ selectedWallet?.currency }}</span>
                </div>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'core/di/injection_container.dart' as di;
@@ -63,37 +64,37 @@ class ZekoraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = ThemeProvider();
-    
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (_) => di.sl<AuthBloc>()),
-        BlocProvider(create: (_) => di.sl<WalletBloc>()),
-        BlocProvider(create: (_) => di.sl<ExchangeBloc>()),
-        BlocProvider(create: (_) => di.sl<CardsBloc>()),
-        BlocProvider(create: (_) => di.sl<PortfolioBloc>()),
-        BlocProvider(create: (_) => di.sl<TransferBloc>()),
-      ],
-      child: ListenableBuilder(
-        listenable: themeProvider,
-        builder: (context, child) {
-          return MaterialApp.router(
-            title: AppConstants.appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            routerConfig: AppRouter.router,
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaleFactor: 1.0, // Prevent text scaling
-                ),
-                child: child!,
-              );
-            },
-          );
-        },
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => di.sl<AuthBloc>()),
+          BlocProvider(create: (_) => di.sl<WalletBloc>()),
+          BlocProvider(create: (_) => di.sl<ExchangeBloc>()),
+          BlocProvider(create: (_) => di.sl<CardsBloc>()),
+          BlocProvider(create: (_) => di.sl<PortfolioBloc>()),
+          BlocProvider(create: (_) => di.sl<TransferBloc>()),
+        ],
+        child: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return MaterialApp.router(
+              title: AppConstants.appName,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeProvider.themeMode,
+              routerConfig: AppRouter.router,
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaleFactor: 1.0, // Prevent text scaling
+                  ),
+                  child: child!,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

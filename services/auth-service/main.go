@@ -146,6 +146,14 @@ func main() {
 		// Session management
 		api.GET("/sessions", middleware.JWTAuth(cfg.JWTSecret), authHandler.GetSessions)
 		api.DELETE("/sessions/:session_id", middleware.JWTAuth(cfg.JWTSecret), authHandler.RevokeSession)
+
+		// Admin routes (require admin role - enforced in handler)
+		admin := api.Group("/admin")
+		admin.Use(middleware.JWTAuth(cfg.JWTSecret))
+		{
+			// Unlock user PIN after too many failed attempts
+			admin.POST("/users/:user_id/unlock-pin", authHandler.AdminUnlockPin)
+		}
 	}
 
 	port := os.Getenv("PORT")

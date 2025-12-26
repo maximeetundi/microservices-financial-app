@@ -55,7 +55,16 @@ class _WalletPageState extends State<WalletPage> {
                  child: Row(
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
-                     const SizedBox(width: 48), // Spacer for centering
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 40,
+                       height: 40, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.go('/dashboard'),
+                      ),
+                     ),
                      Text(
                        'Mes Portefeuilles',
                        style: GoogleFonts.inter(
@@ -204,6 +213,21 @@ class _WalletPageState extends State<WalletPage> {
                       child: WalletCard(
                         wallet: wallet,
                         onTap: () => context.push('/wallet/${wallet.id}'),
+                        onRechargePressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (ctx) => DepositBottomSheet(
+                              walletId: wallet.id,
+                              walletCurrency: wallet.currency,
+                              onSuccess: () {
+                                _loadWallets();
+                              },
+                            ),
+                          );
+                        },
+                        onSendPressed: () => context.push('/more/transfer?wallet=${wallet.id}'),
                       ),
                     );
                   },

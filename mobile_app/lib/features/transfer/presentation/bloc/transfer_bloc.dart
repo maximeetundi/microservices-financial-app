@@ -179,87 +179,31 @@ class TransferBloc extends Bloc<TransferEvent, TransferState> {
     emit(const TransferLoadingState());
 
     try {
-      // Load wallets, recent transfers, and contacts
-      // This would normally call multiple use cases
+      // Load recent transfers from API
+      // We start with empty wallets/contacts as they should be managed by their own Blocs/Services or injected
+      // For now, to comply with "no fake data", we return empty lists if we can't fetch them here.
       
-      // Mock data for now
-      final wallets = [
-        Wallet(
-          id: '1',
-          userId: 'user1',
-          currency: 'BTC',
-          balance: 0.5,
-          availableBalance: 0.5,
-          address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-          type: WalletType.crypto,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          networkInfo: const WalletNetworkInfo(network: 'Bitcoin'),
-        ),
-        Wallet(
-          id: '2',
-          userId: 'user1',
-          currency: 'USD',
-          balance: 5000.0,
-          availableBalance: 5000.0,
-          address: 'USD-WALLET',
-          type: WalletType.fiat,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          networkInfo: const WalletNetworkInfo(network: 'Bank'),
-        ),
-      ];
+      final transfersResult = await _getTransferHistoryUseCase.execute(
+        limit: 5, // Get 5 most recent
+        offset: 0,
+      );
 
-      final recentTransfers = [
-        Transfer(
-          id: '1',
-          userId: 'user1',
-          type: TransferType.crypto,
-          fromWallet: '1',
-          toAddress: '3FUpjxWpPGqxGSzeLdZHamksAPtJ3EGcjh',
-          amount: 0.1,
-          currency: 'BTC',
-          status: TransferStatus.completed,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        Transfer(
-          id: '2',
-          userId: 'user1',
-          type: TransferType.fiat,
-          fromWallet: '2',
-          toAddress: 'US1234567890123456',
-          amount: 500.0,
-          currency: 'USD',
-          status: TransferStatus.pending,
-          createdAt: DateTime.now().subtract(const Duration(days: 1)),
-          recipientName: 'John Doe',
-          bankCode: 'CHASUS33',
-        ),
-      ];
-
-      final contacts = [
-        Contact(
-          id: '1',
-          name: 'Alice Johnson',
-          email: 'alice@example.com',
-          address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
-          currency: 'BTC',
-          type: ContactType.crypto,
-        ),
-        Contact(
-          id: '2',
-          name: 'Bob Smith',
-          email: 'bob@example.com',
-          address: 'bob@zekora.com',
-          currency: 'USD',
-          type: ContactType.instant,
-        ),
-      ];
+      final recentTransfers = transfersResult.map((t) => Transfer(
+        id: t.id,
+        userId: 'current',
+        type: TransferType.instant,
+        fromWallet: t.fromWalletId,
+        toAddress: t.toEmail ?? '',
+        amount: t.amount,
+        currency: t.currency,
+        status: t.status == 'completed' ? TransferStatus.completed : TransferStatus.pending,
+        createdAt: t.createdAt,
+      )).toList();
 
       emit(TransferLoadedState(
-        wallets: wallets,
+        wallets: const [], // Wallets should be retrieved from WalletBloc
         recentTransfers: recentTransfers,
-        contacts: contacts,
+        contacts: const [], // Contacts API not yet integrated
       ));
     } catch (e) {
       emit(TransferErrorState(message: e.toString()));

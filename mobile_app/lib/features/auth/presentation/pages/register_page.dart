@@ -39,13 +39,13 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _acceptTerms = false;
 
   final List<Map<String, String>> _countries = [
-    {'code': 'CI', 'name': 'Côte d\'Ivoire', 'currency': 'XOF', 'dial_code': '+225'},
-    {'code': 'SN', 'name': 'Sénégal', 'currency': 'XOF', 'dial_code': '+221'},
-    {'code': 'ML', 'name': 'Mali', 'currency': 'XOF', 'dial_code': '+223'},
-    {'code': 'BF', 'name': 'Burkina Faso', 'currency': 'XOF', 'dial_code': '+226'},
-    {'code': 'FR', 'name': 'France', 'currency': 'EUR', 'dial_code': '+33'},
-    {'code': 'US', 'name': 'États-Unis', 'currency': 'USD', 'dial_code': '+1'},
-    {'code': 'GB', 'name': 'Royaume-Uni', 'currency': 'GBP', 'dial_code': '+44'},
+    {'code': 'CIV', 'name': 'Côte d\'Ivoire', 'currency': 'XOF', 'dial_code': '+225'},
+    {'code': 'SEN', 'name': 'Sénégal', 'currency': 'XOF', 'dial_code': '+221'},
+    {'code': 'MLI', 'name': 'Mali', 'currency': 'XOF', 'dial_code': '+223'},
+    {'code': 'BFA', 'name': 'Burkina Faso', 'currency': 'XOF', 'dial_code': '+226'},
+    {'code': 'FRA', 'name': 'France', 'currency': 'EUR', 'dial_code': '+33'},
+    {'code': 'USA', 'name': 'États-Unis', 'currency': 'USD', 'dial_code': '+1'},
+    {'code': 'GBR', 'name': 'Royaume-Uni', 'currency': 'GBP', 'dial_code': '+44'},
   ];
 
   String? _getCurrency() {
@@ -222,7 +222,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: BlocListener<AuthBloc, AuthState>(
                   listener: (context, state) {
                     if (state is AuthenticatedState) {
-                      context.go('/auth/biometric-setup');
+                      context.go('/auth/pin-setup');
                     } else if (state is AuthErrorState) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(state.message), backgroundColor: AppTheme.errorColor),
@@ -597,7 +597,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           ),
-          validator: (v) => v!.length >= 8 ? 'Minimum 8 caractères' : null,
+          validator: (v) => v != null && v.length < 8 ? 'Minimum 8 caractères' : null,
           fillColor: isDark ? const Color(0xFF0F0C29) : Colors.grey.shade50,
         ),
         const SizedBox(height: 16),

@@ -645,3 +645,15 @@ func (s *AuthService) HasPin(userID string) (bool, error) {
 
 	return user.PinHash != nil && *user.PinHash != "", nil
 }
+
+// UnlockUserPin resets the PIN failed attempts counter (admin function)
+func (s *AuthService) UnlockUserPin(userID string) error {
+	// Verify user exists
+	_, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	// Reset the PIN failed attempts and unlock
+	return s.userRepo.ResetPinFailedAttempts(userID)
+}

@@ -9,7 +9,10 @@ class WalletApiService {
   Future<List<Map<String, dynamic>>> getWallets() async {
     final response = await _client.get(ApiEndpoints.walletsList);
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(response.data['wallets']);
+      // Handle null wallets - return empty list
+      final wallets = response.data['wallets'];
+      if (wallets == null) return [];
+      return List<Map<String, dynamic>>.from(wallets);
     }
     throw Exception('Failed to get wallets');
   }
@@ -68,7 +71,10 @@ class WalletApiService {
       },
     );
     if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(response.data['transactions']);
+      // Handle null transactions - return empty list
+      final transactions = response.data['transactions'];
+      if (transactions == null) return [];
+      return List<Map<String, dynamic>>.from(transactions);
     }
     throw Exception('Failed to get transactions');
   }
@@ -83,7 +89,7 @@ class WalletApiService {
       ApiEndpoints.walletDeposit(walletId),
       data: {
         'amount': amount,
-        if (paymentMethod != null) 'payment_method': paymentMethod,
+        'method': paymentMethod ?? 'demo', // Backend expects 'method' not 'payment_method'
       },
     );
     if (response.statusCode == 200) {

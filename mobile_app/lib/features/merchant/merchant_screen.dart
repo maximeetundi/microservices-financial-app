@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_container.dart';
@@ -80,9 +83,7 @@ class _MerchantScreenState extends State<MerchantScreen> {
         _payments = List<Map<String, dynamic>>.from(
           paymentsRes['payments'] ?? paymentsRes['data']?['payments'] ?? []
         );
-        _wallets = List<Map<String, dynamic>>.from(
-          walletsRes['wallets'] ?? walletsRes['data']?['wallets'] ?? walletsRes['data'] ?? []
-        );
+        _wallets = walletsRes;
         
         // Calculate stats
         double totalPaid = 0;
@@ -632,6 +633,9 @@ class _MerchantScreenState extends State<MerchantScreen> {
     
     return Container(
       margin: const EdgeInsets.all(16),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -665,155 +669,185 @@ class _MerchantScreenState extends State<MerchantScreen> {
             ),
           ),
           
-          // QR Code
-          Container(
-            width: 200,
-            height: 200,
-            margin: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: qrCodeBase64 != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.memory(
-                      base64Decode(qrCodeBase64.replaceFirst('data:image/png;base64,', '')),
-                      fit: BoxFit.contain,
+          // Scrollable Content
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  // QR Code
+                  Container(
+                    width: 180,
+                    height: 180,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                  )
-                : const Center(
-                    child: Icon(Icons.qr_code_2, size: 120, color: Color(0xFF1E293B)),
+                    child: qrCodeBase64 != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.memory(
+                              base64Decode(qrCodeBase64.replaceFirst('data:image/png;base64,', '')),
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : const Center(
+                            child: Icon(Icons.qr_code_2, size: 100, color: Color(0xFF1E293B)),
+                          ),
                   ),
+                  
+                  // Info
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Montant', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
+                          Text(
+                            payment['amount'] != null 
+                                ? _formatCurrency((payment['amount'] as num).toDouble(), payment['currency'] ?? 'EUR')
+                                : 'À définir',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Statut', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
+                          _buildStatusBadge(payment['status'] ?? 'pending', isDark),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  
+                  // Payment Code Display
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CODE DE PAIEMENT',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF64748B),
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark 
+                              ? const Color(0xFF6366F1).withOpacity(0.15)
+                              : const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark 
+                                ? const Color(0xFF6366F1).withOpacity(0.3)
+                                : const Color(0xFFC7D2FE),
+                            width: 2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getPaymentCode(payment),
+                                style: GoogleFonts.sourceCodePro(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                final code = _getPaymentCode(payment);
+                                Clipboard.setData(ClipboardData(text: code));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Code copié: $code')),
+                                );
+                              },
+                              child: const Icon(Icons.copy, color: Color(0xFF6366F1), size: 20),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
           
-          // Info
+          // Actions (fixed at bottom) - 4 buttons in 2x2 grid
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Montant', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
-                    Text(
-                      payment['amount'] != null 
-                          ? _formatCurrency((payment['amount'] as num).toDouble(), payment['currency'] ?? 'EUR')
-                          : 'À définir',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                      ),
+                    Expanded(
+                      child: _buildActionButton('📋', 'Code', () {
+                        final code = _getPaymentCode(payment);
+                        Clipboard.setData(ClipboardData(text: code));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Code copié: $code')),
+                        );
+                      }, isDark),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton('⬇️', 'Télécharger', () async {
+                        if (qrCodeBase64 != null) {
+                          await _saveQRCodeToGallery(qrCodeBase64, payment['title'] ?? 'qr_code');
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('QR code non disponible')),
+                          );
+                        }
+                      }, isDark),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Statut', style: GoogleFonts.inter(color: const Color(0xFF64748B))),
-                    _buildStatusBadge(payment['status'] ?? 'pending', isDark),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          
-          // Payment Code Display
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'CODE DE PAIEMENT',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF64748B),
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isDark 
-                        ? const Color(0xFF6366F1).withOpacity(0.15)
-                        : const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark 
-                          ? const Color(0xFF6366F1).withOpacity(0.3)
-                          : const Color(0xFFC7D2FE),
-                      width: 2,
+                    Expanded(
+                      child: _buildActionButton('🔗', 'Lien', () {
+                        final link = payment['payment_link'] ?? 'https://app.zekora.com/pay/${_getPaymentCode(payment)}';
+                        Clipboard.setData(ClipboardData(text: link));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Lien copié!')),
+                        );
+                      }, isDark),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _getPaymentCode(payment),
-                          style: GoogleFonts.sourceCodePro(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF6366F1),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          final code = _getPaymentCode(payment);
-                          Clipboard.setData(ClipboardData(text: code));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Code copié: $code')),
-                          );
-                        },
-                        child: const Icon(Icons.copy, color: Color(0xFF6366F1), size: 22),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Actions
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton('📋', 'Code', () {
-                    final code = _getPaymentCode(payment);
-                    Clipboard.setData(ClipboardData(text: code));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Code copié: $code')),
-                    );
-                  }, isDark),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton('🔗', 'Lien', () {
-                    final link = payment['payment_link'] ?? 'https://app.zekora.com/pay/${_getPaymentCode(payment)}';
-                    Clipboard.setData(ClipboardData(text: link));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Lien copié!')),
-                    );
-                  }, isDark),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton('📤', 'Partager', () {
-                    final code = _getPaymentCode(payment);
-                    final link = payment['payment_link'] ?? 'https://app.zekora.com/pay/$code';
-                    Share.share('Paiement: ${payment['title']}\nCode: $code\n$link');
-                  }, isDark),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton('📤', 'Partager', () async {
+                        final code = _getPaymentCode(payment);
+                        final link = payment['payment_link'] ?? 'https://app.zekora.com/pay/$code';
+                        
+                        // If QR code available, share as image
+                        if (qrCodeBase64 != null) {
+                          await _shareQRCodeAsImage(qrCodeBase64, payment['title'] ?? 'Paiement', code, link);
+                        } else {
+                          Share.share('Paiement: ${payment['title']}\nCode: $code\n$link');
+                        }
+                      }, isDark),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -839,6 +873,66 @@ class _MerchantScreenState extends State<MerchantScreen> {
       return link.split('/pay/').last;
     }
     return '';
+  }
+
+  /// Save QR code image to device gallery/downloads
+  Future<void> _saveQRCodeToGallery(String qrCodeBase64, String title) async {
+    try {
+      // Decode base64 to bytes
+      final cleanBase64 = qrCodeBase64.replaceFirst('data:image/png;base64,', '');
+      final Uint8List bytes = base64Decode(cleanBase64);
+      
+      // Get downloads directory
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'qr_${title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${directory.path}/$fileName');
+      
+      // Write to file
+      await file.writeAsBytes(bytes);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('QR code sauvegardé: $fileName'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Share QR code as image file
+  Future<void> _shareQRCodeAsImage(String qrCodeBase64, String title, String code, String link) async {
+    try {
+      // Decode base64 to bytes
+      final cleanBase64 = qrCodeBase64.replaceFirst('data:image/png;base64,', '');
+      final Uint8List bytes = base64Decode(cleanBase64);
+      
+      // Create temp file
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'qr_$code.png';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+      
+      // Share with image
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Paiement: $title\nCode: $code\n$link',
+        subject: 'QR Code - $title',
+      );
+    } catch (e) {
+      // Fallback to text share
+      Share.share('Paiement: $title\nCode: $code\n$link');
+    }
   }
 
   Widget _buildActionButton(String emoji, String label, VoidCallback onTap, bool isDark) {

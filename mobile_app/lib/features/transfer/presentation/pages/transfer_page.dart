@@ -414,15 +414,17 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildP2PFields() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Destinataire (Email ou Téléphone)',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
         ),
         const SizedBox(height: 8),
@@ -431,17 +433,19 @@ class _TransferPageState extends State<TransferPage> {
             Expanded(
               child: TextField(
                 controller: _recipientController,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
                   hintText: 'ex: ami@email.com ou +225...',
+                  hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                   ),
                 ),
               ),
@@ -452,9 +456,9 @@ class _TransferPageState extends State<TransferPage> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: _isLookingUp
                     ? const SizedBox(
@@ -539,6 +543,8 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildMobileMoneyFields() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -548,23 +554,25 @@ class _TransferPageState extends State<TransferPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Pays', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                  Text('Pays', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButton<String>(
                       value: _selectedCountry,
                       isExpanded: true,
                       underline: const SizedBox(),
-                      items: const [
-                        DropdownMenuItem(value: 'CI', child: Text('🇨🇮 Côte d\'Ivoire')),
-                        DropdownMenuItem(value: 'SN', child: Text('🇸🇳 Sénégal')),
-                        DropdownMenuItem(value: 'CM', child: Text('🇨🇲 Cameroun')),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      items: [
+                        DropdownMenuItem(value: 'CI', child: Text('🇨🇮 Côte d\'Ivoire', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                        DropdownMenuItem(value: 'SN', child: Text('🇸🇳 Sénégal', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                        DropdownMenuItem(value: 'CM', child: Text('🇨🇲 Cameroun', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
                       ],
                       onChanged: (v) => setState(() => _selectedCountry = v!),
                     ),
@@ -577,23 +585,25 @@ class _TransferPageState extends State<TransferPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Opérateur', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+                  Text('Opérateur', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButton<String>(
                       value: _selectedProvider,
                       isExpanded: true,
                       underline: const SizedBox(),
-                      items: const [
-                        DropdownMenuItem(value: 'orange', child: Text('Orange Money')),
-                        DropdownMenuItem(value: 'mtn', child: Text('MTN MoMo')),
-                        DropdownMenuItem(value: 'wave', child: Text('Wave')),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      items: [
+                        DropdownMenuItem(value: 'orange', child: Text('Orange Money', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                        DropdownMenuItem(value: 'mtn', child: Text('MTN MoMo', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
+                        DropdownMenuItem(value: 'wave', child: Text('Wave', style: TextStyle(color: isDark ? Colors.white : Colors.black87))),
                       ],
                       onChanged: (v) => setState(() => _selectedProvider = v!),
                     ),
@@ -604,22 +614,24 @@ class _TransferPageState extends State<TransferPage> {
           ],
         ),
         const SizedBox(height: 16),
-        const Text('Numéro de téléphone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('Numéro de téléphone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: '+225 07...',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
           ),
         ),
@@ -628,45 +640,53 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildWireFields() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Nom de la banque', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('Nom de la banque', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _bankNameController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: 'ex: Ecobank',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
         ),
         const SizedBox(height: 16),
-        const Text('IBAN / Numéro de compte', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('IBAN / Numéro de compte', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _ibanController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: 'FR76...',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
         ),
         const SizedBox(height: 16),
-        const Text('Nom du bénéficiaire', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('Nom du bénéficiaire', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _recipientNameController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: 'Jean Dupont',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
         ),
       ],
@@ -674,21 +694,25 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildCryptoFields() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Adresse du portefeuille', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('Adresse du portefeuille', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _recipientController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: '0x... ou bc1...',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
             suffixIcon: IconButton(
-              icon: const Icon(Icons.qr_code_scanner),
+              icon: Icon(Icons.qr_code_scanner, color: isDark ? Colors.white70 : Colors.black54),
               onPressed: () {/* Scan QR */},
             ),
           ),
@@ -698,19 +722,23 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildDescriptionField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Note (Optionnel)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        Text('Note (Optionnel)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
         const SizedBox(height: 8),
         TextField(
           controller: _descriptionController,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: 'Ex: Loyer',
+            hintStyle: TextStyle(color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
           ),
         ),
       ],
@@ -718,6 +746,7 @@ class _TransferPageState extends State<TransferPage> {
   }
 
   Widget _buildSummary() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final amount = double.tryParse(_amountController.text) ?? 0;
     final fee = _getEstimatedFee();
     final total = amount + fee;
@@ -726,26 +755,26 @@ class _TransferPageState extends State<TransferPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Text('📝', style: TextStyle(fontSize: 18)),
-              SizedBox(width: 8),
-              Text('Résumé', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('📝', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text('Résumé', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Montant', style: TextStyle(color: Color(0xFF64748B))),
-              Text('${amount.toStringAsFixed(2)} $currency', style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text('Montant', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text('${amount.toStringAsFixed(2)} $currency', style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black87)),
             ],
           ),
           if (fee > 0) ...[
@@ -758,12 +787,12 @@ class _TransferPageState extends State<TransferPage> {
               ],
             ),
           ],
-          const Divider(height: 24),
+          Divider(height: 24, color: isDark ? const Color(0xFF334155) : null),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total à débiter', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('${total.toStringAsFixed(2)} $currency', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Text('Total à débiter', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+              Text('${total.toStringAsFixed(2)} $currency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
             ],
           ),
         ],

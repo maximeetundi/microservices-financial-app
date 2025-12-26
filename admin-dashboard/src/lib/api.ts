@@ -66,6 +66,27 @@ export const blockUser = (id: string, reason: string) =>
 export const unblockUser = (id: string) =>
     api.post(`/users/${id}/unblock`);
 
+// Auth-service admin endpoints (via Kong)
+const authApi = axios.create({
+    baseURL: `${API_URL}/auth-service/api/v1/admin`,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+authApi.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+// Unlock user PIN (reset failed attempts)
+export const unlockUserPin = (userId: string) =>
+    authApi.post(`/users/${userId}/unlock-pin`);
+
 // KYC
 export const approveKYC = (userId: string, level: string) =>
     api.post(`/kyc/${userId}/approve`, { level });

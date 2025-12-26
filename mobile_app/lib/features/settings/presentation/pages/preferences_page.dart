@@ -53,10 +53,22 @@ class _PreferencesPageState extends State<PreferencesPage> {
       final notifPrefs = await _authApi.getNotificationPrefs();
       
       setState(() {
-        _selectedTheme = prefs['theme'] ?? 'system';
-        _selectedLanguage = prefs['language'] ?? 'fr';
-        _defaultCurrency = prefs['default_currency'] ?? 'EUR';
-        _numberFormat = prefs['number_format'] ?? 'fr-FR';
+        // Validate theme
+        final savedTheme = prefs['theme'] ?? 'system';
+        _selectedTheme = ['light', 'dark', 'system'].contains(savedTheme) ? savedTheme : 'system';
+
+        // Validate language
+        final savedLanguage = prefs['language'] ?? 'fr';
+        _selectedLanguage = ['fr', 'en', 'es'].contains(savedLanguage) ? savedLanguage : 'fr';
+        
+        // Validate currency
+        final savedCurrency = prefs['default_currency'] ?? 'EUR';
+        _defaultCurrency = ['EUR', 'USD', 'GBP', 'XAF'].contains(savedCurrency) ? savedCurrency : 'EUR';
+
+        // Validate number format
+        final savedFormat = prefs['number_format'] ?? 'fr-FR';
+        _numberFormat = ['fr-FR', 'en-US', 'de-DE'].contains(savedFormat) ? savedFormat : 'fr-FR';
+
         _showBalances = prefs['show_balances'] ?? true;
         
         _emailNotifications = notifPrefs['email_enabled'] ?? true;

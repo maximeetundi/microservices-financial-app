@@ -238,7 +238,7 @@ const closeSidebarOnMobile = () => {
 }
 
 .nav-item.active {
-  @apply bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 shadow-sm;
+  @apply bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400;
 }
 
 .nav-item .icon {

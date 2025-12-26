@@ -106,7 +106,7 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                         _buildNavItem('💸', 'Virements', '/more/transfer', isDark),
                         _buildNavItem('🏪', 'Espace Marchand', '/more/merchant', isDark),
                         _buildNavItem('📷', 'Scanner / Payer', '/more/merchant/scan', isDark),
-                        _buildNavItem('🔔', 'Notifications', '/notifications', isDark),
+                        _buildNavItem('🔔', 'Notifications', '/dashboard/notifications', isDark),
                         _buildNavItem('⚙️', 'Paramètres', '/more', isDark),
                       ],
                     ),
@@ -206,19 +206,27 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Zekora',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+              SelectionContainer.disabled(
+                child: Text(
+                  'Zekora',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    decoration: TextDecoration.none,
+                    decorationColor: Colors.transparent,
+                  ),
                 ),
               ),
-              Text(
-                'Premium Banking',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              SelectionContainer.disabled(
+                child: Text(
+                  'Premium Banking',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    decoration: TextDecoration.none,
+                    decorationColor: Colors.transparent,
+                  ),
                 ),
               ),
             ],
@@ -231,13 +239,17 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
   Widget _buildSectionTitle(String title, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 12, left: 16),
-      child: Text(
-        title.toUpperCase(),
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-          color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+      child: SelectionContainer.disabled(
+        child: Text(
+          title.toUpperCase(),
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
+            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+            decoration: TextDecoration.none,
+            decorationColor: Colors.transparent,
+          ),
         ),
       ),
     );
@@ -273,7 +285,8 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                     color: isActive 
                         ? (isDark ? Colors.white : const Color(0xFF1E293B))
-                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
@@ -336,24 +349,32 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      userName,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    SelectionContainer.disabled(
+                      child: Text(
+                        userName,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      userEmail,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    SelectionContainer.disabled(
+                      child: Text(
+                        userEmail,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

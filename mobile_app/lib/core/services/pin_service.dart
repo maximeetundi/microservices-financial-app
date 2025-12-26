@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
@@ -87,6 +88,18 @@ class PinService {
         attemptsLeft: response.data['attempts_left'],
         message: response.data['message'] ?? 'PIN incorrect',
       );
+    } on DioException catch (e) {
+      // Handle 429 rate limit error (too many attempts)
+      if (e.response?.statusCode == 429) {
+        final data = e.response?.data;
+        return PinVerifyResult(
+          valid: false,
+          message: data?['message'] ?? 'Trop de tentatives. Réessayez plus tard.',
+          lockedUntil: data?['locked_until'],
+        );
+      }
+      debugPrint('Error verifying PIN: $e');
+      return PinVerifyResult(valid: false, message: 'Erreur de connexion');
     } catch (e) {
       debugPrint('Error verifying PIN: $e');
       return PinVerifyResult(valid: false, message: 'Erreur de connexion');
@@ -157,7 +170,7 @@ class PinVerifyResult {
   final bool valid;
   final int? attemptsLeft;
   final String? message;
-  final DateTime? lockedUntil;
+  final String? lockedUntil;
 
   PinVerifyResult({
     required this.valid,
@@ -166,5 +179,5 @@ class PinVerifyResult {
     this.lockedUntil,
   });
 
-  bool get isLocked => attemptsLeft != null && attemptsLeft == 0;
+  bool get isLocked => lockedUntil != null || (attemptsLeft != null && attemptsLeft == 0);
 }

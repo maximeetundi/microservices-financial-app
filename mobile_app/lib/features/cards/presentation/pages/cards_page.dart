@@ -60,7 +60,16 @@ class _CardsPageState extends State<CardsPage> {
                  child: Row(
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
-                     const SizedBox(width: 48), // Spacer
+                     GlassContainer(
+                       padding: EdgeInsets.zero,
+                       width: 48,
+                       height: 48, 
+                       borderRadius: 12,
+                       child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, size: 20, color: isDark ? Colors.white : AppTheme.textPrimaryColor),
+                        onPressed: () => context.go('/dashboard'),
+                      ),
+                     ),
                      Text(
                         'Mes Cartes 💳',
                          style: GoogleFonts.inter(

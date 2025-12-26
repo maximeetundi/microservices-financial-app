@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/providers/theme_provider.dart';
 import '../bloc/auth_bloc.dart';
 
 /// Login page matching web frontend design exactly
@@ -680,11 +681,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
         TextButton(
           onPressed: () => context.push('/auth/register'),
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
           child: Text(
             'Créer un compte',
             style: GoogleFonts.inter(
@@ -716,14 +712,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildThemeToggle(bool isDark) {
-    return GlassContainer(
-      padding: const EdgeInsets.all(12),
-      borderRadius: 12,
-      showTopHighlight: false,
-      child: Icon(
-        isDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
-        size: 20,
-        color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
+    return GestureDetector(
+      onTap: () => ThemeProvider().toggleTheme(),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(12),
+        borderRadius: 12,
+        showTopHighlight: false,
+        child: Icon(
+          isDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
+          size: 20,
+          color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
+        ),
       ),
     );
   }

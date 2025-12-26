@@ -603,12 +603,24 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       
       try {
         // Analyze image for QR code
-        final result = await _scannerController?.analyzeImage(image.path);
-        if (result != null && result.barcodes.isNotEmpty) {
-          final code = result.barcodes.first.rawValue;
-          if (code != null) {
-            await _processPaymentCode(code);
-            return;
+        final controller = _scannerController;
+        if (controller != null) {
+          await controller.analyzeImage(image.path);
+          
+          try {
+            final capture = await controller.barcodes.first.timeout(
+              const Duration(seconds: 3),
+            );
+            
+            if (capture.barcodes.isNotEmpty) {
+              final code = capture.barcodes.first.rawValue;
+              if (code != null) {
+                await _processPaymentCode(code);
+                return;
+              }
+            }
+          } catch (_) {
+             // Timeout or no code found, fall through to error
           }
         }
         setState(() {
@@ -741,9 +753,7 @@ class _PaymentConfirmationSheetState extends State<_PaymentConfirmationSheet> {
     try {
       final res = await widget.api.wallet.getWallets();
       setState(() {
-        _wallets = List<Map<String, dynamic>>.from(
-          res['wallets'] ?? res['data']?['wallets'] ?? res['data'] ?? []
-        );
+        _wallets = res;
         _loadingWallets = false;
       });
     } catch (e) {

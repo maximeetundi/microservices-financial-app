@@ -126,11 +126,15 @@ class WalletActions extends StatelessWidget {
 class WalletCard extends StatelessWidget {
   final Wallet wallet;
   final VoidCallback? onTap;
+  final VoidCallback? onRechargePressed;
+  final VoidCallback? onSendPressed;
 
   const WalletCard({
     Key? key,
     required this.wallet,
     this.onTap,
+    this.onRechargePressed,
+    this.onSendPressed,
   }) : super(key: key);
 
   @override
@@ -171,12 +175,15 @@ class WalletCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        wallet.name ?? '${_getCurrencyName(wallet.currency)} Wallet',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      Flexible(
+                        child: Text(
+                          wallet.name ?? '${_getCurrencyName(wallet.currency)} Wallet',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -239,18 +246,24 @@ class WalletCard extends StatelessWidget {
                 // Action buttons
                 Row(
                   children: [
-                    _buildMiniActionButton(
-                      context, 
-                      '💳', 
-                      'Recharger',
-                      isDark,
+                    GestureDetector(
+                      onTap: onRechargePressed,
+                      child: _buildMiniActionButton(
+                        context, 
+                        '💳', 
+                        'Recharger',
+                        isDark,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    _buildMiniActionButton(
-                      context, 
-                      '💸', 
-                      'Envoyer',
-                      isDark,
+                    GestureDetector(
+                      onTap: onSendPressed,
+                      child: _buildMiniActionButton(
+                        context, 
+                        '💸', 
+                        'Envoyer',
+                        isDark,
+                      ),
                     ),
                   ],
                 ),

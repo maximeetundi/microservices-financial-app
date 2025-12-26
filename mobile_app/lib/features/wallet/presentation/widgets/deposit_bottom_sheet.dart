@@ -28,23 +28,48 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
   bool _success = false;
 
   final List<Map<String, dynamic>> _paymentMethods = [
+    // Mobile Money Section
     {
       'id': 'orange',
       'name': 'Orange Money',
       'icon': '🟠',
       'color': Colors.orange,
+      'subtitle': 'Paiement instantané',
+      'section': 'mobile',
     },
     {
       'id': 'mtn',
       'name': 'MTN Mobile Money',
       'icon': '🟡',
       'color': Colors.yellow.shade700,
+      'subtitle': 'Paiement instantané',
+      'section': 'mobile',
     },
     {
       'id': 'wave',
       'name': 'Wave',
       'icon': '🌊',
       'color': Colors.blue,
+      'subtitle': 'Paiement instantané',
+      'section': 'mobile',
+    },
+    // Bank Transfer Section
+    {
+      'id': 'bank',
+      'name': 'Virement Bancaire',
+      'icon': '🏦',
+      'color': const Color(0xFF10B981), // Emerald green
+      'subtitle': 'IBAN / RIB • 1-3 jours',
+      'section': 'bank',
+    },
+    // Card Section
+    {
+      'id': 'card',
+      'name': 'Carte Bancaire',
+      'icon': '💳',
+      'color': const Color(0xFF8B5CF6), // Purple
+      'subtitle': 'Visa, Mastercard • Instantané',
+      'section': 'card',
     },
   ];
 
@@ -176,29 +201,62 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
               ),
             ] else ...[
               // Amount Input
-              const Text(
+              Text(
                 'Montant',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black87,
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black87,
                 ),
                 decoration: InputDecoration(
                   suffixText: widget.walletCurrency,
-                  suffixStyle: const TextStyle(
+                  suffixStyle: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white70 
+                        : Colors.grey.shade600,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.white24 
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.white24 
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF6366F1),
+                      width: 2,
+                    ),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor: Theme.of(context).brightness == Brightness.dark 
+                      ? const Color(0xFF1E293B) // Slate-800
+                      : Colors.grey.shade100,
                 ),
               ),
               const SizedBox(height: 12),
@@ -231,9 +289,14 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
               const SizedBox(height: 24),
 
               // Payment Methods
-              const Text(
+              Text(
                 'Méthode de paiement',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black87,
+                ),
               ),
               const SizedBox(height: 12),
               ...List.generate(_paymentMethods.length, (index) {
@@ -277,7 +340,7 @@ class _DepositBottomSheetState extends State<DepositBottomSheet> {
                                 ),
                               ),
                               Text(
-                                'Paiement instantané',
+                                method['subtitle'] as String? ?? 'Paiement instantané',
                                 style: TextStyle(
                                   color: Colors.grey.shade600,
                                   fontSize: 12,

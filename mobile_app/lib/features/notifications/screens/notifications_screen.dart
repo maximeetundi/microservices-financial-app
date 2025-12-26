@@ -14,6 +14,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<NotificationModel> _notifications = [];
   bool _isLoading = true;
   String? _error;
+  String _activeFilter = 'all';
+
+  // Filters matching web frontend
+  static const List<Map<String, String>> _filters = [
+    {'id': 'all', 'label': 'Toutes', 'icon': '📋'},
+    {'id': 'transfer', 'label': 'Transferts', 'icon': '💸'},
+    {'id': 'security', 'label': 'Sécurité', 'icon': '🔐'},
+    {'id': 'card', 'label': 'Cartes', 'icon': '💳'},
+  ];
+
+  List<NotificationModel> get _filteredNotifications {
+    if (_activeFilter == 'all') return _notifications;
+    return _notifications.where((n) => n.type == _activeFilter).toList();
+  }
 
   @override
   void initState() {
@@ -188,13 +202,88 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadNotifications,
-      child: ListView.separated(
-        itemCount: _notifications.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+    return Column(
+      children: [
+        // Filter Pills matching web frontend
+        _buildFilterPills(),
+        // Notifications List
+        Expanded(
+          child: _filteredNotifications.isEmpty
+              ? Center(
+                  child: Text(
+                    'Aucune notification dans cette catégorie',
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadNotifications,
+                  child: _buildNotificationsList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterPills() {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _filters.length,
         itemBuilder: (context, index) {
-          final notif = _notifications[index];
+          final filter = _filters[index];
+          final isActive = _activeFilter == filter['id'];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _activeFilter = filter['id']!;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Theme.of(context).primaryColor
+                      : Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isActive
+                        ? Theme.of(context).primaryColor
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(filter['icon']!, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text(
+                      filter['label']!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isActive ? Colors.white : Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationsList() {
+    return ListView.separated(
+      itemCount: _filteredNotifications.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final notif = _filteredNotifications[index];
           return Dismissible(
             key: Key(notif.id),
             direction: DismissDirection.endToStart,
@@ -253,8 +342,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
             ),
           );
-        },
-      ),
+      },
     );
   }
 }

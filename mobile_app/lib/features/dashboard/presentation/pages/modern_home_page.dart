@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
+import '../../../../core/services/pin_service.dart';
+import '../../../auth/presentation/pages/pin_setup_screen.dart';
 import '../../../../core/widgets/animated_drawer.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/stat_card.dart';
@@ -12,6 +14,9 @@ import '../../../../core/widgets/credit_card_widget.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
+import '../../../cards/presentation/bloc/cards_bloc.dart';
+import '../../../transfer/presentation/bloc/transfer_bloc.dart';
+import '../../../exchange/presentation/bloc/exchange_bloc.dart';
 
 /// Modern Home Page matching web frontend design exactly
 class ModernHomePage extends StatefulWidget {
@@ -35,23 +40,9 @@ class _ModernHomePageState extends State<ModernHomePage>
   int _monthlyTransfers = 0;
   double _monthlyVolume = 0.0;
 
-  // Sample crypto markets data (replace with API)
-  final List<Map<String, dynamic>> _cryptoMarkets = [
-    {'name': 'Bitcoin', 'symbol': 'BTC', 'price': 43250.0, 'change': 2.4, 'bgColor': const Color(0xFFF7931A)},
-    {'name': 'Ethereum', 'symbol': 'ETH', 'price': 2280.0, 'change': -1.2, 'bgColor': const Color(0xFF627EEA)},
-    {'name': 'Solana', 'symbol': 'SOL', 'price': 98.50, 'change': 5.8, 'bgColor': const Color(0xFF9945FF)},
-    {'name': 'BNB', 'symbol': 'BNB', 'price': 312.0, 'change': 0.8, 'bgColor': const Color(0xFFF0B90B)},
-  ];
-
-  // Sample fiat rates (replace with API)
-  final List<Map<String, dynamic>> _fiatRates = [
-    {'pair': 'EUR/USD', 'rate': 1.0832, 'change': 0.0012},
-    {'pair': 'GBP/USD', 'rate': 1.2714, 'change': -0.0008},
-    {'pair': 'USD/XOF', 'rate': 605.50, 'change': 0.15},
-    {'pair': 'EUR/GBP', 'rate': 0.8520, 'change': 0.0005},
-    {'pair': 'USD/CAD', 'rate': 1.3421, 'change': -0.0021},
-    {'pair': 'USD/JPY', 'rate': 149.25, 'change': 0.35},
-  ];
+  // Real data lists
+  List<Map<String, dynamic>> _cryptoMarkets = [];
+  List<Map<String, dynamic>> _fiatRates = [];
 
   @override
   void initState() {
@@ -61,8 +52,65 @@ class _ModernHomePageState extends State<ModernHomePage>
       duration: const Duration(milliseconds: 300),
     )..forward();
     
-    // Load wallet data
+    // Load all required data
     context.read<WalletBloc>().add(LoadWalletsEvent());
+    context.read<ExchangeBloc>().add(const LoadMarketsEvent());
+    context.read<ExchangeBloc>().add(const LoadExchangeRatesEvent());
+    context.read<CardsBloc>().add(const LoadCardsEvent());
+    context.read<TransferBloc>().add(const LoadTransferDataEvent());
+    
+    // Check PIN status and show setup modal if needed
+    _checkPinStatus();
+  }
+
+  Future<void> _refreshRates() async {
+    setState(() => _refreshingRates = true);
+    context.read<ExchangeBloc>().add(const LoadExchangeRatesEvent());
+    // Simulate delay or wait for state change (could be improved with BlocListener)
+    await Future.delayed(const Duration(seconds: 1)); 
+    if (mounted) setState(() => _refreshingRates = false);
+  }
+
+  /// Check if user has set their PIN and show setup modal if not
+  Future<void> _checkPinStatus() async {
+    final pinService = PinService();
+    
+    try {
+      // First check locally (fast)
+      final hasLocalPin = await pinService.isPinSetLocally();
+      if (hasLocalPin) return; // PIN already set
+      
+      // Check with API
+      final hasPin = await pinService.checkPinStatus();
+      
+      if (!hasPin && mounted) {
+        // Show PIN setup modal - user must set PIN before continuing
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          isDismissible: false,
+          enableDrag: false,
+          backgroundColor: Colors.transparent,
+          builder: (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: PinSetupScreen(
+              canSkip: false,
+              onPinSet: () {
+                // PIN has been set successfully
+                debugPrint('PIN défini avec succès depuis ModernHomePage');
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking PIN status: $e');
+      // Don't block user on error
+    }
   }
 
   @override
@@ -86,56 +134,155 @@ class _ModernHomePageState extends State<ModernHomePage>
       key: _drawerKey,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Container(
-          decoration: BoxDecoration(
-            // Match web background gradient exactly
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark 
-                  ? [const Color(0xFF0F0F1A), const Color(0xFF1A1A2E), const Color(0xFF16213E)]
-                  : [const Color(0xFFFAFBFC), const Color(0xFFF5F7F9), const Color(0xFFEEF1F5)],
+        body: MultiBlocListener(
+          listeners: [
+            BlocListener<ExchangeBloc, ExchangeState>(
+              listener: (context, state) {
+                if (state is MarketsLoadedState) {
+                  setState(() {
+                    List<dynamic> rawMarkets = [];
+                    if (state.markets['markets'] is List) {
+                       rawMarkets = state.markets['markets'] as List;
+                    } else if (state.markets is List) {
+                       rawMarkets = state.markets as List;
+                    }
+                    
+                    // Map backend fields to UI fields
+                    _cryptoMarkets = rawMarkets.map((market) {
+                      final m = Map<String, dynamic>.from(market);
+                      // Backend uses: symbol (BTC/USDT), base_asset (BTC), price, change_24h
+                      // UI expects: symbol, name, price, change, bgColor
+                      final baseAsset = m['base_asset']?.toString() ?? m['symbol']?.toString().split('/').first ?? '??';
+                      
+                      // Set bgColor based on symbol
+                      Color bgColor;
+                      switch (baseAsset) {
+                        case 'BTC': bgColor = const Color(0xFFF7931A); break;
+                        case 'ETH': bgColor = const Color(0xFF627EEA); break;
+                        case 'SOL': bgColor = const Color(0xFF9945FF); break;
+                        case 'BNB': bgColor = const Color(0xFFF0B90B); break;
+                        case 'XRP': bgColor = const Color(0xFF23292F); break;
+                        case 'ADA': bgColor = const Color(0xFF0033AD); break;
+                        case 'DOGE': bgColor = const Color(0xFFC2A633); break;
+                        default: bgColor = Colors.blueGrey;
+                      }
+                      
+                      return {
+                        'symbol': baseAsset,
+                        'name': baseAsset,
+                        'price': (m['price'] as num?)?.toDouble() ?? 0.0,
+                        'change': (m['change_24h'] as num?)?.toDouble() ?? 0.0,
+                        'bgColor': bgColor,
+                      };
+                    }).toList();
+                  });
+                } else if (state is ExchangeRatesLoadedState) {
+                  setState(() {
+                    if (state.rates.isNotEmpty) {
+                      _fiatRates = [];
+                      state.rates.forEach((key, value) {
+                        // value could be a Map with rate info or just a number
+                        double rateValue = 0.0;
+                        double changeValue = 0.0;
+                        String pair = '';
+                        
+                        if (value is Map) {
+                          rateValue = (value['rate'] as num?)?.toDouble() ?? 0.0;
+                          changeValue = (value['change_24h'] as num?)?.toDouble() ?? 0.0;
+                          pair = '${value['from_currency'] ?? 'USD'}/${value['to_currency'] ?? key}';
+                        } else if (value is num) {
+                          rateValue = value.toDouble();
+                          pair = 'USD/$key';
+                        }
+                        
+                        _fiatRates.add({
+                          'pair': pair,
+                          'rate': rateValue,
+                          'change': changeValue,
+                        });
+                      });
+                    }
+                  });
+                }
+              },
             ),
-          ),
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              _buildAppBar(context),
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with greeting
-                    _buildHeader(context),
-                    const SizedBox(height: 24),
-                    
-                    // Stats Cards Grid (4 cards like web)
-                    _buildStatsGrid(),
-                    const SizedBox(height: 32),
-                    
-                    // Quick Actions
-                    _buildQuickActionsSection(context),
-                    const SizedBox(height: 32),
-                    
-                    // Crypto Markets & Recent Activity (side by side on web, stacked on mobile)
-                    _buildCryptoMarketsSection(context),
-                    const SizedBox(height: 24),
-                    
-                    _buildRecentActivitySection(context),
-                    const SizedBox(height: 32),
-                    
-                    // My Cards Section
-                    _buildCardsSection(context),
-                    const SizedBox(height: 32),
-                    
-                    // Exchange Rates
-                    _buildExchangeRatesSection(context),
-                    
-                    const SizedBox(height: 100),
-                  ],
-                ),
+            BlocListener<CardsBloc, CardsState>(
+              listener: (context, state) {
+                if (state is CardsLoadedState) {
+                  setState(() {
+                    _activeCards = state.cards.where((c) => (c['status'] == 'ACTIVE' || c['status'] == 'active')).length;
+                    _cardsBalance = state.cards.fold(0.0, (sum, c) => sum + ((c['balance'] is num) ? (c['balance'] as num).toDouble() : 0.0));
+                  });
+                }
+              },
+            ),
+            BlocListener<TransferBloc, TransferState>(
+              listener: (context, state) {
+                if (state is TransferLoadedState) {
+                  final now = DateTime.now();
+                  final currentMonthTransfers = state.recentTransfers.where((t) => 
+                    t.createdAt.month == now.month && t.createdAt.year == now.year
+                  ).toList();
+                  
+                  setState(() {
+                    _monthlyTransfers = currentMonthTransfers.length;
+                    _monthlyVolume = currentMonthTransfers.fold(0.0, (sum, t) => sum + t.amount);
+                  });
+                }
+              },
+            ),
+          ],
+          child: Container(
+            decoration: BoxDecoration(
+              // Match web background gradient exactly
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark 
+                    ? [const Color(0xFF0F0F1A), const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+                    : [const Color(0xFFFAFBFC), const Color(0xFFF5F7F9), const Color(0xFFEEF1F5)],
               ),
-            ],
+            ),
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                _buildAppBar(context),
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with greeting
+                      _buildHeader(context),
+                      const SizedBox(height: 24),
+                      
+                      // Stats Cards Grid (4 cards like web)
+                      _buildStatsGrid(),
+                      const SizedBox(height: 32),
+                      
+                      // Quick Actions
+                      _buildQuickActionsSection(context),
+                      const SizedBox(height: 32),
+                      
+                      // Crypto Markets & Recent Activity (side by side on web, stacked on mobile)
+                      _buildCryptoMarketsSection(context),
+                      const SizedBox(height: 24),
+                      
+                      _buildRecentActivitySection(context),
+                      const SizedBox(height: 32),
+                      
+                      // My Cards Section
+                      _buildCardsSection(context),
+                      const SizedBox(height: 32),
+                      
+                      // Exchange Rates
+                      _buildExchangeRatesSection(context),
+                      
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         
@@ -297,10 +444,7 @@ class _ModernHomePageState extends State<ModernHomePage>
             }
           }
         }
-        _activeCards = 2; // Replace with actual API data
-        _cardsBalance = 3500.0; // Replace with actual API data
-        _monthlyTransfers = 12;
-        _monthlyVolume = 4500.0;
+        // Values are now set by BlocListeners from CardsBloc and TransferBloc
         
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -456,7 +600,12 @@ class _ModernHomePageState extends State<ModernHomePage>
   }
 
   Widget _buildCryptoMarketItem(Map<String, dynamic> crypto, bool isDark) {
-    final change = crypto['change'] as double;
+    // Null-safe parsing of values
+    final change = (crypto['change'] as num?)?.toDouble() ?? 0.0;
+    final price = (crypto['price'] as num?)?.toDouble() ?? 0.0;
+    final symbol = crypto['symbol']?.toString() ?? '??';
+    final name = crypto['name']?.toString() ?? 'Unknown';
+    final bgColor = crypto['bgColor'] as Color? ?? Colors.blueGrey;
     final isPositive = change >= 0;
     
     return Container(
@@ -479,16 +628,16 @@ class _ModernHomePageState extends State<ModernHomePage>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: (crypto['bgColor'] as Color).withOpacity(0.2),
+              color: bgColor.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
               child: Text(
-                crypto['symbol'].toString().substring(0, 2),
+                symbol.length >= 2 ? symbol.substring(0, 2) : symbol,
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: crypto['bgColor'] as Color,
+                  color: bgColor,
                 ),
               ),
             ),
@@ -499,7 +648,7 @@ class _ModernHomePageState extends State<ModernHomePage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  crypto['name'] as String,
+                  name,
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -507,7 +656,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                   ),
                 ),
                 Text(
-                  crypto['symbol'] as String,
+                  symbol,
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -520,7 +669,7 @@ class _ModernHomePageState extends State<ModernHomePage>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\$${(crypto['price'] as double).toStringAsFixed(crypto['price'] >= 100 ? 0 : 2)}',
+                '\$${price.toStringAsFixed(price >= 100 ? 0 : 2)}',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -663,73 +812,40 @@ class _ModernHomePageState extends State<ModernHomePage>
               ],
             ),
             const SizedBox(height: 20),
-            // Sample cards - replace with actual data
             SizedBox(
               height: 200,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  SizedBox(
-                    width: 320,
-                    child: CreditCardWidget(
-                      type: CreditCardType.virtual,
-                      cardNumber: '•••• •••• •••• 4532',
-                      cardholderName: 'John Doe',
-                      expiryDate: '12/28',
-                      balance: 2500.00,
-                      status: 'Active',
-                      onTap: () => context.push('/more/cards'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Add new card button
-                  GestureDetector(
-                    onTap: () => context.push('/more/cards'),
-                    child: Container(
-                      width: 200,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                          width: 2,
-                          style: BorderStyle.solid,
-                        ),
-                        color: isDark 
-                            ? const Color(0xFF1E293B).withOpacity(0.3)
-                            : const Color(0xFFF8FAFC).withOpacity(0.5),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: isDark 
-                                  ? const Color(0xFF334155).withOpacity(0.5)
-                                  : const Color(0xFFE2E8F0),
-                              borderRadius: BorderRadius.circular(32),
-                            ),
-                            child: Icon(
-                              Icons.add,
-                              size: 32,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Nouvelle Carte',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              child: BlocBuilder<CardsBloc, CardsState>(
+                builder: (context, state) {
+                  List<Widget> cardWidgets = [];
+                  
+                  if (state is CardsLoadedState && state.cards.isNotEmpty) {
+                     cardWidgets = state.cards.map((card) {
+                       return Padding(
+                         padding: const EdgeInsets.only(right: 16),
+                         child: SizedBox(
+                           width: 320,
+                           child: CreditCardWidget(
+                             type: (card['type'] == 'virtual') ? CreditCardType.virtual : CreditCardType.physical,
+                             cardNumber: card['card_number'] ?? '•••• •••• •••• ••••',
+                             cardholderName: card['cardholder_name'] ?? 'Utilisateur',
+                             expiryDate: card['expiry_date'] ?? '12/28',
+                             balance: (card['balance'] is num) ? (card['balance'] as num).toDouble() : 0.0,
+                             status: card['status'] ?? 'Active',
+                             onTap: () => context.push('/more/cards'),
+                           ),
+                         ),
+                       );
+                     }).toList();
+                  }
+
+                  // Add "New Card" button at the end
+                  cardWidgets.add(_buildAddCardButton(context, isDark));
+
+                  return ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: cardWidgets,
+                  );
+                },
               ),
             ),
           ],
@@ -798,7 +914,10 @@ class _ModernHomePageState extends State<ModernHomePage>
               itemCount: _fiatRates.length,
               itemBuilder: (context, index) {
                 final rate = _fiatRates[index];
-                final change = rate['change'] as double;
+                // Null-safe parsing
+                final change = (rate['change'] as num?)?.toDouble() ?? 0.0;
+                final rateValue = (rate['rate'] as num?)?.toDouble() ?? 1.0;
+                final pair = rate['pair']?.toString() ?? 'N/A';
                 final isPositive = change >= 0;
                 
                 return Container(
@@ -818,7 +937,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        rate['pair'] as String,
+                        pair,
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -827,7 +946,7 @@ class _ModernHomePageState extends State<ModernHomePage>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        (rate['rate'] as double).toStringAsFixed(4),
+                        rateValue.toStringAsFixed(4),
                         style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -854,13 +973,53 @@ class _ModernHomePageState extends State<ModernHomePage>
     );
   }
 
-  void _refreshRates() {
-    setState(() => _refreshingRates = true);
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _refreshingRates = false);
-      }
-    });
+  Widget _buildAddCardButton(BuildContext context, bool isDark) {
+    return GestureDetector(
+      onTap: () => context.push('/more/cards'),
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 2,
+            style: BorderStyle.solid,
+          ),
+          color: isDark 
+              ? const Color(0xFF1E293B).withOpacity(0.3)
+              : const Color(0xFFF8FAFC).withOpacity(0.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: isDark 
+                    ? const Color(0xFF334155).withOpacity(0.5)
+                    : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(
+                Icons.add,
+                size: 32,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Nouvelle Carte',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+
 }

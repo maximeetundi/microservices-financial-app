@@ -6,6 +6,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/biometric_setup_page.dart';
+import '../../features/auth/presentation/pages/pin_setup_page.dart';
 import '../../features/dashboard/presentation/pages/modern_home_page.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
 import '../../features/wallet/presentation/pages/wallet_detail_page.dart';
@@ -58,6 +59,11 @@ class AppRouter {
         path: '/auth/forgot-password',
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/auth/pin-setup',
+        name: 'pin-setup',
+        builder: (context, state) => const PinSetupPage(),
       ),
       GoRoute(
         path: '/auth/biometric-setup',
