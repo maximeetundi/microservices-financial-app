@@ -529,8 +529,9 @@ func (s *AuthService) Disable2FAForUser(userID, code string) error {
 // ======== PIN Management ========
 
 const (
-	MaxPinAttempts    = 3
-	PinLockoutMinutes = 15
+	MaxPinAttemptsFirst    = 7  // First lockout after 7 consecutive failed attempts
+	MaxPinAttemptsSecond   = 5  // Permanent lock after 5 more failed attempts
+	PinLockoutHours        = 24 // Temporary lock duration: 24 hours
 )
 
 // SetPin sets the 5-digit PIN for a user (first time setup)
@@ -555,7 +556,10 @@ func (s *AuthService) SetPin(userID string, pin string) error {
 	return s.userRepo.SetPin(userID, pinHash)
 }
 
-// VerifyPin verifies the user's PIN
+// VerifyPin verifies the user's PIN with progressive lockout:
+// - First 7 consecutive failed attempts: locked for 24 hours
+// - After 24h, 5 more consecutive failed attempts: permanently locked (admin only)
+// - Correct PIN resets the counter
 func (s *AuthService) VerifyPin(userID string, pin string) (*models.VerifyPinResponse, error) {
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
@@ -570,43 +574,88 @@ func (s *AuthService) VerifyPin(userID string, pin string) (*models.VerifyPinRes
 		}, nil
 	}
 
-	// Check if locked
+	// Check if permanently locked - only admin can unlock
+	if user.PinPermanentlyLocked {
+		return &models.VerifyPinResponse{
+			Valid:   false,
+			Message: "PIN is permanently locked. Please contact support.",
+		}, nil
+	}
+
+	// Check if temporarily locked (24h lock)
 	if user.PinLockedUntil != nil && time.Now().Before(*user.PinLockedUntil) {
 		return &models.VerifyPinResponse{
 			Valid:       false,
 			LockedUntil: user.PinLockedUntil,
-			Message:     "PIN is temporarily locked due to too many failed attempts",
+			Message:     "PIN is temporarily locked. Try again after 24 hours.",
 		}, nil
 	}
+
+	// If temp lock expired, check if we're in the "second phase" (after first temp lock)
+	wasTemporarilyLocked := user.PinTempLockCount > 0
 
 	// Verify PIN
 	err = s.userRepo.VerifyPassword(*user.PinHash, pin)
 	if err != nil {
 		// Wrong PIN - increment attempts
 		newAttempts := user.PinFailedAttempts + 1
-		var lockUntil *time.Time
-
-		if newAttempts >= MaxPinAttempts {
-			t := time.Now().Add(time.Duration(PinLockoutMinutes) * time.Minute)
-			lockUntil = &t
+		
+		// Determine max attempts based on lock phase
+		maxAttempts := MaxPinAttemptsFirst
+		if wasTemporarilyLocked {
+			maxAttempts = MaxPinAttemptsSecond
 		}
-
-		s.userRepo.IncrementPinFailedAttempts(userID, newAttempts, lockUntil)
-
-		attemptsLeft := MaxPinAttempts - newAttempts
+		
+		attemptsLeft := maxAttempts - newAttempts
 		if attemptsLeft < 0 {
 			attemptsLeft = 0
 		}
-
+		
+		var lockUntil *time.Time
+		permanentLock := false
+		
+		if newAttempts >= maxAttempts {
+			if wasTemporarilyLocked {
+				// Second phase - permanent lock
+				permanentLock = true
+				s.userRepo.SetPinPermanentlyLocked(userID, true)
+				
+				// Send notification to user
+				if s.auditService != nil {
+					s.auditService.LogPinLocked(userID, user.Email, user.Phone, newAttempts)
+				}
+				
+				return &models.VerifyPinResponse{
+					Valid:        false,
+					AttemptsLeft: 0,
+					Message:      "PIN is now permanently locked due to too many failed attempts. Contact support.",
+				}, nil
+			} else {
+				// First phase - temporary 24h lock
+				t := time.Now().Add(time.Duration(PinLockoutHours) * time.Hour)
+				lockUntil = &t
+				s.userRepo.SetPinTempLock(userID, newAttempts, lockUntil, 1) // tempLockCount = 1
+				
+				return &models.VerifyPinResponse{
+					Valid:        false,
+					AttemptsLeft: 0,
+					LockedUntil:  lockUntil,
+					Message:      "PIN locked for 24 hours due to too many failed attempts.",
+				}, nil
+			}
+		}
+		
+		// Not yet at limit - just increment
+		s.userRepo.IncrementPinFailedAttempts(userID, newAttempts, lockUntil)
+		
 		return &models.VerifyPinResponse{
 			Valid:        false,
 			AttemptsLeft: attemptsLeft,
-			LockedUntil:  lockUntil,
-			Message:      "Incorrect PIN",
+			Message:      fmt.Sprintf("Incorrect PIN. %d attempts remaining.", attemptsLeft),
 		}, nil
 	}
 
-	// PIN correct - reset failed attempts
+	// PIN correct - reset failed attempts and temp lock count
 	s.userRepo.ResetPinFailedAttempts(userID)
 
 	return &models.VerifyPinResponse{
@@ -646,14 +695,21 @@ func (s *AuthService) HasPin(userID string) (bool, error) {
 	return user.PinHash != nil && *user.PinHash != "", nil
 }
 
-// UnlockUserPin resets the PIN failed attempts counter (admin function)
+// UnlockUserPin resets the PIN failed attempts counter and permanent lock (admin function)
 func (s *AuthService) UnlockUserPin(userID string) error {
 	// Verify user exists
-	_, err := s.userRepo.GetByID(userID)
+	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
 
-	// Reset the PIN failed attempts and unlock
+	// Clear permanent lock if set
+	if user.PinPermanentlyLocked {
+		if err := s.userRepo.SetPinPermanentlyLocked(userID, false); err != nil {
+			return err
+		}
+	}
+
+	// Reset the PIN failed attempts, temp lock, and unlock
 	return s.userRepo.ResetPinFailedAttempts(userID)
 }

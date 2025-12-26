@@ -30,11 +30,13 @@ type User struct {
 	LockedUntil    *time.Time `json:"-" db:"locked_until"`
 	
 	// PIN fields (5-digit PIN for transaction security)
-	PinHash           *string    `json:"-" db:"pin_hash"`
-	PinSetAt          *time.Time `json:"pin_set_at,omitempty" db:"pin_set_at"`
-	PinFailedAttempts int        `json:"-" db:"pin_failed_attempts"`
-	PinLockedUntil    *time.Time `json:"-" db:"pin_locked_until"`
-	HasPin            bool       `json:"has_pin" db:"-"` // Computed field, not in DB
+	PinHash              *string    `json:"-" db:"pin_hash"`
+	PinSetAt             *time.Time `json:"pin_set_at,omitempty" db:"pin_set_at"`
+	PinFailedAttempts    int        `json:"-" db:"pin_failed_attempts"`
+	PinLockedUntil       *time.Time `json:"-" db:"pin_locked_until"`
+	PinPermanentlyLocked bool       `json:"pin_locked" db:"pin_permanently_locked"`
+	PinTempLockCount     int        `json:"-" db:"pin_temp_lock_count"` // Number of times temp locked (0 or 1)
+	HasPin               bool       `json:"has_pin" db:"-"`             // Computed field, not in DB
 }
 
 type Session struct {

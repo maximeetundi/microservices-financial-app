@@ -104,7 +104,8 @@ func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 		SELECT id, email, phone, first_name, last_name, date_of_birth, country,
 			   kyc_status, kyc_level, is_active, two_fa_enabled, email_verified,
 			   phone_verified, last_login_at, created_at, updated_at,
-			   pin_hash, pin_set_at, pin_failed_attempts, pin_locked_until
+			   pin_hash, pin_set_at, pin_failed_attempts, pin_locked_until,
+			   COALESCE(pin_permanently_locked, FALSE), COALESCE(pin_temp_lock_count, 0)
 		FROM users WHERE id = $1
 	`
 
@@ -115,6 +116,7 @@ func (r *UserRepository) GetByID(userID string) (*models.User, error) {
 		&user.TwoFAEnabled, &user.EmailVerified, &user.PhoneVerified,
 		&user.LastLoginAt, &user.CreatedAt, &user.UpdatedAt,
 		&user.PinHash, &user.PinSetAt, &user.PinFailedAttempts, &user.PinLockedUntil,
+		&user.PinPermanentlyLocked, &user.PinTempLockCount,
 	)
 
 	if err != nil {
@@ -368,7 +370,7 @@ func (r *UserRepository) HashPassword(password string) (string, error) {
 
 // SetPin sets or updates the user's PIN
 func (r *UserRepository) SetPin(userID string, pinHash string) error {
-	query := `UPDATE users SET pin_hash = $1, pin_set_at = NOW(), pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $2`
+	query := `UPDATE users SET pin_hash = $1, pin_set_at = NOW(), pin_failed_attempts = 0, pin_locked_until = NULL, pin_permanently_locked = FALSE, pin_temp_lock_count = 0 WHERE id = $2`
 	_, err := r.db.Exec(query, pinHash, userID)
 	return err
 }
@@ -380,9 +382,23 @@ func (r *UserRepository) IncrementPinFailedAttempts(userID string, attempts int,
 	return err
 }
 
-// ResetPinFailedAttempts resets the PIN failed attempts counter
+// ResetPinFailedAttempts resets the PIN failed attempts counter and temp lock count
 func (r *UserRepository) ResetPinFailedAttempts(userID string) error {
-	query := `UPDATE users SET pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $1`
+	query := `UPDATE users SET pin_failed_attempts = 0, pin_locked_until = NULL, pin_temp_lock_count = 0 WHERE id = $1`
 	_, err := r.db.Exec(query, userID)
+	return err
+}
+
+// SetPinTempLock sets a temporary lock on the PIN (24 hours)
+func (r *UserRepository) SetPinTempLock(userID string, attempts int, lockUntil *time.Time, tempLockCount int) error {
+	query := `UPDATE users SET pin_failed_attempts = $1, pin_locked_until = $2, pin_temp_lock_count = $3 WHERE id = $4`
+	_, err := r.db.Exec(query, attempts, lockUntil, tempLockCount, userID)
+	return err
+}
+
+// SetPinPermanentlyLocked sets or unsets the permanent lock on the PIN
+func (r *UserRepository) SetPinPermanentlyLocked(userID string, locked bool) error {
+	query := `UPDATE users SET pin_permanently_locked = $1, pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $2`
+	_, err := r.db.Exec(query, locked, userID)
 	return err
 }

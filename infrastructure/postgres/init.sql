@@ -723,3 +723,12 @@ INSERT INTO admins (email, password_hash, first_name, last_name, role_id, is_act
  (SELECT id FROM admin_roles WHERE name = 'super_admin'),
  true)
 ON CONFLICT (email) DO NOTHING;
+
+-- =====================================================
+-- PIN PROGRESSIVE LOCK SYSTEM
+-- Add columns for progressive PIN lockout:
+-- - pin_permanently_locked: TRUE when locked by admin only
+-- - pin_temp_lock_count: Number of times temp locked (0 or 1)
+-- =====================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_permanently_locked BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_temp_lock_count INTEGER DEFAULT 0;
