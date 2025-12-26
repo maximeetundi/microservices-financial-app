@@ -603,7 +603,9 @@ func (h *AuthHandler) SetPin(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "PIN is already set. Use change PIN endpoint."})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set PIN"})
+		// Log the error for debugging
+		log.Printf("Error setting PIN for user %s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to set PIN: %v", err)})
 		return
 	}
 

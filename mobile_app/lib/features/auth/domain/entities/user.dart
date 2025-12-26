@@ -13,6 +13,7 @@ class User extends Equatable {
   final bool isPhoneVerified;
   final bool isTwoFactorEnabled;
   final String kycLevel;
+  final bool hasPin;
   final UserPreferences preferences;
 
   const User({
@@ -28,6 +29,7 @@ class User extends Equatable {
     this.isPhoneVerified = false,
     this.isTwoFactorEnabled = false,
     this.kycLevel = 'none',
+    this.hasPin = false,
     this.preferences = const UserPreferences(),
   });
   
@@ -59,6 +61,7 @@ class User extends Equatable {
       isPhoneVerified: json['is_phone_verified'] ?? json['phone_verified'] ?? false,
       isTwoFactorEnabled: json['is_two_factor_enabled'] ?? json['two_fa_enabled'] ?? json['two_factor_enabled'] ?? false,
       kycLevel: kycLevelValue,
+      hasPin: json['has_pin'] ?? false,
       preferences: json['preferences'] != null 
           ? UserPreferences.fromJson(json['preferences']) 
           : const UserPreferences(),
@@ -148,6 +151,7 @@ class User extends Equatable {
         isPhoneVerified,
         isTwoFactorEnabled,
         kycLevel,
+        hasPin,
         preferences,
       ];
 }

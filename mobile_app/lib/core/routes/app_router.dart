@@ -255,7 +255,22 @@ class AppRouter {
     final isOnAuthPage = state.matchedLocation.startsWith('/auth');
     
     if (authState is AuthenticatedState) {
-      if (isOnAuthPage) return '/dashboard';
+      // Check if PIN is setup
+      // Note: We check if matchedLocation is NOT pin-setup to avoid infinite loop
+      if (!authState.user.hasPin && state.matchedLocation != '/auth/pin-setup') {
+        return '/auth/pin-setup';
+      }
+      
+      // If PIN is setup (or we are already on pin-setup), redirect away from other auth pages
+      // But allow pin-setup if we are there (though normally we should be redirected if hasPin is true, logic below handles it)
+      if (isOnAuthPage && state.matchedLocation != '/auth/pin-setup') return '/dashboard';
+      
+      // If PIN is setup and user tries to access pin-setup page, redirect to dashboard? 
+      // Maybe user wants to change pin? That would be a different route usually.
+      // For initial setup flow:
+      if (authState.user.hasPin && state.matchedLocation == '/auth/pin-setup') {
+         return '/dashboard';
+      }
     } else if (authState is UnauthenticatedState) {
       if (!isOnAuthPage) return '/auth/login';
     }
