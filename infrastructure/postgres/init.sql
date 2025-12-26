@@ -13,7 +13,7 @@ CREATE TABLE users (
     last_name VARCHAR(100) NOT NULL,
     date_of_birth DATE,
     country VARCHAR(3) NOT NULL, -- ISO country code
-    kyc_status VARCHAR(20) DEFAULT 'pending', -- pending, verified, rejected
+    kyc_status VARCHAR(20) DEFAULT 'none', -- none, pending, verified, rejected
     kyc_level INTEGER DEFAULT 1, -- 1, 2, 3 (verification levels)
     role VARCHAR(20) DEFAULT 'user', -- user, admin, support
     is_active BOOLEAN DEFAULT true,
