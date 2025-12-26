@@ -375,7 +375,13 @@ func (r *AdminRepository) queryToMaps(db *sql.DB, query string, args ...interfac
 
 		row := make(map[string]interface{})
 		for i, col := range columns {
-			row[col] = values[i]
+			val := values[i]
+			// Convert []byte to string to prevent base64 encoding in JSON
+			if b, ok := val.([]byte); ok {
+				row[col] = string(b)
+			} else {
+				row[col] = val
+			}
 		}
 		results = append(results, row)
 	}
