@@ -274,3 +274,14 @@ func (r *WalletRepository) GetWalletStats(userID string) (*models.WalletStats, e
 
 	return &stats, nil
 }
+
+// GetUserCountry retrieves the user's country code from users table
+func (r *WalletRepository) GetUserCountry(userID string) (string, error) {
+	query := `SELECT country FROM users WHERE id = $1`
+	var country string
+	err := r.db.QueryRow(query, userID).Scan(&country)
+	if err != nil {
+		return "", err
+	}
+	return country, nil
+}

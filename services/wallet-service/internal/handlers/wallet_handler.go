@@ -37,10 +37,14 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 
 	// Auto-create a default wallet if user has none
 	if len(wallets) == 0 {
+		// Get user's country to determine currency
+		userCountry := h.walletService.GetUserCountry(userID.(string))
+		defaultCurrency := getCurrencyForCountry(userCountry)
+		
 		name := "Wallet Principal"
 		desc := "Wallet créé automatiquement"
 		defaultReq := &models.CreateWalletRequest{
-			Currency:    "XOF", // Default currency for African users
+			Currency:    defaultCurrency,
 			WalletType:  "fiat",
 			Name:        &name,
 			Description: &desc,
@@ -53,6 +57,68 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"wallets": wallets})
+}
+
+// getCurrencyForCountry returns the appropriate currency for a country code
+func getCurrencyForCountry(countryCode string) string {
+	// UEMOA - West African CFA Franc (XOF)
+	xofCountries := map[string]bool{
+		"BJ": true, "BF": true, "CI": true, "GW": true,
+		"ML": true, "NE": true, "SN": true, "TG": true,
+	}
+	// CEMAC - Central African CFA Franc (XAF)
+	xafCountries := map[string]bool{
+		"CM": true, "CF": true, "TD": true, "CG": true, "GQ": true, "GA": true,
+	}
+	// Eurozone
+	eurCountries := map[string]bool{
+		"FR": true, "DE": true, "IT": true, "ES": true, "PT": true,
+		"NL": true, "BE": true, "AT": true, "IE": true, "FI": true,
+		"GR": true, "SK": true, "SI": true, "EE": true, "LV": true,
+		"LT": true, "CY": true, "MT": true, "LU": true,
+	}
+
+	if countryCode == "GB" || countryCode == "UK" {
+		return "GBP"
+	}
+	if countryCode == "US" || countryCode == "PR" {
+		return "USD"
+	}
+	if countryCode == "CA" {
+		return "CAD"
+	}
+	if xofCountries[countryCode] {
+		return "XOF"
+	}
+	if xafCountries[countryCode] {
+		return "XAF"
+	}
+	if eurCountries[countryCode] {
+		return "EUR"
+	}
+
+	// Other African countries
+	switch countryCode {
+	case "MA":
+		return "MAD"
+	case "DZ":
+		return "DZD"
+	case "TN":
+		return "TND"
+	case "EG":
+		return "EGP"
+	case "NG":
+		return "NGN"
+	case "GH":
+		return "GHS"
+	case "KE":
+		return "KES"
+	case "ZA":
+		return "ZAR"
+	}
+
+	// Default to USD for unknown countries
+	return "USD"
 }
 
 func (h *WalletHandler) CreateWallet(c *gin.Context) {

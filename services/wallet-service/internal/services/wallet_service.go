@@ -111,6 +111,15 @@ func (s *WalletService) GetUserWallets(userID string) ([]*models.Wallet, error) 
 	return wallets, nil
 }
 
+// GetUserCountry retrieves the user's country code from the database
+func (s *WalletService) GetUserCountry(userID string) string {
+	country, err := s.walletRepo.GetUserCountry(userID)
+	if err != nil || country == "" {
+		return "" // Will default to USD in getCurrencyForCountry
+	}
+	return country
+}
+
 func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryptoRequest) (*models.Transaction, error) {
 	// Get wallet and verify ownership
 	wallet, err := s.GetWallet(walletID, userID)

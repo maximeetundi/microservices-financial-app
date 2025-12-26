@@ -40,13 +40,20 @@ func (r *PreferencesRepository) GetUserPreferences(userID string) (*models.UserP
 }
 
 func (r *PreferencesRepository) CreateDefaultPreferences(userID string) (*models.UserPreferences, error) {
+	return r.CreateDefaultPreferencesWithCountry(userID, "")
+}
+
+// CreateDefaultPreferencesWithCountry creates default preferences with currency based on country
+func (r *PreferencesRepository) CreateDefaultPreferencesWithCountry(userID, countryCode string) (*models.UserPreferences, error) {
+	currency := getCurrencyForCountry(countryCode)
+	
 	prefs := &models.UserPreferences{
 		ID:               uuid.New().String(),
 		UserID:           userID,
 		Theme:            "dark",
-		Language:         "fr",
-		Currency:         "XOF",
-		Timezone:         "Europe/Paris",
+		Language:         getLanguageForCountry(countryCode),
+		Currency:         currency,
+		Timezone:         getTimezoneForCountry(countryCode),
 		NumberFormat:     "fr",
 		DateFormat:       "DD/MM/YYYY",
 		HideBalances:     false,
@@ -69,6 +76,145 @@ func (r *PreferencesRepository) CreateDefaultPreferences(userID string) (*models
 		return nil, err
 	}
 	return prefs, nil
+}
+
+// getCurrencyForCountry returns the appropriate currency for a country code
+func getCurrencyForCountry(countryCode string) string {
+	// UEMOA - West African CFA Franc (XOF)
+	xofCountries := map[string]bool{
+		"BJ": true, // Benin
+		"BF": true, // Burkina Faso
+		"CI": true, // Côte d'Ivoire
+		"GW": true, // Guinea-Bissau
+		"ML": true, // Mali
+		"NE": true, // Niger
+		"SN": true, // Senegal
+		"TG": true, // Togo
+	}
+
+	// CEMAC - Central African CFA Franc (XAF)
+	xafCountries := map[string]bool{
+		"CM": true, // Cameroon
+		"CF": true, // Central African Republic
+		"TD": true, // Chad
+		"CG": true, // Congo
+		"GQ": true, // Equatorial Guinea
+		"GA": true, // Gabon
+	}
+
+	// Eurozone
+	eurCountries := map[string]bool{
+		"FR": true, "DE": true, "IT": true, "ES": true, "PT": true,
+		"NL": true, "BE": true, "AT": true, "IE": true, "FI": true,
+		"GR": true, "SK": true, "SI": true, "EE": true, "LV": true,
+		"LT": true, "CY": true, "MT": true, "LU": true,
+	}
+
+	// UK
+	if countryCode == "GB" || countryCode == "UK" {
+		return "GBP"
+	}
+
+	// USA and territories
+	if countryCode == "US" || countryCode == "PR" || countryCode == "VI" {
+		return "USD"
+	}
+
+	// Canada
+	if countryCode == "CA" {
+		return "CAD"
+	}
+
+	// Check currency zones
+	if xofCountries[countryCode] {
+		return "XOF"
+	}
+	if xafCountries[countryCode] {
+		return "XAF"
+	}
+	if eurCountries[countryCode] {
+		return "EUR"
+	}
+
+	// Other African countries
+	switch countryCode {
+	case "MA":
+		return "MAD" // Morocco
+	case "DZ":
+		return "DZD" // Algeria
+	case "TN":
+		return "TND" // Tunisia
+	case "EG":
+		return "EGP" // Egypt
+	case "NG":
+		return "NGN" // Nigeria
+	case "GH":
+		return "GHS" // Ghana
+	case "KE":
+		return "KES" // Kenya
+	case "ZA":
+		return "ZAR" // South Africa
+	case "TZ":
+		return "TZS" // Tanzania
+	case "UG":
+		return "UGX" // Uganda
+	case "RW":
+		return "RWF" // Rwanda
+	case "CD":
+		return "CDF" // DR Congo
+	case "AO":
+		return "AOA" // Angola
+	case "MZ":
+		return "MZN" // Mozambique
+	case "ET":
+		return "ETB" // Ethiopia
+	case "GN":
+		return "GNF" // Guinea
+	}
+
+	// Default to USD for unknown countries
+	return "USD"
+}
+
+// getLanguageForCountry returns appropriate language
+func getLanguageForCountry(countryCode string) string {
+	frenchCountries := map[string]bool{
+		"FR": true, "BE": true, "CH": true, "CA": true,
+		"BJ": true, "BF": true, "CI": true, "GW": true, "ML": true,
+		"NE": true, "SN": true, "TG": true, "CM": true, "CF": true,
+		"TD": true, "CG": true, "GA": true, "MA": true, "DZ": true,
+		"TN": true, "CD": true, "RW": true, "MG": true,
+	}
+	if frenchCountries[countryCode] {
+		return "fr"
+	}
+	return "en"
+}
+
+// getTimezoneForCountry returns appropriate timezone
+func getTimezoneForCountry(countryCode string) string {
+	switch countryCode {
+	case "US":
+		return "America/New_York"
+	case "GB", "UK":
+		return "Europe/London"
+	case "FR", "DE", "IT", "ES", "BE", "NL":
+		return "Europe/Paris"
+	case "CI", "SN", "ML", "BF", "NE", "TG", "BJ", "GH", "GN":
+		return "Africa/Abidjan"
+	case "CM", "GA", "CG", "CF", "TD", "NG":
+		return "Africa/Lagos"
+	case "MA":
+		return "Africa/Casablanca"
+	case "EG":
+		return "Africa/Cairo"
+	case "ZA":
+		return "Africa/Johannesburg"
+	case "KE", "TZ", "UG", "RW", "ET":
+		return "Africa/Nairobi"
+	default:
+		return "UTC"
+	}
 }
 
 func (r *PreferencesRepository) UpdateUserPreferences(userID string, req *models.UpdatePreferencesRequest) (*models.UserPreferences, error) {
