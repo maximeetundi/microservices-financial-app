@@ -417,7 +417,142 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Data:     event,
 			Channels: []string{"push", "email"}, // Pas de SMS
 		}
-		
+
+	// ===== USER ACCOUNT EVENTS =====
+	case "user.registered":
+		firstName, _ := event["first_name"].(string)
+		return &Notification{
+			Title:    "👋 Bienvenue sur Zekora",
+			Body:     fmt.Sprintf("Bonjour %s! Votre compte a été créé avec succès. Vérifiez votre identité pour débloquer toutes les fonctionnalités.", firstName),
+			Type:     "account",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+	case "user.blocked":
+		reason, _ := event["reason"].(string)
+		body := "Votre compte a été temporairement suspendu."
+		if reason != "" {
+			body = fmt.Sprintf("Votre compte a été suspendu: %s", reason)
+		}
+		return &Notification{
+			Title:    "🚫 Compte suspendu",
+			Body:     body + " Contactez le support pour plus d'informations.",
+			Type:     "security",
+			Priority: PriorityCritical,
+			Data:     event,
+			Channels: []string{"push", "email", "sms"},
+		}
+	case "user.unblocked":
+		return &Notification{
+			Title:    "✅ Compte réactivé",
+			Body:     "Bonne nouvelle! Votre compte a été réactivé. Vous pouvez maintenant vous connecter.",
+			Type:     "account",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email", "sms"},
+		}
+	case "user.pin_locked":
+		return &Notification{
+			Title:    "🔒 Code PIN bloqué",
+			Body:     "Votre code PIN a été bloqué après plusieurs tentatives incorrectes. Contactez le support.",
+			Type:     "security",
+			Priority: PriorityCritical,
+			Data:     event,
+			Channels: []string{"push", "email", "sms"},
+		}
+	case "user.pin_unlocked":
+		return &Notification{
+			Title:    "🔓 Code PIN débloqué",
+			Body:     "Votre code PIN a été débloqué. Vous pouvez maintenant l'utiliser normalement.",
+			Type:     "account",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+	case "user.pin_changed":
+		return &Notification{
+			Title:    "🔐 Code PIN modifié",
+			Body:     "Votre code PIN a été modifié avec succès. Si ce n'était pas vous, contactez le support.",
+			Type:     "security",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email", "sms"},
+		}
+
+	// ===== ADMIN ACTION EVENTS =====
+	case "admin.user_created":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "👤 Nouveau compte",
+			Body:     fmt.Sprintf("Nouveau compte créé: %s", email),
+			Type:     "admin",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.user_blocked":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "🚫 Compte bloqué",
+			Body:     fmt.Sprintf("Compte bloqué: %s", email),
+			Type:     "admin",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.user_unblocked":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "✅ Compte débloqué",
+			Body:     fmt.Sprintf("Compte débloqué: %s", email),
+			Type:     "admin",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.pin_unlocked":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "🔓 PIN débloqué",
+			Body:     fmt.Sprintf("PIN débloqué pour: %s", email),
+			Type:     "admin",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.transaction_blocked":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		return &Notification{
+			Title:    "🛑 Transaction bloquée",
+			Body:     fmt.Sprintf("Transaction de %.2f %s bloquée", amount, currency),
+			Type:     "admin",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.kyc_approved":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "✅ KYC Approuvé",
+			Body:     fmt.Sprintf("KYC approuvé pour: %s", email),
+			Type:     "admin",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+	case "admin.kyc_rejected":
+		email, _ := event["user_email"].(string)
+		return &Notification{
+			Title:    "❌ KYC Rejeté",
+			Body:     fmt.Sprintf("KYC rejeté pour: %s", email),
+			Type:     "admin",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push"},
+		}
+
 	default:
 		log.Printf("Unknown event type: %s", eventType)
 		return nil

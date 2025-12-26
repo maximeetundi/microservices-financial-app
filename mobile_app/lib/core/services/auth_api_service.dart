@@ -83,7 +83,8 @@ class AuthApiService {
   Future<Map<String, dynamic>> getProfile() async {
     final response = await _client.get(ApiEndpoints.profile);
     if (response.statusCode == 200) {
-      return response.data['user'];
+      // API returns profile data directly, not wrapped in 'user' field
+      return response.data as Map<String, dynamic>;
     }
     throw Exception('Failed to get profile');
   }

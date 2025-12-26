@@ -211,9 +211,34 @@ func (s *AdminService) GetWallets(limit, offset int) ([]map[string]interface{}, 
 // ========== Admin Actions via RabbitMQ ==========
 
 func (s *AdminService) BlockUser(userID, reason, adminID string) error {
+	// Get user email for notification
+	user, _ := s.repo.GetUserByID(userID)
+	
 	// Direct database update for immediate effect
 	if err := s.repo.BlockUser(userID); err != nil {
 		return err
+	}
+	
+	// Publish notification to user
+	if user != nil {
+		userNotif := map[string]interface{}{
+			"type":    "user.blocked",
+			"user_id": userID,
+			"email":   user["email"],
+			"phone":   user["phone"],
+			"reason":  reason,
+		}
+		s.publishNotification("auth.events", "user.blocked", userNotif)
+		
+		// Also publish admin notification
+		adminNotif := map[string]interface{}{
+			"type":       "admin.user_blocked",
+			"user_id":    userID,
+			"user_email": user["email"],
+			"admin_id":   adminID,
+			"reason":     reason,
+		}
+		s.publishNotification("auth.events", "admin.user_blocked", adminNotif)
 	}
 	
 	// Also publish to RabbitMQ for other services
@@ -228,9 +253,32 @@ func (s *AdminService) BlockUser(userID, reason, adminID string) error {
 }
 
 func (s *AdminService) UnblockUser(userID, adminID string) error {
+	// Get user email for notification
+	user, _ := s.repo.GetUserByID(userID)
+	
 	// Direct database update for immediate effect
 	if err := s.repo.UnblockUser(userID); err != nil {
 		return err
+	}
+	
+	// Publish notification to user
+	if user != nil {
+		userNotif := map[string]interface{}{
+			"type":    "user.unblocked",
+			"user_id": userID,
+			"email":   user["email"],
+			"phone":   user["phone"],
+		}
+		s.publishNotification("auth.events", "user.unblocked", userNotif)
+		
+		// Also publish admin notification
+		adminNotif := map[string]interface{}{
+			"type":       "admin.user_unblocked",
+			"user_id":    userID,
+			"user_email": user["email"],
+			"admin_id":   adminID,
+		}
+		s.publishNotification("auth.events", "admin.user_unblocked", adminNotif)
 	}
 	
 	// Also publish to RabbitMQ for other services
@@ -356,6 +404,14 @@ func (s *AdminService) publishCommand(exchange, routingKey string, cmd map[strin
 		return err
 	}
 	return s.mq.Publish(exchange, routingKey, data)
+}
+
+func (s *AdminService) publishNotification(exchange, routingKey string, notif map[string]interface{}) {
+	data, err := json.Marshal(notif)
+	if err != nil {
+		return
+	}
+	s.mq.Publish(exchange, routingKey, data)
 }
 
 // ========== Audit Logs ==========

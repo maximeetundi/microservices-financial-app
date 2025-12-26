@@ -142,6 +142,152 @@ func (s *AuditService) LogSessionRevoked(userID, sessionID, ipAddress, userAgent
 	})
 }
 
+// LogUserBlocked logs when a user account is blocked
+func (s *AuditService) LogUserBlocked(userID, email, reason, adminID string) {
+	// Send to user (via auth.events exchange that notification-service listens to)
+	s.publishNotification("user.blocked", map[string]interface{}{
+		"type":     "user.blocked",
+		"user_id":  userID,
+		"email":    email,
+		"phone":    "",
+		"reason":   reason,
+		"admin_id": adminID,
+	})
+	
+	// Also log audit event
+	s.publishEvent("auth.user_blocked", AuditEvent{
+		Type:    "user_blocked",
+		UserID:  userID,
+		Email:   email,
+		Success: true,
+		Details: map[string]interface{}{
+			"reason":   reason,
+			"admin_id": adminID,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// LogUserUnblocked logs when a user account is unblocked
+func (s *AuditService) LogUserUnblocked(userID, email, adminID string) {
+	// Send to user
+	s.publishNotification("user.unblocked", map[string]interface{}{
+		"type":     "user.unblocked",
+		"user_id":  userID,
+		"email":    email,
+		"phone":    "",
+		"admin_id": adminID,
+	})
+	
+	// Also log audit event
+	s.publishEvent("auth.user_unblocked", AuditEvent{
+		Type:    "user_unblocked",
+		UserID:  userID,
+		Email:   email,
+		Success: true,
+		Details: map[string]interface{}{
+			"admin_id": adminID,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// LogPinLocked logs when a user's PIN is locked due to failed attempts
+func (s *AuditService) LogPinLocked(userID, email, phone string, failedAttempts int) {
+	s.publishNotification("user.pin_locked", map[string]interface{}{
+		"type":            "user.pin_locked",
+		"user_id":         userID,
+		"email":           email,
+		"phone":           phone,
+		"failed_attempts": failedAttempts,
+	})
+	
+	s.publishEvent("auth.pin_locked", AuditEvent{
+		Type:    "pin_locked",
+		UserID:  userID,
+		Email:   email,
+		Success: false,
+		Details: map[string]interface{}{
+			"failed_attempts": failedAttempts,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// LogPinUnlocked logs when a user's PIN is unlocked by admin
+func (s *AuditService) LogPinUnlocked(userID, email, adminID string) {
+	s.publishNotification("user.pin_unlocked", map[string]interface{}{
+		"type":     "user.pin_unlocked",
+		"user_id":  userID,
+		"email":    email,
+		"phone":    "",
+		"admin_id": adminID,
+	})
+	
+	s.publishEvent("auth.pin_unlocked", AuditEvent{
+		Type:    "pin_unlocked",
+		UserID:  userID,
+		Email:   email,
+		Success: true,
+		Details: map[string]interface{}{
+			"admin_id": adminID,
+		},
+		Timestamp: time.Now(),
+	})
+}
+
+// LogUserRegistered logs when a new user registers
+func (s *AuditService) LogUserRegistered(userID, email, firstName, phone string) {
+	s.publishNotification("user.registered", map[string]interface{}{
+		"type":       "user.registered",
+		"user_id":    userID,
+		"email":      email,
+		"phone":      phone,
+		"first_name": firstName,
+	})
+}
+
+// LogPinChanged logs when a user changes their PIN
+func (s *AuditService) LogPinChanged(userID, email, phone string) {
+	s.publishNotification("user.pin_changed", map[string]interface{}{
+		"type":    "user.pin_changed",
+		"user_id": userID,
+		"email":   email,
+		"phone":   phone,
+	})
+}
+
+// publishNotification publishes to auth.events exchange for notification-service
+func (s *AuditService) publishNotification(routingKey string, event map[string]interface{}) {
+	if s.mqChannel == nil {
+		log.Printf("[NOTIFICATION] %s: %v", routingKey, event)
+		return
+	}
+
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("Failed to marshal notification event: %v", err)
+		return
+	}
+
+	// Publish to auth.events exchange (notification-service listens to this)
+	err = s.mqChannel.Publish(
+		"auth.events", // exchange
+		routingKey,    // routing key
+		false,         // mandatory
+		false,         // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        eventJSON,
+		},
+	)
+	if err != nil {
+		log.Printf("Failed to publish notification event: %v", err)
+	} else {
+		log.Printf("[NOTIFICATION] ✅ Published %s", routingKey)
+	}
+}
+
 func (s *AuditService) publishEvent(routingKey string, event AuditEvent) {
 	if s.mqChannel == nil {
 		log.Printf("[AUDIT] %s: user=%s success=%v ip=%s", event.Type, event.UserID, event.Success, event.IPAddress)
@@ -168,3 +314,4 @@ func (s *AuditService) publishEvent(routingKey string, event AuditEvent) {
 		log.Printf("Failed to publish audit event: %v", err)
 	}
 }
+

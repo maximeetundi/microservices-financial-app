@@ -17,6 +17,7 @@ import {
     Bars3Icon,
     XMarkIcon,
     SparklesIcon,
+    BellIcon,
 } from '@heroicons/react/24/outline';
 import { logout } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,6 +33,7 @@ const navigation = [
     { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowsRightLeftIcon },
     { name: 'Cartes', href: '/dashboard/cards', icon: CreditCardIcon },
     { name: 'Portefeuilles', href: '/dashboard/wallets', icon: WalletIcon },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
     { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
     { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
