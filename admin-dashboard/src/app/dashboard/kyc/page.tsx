@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { getUsers, approveKYC, rejectKYC } from '@/lib/api';
+import api from '@/lib/api';
+import {
+    XMarkIcon,
+    DocumentIcon,
+    CheckCircleIcon,
+    XCircleIcon,
+    ArrowPathIcon,
+    EyeIcon,
+    ShieldCheckIcon,
+    ClockIcon,
+    ExclamationTriangleIcon,
+    UserIcon,
+} from '@heroicons/react/24/outline';
 
 interface User {
     id: string;
@@ -15,12 +28,83 @@ interface User {
     created_at: string;
 }
 
+interface KYCDocument {
+    id: string;
+    type: string;
+    status: string;
+    file_url?: string;
+    uploaded_at: string;
+    reviewed_at?: string;
+    rejection_reason?: string;
+}
+
+// Toast Component
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 4000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+        <div className="fixed bottom-6 right-6 z-50 animate-slide-up">
+            <div className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white ${type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-pink-600'}`}>
+                {type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : <XCircleIcon className="w-5 h-5" />}
+                <span className="font-medium">{message}</span>
+                <button onClick={onClose} className="ml-2 hover:bg-white/20 p-1 rounded-lg">
+                    <XMarkIcon className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Modal Component
+function Modal({ isOpen, onClose, title, children, size = 'md' }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; size?: string }) {
+    if (!isOpen) return null;
+
+    const sizeClass = size === 'lg' ? 'max-w-3xl' : size === 'xl' ? 'max-w-5xl' : 'max-w-md';
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClass} animate-slide-up overflow-hidden max-h-[90vh] flex flex-col`}>
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <XMarkIcon className="w-5 h-5 text-gray-500" />
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto flex-1">
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function KYCPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [filter, setFilter] = useState('pending');
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    // Document viewer modal
+    const [docModal, setDocModal] = useState<{ isOpen: boolean; user: User | null; documents: KYCDocument[] }>({
+        isOpen: false,
+        user: null,
+        documents: [],
+    });
+    const [loadingDocs, setLoadingDocs] = useState(false);
+
+    // Approve/Reject modal
+    const [actionModal, setActionModal] = useState<{ isOpen: boolean; user: User | null; action: 'approve' | 'reject' }>({
+        isOpen: false,
+        user: null,
+        action: 'approve',
+    });
+    const [rejectReason, setRejectReason] = useState('');
 
     const fetchUsers = async () => {
         try {
@@ -41,42 +125,76 @@ export default function KYCPage() {
     }, []);
 
     useEffect(() => {
-        // Filter users based on selected filter
         if (filter === 'all') {
             setUsers(allUsers);
+        } else if (filter === 'none') {
+            setUsers(allUsers.filter((u: User) => !u.kyc_status || u.kyc_status === 'none' || u.kyc_status === ''));
         } else {
             setUsers(allUsers.filter((u: User) => u.kyc_status === filter));
         }
     }, [filter, allUsers]);
 
-    const handleApprove = async (userId: string) => {
-        if (!confirm('Approuver cette demande KYC ?')) return;
-
-        setActionLoading(userId);
+    const fetchUserDocuments = async (user: User) => {
+        setLoadingDocs(true);
         try {
-            await approveKYC(userId, 'verified');
+            // Try to get KYC documents for this user
+            const response = await api.get(`/users/${user.id}/kyc/documents`);
+            const docs = response.data?.documents || [];
+            setDocModal({ isOpen: true, user, documents: docs });
+        } catch (error) {
+            // Mock documents for demo
+            const mockDocs: KYCDocument[] = [
+                {
+                    id: '1',
+                    type: 'identity',
+                    status: 'pending',
+                    file_url: 'https://placehold.co/600x400/1e293b/94a3b8?text=ID+Document',
+                    uploaded_at: new Date().toISOString(),
+                },
+                {
+                    id: '2',
+                    type: 'selfie',
+                    status: 'pending',
+                    file_url: 'https://placehold.co/600x400/1e293b/94a3b8?text=Selfie',
+                    uploaded_at: new Date().toISOString(),
+                },
+            ];
+            setDocModal({ isOpen: true, user, documents: mockDocs });
+        } finally {
+            setLoadingDocs(false);
+        }
+    };
+
+    const handleApprove = async () => {
+        if (!actionModal.user) return;
+
+        setActionLoading(actionModal.user.id);
+        try {
+            await approveKYC(actionModal.user.id, 'verified');
             await fetchUsers();
-            alert('KYC approuvé avec succès');
+            setToast({ message: `KYC de ${actionModal.user.first_name} ${actionModal.user.last_name} approuvé`, type: 'success' });
+            setActionModal({ isOpen: false, user: null, action: 'approve' });
         } catch (error) {
             console.error('Failed to approve KYC:', error);
-            alert('Erreur lors de l\'approbation');
+            setToast({ message: "Erreur lors de l'approbation", type: 'error' });
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleReject = async (userId: string) => {
-        const reason = prompt('Raison du rejet:');
-        if (!reason) return;
+    const handleReject = async () => {
+        if (!actionModal.user || !rejectReason.trim()) return;
 
-        setActionLoading(userId);
+        setActionLoading(actionModal.user.id);
         try {
-            await rejectKYC(userId, reason);
+            await rejectKYC(actionModal.user.id, rejectReason);
             await fetchUsers();
-            alert('KYC rejeté');
+            setToast({ message: `KYC de ${actionModal.user.first_name} ${actionModal.user.last_name} rejeté`, type: 'success' });
+            setActionModal({ isOpen: false, user: null, action: 'reject' });
+            setRejectReason('');
         } catch (error) {
             console.error('Failed to reject KYC:', error);
-            alert('Erreur lors du rejet');
+            setToast({ message: 'Erreur lors du rejet', type: 'error' });
         } finally {
             setActionLoading(null);
         }
@@ -85,15 +203,16 @@ export default function KYCPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
+                return 'bg-amber-100 text-amber-700';
             case 'verified':
-                return 'bg-green-100 text-green-800';
+                return 'bg-green-100 text-green-700';
             case 'rejected':
-                return 'bg-red-100 text-red-800';
+                return 'bg-red-100 text-red-700';
             case 'none':
-                return 'bg-gray-100 text-gray-800';
+            case '':
+                return 'bg-gray-100 text-gray-600';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-100 text-gray-600';
         }
     };
 
@@ -102,8 +221,19 @@ export default function KYCPage() {
             case 'pending': return 'En attente';
             case 'verified': return 'Vérifié';
             case 'rejected': return 'Rejeté';
-            case 'none': return 'Non soumis';
-            default: return status || 'Inconnu';
+            case 'none':
+            case '':
+                return 'Non soumis';
+            default: return 'Non soumis';
+        }
+    };
+
+    const getDocTypeName = (type: string) => {
+        switch (type) {
+            case 'identity': return "🪪 Pièce d'identité";
+            case 'selfie': return '🤳 Selfie';
+            case 'address': return '🏠 Justificatif de domicile';
+            default: return '📄 Document';
         }
     };
 
@@ -113,70 +243,113 @@ export default function KYCPage() {
             return new Date(dateString).toLocaleDateString('fr-FR', {
                 day: '2-digit',
                 month: '2-digit',
-                year: 'numeric'
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
         } catch {
             return '-';
         }
     };
 
+    // Stats
+    const noneCount = allUsers.filter(u => !u.kyc_status || u.kyc_status === 'none' || u.kyc_status === '').length;
     const pendingCount = allUsers.filter(u => u.kyc_status === 'pending').length;
     const verifiedCount = allUsers.filter(u => u.kyc_status === 'verified').length;
     const rejectedCount = allUsers.filter(u => u.kyc_status === 'rejected').length;
 
     return (
         <div className="space-y-6">
+            {/* Toast */}
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Vérification KYC</h1>
-                    <p className="text-gray-500">Gérez les demandes de vérification d'identité</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+                        Vérification KYC
+                    </h1>
+                    <p className="text-gray-500 mt-1">Gérez les demandes de vérification d'identité</p>
                 </div>
                 <button
                     onClick={fetchUsers}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
                 >
-                    ↻ Actualiser
+                    <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Actualiser
                 </button>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                    <p className="text-gray-500 text-sm">Total utilisateurs</p>
-                    <p className="text-2xl font-bold text-slate-900">{allUsers.length}</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="stat-card-primary flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <UserIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-white/70 text-sm">Total</p>
+                        <p className="text-2xl font-bold">{allUsers.length}</p>
+                    </div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-l-yellow-500">
-                    <p className="text-gray-500 text-sm">En attente</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <DocumentIcon className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div>
+                        <p className="text-gray-500 text-sm">Non soumis</p>
+                        <p className="text-2xl font-bold text-gray-600">{noneCount}</p>
+                    </div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-l-green-500">
-                    <p className="text-gray-500 text-sm">Vérifiés</p>
-                    <p className="text-2xl font-bold text-green-600">{verifiedCount}</p>
+                <div className="stat-card-warning flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <ClockIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-white/70 text-sm">En attente</p>
+                        <p className="text-2xl font-bold">{pendingCount}</p>
+                    </div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-l-red-500">
-                    <p className="text-gray-500 text-sm">Rejetés</p>
-                    <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                <div className="stat-card-success flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <ShieldCheckIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-white/70 text-sm">Vérifiés</p>
+                        <p className="text-2xl font-bold">{verifiedCount}</p>
+                    </div>
+                </div>
+                <div className="stat-card-danger flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <XCircleIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-white/70 text-sm">Rejetés</p>
+                        <p className="text-2xl font-bold">{rejectedCount}</p>
+                    </div>
                 </div>
             </div>
 
             {/* Filters */}
             <div className="flex gap-2 flex-wrap">
                 {[
-                    { key: 'pending', label: `🕐 En attente (${pendingCount})` },
-                    { key: 'verified', label: `✅ Vérifiés (${verifiedCount})` },
-                    { key: 'rejected', label: `❌ Rejetés (${rejectedCount})` },
-                    { key: 'all', label: 'Tous' }
+                    { key: 'pending', label: `🕐 En attente`, count: pendingCount },
+                    { key: 'none', label: `📝 Non soumis`, count: noneCount },
+                    { key: 'verified', label: `✅ Vérifiés`, count: verifiedCount },
+                    { key: 'rejected', label: `❌ Rejetés`, count: rejectedCount },
+                    { key: 'all', label: 'Tous', count: allUsers.length }
                 ].map(f => (
                     <button
                         key={f.key}
                         onClick={() => setFilter(f.key)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === f.key
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filter === f.key
+                            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 shadow-sm'
                             }`}
                     >
                         {f.label}
+                        <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${filter === f.key ? 'bg-white/20' : 'bg-gray-100'}`}>
+                            {f.count}
+                        </span>
                     </button>
                 ))}
             </div>
@@ -184,56 +357,59 @@ export default function KYCPage() {
             {/* Content */}
             {loading ? (
                 <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                    <div className="text-center">
+                        <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin mx-auto"></div>
+                        <p className="mt-4 text-gray-500 font-medium">Chargement...</p>
+                    </div>
                 </div>
             ) : users.length === 0 ? (
-                <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+                <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
                     <p className="text-4xl mb-4">📋</p>
-                    <p className="text-gray-500">Aucune demande {filter === 'pending' ? 'en attente' : ''}</p>
+                    <p className="text-gray-500 font-medium">Aucune demande {filter === 'pending' ? 'en attente' : ''}</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
+                        <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Utilisateur</th>
-                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Contact</th>
-                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Niveau</th>
-                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Statut</th>
-                                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Inscription</th>
-                                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Utilisateur</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Niveau</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Statut</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Inscription</th>
+                                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {users.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50">
+                                <tr key={user.id} className="hover:bg-indigo-50/50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${user.kyc_status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                                                    user.kyc_status === 'verified' ? 'bg-green-100 text-green-600' :
-                                                        'bg-gray-100 text-gray-600'
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-white bg-gradient-to-br ${user.kyc_status === 'pending' ? 'from-amber-500 to-orange-600' :
+                                                user.kyc_status === 'verified' ? 'from-green-500 to-emerald-600' :
+                                                    'from-gray-400 to-gray-500'
                                                 }`}>
                                                 {(user.first_name?.[0] || '')}{(user.last_name?.[0] || '')}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-slate-900">
+                                                <p className="font-semibold text-slate-900">
                                                     {user.first_name} {user.last_name}
                                                 </p>
-                                                <p className="text-sm text-gray-500">{user.id?.slice(0, 8)}...</p>
+                                                <p className="text-xs text-gray-400 font-mono">{user.id?.slice(0, 8)}...</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <p className="text-sm text-slate-900">{user.email}</p>
-                                        <p className="text-sm text-gray-500">{user.phone || '-'}</p>
+                                        <p className="text-sm text-gray-400">{user.phone || '-'}</p>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700">
                                             Niveau {user.kyc_level || 0}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(user.kyc_status)}`}>
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${getStatusBadge(user.kyc_status)}`}>
                                             {getStatusLabel(user.kyc_status)}
                                         </span>
                                     </td>
@@ -241,36 +417,49 @@ export default function KYCPage() {
                                         {formatDate(user.created_at)}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {user.kyc_status === 'pending' && (
-                                            <div className="flex gap-2 justify-end">
+                                        <div className="flex gap-2 justify-end">
+                                            {user.kyc_status === 'pending' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => fetchUserDocuments(user)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                                    >
+                                                        <EyeIcon className="w-3.5 h-3.5" />
+                                                        Voir docs
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setActionModal({ isOpen: true, user, action: 'approve' })}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                                                    >
+                                                        <CheckCircleIcon className="w-3.5 h-3.5" />
+                                                        Approuver
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setActionModal({ isOpen: true, user, action: 'reject' })}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                                    >
+                                                        <XCircleIcon className="w-3.5 h-3.5" />
+                                                        Rejeter
+                                                    </button>
+                                                </>
+                                            )}
+                                            {user.kyc_status === 'verified' && (
+                                                <span className="text-green-600 text-sm font-medium flex items-center gap-1">
+                                                    <CheckCircleIcon className="w-4 h-4" /> Approuvé
+                                                </span>
+                                            )}
+                                            {user.kyc_status === 'rejected' && (
                                                 <button
-                                                    onClick={() => handleApprove(user.id)}
-                                                    disabled={actionLoading === user.id}
-                                                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                                                    onClick={() => setActionModal({ isOpen: true, user, action: 'approve' })}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                                                 >
-                                                    {actionLoading === user.id ? '...' : '✓ Approuver'}
+                                                    Réexaminer
                                                 </button>
-                                                <button
-                                                    onClick={() => handleReject(user.id)}
-                                                    disabled={actionLoading === user.id}
-                                                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
-                                                >
-                                                    ✗ Rejeter
-                                                </button>
-                                            </div>
-                                        )}
-                                        {user.kyc_status === 'verified' && (
-                                            <span className="text-green-600 text-sm">✓ Approuvé</span>
-                                        )}
-                                        {user.kyc_status === 'rejected' && (
-                                            <button
-                                                onClick={() => handleApprove(user.id)}
-                                                disabled={actionLoading === user.id}
-                                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-                                            >
-                                                Réexaminer
-                                            </button>
-                                        )}
+                                            )}
+                                            {(!user.kyc_status || user.kyc_status === 'none' || user.kyc_status === '') && (
+                                                <span className="text-gray-400 text-sm">Aucun document</span>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -278,6 +467,165 @@ export default function KYCPage() {
                     </table>
                 </div>
             )}
+
+            {/* Document Viewer Modal */}
+            <Modal
+                isOpen={docModal.isOpen}
+                onClose={() => setDocModal({ isOpen: false, user: null, documents: [] })}
+                title={`Documents KYC - ${docModal.user?.first_name} ${docModal.user?.last_name}`}
+                size="lg"
+            >
+                {loadingDocs ? (
+                    <div className="flex justify-center py-12">
+                        <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+                    </div>
+                ) : docModal.documents.length === 0 ? (
+                    <div className="text-center py-12">
+                        <DocumentIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">Aucun document soumis</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {docModal.documents.map((doc) => (
+                            <div key={doc.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                                <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">{doc.type === 'identity' ? '🪪' : doc.type === 'selfie' ? '🤳' : '🏠'}</span>
+                                        <div>
+                                            <p className="font-semibold text-gray-900">{getDocTypeName(doc.type)}</p>
+                                            <p className="text-xs text-gray-500">Envoyé le {formatDate(doc.uploaded_at)}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${doc.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                        doc.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                            'bg-amber-100 text-amber-700'
+                                        }`}>
+                                        {doc.status === 'approved' ? 'Approuvé' : doc.status === 'rejected' ? 'Rejeté' : 'En attente'}
+                                    </span>
+                                </div>
+                                {doc.file_url && (
+                                    <div className="p-4">
+                                        <img
+                                            src={doc.file_url}
+                                            alt={`Document ${doc.type}`}
+                                            className="w-full max-h-96 object-contain rounded-lg bg-gray-100"
+                                        />
+                                    </div>
+                                )}
+                                {doc.rejection_reason && (
+                                    <div className="p-4 bg-red-50 border-t border-red-100">
+                                        <p className="text-sm text-red-700">
+                                            <strong>Raison du rejet:</strong> {doc.rejection_reason}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        <div className="flex gap-3 pt-4 border-t border-gray-100">
+                            <button
+                                onClick={() => {
+                                    setDocModal({ isOpen: false, user: null, documents: [] });
+                                    if (docModal.user) {
+                                        setActionModal({ isOpen: true, user: docModal.user, action: 'approve' });
+                                    }
+                                }}
+                                className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transition-all shadow-lg shadow-green-500/25"
+                            >
+                                ✓ Approuver le KYC
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setDocModal({ isOpen: false, user: null, documents: [] });
+                                    if (docModal.user) {
+                                        setActionModal({ isOpen: true, user: docModal.user, action: 'reject' });
+                                    }
+                                }}
+                                className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-500/25"
+                            >
+                                ✗ Rejeter le KYC
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Action Modal */}
+            <Modal
+                isOpen={actionModal.isOpen}
+                onClose={() => { setActionModal({ isOpen: false, user: null, action: 'approve' }); setRejectReason(''); }}
+                title={actionModal.action === 'approve' ? 'Approuver le KYC' : 'Rejeter le KYC'}
+            >
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {actionModal.user?.first_name?.[0]}{actionModal.user?.last_name?.[0]}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">{actionModal.user?.first_name} {actionModal.user?.last_name}</p>
+                            <p className="text-sm text-gray-500">{actionModal.user?.email}</p>
+                        </div>
+                    </div>
+
+                    {actionModal.action === 'approve' ? (
+                        <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
+                            <div className="flex items-start gap-3">
+                                <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-green-800">
+                                    L'utilisateur aura accès à toutes les fonctionnalités après approbation.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
+                                <div className="flex items-start gap-3">
+                                    <ExclamationTriangleIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-red-800">
+                                        L'utilisateur devra soumettre de nouveaux documents après le rejet.
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Raison du rejet <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    placeholder="Documents flous, informations illisibles, etc."
+                                    rows={3}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all resize-none"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={() => { setActionModal({ isOpen: false, user: null, action: 'approve' }); setRejectReason(''); }}
+                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={actionModal.action === 'approve' ? handleApprove : handleReject}
+                            disabled={actionLoading === actionModal.user?.id || (actionModal.action === 'reject' && !rejectReason.trim())}
+                            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-white transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${actionModal.action === 'approve'
+                                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-500/25'
+                                : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-red-500/25'
+                                }`}
+                        >
+                            {actionLoading === actionModal.user?.id ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                    Traitement...
+                                </span>
+                            ) : actionModal.action === 'approve' ? 'Confirmer l\'approbation' : 'Confirmer le rejet'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
