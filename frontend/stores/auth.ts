@@ -115,6 +115,12 @@ export const useAuthStore = defineStore('auth', {
         // Reset the logout flag so API calls work properly
         resetLogoutFlag()
 
+        // Clear PIN session flags to force fresh check after login
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('pin_status_checked')
+          sessionStorage.removeItem('has_pin')
+        }
+
         return { success: true }
       } catch (error: any) {
         return {
@@ -159,6 +165,17 @@ export const useAuthStore = defineStore('auth', {
 
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
+
+        // Clear session storage including PIN flags
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.clear()
+        }
+
+        // Clear auth cookies
+        if (typeof document !== 'undefined') {
+          document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+          document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        }
 
         navigateTo('/auth/login')
       }
