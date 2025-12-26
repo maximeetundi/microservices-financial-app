@@ -117,7 +117,7 @@ body {
   border-radius: 1rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.5);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .table-container table thead {
