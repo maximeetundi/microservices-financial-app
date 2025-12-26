@@ -74,7 +74,7 @@
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white transition-colors focus:outline-none"
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-indigo-300 hover:text-indigo-600 dark:hover:text-white transition-colors focus:outline-none"
               >
                 <svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
@@ -122,7 +122,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span class="text-sm text-indigo-200 group-hover:text-white transition-colors">Se souvenir de moi</span>
+              <span class="text-sm text-gray-600 dark:text-indigo-200 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">Se souvenir de moi</span>
             </label>
             <NuxtLink to="/auth/forgot-password" class="text-sm text-indigo-400 hover:text-indigo-300 font-medium hover:underline transition-all">
               Mot de passe oublié ?
@@ -137,7 +137,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
-              <p class="text-sm text-red-200 font-medium">{{ errorMessage }}</p>
+              <p class="text-sm text-red-600 dark:text-red-200 font-medium">{{ errorMessage }}</p>
             </div>
           </div>
 
@@ -160,7 +160,7 @@
 
           <!-- Register Link -->
           <div class="text-center pt-2">
-            <p class="text-indigo-200/60 text-sm">
+            <p class="text-gray-500 dark:text-indigo-200/60 text-sm">
               Pas encore de compte ?
               <NuxtLink to="/auth/register" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline transition-all ml-1">
                 Créer un compte
@@ -171,11 +171,11 @@
       </div>
 
       <!-- Footer -->
-      <div class="mt-8 flex justify-center gap-6 text-xs font-medium text-indigo-200/40">
+      <div class="mt-8 flex justify-center gap-6 text-xs font-medium text-gray-400 dark:text-indigo-200/40">
         <NuxtLink to="/legal/privacy" class="hover:text-indigo-300 transition-colors">Confidentialité</NuxtLink>
-        <span class="text-indigo-200/20">•</span>
+        <span class="text-gray-300 dark:text-indigo-200/20">•</span>
         <NuxtLink to="/legal/terms" class="hover:text-indigo-300 transition-colors">CGU</NuxtLink>
-        <span class="text-indigo-200/20">•</span>
+        <span class="text-gray-300 dark:text-indigo-200/20">•</span>
         <NuxtLink to="/support" class="hover:text-indigo-300 transition-colors">Aide</NuxtLink>
       </div>
     </div>

@@ -184,13 +184,13 @@
             <div class="p-1.5 rounded-full bg-red-500/20 text-red-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </div>
-            <p class="text-sm text-red-200">{{ error }}</p>
+            <p class="text-sm text-red-600 dark:text-red-200">{{ error }}</p>
           </div>
           <div v-if="success" class="mt-4 p-3 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
             <div class="p-1.5 rounded-full bg-green-500/20 text-green-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
             </div>
-            <p class="text-sm text-green-200">{{ success }}</p>
+            <p class="text-sm text-green-600 dark:text-green-200">{{ success }}</p>
           </div>
 
           <!-- Navigation Buttons -->
