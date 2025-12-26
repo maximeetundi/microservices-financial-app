@@ -197,8 +197,19 @@ export default function TransactionsPage() {
         return matchesSearch && matchesStatus && matchesType;
     });
 
-    // Compute stats
-    const totalAmount = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    // Compute stats - parse amount as number
+    const parseAmount = (amount: any): number => {
+        if (typeof amount === 'number') return amount;
+        if (typeof amount === 'string') return parseFloat(amount) || 0;
+        return 0;
+    };
+
+    const formatAmount = (amount: any): string => {
+        const num = parseAmount(amount);
+        return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const totalAmount = transactions.reduce((sum, tx) => sum + parseAmount(tx.amount), 0);
     const completedCount = transactions.filter(tx => ['completed', 'confirmed'].includes(tx.status?.toLowerCase())).length;
     const pendingCount = transactions.filter(tx => tx.status?.toLowerCase() === 'pending').length;
     const blockedCount = transactions.filter(tx => tx.status?.toLowerCase() === 'blocked').length;
@@ -294,7 +305,7 @@ export default function TransactionsPage() {
                     </div>
                     <div>
                         <p className="text-white/70 text-sm">Volume total</p>
-                        <p className="text-2xl font-bold">{totalAmount.toLocaleString()} €</p>
+                        <p className="text-2xl font-bold">{formatAmount(totalAmount)} €</p>
                     </div>
                 </div>
             </div>
@@ -308,8 +319,8 @@ export default function TransactionsPage() {
                             key={tab.key}
                             onClick={() => setStatusFilter(tab.key)}
                             className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${statusFilter === tab.key
-                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm'
+                                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm'
                                 }`}
                         >
                             {tab.label}
@@ -382,7 +393,7 @@ export default function TransactionsPage() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <span className={`font-semibold ${getAmountColor(tx.type)}`}>
-                                        {getAmountPrefix(tx.type)}{tx.amount?.toLocaleString()} {tx.currency}
+                                        {getAmountPrefix(tx.type)}{formatAmount(tx.amount)} {tx.currency}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -449,7 +460,7 @@ export default function TransactionsPage() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-500">Montant</span>
-                                <span className="font-semibold">{blockModal.tx.amount?.toLocaleString()} {blockModal.tx.currency}</span>
+                                <span className="font-semibold">{formatAmount(blockModal.tx.amount)} {blockModal.tx.currency}</span>
                             </div>
                         </div>
                     )}
@@ -509,7 +520,7 @@ export default function TransactionsPage() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-500">Montant à rembourser</span>
-                                <span className="font-semibold text-green-600">+{refundModal.tx.amount?.toLocaleString()} {refundModal.tx.currency}</span>
+                                <span className="font-semibold text-green-600">+{formatAmount(refundModal.tx.amount)} {refundModal.tx.currency}</span>
                             </div>
                         </div>
                     )}
