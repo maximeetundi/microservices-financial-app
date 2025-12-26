@@ -224,7 +224,7 @@ const handleCancel = () => {
 
 .modal-message {
   font-size: 0.9375rem;
-  color: var(--color-muted);
+  color: #FFFFFF;
   margin-bottom: 1.5rem;
   line-height: 1.6;
 }

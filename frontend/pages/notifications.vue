@@ -46,7 +46,7 @@
         <div 
           v-for="notif in filteredNotifications" 
           :key="notif.id"
-          @click="handleNotificationClick(notif)"
+          @click="openNotificationDetail(notif)"
           :class="['notif-item', { unread: !notif.is_read }]"
         >
           <div class="notif-icon">{{ getTypeIcon(notif.type) }}</div>
@@ -61,6 +61,23 @@
           </div>
         </div>
       </div>
+
+      <!-- Notification Detail Modal -->
+      <Teleport to="body">
+        <div v-if="selectedNotification" class="modal-overlay" @click.self="closeDetailModal">
+          <div class="modal-content">
+            <button @click="closeDetailModal" class="modal-close">✕</button>
+            <div class="modal-icon-large">{{ getTypeIcon(selectedNotification.type) }}</div>
+            <h3 class="modal-title">{{ selectedNotification.title }}</h3>
+            <p class="modal-message">{{ selectedNotification.message }}</p>
+            <div class="modal-meta">
+              <span class="modal-type">{{ getTypeLabel(selectedNotification.type) }}</span>
+              <span class="modal-date">{{ formatFullDate(selectedNotification.created_at) }}</span>
+            </div>
+            <button @click="closeDetailModal" class="modal-btn">Fermer</button>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Load More -->
       <div v-if="hasMore && !loading && notifications.length > 0" class="load-more">
@@ -83,6 +100,7 @@ const offset = ref(0)
 const limit = 20
 const hasMore = ref(true)
 const activeFilter = ref('all')
+const selectedNotification = ref(null)
 
 const filters = [
   { id: 'all', label: 'Toutes', icon: '📋' },
@@ -189,6 +207,34 @@ const formatTime = (date) => {
   if (diff < 3600000) return `${Math.floor(diff / 60000)} min`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+
+const formatFullDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    year: 'numeric', 
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getTypeLabel = (type) => {
+  const labels = { transfer: 'Transfert', card: 'Carte', security: 'Sécurité', wallet: 'Portefeuille', kyc: 'Vérification' }
+  return labels[type] || 'Notification'
+}
+
+const openNotificationDetail = (notification) => {
+  selectedNotification.value = notification
+  if (!notification.is_read) {
+    markAsRead(notification.id)
+  }
+}
+
+const closeDetailModal = () => {
+  selectedNotification.value = null
 }
 
 onMounted(() => {
@@ -469,5 +515,104 @@ definePageMeta({
   .notif-msg {
     font-size: 0.875rem;
   }
+}
+
+/* Notification Detail Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: linear-gradient(180deg, #1e1e2e, #15151f);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #888;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.modal-close:hover {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+.modal-icon-large {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.modal-message {
+  font-size: 0.9375rem;
+  color: #ccc;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.modal-meta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.75rem;
+}
+
+.modal-type {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.modal-date {
+  color: #666;
+}
+
+.modal-btn {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.modal-btn:hover {
+  transform: scale(1.02);
 }
 </style>
