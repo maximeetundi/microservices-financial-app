@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"fmt"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
