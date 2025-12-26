@@ -21,15 +21,15 @@ type AuthService struct {
 	userRepo    *repository.UserRepository
 	sessionRepo *repository.SessionRepository
 	config      *config.Config
-	mqChannel   *amqp.Channel
+	auditService *AuditService
 }
 
-func NewAuthService(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, cfg *config.Config, mqChannel *amqp.Channel) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, sessionRepo *repository.SessionRepository, cfg *config.Config, auditService *AuditService) *AuthService {
 	return &AuthService{
-		userRepo:    userRepo,
-		sessionRepo: sessionRepo,
-		config:      cfg,
-		mqChannel:   mqChannel,
+		userRepo:     userRepo,
+		sessionRepo:  sessionRepo,
+		config:       cfg,
+		auditService: auditService,
 	}
 }
 
@@ -612,12 +612,10 @@ func (s *AuthService) VerifyPin(userID string, pin string) (*models.VerifyPinRes
 		}
 		
 		var lockUntil *time.Time
-		permanentLock := false
 		
 		if newAttempts >= maxAttempts {
 			if wasTemporarilyLocked {
 				// Second phase - permanent lock
-				permanentLock = true
 				s.userRepo.SetPinPermanentlyLocked(userID, true)
 				
 				// Send notification to user

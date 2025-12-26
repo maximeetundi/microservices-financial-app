@@ -43,11 +43,12 @@ func main() {
 	prefsRepo := repository.NewPreferencesRepository(db)
 
 	// Initialize services
-	authService := services.NewAuthService(userRepo, sessionRepo, cfg, mqChannel)
+	// Initialize services
+	auditService := services.NewAuditService(mqChannel)
+	authService := services.NewAuthService(userRepo, sessionRepo, cfg, auditService)
 	emailService := services.NewEmailService(cfg)
 	smsService := services.NewSMSService(cfg)
 	totpService := services.NewTOTPService()
-	auditService := services.NewAuditService(mqChannel)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
