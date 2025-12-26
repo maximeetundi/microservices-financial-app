@@ -29,6 +29,8 @@ CREATE TABLE users (
     pin_set_at TIMESTAMP,
     pin_failed_attempts INTEGER DEFAULT 0,
     pin_locked_until TIMESTAMP,
+    pin_permanently_locked BOOLEAN DEFAULT FALSE,
+    pin_temp_lock_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
