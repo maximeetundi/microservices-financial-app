@@ -8,9 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
-	
-	"github.com/streadway/amqp"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
@@ -72,34 +69,11 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error
 	}
 
 	// Publish user.registered event
-	if s.mqChannel != nil {
-		event := map[string]interface{}{
-			"user_id":  user.ID,
-			"email":    user.Email,
-			"country":  user.Country,
-			"currency": req.Currency,
-			"timestamp": time.Now().Unix(),
-		}
-		
-		body, _ := json.Marshal(event)
-		
-		err = s.mqChannel.Publish(
-			"",                // exchange
-			"user.registered", // routing key
-			false,             // mandatory
-			false,             // immediate
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        body,
-			},
-		)
-		
-		if err != nil {
-			log.Printf("Failed to publish user.registered event: %v", err)
-			// Don't fail registration if event publishing fails, but log error
-		} else {
-			log.Printf("Published user.registered event for user %s", user.ID)
-		}
+	// Publish user.registered event
+	if s.auditService != nil {
+		s.auditService.LogUserRegistered(user, req.Currency)
+	} else {
+		log.Println("Warning: auditService is nil, skipping user.registered event")
 	}
 
 	return user, nil

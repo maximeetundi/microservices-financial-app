@@ -237,13 +237,28 @@ func (s *AuditService) LogPinUnlocked(userID, email, adminID string) {
 }
 
 // LogUserRegistered logs when a new user registers
-func (s *AuditService) LogUserRegistered(userID, email, firstName, phone string) {
+func (s *AuditService) LogUserRegistered(user *models.User, currency string) {
 	s.publishNotification("user.registered", map[string]interface{}{
 		"type":       "user.registered",
-		"user_id":    userID,
-		"email":      email,
-		"phone":      phone,
-		"first_name": firstName,
+		"user_id":    user.ID,
+		"email":      user.Email,
+		"first_name": user.FirstName,
+		"country":    user.Country,
+		"currency":   currency,
+		"timestamp":  time.Now().Unix(),
+	})
+
+	s.publishEvent("auth.registered", AuditEvent{
+		Type:      "user_registered",
+		UserID:    user.ID,
+		Email:     user.Email,
+		Success:   true,
+		IPAddress: "", 
+		Details: map[string]interface{}{
+			"country":  user.Country,
+			"currency": currency,
+		},
+		Timestamp: time.Now(),
 	})
 }
 
