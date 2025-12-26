@@ -263,8 +263,8 @@ func (r *AdminRepository) GetUsersFromMainDB(limit, offset int) ([]map[string]in
 
 func (r *AdminRepository) GetTransactionsFromMainDB(limit, offset int) ([]map[string]interface{}, error) {
 	query := `
-		SELECT id, from_wallet_id as wallet_id, transfer_type as type, amount, currency, status, created_at
-		FROM transfers
+		SELECT id, from_wallet_id as wallet_id, transaction_type as type, amount, currency, status, created_at
+		FROM transactions
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`

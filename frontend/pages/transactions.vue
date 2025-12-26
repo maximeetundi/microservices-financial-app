@@ -38,7 +38,7 @@
 
       <!-- List -->
       <div v-else class="tx-list">
-        <div v-for="tx in filteredTransactions" :key="tx.id" class="tx-item">
+        <div v-for="tx in filteredTransactions" :key="tx.id" class="tx-item" @click="openTxDetail(tx)">
           <div class="tx-icon" :class="getTypeColorClass(tx.type)">
             {{ getTypeIcon(tx.type) }}
           </div>
@@ -57,6 +57,55 @@
           Charger plus ↓
         </button>
       </div>
+
+      <!-- Transaction Detail Modal -->
+      <Teleport to="body">
+        <div v-if="selectedTx" class="modal-overlay" @click.self="closeTxDetail">
+          <div class="modal-content">
+            <button @click="closeTxDetail" class="modal-close">✕</button>
+            <div class="modal-icon-lg" :class="getTypeColorClass(selectedTx.type)">
+              {{ getTypeIcon(selectedTx.type) }}
+            </div>
+            <h3 class="modal-title">{{ selectedTx.title }}</h3>
+            <p class="modal-amount" :class="{ positive: selectedTx.amount >= 0 }">
+              {{ selectedTx.amount >= 0 ? '+' : '' }}{{ formatMoney(selectedTx.amount, selectedTx.currency) }}
+            </p>
+            
+            <div class="tx-details">
+              <div class="detail-row">
+                <span class="detail-label">ID Transaction</span>
+                <span class="detail-value id-value">{{ selectedTx.id }}</span>
+              </div>
+              <div class="detail-row" v-if="selectedTx.reference">
+                <span class="detail-label">Référence</span>
+                <span class="detail-value">{{ selectedTx.reference }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ getTransactionTitle(selectedTx.type) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Devise</span>
+                <span class="detail-value">{{ selectedTx.currency }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Statut</span>
+                <span class="detail-value status-badge" :class="selectedTx.status">{{ getStatusLabel(selectedTx.status) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">{{ formatFullDate(selectedTx.date) }}</span>
+              </div>
+              <div class="detail-row" v-if="selectedTx.description">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedTx.description }}</span>
+              </div>
+            </div>
+            
+            <button @click="closeTxDetail" class="modal-btn">Fermer</button>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </NuxtLayout>
 </template>
@@ -72,6 +121,7 @@ const filterPeriod = ref('all')
 const offset = ref(0)
 const limit = 50
 const hasMore = ref(false)
+const selectedTx = ref(null)
 
 const filteredTransactions = computed(() => {
   let result = [...transactions.value]
@@ -189,6 +239,36 @@ const getTransactionTitle = (type) => {
     payment: 'Paiement'
   }
   return titles[type] || 'Transaction'
+}
+
+const getStatusLabel = (status) => {
+  const labels = {
+    completed: 'Complété',
+    pending: 'En attente',
+    processing: 'En cours',
+    failed: 'Échoué',
+    cancelled: 'Annulé'
+  }
+  return labels[status] || status || 'Complété'
+}
+
+const formatFullDate = (date) => {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    year: 'numeric', 
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(date))
+}
+
+const openTxDetail = (tx) => {
+  selectedTx.value = tx
+}
+
+const closeTxDetail = () => {
+  selectedTx.value = null
 }
 
 const loadMore = async () => {
@@ -425,5 +505,149 @@ definePageMeta({
   .tx-amount span {
     font-size: 1rem;
   }
+}
+
+/* Transaction Detail Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: linear-gradient(180deg, #1e1e2e, #15151f);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #888;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.modal-close:hover {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+.modal-icon-lg {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  margin: 0 auto 1rem;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.modal-amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.modal-amount.positive {
+  color: #22c55e;
+}
+
+.tx-details {
+  background: rgba(0,0,0,0.3);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  font-size: 0.875rem;
+  color: #fff;
+  text-align: right;
+  word-break: break-all;
+  max-width: 60%;
+}
+
+.id-value {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #6366f1;
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge.completed { background: rgba(34,197,94,0.2); color: #22c55e; }
+.status-badge.pending { background: rgba(245,158,11,0.2); color: #f59e0b; }
+.status-badge.processing { background: rgba(59,130,246,0.2); color: #3b82f6; }
+.status-badge.failed { background: rgba(239,68,68,0.2); color: #ef4444; }
+.status-badge.cancelled { background: rgba(107,114,128,0.2); color: #6b7280; }
+
+.modal-btn {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+  width: 100%;
+}
+
+.modal-btn:hover {
+  transform: scale(1.02);
 }
 </style>

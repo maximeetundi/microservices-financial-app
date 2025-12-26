@@ -229,11 +229,20 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 		return
 	}
 
+	// Get sender name for better notification readability
+	senderName := senderUserID
+	if s.walletRepo != nil {
+		if name, err := s.walletRepo.GetUserNameByID(senderUserID); err == nil && name != "" {
+			senderName = name
+		}
+	}
+
 	event := map[string]interface{}{
 		"type":         eventType,
 		"transfer_id":  transfer.ID,
 		"user_id":      senderUserID, // For sender notification
 		"sender":       senderUserID,
+		"sender_name":  senderName, // Human readable name for notifications
 		"recipient":    recipientUserID,
 		"amount":       transfer.Amount,
 		"currency":     transfer.Currency,

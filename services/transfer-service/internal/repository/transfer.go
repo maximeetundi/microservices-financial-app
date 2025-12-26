@@ -159,3 +159,17 @@ func (r *WalletRepository) CreateWallet(id, userID, currency string) error {
 	_, err := r.db.Exec(query, id, userID, currency, time.Now())
 	return err
 }
+
+// GetUserNameByID retrieves the full name of a user by their ID
+func (r *WalletRepository) GetUserNameByID(userID string) (string, error) {
+	query := `SELECT COALESCE(first_name, '') || ' ' || COALESCE(last_name, '') FROM users WHERE id = $1`
+	var fullName string
+	err := r.db.QueryRow(query, userID).Scan(&fullName)
+	if err != nil {
+		return userID, err // Return ID as fallback
+	}
+	if fullName == " " || fullName == "" {
+		return userID, nil // Return ID if name is empty
+	}
+	return fullName, nil
+}

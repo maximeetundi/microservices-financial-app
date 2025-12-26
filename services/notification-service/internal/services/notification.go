@@ -259,10 +259,14 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 	case "transfer.received":
 		amount, _ := event["amount"].(float64)
 		currency, _ := event["currency"].(string)
-		sender, _ := event["sender"].(string)
+		// Use sender_name if available, fallback to sender ID
+		senderName, ok := event["sender_name"].(string)
+		if !ok || senderName == "" {
+			senderName, _ = event["sender"].(string)
+		}
 		return &Notification{
 			Title:    "💰 Argent reçu",
-			Body:     fmt.Sprintf("Vous avez reçu %.2f %s de %s.", amount, currency, sender),
+			Body:     fmt.Sprintf("Vous avez reçu %.2f %s de %s.", amount, currency, senderName),
 			Type:     "transfer",
 			Priority: PriorityHigh,
 			Data:     event,
