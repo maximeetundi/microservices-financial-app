@@ -87,3 +87,8 @@ plugins:
         - Content-Length
       credentials: true
       max_age: 3600
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 50
+      size_unit: megabytes
+      require_content_length: false

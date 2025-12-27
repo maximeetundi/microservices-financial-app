@@ -67,6 +67,8 @@ services:
       - KONG_ADMIN_ERROR_LOG=/dev/stderr
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
       - KONG_PLUGINS=bundled,cors
+      - KONG_NGINX_PROXY_CLIENT_MAX_BODY_SIZE=50m
+      - KONG_NGINX_PROXY_CLIENT_BODY_BUFFER_SIZE=50m
     ports:
       - "8080:8000"
       - "8001:8001"
