@@ -95,10 +95,22 @@
         <h2>📤 Télécharger {{ getDocName(selectedDocType) }}</h2>
         
         <div class="upload-form">
-          <!-- Preview -->
+          <!-- Preview for Images -->
           <div v-if="previewUrl" class="preview-container">
             <img :src="previewUrl" alt="Preview" class="preview-image" />
             <button @click="clearFile" class="clear-btn">✕</button>
+          </div>
+
+          <!-- File Info for PDFs (no preview) -->
+          <div v-else-if="selectedFile && !previewUrl" class="file-info-container">
+            <div class="file-info">
+              <span class="file-icon">📄</span>
+              <div class="file-details">
+                <p class="file-name">{{ selectedFile.name }}</p>
+                <p class="file-size">{{ formatFileSize(selectedFile.size) }}</p>
+              </div>
+              <button @click="clearFile" class="clear-btn-inline">✕</button>
+            </div>
           </div>
 
           <!-- Upload Zone -->
@@ -314,6 +326,12 @@ const getDocIcon = (type) => {
 const getDocName = (type) => {
   const names = { identity: 'Pièce d\'identité', selfie: 'Selfie avec document', address: 'Justificatif de domicile' }
   return names[type] || 'Document'
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
 const formatDate = (date) => {
@@ -660,6 +678,57 @@ definePageMeta({
   border: none;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.file-info-container {
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  border-radius: 1rem;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.file-icon {
+  font-size: 2.5rem;
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-name {
+  color: #fff;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  word-break: break-all;
+}
+
+.file-size {
+  color: #888;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.clear-btn-inline {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.clear-btn-inline:hover {
+  background: rgba(239, 68, 68, 0.9);
+  color: #fff;
 }
 
 .upload-zone {

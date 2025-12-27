@@ -264,6 +264,22 @@ func (h *AdminHandler) RejectKYC(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "KYC rejected"})
 }
 
+func (h *AdminHandler) GetUserKYCDocuments(c *gin.Context) {
+	userID := c.Param("id")
+
+	docs, err := h.service.GetUserKYCDocuments(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get KYC documents"})
+		return
+	}
+
+	if docs == nil {
+		docs = []map[string]interface{}{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"documents": docs})
+}
+
 // ========== Transactions ==========
 
 func (h *AdminHandler) GetTransactions(c *gin.Context) {

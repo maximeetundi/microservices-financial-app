@@ -448,11 +448,29 @@ func (r *AdminRepository) rowsToMaps(rows *sql.Rows) ([]map[string]interface{}, 
 
 		row := make(map[string]interface{})
 		for i, col := range columns {
-			row[col] = values[i]
+			val := values[i]
+			// Convert []byte to string to prevent base64 encoding in JSON
+			if b, ok := val.([]byte); ok {
+				row[col] = string(b)
+			} else {
+				row[col] = val
+			}
 		}
 		results = append(results, row)
 	}
 
 	return results, nil
+}
+
+// GetUserKYCDocuments retrieves all KYC documents for a specific user
+func (r *AdminRepository) GetUserKYCDocuments(userID string) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, user_id, type, file_name, file_path, file_size, mime_type, status, 
+			rejection_reason, reviewed_at, reviewed_by, uploaded_at, created_at
+		FROM kyc_documents 
+		WHERE user_id = $1 
+		ORDER BY created_at DESC
+	`
+	return r.queryToMaps(r.mainDB, query, userID)
 }
 

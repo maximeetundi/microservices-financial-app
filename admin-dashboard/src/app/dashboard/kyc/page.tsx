@@ -33,6 +33,10 @@ interface KYCDocument {
     type: string;
     status: string;
     file_url?: string;
+    file_path?: string;
+    file_name?: string;
+    file_size?: number;
+    mime_type?: string;
     uploaded_at: string;
     reviewed_at?: string;
     rejection_reason?: string;

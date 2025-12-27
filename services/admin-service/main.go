@@ -117,6 +117,7 @@ func main() {
 		users.Use(middleware.RequirePermission(models.PermViewUsers))
 		{
 			users.GET("", handler.GetUsers)
+			users.GET("/:id/kyc/documents", middleware.RequirePermission(models.PermViewKYC), handler.GetUserKYCDocuments)
 			users.POST("/:id/block", middleware.RequirePermission(models.PermBlockUsers), handler.BlockUser)
 			users.POST("/:id/unblock", middleware.RequirePermission(models.PermBlockUsers), handler.UnblockUser)
 		}

@@ -208,6 +208,10 @@ func (s *AdminService) GetWallets(limit, offset int) ([]map[string]interface{}, 
 	return s.repo.GetWalletsFromMainDB(limit, offset)
 }
 
+func (s *AdminService) GetUserKYCDocuments(userID string) ([]map[string]interface{}, error) {
+	return s.repo.GetUserKYCDocuments(userID)
+}
+
 // ========== Admin Actions via RabbitMQ ==========
 
 func (s *AdminService) BlockUser(userID, reason, adminID string) error {
