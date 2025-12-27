@@ -252,10 +252,38 @@ class ApiClient {
     FormData formData;
     
     if (file is File) {
+      final fileName = file.path.split('/').last;
+      final extension = fileName.split('.').last.toLowerCase();
+      
+      // Determine content type based on file extension
+      String? contentType;
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'heic':
+        case 'heif':
+          contentType = 'image/heic';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+      
       formData = FormData.fromMap({
         fieldName: await MultipartFile.fromFile(
           file.path,
-          filename: file.path.split('/').last,
+          filename: fileName,
+          contentType: DioMediaType.parse(contentType),
         ),
         if (extraFields != null) ...extraFields,
       });

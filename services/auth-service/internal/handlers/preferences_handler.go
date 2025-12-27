@@ -216,13 +216,16 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 	// Validate file type
 	contentType := header.Header.Get("Content-Type")
 	allowedTypes := map[string]bool{
-		"image/jpeg":      true,
-		"image/png":       true,
-		"image/gif":       true,
-		"application/pdf": true,
+		"image/jpeg":               true,
+		"image/png":                true,
+		"image/gif":                true,
+		"image/heic":               true,
+		"image/heif":               true,
+		"application/pdf":          true,
+		"application/octet-stream": true, // Fallback for unknown types
 	}
 	if !allowedTypes[contentType] {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Allowed: JPEG, PNG, GIF, PDF"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Allowed: JPEG, PNG, GIF, HEIC, PDF"})
 		return
 	}
 

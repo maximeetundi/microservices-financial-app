@@ -92,6 +92,8 @@ export const approveKYC = (userId: string, level: string) =>
     api.post(`/kyc/${userId}/approve`, { level });
 export const rejectKYC = (userId: string, reason: string) =>
     api.post(`/kyc/${userId}/reject`, { reason });
+export const getUserKYCDocuments = (userId: string) =>
+    api.get(`/users/${userId}/kyc/documents`);
 
 // Transactions
 export const getTransactions = (limit = 50, offset = 0) =>

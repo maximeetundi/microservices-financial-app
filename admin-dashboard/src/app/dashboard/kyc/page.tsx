@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getUsers, approveKYC, rejectKYC } from '@/lib/api';
+import { getUsers, approveKYC, rejectKYC, getUserKYCDocuments } from '@/lib/api';
 import api from '@/lib/api';
 import {
     XMarkIcon,
@@ -142,28 +142,14 @@ export default function KYCPage() {
         setLoadingDocs(true);
         try {
             // Try to get KYC documents for this user
-            const response = await api.get(`/users/${user.id}/kyc/documents`);
-            const docs = response.data?.documents || [];
-            setDocModal({ isOpen: true, user, documents: docs });
+            const response = await getUserKYCDocuments(user.id);
+            const docs = response.data?.documents || response.data || [];
+            console.log('KYC documents loaded:', docs);
+            setDocModal({ isOpen: true, user, documents: Array.isArray(docs) ? docs : [] });
         } catch (error) {
-            // Mock documents for demo
-            const mockDocs: KYCDocument[] = [
-                {
-                    id: '1',
-                    type: 'identity',
-                    status: 'pending',
-                    file_url: 'https://placehold.co/600x400/1e293b/94a3b8?text=ID+Document',
-                    uploaded_at: new Date().toISOString(),
-                },
-                {
-                    id: '2',
-                    type: 'selfie',
-                    status: 'pending',
-                    file_url: 'https://placehold.co/600x400/1e293b/94a3b8?text=Selfie',
-                    uploaded_at: new Date().toISOString(),
-                },
-            ];
-            setDocModal({ isOpen: true, user, documents: mockDocs });
+            console.error('KYC documents API error:', error);
+            // Show empty documents on error instead of mock
+            setDocModal({ isOpen: true, user, documents: [] });
         } finally {
             setLoadingDocs(false);
         }
