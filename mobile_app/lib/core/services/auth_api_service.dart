@@ -193,13 +193,35 @@ class AuthApiService {
   }
 
   /// Upload KYC document
-  Future<Map<String, dynamic>> uploadKYCDocument(String type, dynamic file) async {
+  /// [type]: identity, selfie, or address
+  /// [file]: The document file to upload
+  /// [documentNumber]: Optional document number (for identity/address only)
+  /// [expiryDate]: Optional expiry date in YYYY-MM-DD format (for identity/address only)
+  Future<Map<String, dynamic>> uploadKYCDocument(
+    String type, 
+    dynamic file, {
+    String? documentNumber,
+    String? expiryDate,
+  }) async {
+    // Build extra fields for multipart form
+    final Map<String, String> extraFields = {'type': type};
+    
+    // Add optional document metadata (only for identity/address)
+    if (type != 'selfie') {
+      if (documentNumber != null && documentNumber.isNotEmpty) {
+        extraFields['document_number'] = documentNumber;
+      }
+      if (expiryDate != null && expiryDate.isNotEmpty) {
+        extraFields['expiry_date'] = expiryDate;
+      }
+    }
+
     // For file upload, we need to use multipart form data
     final response = await _client.uploadFile(
       '${ApiEndpoints.users}/kyc/documents',
       file,
       fieldName: 'document',
-      extraFields: {'type': type},
+      extraFields: extraFields,
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
       return response.data;

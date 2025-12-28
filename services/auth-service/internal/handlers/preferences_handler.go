@@ -237,14 +237,27 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 		return
 	}
 
+	// Get optional document metadata (only for identity/address documents)
+	var documentNumber, expiryDate *string
+	if docType == "identity" || docType == "address" {
+		if num := c.PostForm("document_number"); num != "" {
+			documentNumber = &num
+		}
+		if date := c.PostForm("expiry_date"); date != "" {
+			expiryDate = &date
+		}
+	}
+
 	// Create document record
 	doc := &models.KYCDocument{
-		UserID:   userID.(string),
-		Type:     docType,
-		FileName: header.Filename,
-		FilePath: fileURL, // Store the full Minio URL as file path
-		FileSize: header.Size,
-		MimeType: contentType,
+		UserID:         userID.(string),
+		Type:           docType,
+		FileName:       header.Filename,
+		FilePath:       fileURL, // Store the full Minio URL as file path
+		FileSize:       header.Size,
+		MimeType:       contentType,
+		DocumentNumber: documentNumber,
+		ExpiryDate:     expiryDate,
 	}
 
 	if err := h.repo.CreateKYCDocument(doc, fileURL); err != nil {

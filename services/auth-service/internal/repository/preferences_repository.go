@@ -398,17 +398,17 @@ func (r *PreferencesRepository) CreateKYCDocument(doc *models.KYCDocument, fileU
 
 	_, err := r.db.Exec(`
 		INSERT INTO kyc_documents (id, user_id, document_type, file_name, file_path, file_size, 
-			mime_type, status, uploaded_at, created_at, file_url)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			mime_type, document_number, expiry_date, status, uploaded_at, created_at, file_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`, doc.ID, doc.UserID, doc.Type, doc.FileName, doc.FilePath, doc.FileSize,
-		doc.MimeType, doc.Status, doc.UploadedAt, doc.CreatedAt, fileURL)
+		doc.MimeType, doc.DocumentNumber, doc.ExpiryDate, doc.Status, doc.UploadedAt, doc.CreatedAt, fileURL)
 
 	return err
 }
 
 func (r *PreferencesRepository) GetKYCDocuments(userID string) ([]models.KYCDocument, error) {
-	query := `SELECT id, user_id, document_type, file_name, file_path, file_size, mime_type, status, 
-		rejection_reason, reviewed_at, reviewed_by, uploaded_at, created_at 
+	query := `SELECT id, user_id, document_type, file_name, file_path, file_size, mime_type, 
+		document_number, expiry_date, status, rejection_reason, reviewed_at, reviewed_by, uploaded_at, created_at 
 		FROM kyc_documents WHERE user_id = $1 ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(query, userID)
@@ -422,8 +422,8 @@ func (r *PreferencesRepository) GetKYCDocuments(userID string) ([]models.KYCDocu
 		var doc models.KYCDocument
 		err := rows.Scan(
 			&doc.ID, &doc.UserID, &doc.Type, &doc.FileName, &doc.FilePath, &doc.FileSize,
-			&doc.MimeType, &doc.Status, &doc.RejectionReason, &doc.ReviewedAt, &doc.ReviewedBy,
-			&doc.UploadedAt, &doc.CreatedAt,
+			&doc.MimeType, &doc.DocumentNumber, &doc.ExpiryDate, &doc.Status, &doc.RejectionReason, 
+			&doc.ReviewedAt, &doc.ReviewedBy, &doc.UploadedAt, &doc.CreatedAt,
 		)
 		if err != nil {
 			continue

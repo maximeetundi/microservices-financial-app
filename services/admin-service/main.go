@@ -54,6 +54,7 @@ func main() {
 		cfg.MinioSecretKey,
 		cfg.MinioBucket,
 		cfg.MinioUseSSL,
+		cfg.MinioPublicURL,
 	)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize Minio storage: %v (document viewing will fail)", err)

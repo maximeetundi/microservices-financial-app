@@ -26,6 +26,10 @@ class _KycPageState extends State<KycPage> {
   String? _selectedDocType;
   File? _selectedFile;
   
+  // Document metadata controllers
+  final TextEditingController _documentNumberController = TextEditingController();
+  DateTime? _selectedExpiryDate;
+  
   List<Map<String, dynamic>> _documents = [];
   
   final Map<String, Map<String, dynamic>> _documentStatus = {
@@ -146,7 +150,18 @@ class _KycPageState extends State<KycPage> {
     setState(() => _isUploading = true);
 
     try {
-      await _authApi.uploadKYCDocument(_selectedDocType!, _selectedFile!);
+      // Format expiry date if set
+      String? expiryDateStr;
+      if (_selectedExpiryDate != null) {
+        expiryDateStr = '${_selectedExpiryDate!.year}-${_selectedExpiryDate!.month.toString().padLeft(2, '0')}-${_selectedExpiryDate!.day.toString().padLeft(2, '0')}';
+      }
+
+      await _authApi.uploadKYCDocument(
+        _selectedDocType!, 
+        _selectedFile!,
+        documentNumber: _documentNumberController.text.isNotEmpty ? _documentNumberController.text : null,
+        expiryDate: expiryDateStr,
+      );
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,6 +177,8 @@ class _KycPageState extends State<KycPage> {
         _kycStatus = 'pending';
         _selectedFile = null;
         _selectedDocType = null;
+        _documentNumberController.clear();
+        _selectedExpiryDate = null;
       });
 
       await _loadKycStatus();
@@ -747,6 +764,118 @@ class _KycPageState extends State<KycPage> {
             ),
           ],
           const SizedBox(height: 16),
+          
+          // Document metadata fields (only for identity/address)
+          if (_selectedDocType != 'selfie') ...[
+            // Document Number Field
+            TextFormField(
+              controller: _documentNumberController,
+              style: GoogleFonts.inter(
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              decoration: InputDecoration(
+                labelText: _selectedDocType == 'identity' 
+                    ? 'Numéro du document (CNI, Passeport...)' 
+                    : 'Numéro de justificatif',
+                labelStyle: GoogleFonts.inter(
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  fontSize: 14,
+                ),
+                hintText: 'Ex: AB123456',
+                hintStyle: GoogleFonts.inter(
+                  color: isDark ? Colors.white24 : Colors.black26,
+                ),
+                prefixIcon: Icon(
+                  Icons.badge_outlined,
+                  color: const Color(0xFF6366F1),
+                ),
+                filled: true,
+                fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white10 : Colors.grey.shade200,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Expiry Date Picker
+            GestureDetector(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedExpiryDate ?? DateTime.now().add(const Duration(days: 365)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365 * 20)),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: ColorScheme.dark(
+                          primary: const Color(0xFF6366F1),
+                          surface: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (date != null) {
+                  setState(() => _selectedExpiryDate = date);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      color: Color(0xFF6366F1),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedExpiryDate != null
+                            ? 'Expire le: ${_selectedExpiryDate!.day}/${_selectedExpiryDate!.month}/${_selectedExpiryDate!.year}'
+                            : 'Date d\'expiration (optionnel)',
+                        style: GoogleFonts.inter(
+                          color: _selectedExpiryDate != null
+                              ? (isDark ? Colors.white : const Color(0xFF1E293B))
+                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (_selectedExpiryDate != null)
+                      GestureDetector(
+                        onTap: () => setState(() => _selectedExpiryDate = null),
+                        child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           
           // Upload Button
           SizedBox(

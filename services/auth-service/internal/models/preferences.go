@@ -6,19 +6,21 @@ import (
 
 // KYCDocument represents a document uploaded for KYC verification
 type KYCDocument struct {
-	ID           string     `json:"id" db:"id"`
-	UserID       string     `json:"user_id" db:"user_id"`
-	Type         string     `json:"type" db:"type"` // identity, selfie, address
-	FileName     string     `json:"file_name" db:"file_name"`
-	FilePath     string     `json:"-" db:"file_path"`
-	FileSize     int64      `json:"file_size" db:"file_size"`
-	MimeType     string     `json:"mime_type" db:"mime_type"`
-	Status       string     `json:"status" db:"status"` // pending, approved, rejected
-	RejectionReason *string `json:"rejection_reason,omitempty" db:"rejection_reason"`
-	ReviewedAt   *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
-	ReviewedBy   *string    `json:"reviewed_by,omitempty" db:"reviewed_by"`
-	UploadedAt   time.Time  `json:"uploaded_at" db:"uploaded_at"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	ID              string     `json:"id" db:"id"`
+	UserID          string     `json:"user_id" db:"user_id"`
+	Type            string     `json:"type" db:"type"` // identity, selfie, address
+	FileName        string     `json:"file_name" db:"file_name"`
+	FilePath        string     `json:"-" db:"file_path"`
+	FileSize        int64      `json:"file_size" db:"file_size"`
+	MimeType        string     `json:"mime_type" db:"mime_type"`
+	DocumentNumber  *string    `json:"document_number,omitempty" db:"document_number"` // ID/Passport/License number
+	ExpiryDate      *string    `json:"expiry_date,omitempty" db:"expiry_date"`         // Document expiration date (YYYY-MM-DD)
+	Status          string     `json:"status" db:"status"` // pending, approved, rejected
+	RejectionReason *string    `json:"rejection_reason,omitempty" db:"rejection_reason"`
+	ReviewedAt      *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
+	ReviewedBy      *string    `json:"reviewed_by,omitempty" db:"reviewed_by"`
+	UploadedAt      time.Time  `json:"uploaded_at" db:"uploaded_at"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 }
 
 // UserPreferences stores user application preferences

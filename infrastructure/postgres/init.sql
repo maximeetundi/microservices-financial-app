@@ -244,6 +244,8 @@ CREATE TABLE kyc_documents (
     file_path VARCHAR(500),
     file_size BIGINT,
     mime_type VARCHAR(100),
+    document_number VARCHAR(100),  -- ID/Passport/License number
+    expiry_date DATE,              -- Document expiration date
     verification_status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
     status VARCHAR(20) DEFAULT 'pending', -- alias for verification_status
     verified_by UUID REFERENCES users(id),
