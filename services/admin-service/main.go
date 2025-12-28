@@ -62,6 +62,13 @@ func main() {
 	// Initialize handlers
 	handler := handlers.NewAdminHandler(adminService)
 	kycHandler := handlers.NewKYCHandler(storageService)
+	notifHandler := handlers.NewNotificationHandler(adminDB)
+
+	// Start event consumer for admin notifications
+	eventConsumer := services.NewEventConsumer(mqClient.GetChannel(), adminDB)
+	if err := eventConsumer.StartConsuming(); err != nil {
+		log.Printf("Warning: Failed to start event consumer: %v", err)
+	}
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -177,6 +184,17 @@ func main() {
 		logs.Use(middleware.RequirePermission(models.PermViewLogs))
 		{
 			logs.GET("", handler.GetAuditLogs)
+		}
+
+		// Admin Notifications
+		notifications := protected.Group("/notifications")
+		{
+			notifications.GET("", notifHandler.GetNotifications)
+			notifications.GET("/unread-count", notifHandler.GetUnreadCount)
+			notifications.POST("/:id/read", notifHandler.MarkAsRead)
+			notifications.POST("/mark-all-read", notifHandler.MarkAllAsRead)
+			notifications.POST("", notifHandler.CreateNotification)
+			notifications.DELETE("/cleanup", notifHandler.DeleteOldNotifications)
 		}
 
 		// Payment Providers management

@@ -117,11 +117,24 @@ func createAdminTables(db *sql.DB) error {
 			user_agent TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		// Admin notifications (for KYC, support tickets, alerts, etc.)
+		`CREATE TABLE IF NOT EXISTS admin_notifications (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			type VARCHAR(50) NOT NULL,
+			title VARCHAR(255) NOT NULL,
+			message TEXT NOT NULL,
+			data JSONB,
+			is_read BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
 		
 		// Create index for faster queries
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON admin_audit_logs(admin_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON admin_audit_logs(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin_id ON admin_sessions(admin_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_admin_notifications_created_at ON admin_notifications(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_admin_notifications_is_read ON admin_notifications(is_read)`,
 	}
 
 	for _, query := range queries {

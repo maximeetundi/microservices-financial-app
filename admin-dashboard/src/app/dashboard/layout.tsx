@@ -91,16 +91,18 @@ export default function DashboardLayout({ children }: SidebarProps) {
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
-    // Load notifications from notification-service
+    // Load notifications from admin-service (admin-specific notifications)
     const loadNotifications = async () => {
         try {
-            // Use notification-service via Kong gateway or direct URL
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            // Use admin-service API via Kong gateway
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
             const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
 
-            const response = await fetch(`${API_URL}/notification-service/api/v1/notifications?limit=5`, {
+            if (!token) return;
+
+            const response = await fetch(`${API_URL}/api/v1/admin/notifications?limit=10`, {
                 headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
             });
@@ -111,7 +113,7 @@ export default function DashboardLayout({ children }: SidebarProps) {
                 setNotifications(Array.isArray(notifList) ? notifList : []);
             }
         } catch (error) {
-            console.error('Error loading notifications:', error);
+            console.error('Error loading admin notifications:', error);
         }
     };
 

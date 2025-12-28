@@ -62,9 +62,15 @@ func main() {
 		log.Printf("Warning: Failed to initialize Minio storage: %v (KYC uploads will fail)", err)
 	}
 
+	// Initialize event publisher for admin notifications
+	var eventPublisher *services.EventPublisher
+	if mqChannel != nil {
+		eventPublisher = services.NewEventPublisher(mqChannel)
+	}
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
-	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService)
+	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService, eventPublisher)
 
 	// Setup Gin
 	if cfg.Environment == "production" {

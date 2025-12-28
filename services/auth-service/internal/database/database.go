@@ -59,6 +59,7 @@ func InitializeRabbitMQ(rabbitMQURL string) (*amqp.Channel, error) {
 		"auth.events",
 		"audit.events",
 		"notification.events",
+		"user.events", // For KYC, PIN events consumed by admin-service
 	}
 
 	for _, exchange := range exchanges {

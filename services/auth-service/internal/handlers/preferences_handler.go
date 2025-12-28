@@ -12,12 +12,13 @@ import (
 )
 
 type PreferencesHandler struct {
-	repo    *repository.PreferencesRepository
-	storage *services.StorageService
+	repo      *repository.PreferencesRepository
+	storage   *services.StorageService
+	publisher *services.EventPublisher
 }
 
-func NewPreferencesHandler(repo *repository.PreferencesRepository, storage *services.StorageService) *PreferencesHandler {
-	return &PreferencesHandler{repo: repo, storage: storage}
+func NewPreferencesHandler(repo *repository.PreferencesRepository, storage *services.StorageService, publisher *services.EventPublisher) *PreferencesHandler {
+	return &PreferencesHandler{repo: repo, storage: storage, publisher: publisher}
 }
 
 // ============ User Preferences ============
@@ -255,6 +256,19 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 	if err := h.repo.UpdateUserKYCStatus(userID.(string), "pending"); err != nil {
 		// Log but don't fail - document was saved successfully
 		fmt.Printf("Warning: Failed to update KYC status for user %s: %v\n", userID.(string), err)
+	}
+
+	// Publish KYC submitted event for admin notification
+	if h.publisher != nil {
+		// Get user info for the notification
+		userEmail, _ := c.Get("user_email")
+		userName, _ := c.Get("user_name")
+		emailStr, _ := userEmail.(string)
+		nameStr, _ := userName.(string)
+		if nameStr == "" {
+			nameStr = "Un utilisateur"
+		}
+		h.publisher.PublishKYCSubmitted(userID.(string), emailStr, nameStr, docType)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
