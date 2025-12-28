@@ -14,14 +14,14 @@ import (
 
 // StorageService handles generating presigned URLs for secure document access
 type StorageService struct {
-	client       *minio.Client
+	client       *minio.Client // Client for internal operations (upload/download if needed)
+	signerClient *minio.Client // Client for generating public presigned URLs
 	bucket       string
-	internalHost string // Internal Docker endpoint (minio:9000)
-	publicURL    string // Public accessible URL (https://minio.example.com)
 }
 
 // NewStorageService creates a new storage service connected to Minio
 func NewStorageService(endpoint, accessKey, secretKey, bucket string, useSSL bool, publicURL string) (*StorageService, error) {
+	// 1. Initialize internal client (backend-to-backend)
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -30,39 +30,41 @@ func NewStorageService(endpoint, accessKey, secretKey, bucket string, useSSL boo
 		return nil, fmt.Errorf("failed to create minio client: %w", err)
 	}
 
-	log.Printf("Connected to Minio at %s for presigned URL generation (public: %s)", endpoint, publicURL)
+	// 2. Initialize signer client (for public URLs)
+	// If publicURL is provided, we use it to configure the signer client
+	// so that generated signatures match the public hostname.
+	var signerClient *minio.Client
+	if publicURL != "" {
+		u, err := url.Parse(publicURL)
+		if err != nil {
+			log.Printf("Warning: Invalid public URL %s, falling back to internal endpoint for signing: %v", publicURL, err)
+			signerClient = client
+		} else {
+			publicHost := u.Host
+			publicSecure := u.Scheme == "https"
+			
+			signerClient, err = minio.New(publicHost, &minio.Options{
+				Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+				Secure: publicSecure,
+			})
+			if err != nil {
+				log.Printf("Warning: Failed to create public minio client, falling back to internal: %v", err)
+				signerClient = client
+			} else {
+				log.Printf("Initialized Minio signer for public URL: %s (Secure: %v)", publicHost, publicSecure)
+			}
+		}
+	} else {
+		signerClient = client // Fallback to internal if no public URL
+	}
+
+	log.Printf("Connected to Minio at %s (Internal)", endpoint)
 
 	return &StorageService{
 		client:       client,
+		signerClient: signerClient,
 		bucket:       bucket,
-		internalHost: endpoint,
-		publicURL:    publicURL,
 	}, nil
-}
-
-// replaceInternalWithPublic replaces the internal Docker address with the public URL
-func (s *StorageService) replaceInternalWithPublic(presignedURL string) string {
-	if s.publicURL == "" {
-		return presignedURL
-	}
-
-	// Parse the presigned URL
-	u, err := url.Parse(presignedURL)
-	if err != nil {
-		return presignedURL
-	}
-
-	// Parse the public URL
-	pub, err := url.Parse(s.publicURL)
-	if err != nil {
-		return presignedURL
-	}
-
-	// Replace host with public host
-	u.Scheme = pub.Scheme
-	u.Host = pub.Host
-
-	return u.String()
 }
 
 // GetPresignedURL generates a presigned URL for temporary access to a document
@@ -72,13 +74,13 @@ func (s *StorageService) GetPresignedURL(ctx context.Context, objectPath string,
 		objectName = strings.TrimPrefix(objectPath, s.bucket+"/")
 	}
 
-	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, nil)
+	// Use signerClient to generate URL with correct host and signature
+	presignedURL, err := s.signerClient.PresignedGetObject(ctx, s.bucket, objectName, expiry, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	// Replace internal address with public URL
-	return s.replaceInternalWithPublic(presignedURL.String()), nil
+	return presignedURL.String(), nil
 }
 
 // GetPresignedURLWithDownload generates a presigned URL that forces download with specified filename
@@ -93,12 +95,12 @@ func (s *StorageService) GetPresignedURLWithDownload(ctx context.Context, object
 		reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", downloadName))
 	}
 
-	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, reqParams)
+	// Use signerClient to generate URL with correct host and signature
+	presignedURL, err := s.signerClient.PresignedGetObject(ctx, s.bucket, objectName, expiry, reqParams)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	// Replace internal address with public URL
-	return s.replaceInternalWithPublic(presignedURL.String()), nil
+	return presignedURL.String(), nil
 }
 
