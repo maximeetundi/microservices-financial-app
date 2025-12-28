@@ -133,12 +133,24 @@
             <span class="upload-hint">JPG, PNG ou PDF • Maximum 10MB</span>
           </div>
 
-          <!-- Document Metadata Fields (only for identity/address) -->
-          <div v-if="selectedDocType && selectedDocType !== 'selfie'" class="doc-metadata-fields">
+          <!-- Document Metadata Fields (only for identity) -->
+          <div v-if="selectedDocType === 'identity'" class="doc-metadata-fields">
+            <div class="form-group">
+              <label class="field-label">
+                <span class="field-icon">📋</span>
+                Type de document
+              </label>
+              <select v-model="identityDocSubtype" class="select-input">
+                <option value="">-- Sélectionner --</option>
+                <option value="cni">Carte Nationale d'Identité (CNI)</option>
+                <option value="passport">Passeport</option>
+                <option value="permis">Permis de Conduire</option>
+              </select>
+            </div>
             <div class="form-group">
               <label class="field-label">
                 <span class="field-icon">🆔</span>
-                {{ selectedDocType === 'identity' ? 'Numéro du document (CNI, Passeport...)' : 'Numéro de justificatif' }}
+                Numéro du document
               </label>
               <input 
                 type="text" 
@@ -150,7 +162,7 @@
             <div class="form-group">
               <label class="field-label">
                 <span class="field-icon">📅</span>
-                Date d'expiration (optionnel)
+                Date d'expiration
               </label>
               <input 
                 type="date" 
@@ -221,6 +233,7 @@ const uploading = ref(false)
 // Document metadata fields
 const documentNumber = ref('')
 const expiryDate = ref('')
+const identityDocSubtype = ref('') // cni, passport, permis
 
 const kyc = reactive({
   status: 'none', // none, pending, submitted, verified, rejected
@@ -317,14 +330,21 @@ const clearFile = () => {
 const uploadDocument = async () => {
   if (!selectedFile.value || !selectedDocType.value) return
   
+  // Validate identity document requires subtype
+  if (selectedDocType.value === 'identity' && !identityDocSubtype.value) {
+    alert('Veuillez sélectionner le type de document')
+    return
+  }
+  
   uploading.value = true
   try {
     const formData = new FormData()
     formData.append('document', selectedFile.value)
     formData.append('type', selectedDocType.value)
     
-    // Add document metadata for identity/address documents
-    if (selectedDocType.value !== 'selfie') {
+    // Add document metadata only for identity documents
+    if (selectedDocType.value === 'identity') {
+      formData.append('identity_sub_type', identityDocSubtype.value)
       if (documentNumber.value) {
         formData.append('document_number', documentNumber.value)
       }
@@ -352,6 +372,7 @@ const uploadDocument = async () => {
     selectedDocType.value = ''
     documentNumber.value = ''
     expiryDate.value = ''
+    identityDocSubtype.value = ''
     
     alert('Document envoyé avec succès!')
   } catch (e) {
@@ -868,6 +889,34 @@ definePageMeta({
 
 .text-input[type="date"] {
   color-scheme: dark;
+}
+
+.select-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='%23888'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.select-input option {
+  background: #1e293b;
+  color: #fff;
 }
 
 .upload-btn {

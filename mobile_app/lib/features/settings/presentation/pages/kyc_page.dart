@@ -29,6 +29,7 @@ class _KycPageState extends State<KycPage> {
   // Document metadata controllers
   final TextEditingController _documentNumberController = TextEditingController();
   DateTime? _selectedExpiryDate;
+  String? _selectedIdentitySubtype; // cni, passport, permis
   
   List<Map<String, dynamic>> _documents = [];
   
@@ -146,21 +147,30 @@ class _KycPageState extends State<KycPage> {
 
   Future<void> _uploadDocument() async {
     if (_selectedFile == null || _selectedDocType == null) return;
+    
+    // Validate identity document requires subtype
+    if (_selectedDocType == 'identity' && _selectedIdentitySubtype == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez sélectionner le type de document'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
 
     setState(() => _isUploading = true);
 
     try {
-      // Format expiry date if set
+      // Format expiry date if set (only for identity)
       String? expiryDateStr;
-      if (_selectedExpiryDate != null) {
+      if (_selectedDocType == 'identity' && _selectedExpiryDate != null) {
         expiryDateStr = '${_selectedExpiryDate!.year}-${_selectedExpiryDate!.month.toString().padLeft(2, '0')}-${_selectedExpiryDate!.day.toString().padLeft(2, '0')}';
       }
 
       await _authApi.uploadKYCDocument(
         _selectedDocType!, 
         _selectedFile!,
-        documentNumber: _documentNumberController.text.isNotEmpty ? _documentNumberController.text : null,
-        expiryDate: expiryDateStr,
+        documentNumber: _selectedDocType == 'identity' && _documentNumberController.text.isNotEmpty ? _documentNumberController.text : null,
+        expiryDate: _selectedDocType == 'identity' ? expiryDateStr : null,
+        identitySubtype: _selectedDocType == 'identity' ? _selectedIdentitySubtype : null,
       );
       
       if (mounted) {
@@ -179,6 +189,7 @@ class _KycPageState extends State<KycPage> {
         _selectedDocType = null;
         _documentNumberController.clear();
         _selectedExpiryDate = null;
+        _selectedIdentitySubtype = null;
       });
 
       await _loadKycStatus();
@@ -765,8 +776,45 @@ class _KycPageState extends State<KycPage> {
           ],
           const SizedBox(height: 16),
           
-          // Document metadata fields (only for identity/address)
-          if (_selectedDocType != 'selfie') ...[
+          // Document metadata fields (only for identity)
+          if (_selectedDocType == 'identity') ...[
+            // Document Subtype Dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.grey.shade200,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedIdentitySubtype,
+                  isExpanded: true,
+                  hint: Text(
+                    'Type de document',
+                    style: GoogleFonts.inter(
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  icon: Icon(Icons.arrow_drop_down, color: const Color(0xFF6366F1)),
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    fontSize: 14,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cni', child: Text("Carte Nationale d'Identité (CNI)")),
+                    DropdownMenuItem(value: 'passport', child: Text('Passeport')),
+                    DropdownMenuItem(value: 'permis', child: Text('Permis de Conduire')),
+                  ],
+                  onChanged: (value) => setState(() => _selectedIdentitySubtype = value),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
             // Document Number Field
             TextFormField(
               controller: _documentNumberController,
@@ -774,9 +822,7 @@ class _KycPageState extends State<KycPage> {
                 color: isDark ? Colors.white : const Color(0xFF1E293B),
               ),
               decoration: InputDecoration(
-                labelText: _selectedDocType == 'identity' 
-                    ? 'Numéro du document (CNI, Passeport...)' 
-                    : 'Numéro de justificatif',
+                labelText: 'Numéro du document',
                 labelStyle: GoogleFonts.inter(
                   color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   fontSize: 14,
@@ -856,7 +902,7 @@ class _KycPageState extends State<KycPage> {
                       child: Text(
                         _selectedExpiryDate != null
                             ? 'Expire le: ${_selectedExpiryDate!.day}/${_selectedExpiryDate!.month}/${_selectedExpiryDate!.year}'
-                            : 'Date d\'expiration (optionnel)',
+                            : 'Date d\'expiration',
                         style: GoogleFonts.inter(
                           color: _selectedExpiryDate != null
                               ? (isDark ? Colors.white : const Color(0xFF1E293B))

@@ -195,19 +195,24 @@ class AuthApiService {
   /// Upload KYC document
   /// [type]: identity, selfie, or address
   /// [file]: The document file to upload
-  /// [documentNumber]: Optional document number (for identity/address only)
-  /// [expiryDate]: Optional expiry date in YYYY-MM-DD format (for identity/address only)
+  /// [documentNumber]: Optional document number (for identity only)
+  /// [expiryDate]: Optional expiry date in YYYY-MM-DD format (for identity only)
+  /// [identitySubtype]: Type of identity document: cni, passport, permis (for identity only)
   Future<Map<String, dynamic>> uploadKYCDocument(
     String type, 
     dynamic file, {
     String? documentNumber,
     String? expiryDate,
+    String? identitySubtype,
   }) async {
     // Build extra fields for multipart form
     final Map<String, String> extraFields = {'type': type};
     
-    // Add optional document metadata (only for identity/address)
-    if (type != 'selfie') {
+    // Add optional document metadata (only for identity)
+    if (type == 'identity') {
+      if (identitySubtype != null && identitySubtype.isNotEmpty) {
+        extraFields['identity_sub_type'] = identitySubtype;
+      }
       if (documentNumber != null && documentNumber.isNotEmpty) {
         extraFields['document_number'] = documentNumber;
       }
