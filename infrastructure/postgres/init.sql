@@ -657,7 +657,7 @@ ON CONFLICT (provider_id, country_code) DO UPDATE SET
 -- =====================================================
 
 -- Admin Roles
-CREATE TABLE admin_roles (
+CREATE TABLE IF NOT EXISTS admin_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) NOT NULL UNIQUE,
     description TEXT,
@@ -668,7 +668,7 @@ CREATE TABLE admin_roles (
 );
 
 -- Admin Users
-CREATE TABLE admins (
+CREATE TABLE IF NOT EXISTS admins (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -683,7 +683,7 @@ CREATE TABLE admins (
 );
 
 -- Admin Audit Logs
-CREATE TABLE admin_audit_logs (
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_id UUID REFERENCES admins(id),
     admin_email VARCHAR(255),
@@ -697,10 +697,10 @@ CREATE TABLE admin_audit_logs (
 );
 
 -- Indexes
-CREATE INDEX idx_admins_email ON admins(email);
-CREATE INDEX idx_admins_role ON admins(role_id);
-CREATE INDEX idx_admin_audit_admin ON admin_audit_logs(admin_id);
-CREATE INDEX idx_admin_audit_action ON admin_audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
+CREATE INDEX IF NOT EXISTS idx_admins_role ON admins(role_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_admin ON admin_audit_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_logs(action);
 
 -- Insert default admin roles
 INSERT INTO admin_roles (name, description, permissions, is_system) VALUES
