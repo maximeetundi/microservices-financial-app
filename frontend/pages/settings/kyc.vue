@@ -133,6 +133,34 @@
             <span class="upload-hint">JPG, PNG ou PDF • Maximum 10MB</span>
           </div>
 
+          <!-- Document Metadata Fields (only for identity/address) -->
+          <div v-if="selectedDocType && selectedDocType !== 'selfie'" class="doc-metadata-fields">
+            <div class="form-group">
+              <label class="field-label">
+                <span class="field-icon">🆔</span>
+                {{ selectedDocType === 'identity' ? 'Numéro du document (CNI, Passeport...)' : 'Numéro de justificatif' }}
+              </label>
+              <input 
+                type="text" 
+                v-model="documentNumber" 
+                placeholder="Ex: AB123456"
+                class="text-input"
+              />
+            </div>
+            <div class="form-group">
+              <label class="field-label">
+                <span class="field-icon">📅</span>
+                Date d'expiration (optionnel)
+              </label>
+              <input 
+                type="date" 
+                v-model="expiryDate" 
+                class="text-input"
+                :min="getTodayDate()"
+              />
+            </div>
+          </div>
+
           <button 
             @click="uploadDocument" 
             :disabled="!selectedFile || uploading"
@@ -189,6 +217,10 @@ const selectedFile = ref(null)
 const previewUrl = ref(null)
 const selectedDocType = ref('')
 const uploading = ref(false)
+
+// Document metadata fields
+const documentNumber = ref('')
+const expiryDate = ref('')
 
 const kyc = reactive({
   status: 'none', // none, pending, submitted, verified, rejected
@@ -291,6 +323,16 @@ const uploadDocument = async () => {
     formData.append('document', selectedFile.value)
     formData.append('type', selectedDocType.value)
     
+    // Add document metadata for identity/address documents
+    if (selectedDocType.value !== 'selfie') {
+      if (documentNumber.value) {
+        formData.append('document_number', documentNumber.value)
+      }
+      if (expiryDate.value) {
+        formData.append('expiry_date', expiryDate.value)
+      }
+    }
+    
     try {
       await userAPI.uploadKYCDocument(formData)
     } catch (e) {
@@ -308,6 +350,8 @@ const uploadDocument = async () => {
     kyc.status = 'pending'
     clearFile()
     selectedDocType.value = ''
+    documentNumber.value = ''
+    expiryDate.value = ''
     
     alert('Document envoyé avec succès!')
   } catch (e) {
@@ -316,6 +360,11 @@ const uploadDocument = async () => {
   } finally {
     uploading.value = false
   }
+}
+
+const getTodayDate = () => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
 }
 
 const getDocIcon = (type) => {
@@ -763,6 +812,62 @@ definePageMeta({
 .upload-hint {
   font-size: 0.75rem;
   color: #666;
+}
+
+/* Document Metadata Fields */
+.doc-metadata-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 0.875rem;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.field-icon {
+  font-size: 1rem;
+}
+
+.text-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.text-input[type="date"] {
+  color-scheme: dark;
 }
 
 .upload-btn {
