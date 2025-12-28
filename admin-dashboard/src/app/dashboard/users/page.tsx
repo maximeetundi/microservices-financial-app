@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getUsers, blockUser, unblockUser, unlockUserPin } from '@/lib/api';
+import { getUsers, blockUser, unblockUser, unlockUserPin, getUserKYCDocuments, getKYCDocumentURL, getKYCDownloadURL } from '@/lib/api';
 import { format } from 'date-fns';
 import {
     UsersIcon,
@@ -15,6 +15,15 @@ import {
     CheckCircleIcon,
     ArrowPathIcon,
     LockOpenIcon,
+    DocumentIcon,
+    EyeIcon,
+    ArrowDownTrayIcon,
+    IdentificationIcon,
+    UserCircleIcon,
+    EnvelopeIcon,
+    PhoneIcon,
+    CalendarIcon,
+    MapPinIcon,
 } from '@heroicons/react/24/outline';
 
 interface User {
@@ -25,18 +34,29 @@ interface User {
     phone: string;
     is_active: boolean;
     kyc_level: number | string;
+    kyc_status?: string;
     created_at: string;
     pin_locked?: boolean;
+    country?: string;
+    address?: string;
+    date_of_birth?: string;
+}
+
+interface KYCDocument {
+    id: string;
+    type: string;
+    status: string;
+    file_url?: string;
+    file_path?: string;
+    file_name?: string;
+    uploaded_at: string;
+    identity_sub_type?: string;
+    document_number?: string;
+    expiry_date?: string;
 }
 
 // Toast Component
-interface ToastProps {
-    message: string;
-    type: 'success' | 'error' | 'info';
-    onClose: () => void;
-}
-
-function Toast({ message, type, onClose }: ToastProps) {
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
     useEffect(() => {
         const timer = setTimeout(onClose, 4000);
         return () => clearTimeout(timer);
@@ -49,7 +69,7 @@ function Toast({ message, type, onClose }: ToastProps) {
     };
 
     return (
-        <div className={`fixed bottom-6 right-6 z-50 animate-slide-up`}>
+        <div className="fixed bottom-6 right-6 z-50 animate-slide-up">
             <div className={`flex items-center gap-3 px-5 py-4 bg-gradient-to-r ${colors[type]} text-white rounded-xl shadow-2xl`}>
                 {type === 'success' && <CheckCircleIcon className="w-5 h-5" />}
                 {type === 'error' && <ExclamationTriangleIcon className="w-5 h-5" />}
@@ -63,52 +83,83 @@ function Toast({ message, type, onClose }: ToastProps) {
 }
 
 // Modal Component
-interface ModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    title: string;
-    icon?: React.ReactNode;
-    iconColor?: string;
-    children: React.ReactNode;
-}
-
-function Modal({ isOpen, onClose, title, icon, iconColor = 'bg-indigo-100 text-indigo-600', children }: ModalProps) {
+function Modal({ isOpen, onClose, title, children, size = 'md' }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
     if (!isOpen) return null;
+
+    const sizeClasses = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-                onClick={onClose}
-            />
-            {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center gap-4 p-6 border-b border-gray-100">
-                    {icon && (
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconColor}`}>
-                            {icon}
-                        </div>
-                    )}
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}>
+                <div className="flex items-center justify-between p-5 border-b border-gray-100">
                     <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-                    <button
-                        onClick={onClose}
-                        className="ml-auto p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
+                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
                         <XMarkIcon className="w-5 h-5 text-gray-500" />
                     </button>
                 </div>
-                {/* Content */}
-                <div className="p-6">
-                    {children}
-                </div>
+                <div className="p-5 overflow-y-auto">{children}</div>
             </div>
         </div>
     );
 }
 
-type FilterTab = 'all' | 'active' | 'blocked' | 'pin_locked';
+// Secure Document Viewer Component
+function SecureDocumentViewer({ doc }: { doc: KYCDocument }) {
+    const [loading, setLoading] = useState(false);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadUrl = async () => {
+            setLoading(true);
+            try {
+                const response = await getKYCDocumentURL(doc.id);
+                setImageUrl(response.data.url);
+            } catch (err) {
+                console.error('Failed to load document:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadUrl();
+    }, [doc.id]);
+
+    const handleDownload = async () => {
+        try {
+            const response = await getKYCDownloadURL(doc.id);
+            window.open(response.data.url, '_blank');
+        } catch (err) {
+            console.error('Failed to download:', err);
+        }
+    };
+
+    const isPDF = doc.file_name?.toLowerCase().endsWith('.pdf');
+
+    return (
+        <div className="space-y-3">
+            {loading && (
+                <div className="flex justify-center py-6">
+                    <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+                </div>
+            )}
+            {imageUrl && !isPDF && (
+                <img src={imageUrl} alt={doc.file_name} className="w-full rounded-lg max-h-48 object-contain bg-gray-100" />
+            )}
+            {imageUrl && isPDF && (
+                <div className="flex items-center justify-center gap-3 p-4 bg-gray-50 rounded-lg">
+                    <DocumentIcon className="w-10 h-10 text-red-500" />
+                    <span className="text-gray-600">{doc.file_name || 'Document PDF'}</span>
+                </div>
+            )}
+            <button onClick={handleDownload} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium transition-colors">
+                <ArrowDownTrayIcon className="w-4 h-4" />
+                Télécharger
+            </button>
+        </div>
+    );
+}
+
+type FilterTab = 'all' | 'active' | 'blocked' | 'kyc_pending';
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -118,17 +169,13 @@ export default function UsersPage() {
     const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
     // Modal states
+    const [detailsModal, setDetailsModal] = useState<{ isOpen: boolean; user: User | null; documents: KYCDocument[] }>({ isOpen: false, user: null, documents: [] });
     const [blockModal, setBlockModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
-    const [unblockModal, setUnblockModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
-    const [unlockPinModal, setUnlockPinModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
     const [blockReason, setBlockReason] = useState('');
-
-    // Toast state
+    const [loadingDocs, setLoadingDocs] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
-        setToast({ message, type });
-    };
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => setToast({ message, type });
 
     const fetchUsers = async () => {
         try {
@@ -141,63 +188,64 @@ export default function UsersPage() {
         }
     };
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+    const openUserDetails = async (user: User) => {
+        setDetailsModal({ isOpen: true, user, documents: [] });
+        setLoadingDocs(true);
+        try {
+            const response = await getUserKYCDocuments(user.id);
+            setDetailsModal(prev => ({ ...prev, documents: response.data.documents || [] }));
+        } catch (error) {
+            console.error('Failed to fetch documents:', error);
+        } finally {
+            setLoadingDocs(false);
+        }
+    };
+
+    useEffect(() => { fetchUsers(); }, []);
 
     const handleBlock = async () => {
         if (!blockModal.user || !blockReason.trim()) return;
-
         setActionLoading(blockModal.user.id);
         try {
             await blockUser(blockModal.user.id, blockReason);
             await fetchUsers();
             setBlockModal({ isOpen: false, user: null });
             setBlockReason('');
-            showToast(`Compte de ${blockModal.user.first_name} ${blockModal.user.last_name} bloqué avec succès`, 'success');
+            showToast(`Compte bloqué avec succès`, 'success');
         } catch (error) {
-            console.error('Block error:', error);
-            showToast('Erreur lors du blocage du compte', 'error');
+            showToast('Erreur lors du blocage', 'error');
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleUnblock = async () => {
-        if (!unblockModal.user) return;
-
-        setActionLoading(unblockModal.user.id);
+    const handleUnblock = async (user: User) => {
+        setActionLoading(user.id);
         try {
-            await unblockUser(unblockModal.user.id);
+            await unblockUser(user.id);
             await fetchUsers();
-            showToast(`Compte de ${unblockModal.user.first_name} ${unblockModal.user.last_name} débloqué`, 'success');
-            setUnblockModal({ isOpen: false, user: null });
+            showToast(`Compte débloqué`, 'success');
         } catch (error) {
-            console.error('Unblock error:', error);
-            showToast('Erreur lors du déblocage du compte', 'error');
+            showToast('Erreur lors du déblocage', 'error');
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleUnlockPin = async () => {
-        if (!unlockPinModal.user) return;
-
-        setActionLoading(`pin-${unlockPinModal.user.id}`);
+    const handleUnlockPin = async (user: User) => {
+        setActionLoading(`pin-${user.id}`);
         try {
-            await unlockUserPin(unlockPinModal.user.id);
+            await unlockUserPin(user.id);
             await fetchUsers();
-            showToast(`PIN de ${unlockPinModal.user.first_name} ${unlockPinModal.user.last_name} débloqué`, 'success');
-            setUnlockPinModal({ isOpen: false, user: null });
-        } catch (error: any) {
-            console.error('Unlock PIN error:', error);
+            showToast(`PIN débloqué`, 'success');
+        } catch (error) {
             showToast('Erreur lors du déblocage du PIN', 'error');
         } finally {
             setActionLoading(null);
         }
     };
 
-    // Filter users based on search and tab
+    // Filtering
     const filteredUsers = users.filter(user => {
         const matchesSearch =
             user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -206,268 +254,388 @@ export default function UsersPage() {
             user.phone?.includes(searchQuery);
 
         switch (activeTab) {
-            case 'active':
-                return matchesSearch && user.is_active;
-            case 'blocked':
-                return matchesSearch && !user.is_active;
-            case 'pin_locked':
-                return matchesSearch && user.pin_locked;
-            default:
-                return matchesSearch;
+            case 'active': return matchesSearch && user.is_active;
+            case 'blocked': return matchesSearch && !user.is_active;
+            case 'kyc_pending': return matchesSearch && user.kyc_status === 'pending';
+            default: return matchesSearch;
         }
     });
 
-    // Compute stats
+    // Stats
     const activeUsers = users.filter(u => u.is_active).length;
     const blockedUsers = users.filter(u => !u.is_active).length;
-    const kycVerified = users.filter(u => String(u.kyc_level) === '3' || String(u.kyc_level) === 'verified').length;
-    const pinLocked = users.filter(u => u.pin_locked).length;
+    const kycPending = users.filter(u => u.kyc_status === 'pending').length;
 
-    const tabs: { key: FilterTab; label: string; count: number; color: string }[] = [
-        { key: 'all', label: 'Tous', count: users.length, color: 'indigo' },
-        { key: 'active', label: 'Actifs', count: activeUsers, color: 'green' },
-        { key: 'blocked', label: 'Bloqués', count: blockedUsers, color: 'red' },
-        { key: 'pin_locked', label: 'PIN Bloqué', count: pinLocked, color: 'orange' },
+    const tabs = [
+        { key: 'all' as FilterTab, label: 'Tous', count: users.length },
+        { key: 'active' as FilterTab, label: 'Actifs', count: activeUsers },
+        { key: 'blocked' as FilterTab, label: 'Bloqués', count: blockedUsers },
+        { key: 'kyc_pending' as FilterTab, label: 'KYC En attente', count: kycPending },
     ];
+
+    const getKYCBadge = (user: User) => {
+        const status = user.kyc_status || (String(user.kyc_level) === '3' ? 'verified' : 'none');
+        switch (status) {
+            case 'verified': return <span className="w-2 h-2 rounded-full bg-green-500" title="KYC Vérifié"></span>;
+            case 'pending': return <span className="w-2 h-2 rounded-full bg-amber-500" title="KYC En attente"></span>;
+            case 'rejected': return <span className="w-2 h-2 rounded-full bg-red-500" title="KYC Refusé"></span>;
+            default: return <span className="w-2 h-2 rounded-full bg-gray-300" title="Non vérifié"></span>;
+        }
+    };
+
+    const getIdentitySubTypeName = (subType?: string) => {
+        switch (subType) {
+            case 'cni': return "Carte Nationale d'Identité";
+            case 'passport': return 'Passeport';
+            case 'permis': return 'Permis de Conduire';
+            default: return null;
+        }
+    };
+
+    const getDocTypeName = (type: string) => {
+        switch (type) {
+            case 'identity': return "Pièce d'identité";
+            case 'selfie': return 'Selfie';
+            case 'address': return 'Justificatif de domicile';
+            default: return 'Document';
+        }
+    };
+
+    const formatExpiryDate = (dateString?: string) => {
+        if (!dateString) return null;
+        try {
+            return new Date(dateString).toLocaleDateString('fr-FR');
+        } catch {
+            return dateString;
+        }
+    };
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin mx-auto"></div>
-                    <p className="mt-4 text-gray-500 font-medium">Chargement des utilisateurs...</p>
-                </div>
+                <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin"></div>
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
-            {/* Toast */}
-            {toast && (
-                <Toast
-                    message={toast.message}
-                    type={toast.type}
-                    onClose={() => setToast(null)}
-                />
-            )}
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
-                        Gestion des Utilisateurs
-                    </h1>
-                    <p className="text-slate-500 mt-1">
-                        Gérez les comptes utilisateurs, vérifiez le KYC et débloquez les accès
-                    </p>
+                    <h1 className="text-2xl font-bold text-gray-900">👥 Utilisateurs</h1>
+                    <p className="text-gray-500 text-sm">{users.length} utilisateurs enregistrés</p>
                 </div>
-                <button
-                    onClick={() => fetchUsers()}
-                    className="btn-secondary flex items-center gap-2"
-                >
+                <button onClick={() => fetchUsers()} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm">
                     <ArrowPathIcon className="w-4 h-4" />
                     Actualiser
                 </button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="stat-card-primary flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                        <UsersIcon className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-white/70 text-sm">Total</p>
-                        <p className="text-2xl font-bold">{users.length}</p>
-                    </div>
+            {/* Stats Mini */}
+            <div className="flex gap-4 overflow-x-auto pb-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl">
+                    <UsersIcon className="w-5 h-5" />
+                    <span className="font-bold">{users.length}</span>
+                    <span className="text-white/70 text-sm">Total</span>
                 </div>
-                <div className="stat-card-success flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                        <ShieldCheckIcon className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-white/70 text-sm">Actifs</p>
-                        <p className="text-2xl font-bold">{activeUsers}</p>
-                    </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    <span className="font-bold">{activeUsers}</span>
+                    <span className="text-white/70 text-sm">Actifs</span>
                 </div>
-                <div className="stat-card-danger flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                        <NoSymbolIcon className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-white/70 text-sm">Bloqués</p>
-                        <p className="text-2xl font-bold">{blockedUsers}</p>
-                    </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl">
+                    <IdentificationIcon className="w-5 h-5" />
+                    <span className="font-bold">{kycPending}</span>
+                    <span className="text-white/70 text-sm">KYC</span>
                 </div>
-                <div className="stat-card-warning flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                        <LockClosedIcon className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-white/70 text-sm">PIN Bloqués</p>
-                        <p className="text-2xl font-bold">{pinLocked}</p>
-                    </div>
-                </div>
-                <div className="stat-card-info flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                        <KeyIcon className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-white/70 text-sm">KYC Vérifiés</p>
-                        <p className="text-2xl font-bold">{kycVerified}</p>
-                    </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl">
+                    <NoSymbolIcon className="w-5 h-5" />
+                    <span className="font-bold">{blockedUsers}</span>
+                    <span className="text-white/70 text-sm">Bloqués</span>
                 </div>
             </div>
 
             {/* Tabs & Search */}
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                {/* Tabs */}
-                <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
+                <div className="flex gap-2 overflow-x-auto">
                     {tabs.map(tab => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key
-                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm'
+                            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                         >
-                            {tab.label}
-                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100'
-                                }`}>
-                                {tab.count}
-                            </span>
+                            {tab.label} ({tab.count})
                         </button>
                     ))}
                 </div>
-
-                {/* Search Bar */}
-                <div className="relative w-full lg:w-80">
-                    <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <div className="relative w-full lg:w-72">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Rechercher..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="input pl-12"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm"
                     />
                 </div>
             </div>
 
-            {/* Users Table */}
-            <div className="table-container">
-                <table className="w-full min-w-[900px]">
-                    <thead>
-                        <tr>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Utilisateur</th>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Email</th>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Téléphone</th>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">KYC</th>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Status</th>
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Inscrit le</th>
-                            <th className="text-right px-6 py-4 text-sm font-semibold text-slate-600">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {filteredUsers.map((user) => (
-                            <tr key={user.id} className="group hover:bg-indigo-50/50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-md">
-                                            {user.first_name?.[0]}{user.last_name?.[0]}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-900">
-                                                {user.first_name} {user.last_name}
-                                            </p>
-                                            <p className="text-xs text-slate-400 truncate max-w-[150px] font-mono">
-                                                {user.id}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">{user.email}</td>
-                                <td className="px-6 py-4 text-slate-600 font-mono text-sm">
-                                    {user.phone || <span className="text-slate-300">—</span>}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className={`badge ${getKYCBadge(user.kyc_level)}`}>
-                                        {getKYCLabel(user.kyc_level)}
+            {/* Users List - Simplified */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
+                    <div className="col-span-5">Utilisateur</div>
+                    <div className="col-span-2 text-center">Statut</div>
+                    <div className="col-span-2 text-center">KYC</div>
+                    <div className="col-span-3 text-right">Actions</div>
+                </div>
+                <div className="divide-y divide-gray-100">
+                    {filteredUsers.map((user) => (
+                        <div key={user.id} className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
+                            {/* User Info - Minimal */}
+                            <div className="col-span-5 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                    {user.first_name?.[0]}{user.last_name?.[0]}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{user.first_name} {user.last_name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="col-span-2 flex justify-center">
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                    <span className={`text-xs font-medium ${user.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                                        {user.is_active ? 'Actif' : 'Bloqué'}
                                     </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`status-dot ${user.is_active ? 'status-dot-success' : 'status-dot-danger'}`}></span>
-                                            <span className={user.is_active ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
-                                                {user.is_active ? 'Actif' : 'Bloqué'}
-                                            </span>
-                                        </div>
-                                        {user.pin_locked && (
-                                            <span className="text-xs text-orange-600 flex items-center gap-1">
-                                                <LockClosedIcon className="w-3 h-3" /> PIN bloqué
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-slate-500 text-sm">
-                                    {user.created_at ? format(new Date(user.created_at), 'dd/MM/yyyy') : '—'}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => setUnlockPinModal({ isOpen: true, user })}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
-                                            title="Débloquer le PIN"
-                                        >
-                                            <LockOpenIcon className="w-3.5 h-3.5" />
-                                            PIN
-                                        </button>
-                                        {user.is_active ? (
-                                            <button
-                                                onClick={() => setBlockModal({ isOpen: true, user })}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                            >
-                                                <NoSymbolIcon className="w-3.5 h-3.5" />
-                                                Bloquer
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => setUnblockModal({ isOpen: true, user })}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                                            >
-                                                <CheckCircleIcon className="w-3.5 h-3.5" />
-                                                Débloquer
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </div>
+                            </div>
+
+                            {/* KYC */}
+                            <div className="col-span-2 flex justify-center">
+                                {getKYCBadge(user)}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="col-span-3 flex justify-end gap-1">
+                                <button
+                                    onClick={() => openUserDetails(user)}
+                                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                    title="Voir les détails"
+                                >
+                                    <EyeIcon className="w-4 h-4" />
+                                </button>
+                                {user.pin_locked && (
+                                    <button
+                                        onClick={() => handleUnlockPin(user)}
+                                        disabled={actionLoading === `pin-${user.id}`}
+                                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
+                                        title="Débloquer PIN"
+                                    >
+                                        <LockOpenIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                                {user.is_active ? (
+                                    <button
+                                        onClick={() => setBlockModal({ isOpen: true, user })}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Bloquer"
+                                    >
+                                        <NoSymbolIcon className="w-4 h-4" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleUnblock(user)}
+                                        disabled={actionLoading === user.id}
+                                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                        title="Débloquer"
+                                    >
+                                        <CheckCircleIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
                 {filteredUsers.length === 0 && (
-                    <div className="text-center py-16">
-                        <UsersIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-500 font-medium">Aucun utilisateur trouvé</p>
-                        <p className="text-slate-400 text-sm mt-1">
-                            {searchQuery ? 'Essayez une autre recherche' : 'Les utilisateurs apparaîtront ici'}
-                        </p>
+                    <div className="text-center py-12">
+                        <UsersIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500">Aucun utilisateur trouvé</p>
                     </div>
                 )}
             </div>
+
+            {/* User Details Modal */}
+            <Modal
+                isOpen={detailsModal.isOpen}
+                onClose={() => setDetailsModal({ isOpen: false, user: null, documents: [] })}
+                title="Détails de l'utilisateur"
+                size="lg"
+            >
+                {detailsModal.user && (
+                    <div className="space-y-6">
+                        {/* User Info */}
+                        <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                                {detailsModal.user.first_name?.[0]}{detailsModal.user.last_name?.[0]}
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">{detailsModal.user.first_name} {detailsModal.user.last_name}</h3>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${detailsModal.user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {detailsModal.user.is_active ? '✓ Actif' : '✗ Bloqué'}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${detailsModal.user.kyc_status === 'verified' ? 'bg-green-100 text-green-700' :
+                                            detailsModal.user.kyc_status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                                'bg-gray-100 text-gray-600'
+                                        }`}>
+                                        KYC: {detailsModal.user.kyc_status === 'verified' ? 'Vérifié' : detailsModal.user.kyc_status === 'pending' ? 'En attente' : 'Non vérifié'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Contact Info */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <EnvelopeIcon className="w-5 h-5 text-gray-400" />
+                                <div>
+                                    <p className="text-xs text-gray-500">Email</p>
+                                    <p className="text-sm font-medium text-gray-900">{detailsModal.user.email}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <PhoneIcon className="w-5 h-5 text-gray-400" />
+                                <div>
+                                    <p className="text-xs text-gray-500">Téléphone</p>
+                                    <p className="text-sm font-medium text-gray-900">{detailsModal.user.phone || '—'}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <CalendarIcon className="w-5 h-5 text-gray-400" />
+                                <div>
+                                    <p className="text-xs text-gray-500">Inscrit le</p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {detailsModal.user.created_at ? format(new Date(detailsModal.user.created_at), 'dd/MM/yyyy') : '—'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <MapPinIcon className="w-5 h-5 text-gray-400" />
+                                <div>
+                                    <p className="text-xs text-gray-500">Pays</p>
+                                    <p className="text-sm font-medium text-gray-900">{detailsModal.user.country || '—'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* KYC Documents */}
+                        <div>
+                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <IdentificationIcon className="w-5 h-5 text-indigo-600" />
+                                Documents KYC
+                            </h4>
+
+                            {loadingDocs ? (
+                                <div className="flex justify-center py-8">
+                                    <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+                                </div>
+                            ) : detailsModal.documents.length === 0 ? (
+                                <div className="text-center py-8 bg-gray-50 rounded-xl">
+                                    <DocumentIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-gray-500 text-sm">Aucun document soumis</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {detailsModal.documents.map((doc) => (
+                                        <div key={doc.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                                            <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xl">{doc.type === 'identity' ? '🪪' : doc.type === 'selfie' ? '🤳' : '🏠'}</span>
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 text-sm">{getDocTypeName(doc.type)}</p>
+                                                        {doc.type === 'identity' && doc.identity_sub_type && (
+                                                            <p className="text-xs text-indigo-600">{getIdentitySubTypeName(doc.identity_sub_type)}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${doc.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                        doc.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                            'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                    {doc.status === 'approved' ? 'Approuvé' : doc.status === 'rejected' ? 'Rejeté' : 'En attente'}
+                                                </span>
+                                            </div>
+
+                                            {/* Metadata */}
+                                            {doc.type === 'identity' && (doc.document_number || doc.expiry_date) && (
+                                                <div className="px-3 py-2 bg-indigo-50/50 border-b border-indigo-100 flex gap-4 text-xs">
+                                                    {doc.document_number && (
+                                                        <span><strong>N°:</strong> {doc.document_number}</span>
+                                                    )}
+                                                    {doc.expiry_date && (
+                                                        <span><strong>Expire:</strong> {formatExpiryDate(doc.expiry_date)}</span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div className="p-3">
+                                                <SecureDocumentViewer doc={doc} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="flex gap-3 pt-4 border-t border-gray-100">
+                            {detailsModal.user.pin_locked && (
+                                <button
+                                    onClick={() => { handleUnlockPin(detailsModal.user!); }}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors"
+                                >
+                                    <LockOpenIcon className="w-4 h-4" />
+                                    Débloquer PIN
+                                </button>
+                            )}
+                            {detailsModal.user.is_active ? (
+                                <button
+                                    onClick={() => { setDetailsModal({ isOpen: false, user: null, documents: [] }); setBlockModal({ isOpen: true, user: detailsModal.user }); }}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-700 rounded-lg font-medium hover:bg-red-100 transition-colors"
+                                >
+                                    <NoSymbolIcon className="w-4 h-4" />
+                                    Bloquer
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => { handleUnblock(detailsModal.user!); }}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100 transition-colors"
+                                >
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                    Débloquer
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             {/* Block User Modal */}
             <Modal
                 isOpen={blockModal.isOpen}
                 onClose={() => { setBlockModal({ isOpen: false, user: null }); setBlockReason(''); }}
                 title="Bloquer l'utilisateur"
-                icon={<ExclamationTriangleIcon className="w-6 h-6" />}
-                iconColor="bg-red-100 text-red-600"
             >
                 <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                    <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
                             {blockModal.user?.first_name?.[0]}{blockModal.user?.last_name?.[0]}
                         </div>
@@ -483,161 +651,28 @@ export default function UsersPage() {
                         <textarea
                             value={blockReason}
                             onChange={(e) => setBlockReason(e.target.value)}
-                            placeholder="Décrivez la raison du blocage..."
+                            placeholder="Décrivez la raison..."
                             rows={3}
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none transition-all resize-none"
                         />
                     </div>
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-3">
                         <button
                             onClick={() => { setBlockModal({ isOpen: false, user: null }); setBlockReason(''); }}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                            className="flex-1 py-2.5 rounded-xl font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
                         >
                             Annuler
                         </button>
                         <button
                             onClick={handleBlock}
                             disabled={!blockReason.trim() || actionLoading === blockModal.user?.id}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-red-500/25"
+                            className="flex-1 py-2.5 rounded-xl font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            {actionLoading === blockModal.user?.id ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                    Blocage...
-                                </span>
-                            ) : 'Confirmer le blocage'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Unblock User Modal */}
-            <Modal
-                isOpen={unblockModal.isOpen}
-                onClose={() => setUnblockModal({ isOpen: false, user: null })}
-                title="Débloquer l'utilisateur"
-                icon={<ShieldCheckIcon className="w-6 h-6" />}
-                iconColor="bg-green-100 text-green-600"
-            >
-                <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                            {unblockModal.user?.first_name?.[0]}{unblockModal.user?.last_name?.[0]}
-                        </div>
-                        <div>
-                            <p className="font-semibold text-gray-900">{unblockModal.user?.first_name} {unblockModal.user?.last_name}</p>
-                            <p className="text-sm text-gray-500">{unblockModal.user?.email}</p>
-                        </div>
-                    </div>
-                    <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">
-                        L'utilisateur pourra de nouveau accéder à son compte et effectuer des transactions.
-                    </p>
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setUnblockModal({ isOpen: false, user: null })}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            onClick={handleUnblock}
-                            disabled={actionLoading === unblockModal.user?.id}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/25"
-                        >
-                            {actionLoading === unblockModal.user?.id ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                    Déblocage...
-                                </span>
-                            ) : 'Confirmer le déblocage'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Unlock PIN Modal */}
-            <Modal
-                isOpen={unlockPinModal.isOpen}
-                onClose={() => setUnlockPinModal({ isOpen: false, user: null })}
-                title="Débloquer le PIN"
-                icon={<KeyIcon className="w-6 h-6" />}
-                iconColor="bg-amber-100 text-amber-600"
-            >
-                <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                            {unlockPinModal.user?.first_name?.[0]}{unlockPinModal.user?.last_name?.[0]}
-                        </div>
-                        <div>
-                            <p className="font-semibold text-gray-900">{unlockPinModal.user?.first_name} {unlockPinModal.user?.last_name}</p>
-                            <p className="text-sm text-gray-500">{unlockPinModal.user?.email}</p>
-                        </div>
-                    </div>
-                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl">
-                        <div className="flex items-start gap-3">
-                            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div className="text-sm text-amber-800">
-                                <p className="font-medium">Information</p>
-                                <p className="mt-1">Le PIN peut être bloqué après trop de tentatives incorrectes. Cette action réinitialise le compteur de tentatives.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => setUnlockPinModal({ isOpen: false, user: null })}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            onClick={handleUnlockPin}
-                            disabled={actionLoading === `pin-${unlockPinModal.user?.id}`}
-                            className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-amber-500/25"
-                        >
-                            {actionLoading === `pin-${unlockPinModal.user?.id}` ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                    Déblocage...
-                                </span>
-                            ) : 'Débloquer le PIN'}
+                            {actionLoading === blockModal.user?.id ? 'Blocage...' : 'Confirmer'}
                         </button>
                     </div>
                 </div>
             </Modal>
         </div>
     );
-}
-
-function getKYCBadge(level: number | string): string {
-    switch (String(level)) {
-        case '3':
-        case 'verified':
-            return 'badge-success';
-        case '2':
-            return 'badge-info';
-        case '1':
-            return 'badge-warning';
-        case 'pending':
-            return 'badge-warning';
-        default:
-            return 'badge-gray';
-    }
-}
-
-function getKYCLabel(level: number | string): string {
-    switch (String(level)) {
-        case '3':
-        case 'verified':
-            return '✓ Vérifié';
-        case '2':
-            return 'Niveau 2';
-        case '1':
-            return 'Niveau 1';
-        case 'pending':
-            return 'En attente';
-        case '0':
-            return 'Non vérifié';
-        default:
-            return `Niveau ${level}`;
-    }
 }

@@ -40,6 +40,10 @@ interface KYCDocument {
     uploaded_at: string;
     reviewed_at?: string;
     rejection_reason?: string;
+    // New metadata fields
+    identity_sub_type?: string;  // cni, passport, permis
+    document_number?: string;
+    expiry_date?: string;
 }
 
 // Toast Component
@@ -302,10 +306,32 @@ export default function KYCPage() {
 
     const getDocTypeName = (type: string) => {
         switch (type) {
-            case 'identity': return "🪪 Pièce d'identité";
-            case 'selfie': return '🤳 Selfie';
-            case 'address': return '🏠 Justificatif de domicile';
-            default: return '📄 Document';
+            case 'identity': return "Pièce d'identité";
+            case 'selfie': return 'Selfie';
+            case 'address': return 'Justificatif de domicile';
+            default: return 'Document';
+        }
+    };
+
+    const getIdentitySubTypeName = (subType?: string) => {
+        switch (subType) {
+            case 'cni': return "Carte Nationale d'Identité";
+            case 'passport': return 'Passeport';
+            case 'permis': return 'Permis de Conduire';
+            default: return null;
+        }
+    };
+
+    const formatExpiryDate = (dateString?: string) => {
+        if (!dateString) return null;
+        try {
+            return new Date(dateString).toLocaleDateString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        } catch {
+            return dateString;
         }
     };
 
@@ -565,6 +591,11 @@ export default function KYCPage() {
                                         <span className="text-2xl">{doc.type === 'identity' ? '🪪' : doc.type === 'selfie' ? '🤳' : '🏠'}</span>
                                         <div>
                                             <p className="font-semibold text-gray-900">{getDocTypeName(doc.type)}</p>
+                                            {doc.type === 'identity' && doc.identity_sub_type && (
+                                                <p className="text-sm text-indigo-600 font-medium">
+                                                    {getIdentitySubTypeName(doc.identity_sub_type)}
+                                                </p>
+                                            )}
                                             <p className="text-xs text-gray-500">Envoyé le {formatDate(doc.uploaded_at)}</p>
                                         </div>
                                     </div>
@@ -575,6 +606,29 @@ export default function KYCPage() {
                                         {doc.status === 'approved' ? 'Approuvé' : doc.status === 'rejected' ? 'Rejeté' : 'En attente'}
                                     </span>
                                 </div>
+
+                                {/* Document Metadata */}
+                                {doc.type === 'identity' && (doc.document_number || doc.expiry_date) && (
+                                    <div className="px-4 py-3 bg-indigo-50/50 border-b border-indigo-100">
+                                        <div className="flex flex-wrap gap-4 text-sm">
+                                            {doc.document_number && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-indigo-600">🆔</span>
+                                                    <span className="text-gray-600">N° Document:</span>
+                                                    <span className="font-medium text-gray-900">{doc.document_number}</span>
+                                                </div>
+                                            )}
+                                            {doc.expiry_date && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-indigo-600">📅</span>
+                                                    <span className="text-gray-600">Expire le:</span>
+                                                    <span className="font-medium text-gray-900">{formatExpiryDate(doc.expiry_date)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {(doc.file_url || doc.file_path) && (
                                     <SecureDocumentViewer doc={doc} />
                                 )}
