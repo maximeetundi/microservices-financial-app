@@ -56,6 +56,7 @@ func (c *EventConsumer) StartConsuming() error {
 		// Support events
 		{"support.events", "ticket.created"},
 		{"support.events", "ticket.message"},
+		{"support.events", "ticket.escalated"},
 		// Transaction events (for suspicious activity)
 		{"transaction.events", "transaction.flagged"},
 		{"transaction.events", "transaction.large"},
@@ -165,6 +166,13 @@ func (c *EventConsumer) processEvent(routingKey string, body []byte) {
 		if amount != "" {
 			message += ": " + amount
 		}
+		data = event.Data
+
+	case "ticket.escalated":
+		notifType = "support"
+		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
+		title = "🚨 Escalade support"
+		message = userName + " demande à parler à un agent humain"
 		data = event.Data
 
 	default:

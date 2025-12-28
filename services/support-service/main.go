@@ -30,8 +30,17 @@ func main() {
 	msgRepo := repository.NewMessageRepository(db)
 	agentRepo := repository.NewAgentRepository(db)
 
+	// Initialize event publisher for admin notifications
+	var eventPublisher *services.EventPublisher
+	publisher, err := services.NewEventPublisher(cfg.RabbitMQURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize event publisher: %v (admin notifications disabled)", err)
+	} else {
+		eventPublisher = publisher
+	}
+
 	// Initialize services
-	supportService := services.NewSupportService(convRepo, msgRepo, agentRepo, cfg)
+	supportService := services.NewSupportService(convRepo, msgRepo, agentRepo, cfg, eventPublisher)
 
 	// Initialize handlers
 	supportHandler := handlers.NewSupportHandler(supportService)

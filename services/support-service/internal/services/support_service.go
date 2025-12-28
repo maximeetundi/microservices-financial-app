@@ -15,6 +15,7 @@ type SupportService struct {
 	agentRepo   *repository.AgentRepository
 	aiAgent     *AIAgent
 	config      *config.Config
+	publisher   *EventPublisher
 }
 
 func NewSupportService(
@@ -22,6 +23,7 @@ func NewSupportService(
 	msgRepo *repository.MessageRepository,
 	agentRepo *repository.AgentRepository,
 	cfg *config.Config,
+	publisher *EventPublisher,
 ) *SupportService {
 	return &SupportService{
 		convRepo:  convRepo,
@@ -29,6 +31,7 @@ func NewSupportService(
 		agentRepo: agentRepo,
 		aiAgent:   NewAIAgent(cfg),
 		config:    cfg,
+		publisher: publisher,
 	}
 }
 
@@ -111,6 +114,11 @@ func (s *SupportService) CreateConversation(userID, userName, userEmail string, 
 	} else {
 		// Human agent - set to pending
 		s.convRepo.UpdateStatus(conv.ID, models.ConversationStatusPending)
+		
+		// Publish event for admin notification - human agent requested
+		if s.publisher != nil {
+			s.publisher.PublishTicketCreated(conv.ID, userID, userName, req.Subject)
+		}
 	}
 
 	return conv, userMsg, nil
@@ -188,6 +196,12 @@ func (s *SupportService) SendMessage(conversationID, senderID, senderName string
 			}
 		}
 	}
+	// If human agent conversation, publish message event for admin notification
+	if conv.AgentType == models.AgentTypeHuman && senderType == models.MessageTypeUser {
+		if s.publisher != nil {
+			s.publisher.PublishUserMessage(conversationID, senderID, senderName, req.Content)
+		}
+	}
 
 	return msg, aiResponseMsg, nil
 }
@@ -227,6 +241,9 @@ func (s *SupportService) GetMessages(conversationID string, limit, offset int) (
 
 // EscalateConversation escalates a conversation to human support
 func (s *SupportService) EscalateConversation(id, reason string) error {
+	// Get conversation info for notification
+	conv, _ := s.convRepo.GetByID(id)
+	
 	// Update status
 	if err := s.convRepo.UpdateStatus(id, models.ConversationStatusEscalated); err != nil {
 		return err
@@ -238,6 +255,11 @@ func (s *SupportService) EscalateConversation(id, reason string) error {
 		// Assign to first available agent
 		s.convRepo.AssignAgent(id, agents[0].ID)
 		s.agentRepo.IncrementActiveChats(agents[0].ID)
+	}
+
+	// Publish escalation event for admin notification
+	if s.publisher != nil && conv != nil {
+		s.publisher.PublishEscalation(id, conv.UserID, conv.UserName)
 	}
 
 	return nil
