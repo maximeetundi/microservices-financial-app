@@ -266,13 +266,17 @@ const startConversation = async () => {
       agent_type: selectedAgent.value
     })
     
-    // Navigate to chat with ticket ID
-    const ticketId = response.data?.ticket?.id || response.data?.conversation?.id || response.data?.id || 'demo-' + Date.now()
-    router.push(`/support/chat?id=${ticketId}`)
+    // Navigate to chat with ticket ID and agent_type
+    const ticketId = response.data?.ticket?.id || response.data?.conversation?.id || response.data?.id
+    if (ticketId) {
+      router.push(`/support/chat?id=${ticketId}&agent_type=${selectedAgent.value}`)
+    } else {
+      console.error('No ticket ID returned from API')
+      alert('Erreur: Impossible de créer la conversation. Veuillez réessayer.')
+    }
   } catch (error) {
     console.error('Error starting conversation:', error)
-    // For demo, navigate anyway
-    router.push('/support/chat?id=demo-' + Date.now())
+    alert('Erreur de connexion au service support. Veuillez réessayer.')
   } finally {
     loading.value = false
   }

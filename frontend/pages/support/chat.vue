@@ -239,8 +239,8 @@ const sendMessage = async () => {
   isTyping.value = true
 
   try {
-    // Try to send to backend
-    if (conversation.value.id && !conversation.value.id.startsWith('demo-')) {
+    // Send to backend
+    if (conversation.value.id) {
       await supportAPI.sendMessage(conversation.value.id, content)
     }
 
@@ -365,12 +365,21 @@ const formatDateHeader = (date) => {
 
 const loadConversation = async () => {
   const id = route.query.id
+  const agentType = route.query.agent_type || 'ai'
+  
   if (!id) {
     router.push('/support')
     return
   }
 
   conversation.value.id = id
+  conversation.value.agent_type = agentType
+  
+  // Set agent name based on type
+  if (agentType === 'human') {
+    agentName.value = 'Conseiller Support'
+    quickReplies.value = [] // No quick replies for human agent
+  }
 
   // Try to load existing messages from backend
   if (!id.startsWith('demo-')) {
@@ -393,16 +402,28 @@ const loadConversation = async () => {
     }
   }
 
-  // Load initial welcome message
-  messages.value = [
-    {
-      id: 'welcome',
-      sender_type: 'agent',
-      sender_name: 'Assistant IA',
-      content: "Bonjour ! 👋 Je suis l'assistant virtuel Zekora. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?",
-      created_at: new Date().toISOString()
-    }
-  ]
+  // Load initial welcome message based on agent type
+  if (agentType === 'human') {
+    messages.value = [
+      {
+        id: 'welcome',
+        sender_type: 'system',
+        sender_name: 'Système',
+        content: "👤 Vous avez demandé à parler à un conseiller humain.\n\n⏱️ Un de nos conseillers va prendre en charge votre conversation sous peu.\n\nTemps d'attente estimé : 2-5 minutes.\n\nMerci de patienter.",
+        created_at: new Date().toISOString()
+      }
+    ]
+  } else {
+    messages.value = [
+      {
+        id: 'welcome',
+        sender_type: 'agent',
+        sender_name: 'Assistant IA',
+        content: "Bonjour ! 👋 Je suis l'assistant virtuel Zekora. Je suis là pour vous aider 24/7.\n\nVoici ce que je peux faire pour vous :\n• 💳 Assistance cartes bancaires\n• 💸 Aide aux transferts\n• ₿ Questions sur les cryptomonnaies\n• 📊 Informations sur les frais\n• 🔐 Sécurité du compte\n\nComment puis-je vous aider ?",
+        created_at: new Date().toISOString()
+      }
+    ]
+  }
   scrollToBottom()
 }
 

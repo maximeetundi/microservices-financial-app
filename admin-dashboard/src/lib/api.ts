@@ -136,8 +136,12 @@ export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
 // Support Tickets (direct connection to support-service)
-// In production, this should be set via NEXT_PUBLIC_SUPPORT_API_URL
-const SUPPORT_API_URL = process.env.NEXT_PUBLIC_SUPPORT_API_URL || API_URL.replace(':8088', ':8089').replace('admin', 'support');
+// In production, set NEXT_PUBLIC_SUPPORT_API_URL to the support-service public URL
+// e.g., https://api.support.maximeetundi.store
+const SUPPORT_API_URL = process.env.NEXT_PUBLIC_SUPPORT_API_URL ||
+    (API_URL.includes('localhost')
+        ? API_URL.replace(':8088', ':8089')
+        : API_URL.replace('admin', 'support'));
 
 const supportApi = axios.create({
     baseURL: `${SUPPORT_API_URL}/api/v1`,
