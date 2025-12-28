@@ -9,6 +9,7 @@ type KYCDocument struct {
 	ID              string     `json:"id" db:"id"`
 	UserID          string     `json:"user_id" db:"user_id"`
 	Type            string     `json:"type" db:"type"` // identity, selfie, address
+	IdentitySubType *string    `json:"identity_sub_type,omitempty" db:"identity_sub_type"` // cni, passport, permis
 	FileName        string     `json:"file_name" db:"file_name"`
 	FilePath        string     `json:"-" db:"file_path"`
 	FileSize        int64      `json:"file_size" db:"file_size"`

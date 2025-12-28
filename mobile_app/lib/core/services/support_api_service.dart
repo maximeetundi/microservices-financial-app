@@ -58,12 +58,14 @@ class SupportApiService {
     required String category,
     required String description,
     String priority = 'normal',
+    String agentType = 'ai',
   }) async {
     return createConversation(
       subject: subject,
       category: category,
       message: description,
       priority: priority,
+      agentType: agentType,
     );
   }
   

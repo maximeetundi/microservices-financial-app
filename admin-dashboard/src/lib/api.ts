@@ -135,9 +135,12 @@ export const getRoles = () => api.get('/roles');
 export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
-// Support Tickets (via support-service proxied through Kong)
+// Support Tickets (direct connection to support-service)
+// In production, this should be set via NEXT_PUBLIC_SUPPORT_API_URL
+const SUPPORT_API_URL = process.env.NEXT_PUBLIC_SUPPORT_API_URL || API_URL.replace(':8088', ':8089').replace('admin', 'support');
+
 const supportApi = axios.create({
-    baseURL: `${API_URL}/support-service/api/v1`,
+    baseURL: `${SUPPORT_API_URL}/api/v1`,
     headers: {
         'Content-Type': 'application/json',
     },

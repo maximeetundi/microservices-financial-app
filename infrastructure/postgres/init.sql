@@ -239,6 +239,7 @@ CREATE TABLE kyc_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     document_type VARCHAR(50) NOT NULL, -- passport, id_card, driver_license, utility_bill
+    identity_sub_type VARCHAR(50),       -- cni, passport, permis (for identity documents)
     file_url VARCHAR(500) NOT NULL,
     file_name VARCHAR(255),
     file_path VARCHAR(500),

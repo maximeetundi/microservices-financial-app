@@ -262,11 +262,12 @@ const startConversation = async () => {
       subject: newConversation.value.subject,
       category: newConversation.value.category,
       description: newConversation.value.message,
-      priority: 'normal'
+      priority: 'normal',
+      agent_type: selectedAgent.value
     })
     
     // Navigate to chat with ticket ID
-    const ticketId = response.data?.ticket?.id || response.data?.id || 'demo-' + Date.now()
+    const ticketId = response.data?.ticket?.id || response.data?.conversation?.id || response.data?.id || 'demo-' + Date.now()
     router.push(`/support/chat?id=${ticketId}`)
   } catch (error) {
     console.error('Error starting conversation:', error)

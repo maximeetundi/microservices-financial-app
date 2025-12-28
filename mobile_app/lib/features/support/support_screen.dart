@@ -346,6 +346,7 @@ class _ChatScreenState extends State<ChatScreen> {
         category: 'general',
         description: 'Nouvelle conversation de support',
         priority: 'normal',
+        agentType: widget.agentType,
       );
       setState(() {
         _ticketId = ticket['id']?.toString();

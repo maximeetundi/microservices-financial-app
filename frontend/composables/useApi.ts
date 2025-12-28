@@ -461,8 +461,9 @@ export const supportAPI = {
         description: string
         category: string
         priority?: string
+        agent_type?: 'ai' | 'human'
     }) => api.post('/support-service/api/v1/support/conversations', {
-        agent_type: 'ai',
+        agent_type: data.agent_type || 'ai',
         subject: data.subject,
         category: data.category,
         message: data.description,
