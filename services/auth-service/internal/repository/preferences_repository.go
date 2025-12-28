@@ -382,7 +382,15 @@ func (r *PreferencesRepository) UpdateNotificationPrefs(userID string, req *mode
 
 // ============ KYC Documents ============
 
-func (r *PreferencesRepository) CreateKYCDocument(doc *models.KYCDocument) error {
+// UpdateUserKYCStatus updates the user's KYC status after document upload
+func (r *PreferencesRepository) UpdateUserKYCStatus(userID, status string) error {
+	_, err := r.db.Exec(`
+		UPDATE users SET kyc_status = $1, updated_at = $2 WHERE id = $3
+	`, status, time.Now(), userID)
+	return err
+}
+
+func (r *PreferencesRepository) CreateKYCDocument(doc *models.KYCDocument, fileURL string) error {
 	doc.ID = uuid.New().String()
 	doc.Status = "pending"
 	doc.UploadedAt = time.Now()
@@ -393,7 +401,7 @@ func (r *PreferencesRepository) CreateKYCDocument(doc *models.KYCDocument) error
 			mime_type, status, uploaded_at, created_at, file_url)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`, doc.ID, doc.UserID, doc.Type, doc.FileName, doc.FilePath, doc.FileSize,
-		doc.MimeType, doc.Status, doc.UploadedAt, doc.CreatedAt, doc.FilePath)
+		doc.MimeType, doc.Status, doc.UploadedAt, doc.CreatedAt, fileURL)
 
 	return err
 }
@@ -428,3 +436,4 @@ func (r *PreferencesRepository) GetKYCDocuments(userID string) ([]models.KYCDocu
 	}
 	return docs, nil
 }
+

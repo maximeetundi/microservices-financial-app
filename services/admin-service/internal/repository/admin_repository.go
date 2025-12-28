@@ -466,7 +466,7 @@ func (r *AdminRepository) rowsToMaps(rows *sql.Rows) ([]map[string]interface{}, 
 func (r *AdminRepository) GetUserKYCDocuments(userID string) ([]map[string]interface{}, error) {
 	query := `
 		SELECT id, user_id, document_type as type, file_name, file_path, file_size, mime_type, status, 
-			rejection_reason, reviewed_at, reviewed_by, uploaded_at, created_at
+			file_url, rejection_reason, reviewed_at, reviewed_by, uploaded_at, created_at
 		FROM kyc_documents 
 		WHERE user_id = $1 
 		ORDER BY created_at DESC

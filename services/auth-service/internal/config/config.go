@@ -44,6 +44,14 @@ type Config struct {
 	
 	// 2FA settings
 	TOTPIssuer string
+
+	// Minio/S3 storage settings
+	MinioEndpoint  string
+	MinioAccessKey string
+	MinioSecretKey string
+	MinioBucket    string
+	MinioUseSSL    bool
+	MinioPublicURL string
 }
 
 func Load() *Config {
@@ -57,6 +65,9 @@ func Load() *Config {
 	lockoutDuration, _ := time.ParseDuration(getEnv("LOCKOUT_DURATION", "15m"))
 	emailVerificationExpiry, _ := time.ParseDuration(getEnv("EMAIL_VERIFICATION_EXPIRY", "24h"))
 	phoneVerificationExpiry, _ := time.ParseDuration(getEnv("PHONE_VERIFICATION_EXPIRY", "5m"))
+
+	// Minio SSL setting
+	minioUseSSL := getEnv("MINIO_USE_SSL", "false") == "true"
 
 	return &Config{
 		Environment: getEnv("ENVIRONMENT", "development"),
@@ -96,6 +107,14 @@ func Load() *Config {
 
 		// 2FA settings
 		TOTPIssuer: getEnv("TOTP_ISSUER", "Zekora"),
+
+		// Minio/S3 storage settings
+		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
+		MinioBucket:    getEnv("MINIO_BUCKET", "kyc-documents"),
+		MinioUseSSL:    minioUseSSL,
+		MinioPublicURL: getEnv("MINIO_PUBLIC_URL", "http://localhost:9000"),
 	}
 }
 

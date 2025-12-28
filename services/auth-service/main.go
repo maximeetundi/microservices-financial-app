@@ -43,16 +43,28 @@ func main() {
 	prefsRepo := repository.NewPreferencesRepository(db)
 
 	// Initialize services
-	// Initialize services
 	auditService := services.NewAuditService(mqChannel)
 	authService := services.NewAuthService(userRepo, sessionRepo, cfg, auditService)
 	emailService := services.NewEmailService(cfg)
 	smsService := services.NewSMSService(cfg)
 	totpService := services.NewTOTPService()
 
+	// Initialize Minio storage service for KYC documents
+	storageService, err := services.NewStorageService(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucket,
+		cfg.MinioUseSSL,
+		cfg.MinioPublicURL,
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Minio storage: %v (KYC uploads will fail)", err)
+	}
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
-	prefsHandler := handlers.NewPreferencesHandler(prefsRepo)
+	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -83,6 +95,8 @@ func main() {
 			"service": "auth-service",
 		})
 	})
+
+	// Note: Static file serving removed - files are now stored in Minio and served directly
 
 	// Auth routes
 	api := router.Group("/api/v1")

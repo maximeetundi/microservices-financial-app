@@ -1,25 +1,23 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
 )
 
 type PreferencesHandler struct {
-	repo *repository.PreferencesRepository
+	repo    *repository.PreferencesRepository
+	storage *services.StorageService
 }
 
-func NewPreferencesHandler(repo *repository.PreferencesRepository) *PreferencesHandler {
-	return &PreferencesHandler{repo: repo}
+func NewPreferencesHandler(repo *repository.PreferencesRepository, storage *services.StorageService) *PreferencesHandler {
+	return &PreferencesHandler{repo: repo, storage: storage}
 }
 
 // ============ User Preferences ============
@@ -181,7 +179,7 @@ func (h *PreferencesHandler) GetKYCDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"documents": docs})
 }
 
-// UploadKYCDocument handles KYC document upload
+// UploadKYCDocument handles KYC document upload to Minio
 func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -229,28 +227,12 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 		return
 	}
 
-	// Create upload directory
-	uploadDir := fmt.Sprintf("uploads/kyc/%s", userID.(string))
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
-		return
-	}
-
-	// Generate unique filename
-	ext := filepath.Ext(header.Filename)
-	fileName := fmt.Sprintf("%s_%s_%s%s", docType, time.Now().Format("20060102150405"), uuid.New().String()[:8], ext)
-	filePath := filepath.Join(uploadDir, fileName)
-
-	// Save file
-	out, err := os.Create(filePath)
+	// Upload to Minio
+	folder := fmt.Sprintf("kyc/%s/%s", userID.(string), docType)
+	fileURL, err := h.storage.UploadFile(context.Background(), file, header.Filename, header.Size, contentType, folder)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-		return
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, file); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		fmt.Printf("Error uploading to Minio: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 		return
 	}
 
@@ -259,18 +241,27 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 		UserID:   userID.(string),
 		Type:     docType,
 		FileName: header.Filename,
-		FilePath: filePath,
+		FilePath: fileURL, // Store the full Minio URL as file path
 		FileSize: header.Size,
 		MimeType: contentType,
 	}
 
-	if err := h.repo.CreateKYCDocument(doc); err != nil {
+	if err := h.repo.CreateKYCDocument(doc, fileURL); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save document record"})
 		return
+	}
+
+	// Update user's KYC status to 'pending' so they appear in admin panel
+	if err := h.repo.UpdateUserKYCStatus(userID.(string), "pending"); err != nil {
+		// Log but don't fail - document was saved successfully
+		fmt.Printf("Warning: Failed to update KYC status for user %s: %v\n", userID.(string), err)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":  "Document uploaded successfully",
 		"document": doc,
+		"file_url": fileURL,
 	})
 }
+
+
