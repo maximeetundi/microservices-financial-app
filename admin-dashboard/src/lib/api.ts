@@ -94,6 +94,11 @@ export const rejectKYC = (userId: string, reason: string) =>
     api.post(`/kyc/${userId}/reject`, { reason });
 export const getUserKYCDocuments = (userId: string) =>
     api.get(`/users/${userId}/kyc/documents`);
+// Get secure presigned URL for viewing/downloading KYC document
+export const getKYCDocumentURL = (filePath: string) =>
+    api.post('/kyc/document-url', { file_path: filePath });
+export const getKYCDownloadURL = (filePath: string, downloadName?: string) =>
+    api.post('/kyc/download-url', { file_path: filePath, download_name: downloadName });
 
 // Transactions
 export const getTransactions = (limit = 50, offset = 0) =>

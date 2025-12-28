@@ -47,8 +47,21 @@ func main() {
 	// Initialize service
 	adminService := services.NewAdminService(repo, mqClient, cfg)
 
-	// Initialize handler
+	// Initialize storage service for presigned URLs
+	storageService, err := services.NewStorageService(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucket,
+		cfg.MinioUseSSL,
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Minio storage: %v (document viewing will fail)", err)
+	}
+
+	// Initialize handlers
 	handler := handlers.NewAdminHandler(adminService)
+	kycHandler := handlers.NewKYCHandler(storageService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -128,6 +141,9 @@ func main() {
 		{
 			kyc.POST("/:id/approve", middleware.RequirePermission(models.PermApproveKYC), handler.ApproveKYC)
 			kyc.POST("/:id/reject", middleware.RequirePermission(models.PermRejectKYC), handler.RejectKYC)
+			// Secure document access - generates presigned URLs
+			kyc.POST("/document-url", kycHandler.GetDocumentURL)
+			kyc.POST("/download-url", kycHandler.GetDocumentDownloadURL)
 		}
 
 		// Transactions

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getUsers, approveKYC, rejectKYC, getUserKYCDocuments } from '@/lib/api';
+import { getUsers, approveKYC, rejectKYC, getUserKYCDocuments, getKYCDocumentURL, getKYCDownloadURL } from '@/lib/api';
 import api from '@/lib/api';
 import {
     XMarkIcon,
@@ -82,6 +82,88 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }: { isOpen: bool
                     {children}
                 </div>
             </div>
+        </div>
+    );
+}
+
+// Secure Document Viewer - Loads document via presigned URL
+function SecureDocumentViewer({ doc }: { doc: KYCDocument }) {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [secureUrl, setSecureUrl] = useState<string | null>(null);
+
+    const filePath = doc.file_url || doc.file_path;
+    const isPdf = doc.mime_type?.includes('pdf') || filePath?.endsWith('.pdf');
+
+    useEffect(() => {
+        if (!filePath) return;
+
+        const loadSecureUrl = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const response = await getKYCDocumentURL(filePath);
+                setSecureUrl(response.data.url);
+            } catch (err) {
+                console.error('Failed to get secure URL:', err);
+                setError('Impossible de charger le document');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadSecureUrl();
+    }, [filePath]);
+
+    const handleDownload = async () => {
+        if (!filePath) return;
+        try {
+            const response = await getKYCDownloadURL(filePath, doc.file_name);
+            window.open(response.data.url, '_blank');
+        } catch (err) {
+            console.error('Failed to get download URL:', err);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="p-8 flex justify-center">
+                <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-4 text-center text-red-500">
+                <ExclamationTriangleIcon className="w-8 h-8 mx-auto mb-2" />
+                <p>{error}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 space-y-3">
+            {secureUrl && !isPdf && (
+                <img
+                    src={secureUrl}
+                    alt={`Document ${doc.type}`}
+                    className="w-full max-h-96 object-contain rounded-lg bg-gray-100"
+                />
+            )}
+            {secureUrl && isPdf && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <DocumentIcon className="w-16 h-16 text-red-500 mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium">{doc.file_name || 'Document PDF'}</p>
+                </div>
+            )}
+            <button
+                onClick={handleDownload}
+                className="w-full py-2 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-medium transition-colors flex items-center justify-center gap-2"
+            >
+                <DocumentIcon className="w-5 h-5" />
+                Télécharger le document
+            </button>
         </div>
     );
 }
@@ -493,14 +575,8 @@ export default function KYCPage() {
                                         {doc.status === 'approved' ? 'Approuvé' : doc.status === 'rejected' ? 'Rejeté' : 'En attente'}
                                     </span>
                                 </div>
-                                {doc.file_url && (
-                                    <div className="p-4">
-                                        <img
-                                            src={doc.file_url}
-                                            alt={`Document ${doc.type}`}
-                                            className="w-full max-h-96 object-contain rounded-lg bg-gray-100"
-                                        />
-                                    </div>
+                                {(doc.file_url || doc.file_path) && (
+                                    <SecureDocumentViewer doc={doc} />
                                 )}
                                 {doc.rejection_reason && (
                                     <div className="p-4 bg-red-50 border-t border-red-100">

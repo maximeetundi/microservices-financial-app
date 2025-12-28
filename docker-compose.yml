@@ -74,7 +74,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Create default bucket on startup
+  # Create default bucket on startup (PRIVATE - no anonymous access)
   minio-init:
     image: minio/mc
     depends_on:
@@ -84,7 +84,7 @@ services:
       /bin/sh -c "
       mc alias set myminio http://minio:9000 minioadmin minioadmin123;
       mc mb myminio/kyc-documents --ignore-existing;
-      mc anonymous set download myminio/kyc-documents;
+      echo 'Bucket kyc-documents created (private access only)';
       exit 0;
       "
     networks:
@@ -292,6 +292,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       - ADMIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank_admin?sslmode=disable
       - MAIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
@@ -303,6 +305,12 @@ services:
       - TRANSFER_SERVICE_URL=http://transfer-service:8084
       - CARD_SERVICE_URL=http://card-service:8086
       - EXCHANGE_SERVICE_URL=http://exchange-service:8085
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_BUCKET=kyc-documents
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped

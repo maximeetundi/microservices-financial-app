@@ -53,7 +53,8 @@ func NewStorageService(endpoint, accessKey, secretKey, bucket string, useSSL boo
 	}, nil
 }
 
-// UploadFile uploads a file to Minio and returns the public URL
+// UploadFile uploads a file to Minio and returns the object path (NOT public URL)
+// The object path is stored in DB and used later to generate presigned URLs
 func (s *StorageService) UploadFile(ctx context.Context, reader io.Reader, fileName string, fileSize int64, contentType string, folder string) (string, error) {
 	// Generate unique object name
 	ext := filepath.Ext(fileName)
@@ -67,9 +68,9 @@ func (s *StorageService) UploadFile(ctx context.Context, reader io.Reader, fileN
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	// Return the public URL
-	publicURL := s.GetPublicURL(objectName)
-	return publicURL, nil
+	// Return the object path (NOT public URL - bucket is private)
+	// Format: bucket/objectName
+	return fmt.Sprintf("%s/%s", s.bucket, objectName), nil
 }
 
 // GetPublicURL returns the public URL for an object

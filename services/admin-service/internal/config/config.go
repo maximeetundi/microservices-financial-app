@@ -30,9 +30,18 @@ type Config struct {
 	CardServiceURL         string
 	ExchangeServiceURL     string
 	NotificationServiceURL string
+
+	// Minio/S3 storage (for generating presigned URLs)
+	MinioEndpoint  string
+	MinioAccessKey string
+	MinioSecretKey string
+	MinioBucket    string
+	MinioUseSSL    bool
 }
 
 func Load() *Config {
+	minioUseSSL := getEnv("MINIO_USE_SSL", "false") == "true"
+
 	return &Config{
 		Port:        getEnv("PORT", "8088"),
 		Environment: getEnv("ENVIRONMENT", "development"),
@@ -52,6 +61,13 @@ func Load() *Config {
 		CardServiceURL:         getEnv("CARD_SERVICE_URL", "http://localhost:8086"),
 		ExchangeServiceURL:     getEnv("EXCHANGE_SERVICE_URL", "http://localhost:8085"),
 		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8087"),
+
+		// Minio configuration
+		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
+		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
+		MinioBucket:    getEnv("MINIO_BUCKET", "kyc-documents"),
+		MinioUseSSL:    minioUseSSL,
 	}
 }
 
@@ -61,3 +77,4 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+
