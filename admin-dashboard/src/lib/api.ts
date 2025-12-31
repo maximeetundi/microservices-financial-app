@@ -180,22 +180,24 @@ export const getSupportTicket = (id: string) =>
 export const getTicketMessages = (conversationId: string) =>
     supportApi.get(`/admin/support/conversations/${conversationId}/messages`);
 
-export const sendTicketMessage = (conversationId: string, message: string) =>
-    supportApi.post(`/admin/support/conversations/${conversationId}/messages`, {
-        content: message,
-        content_type: 'text'
-    });
-
-export const assignAgent = (conversationId: string, agentId: string) =>
-    supportApi.put(`/admin/support/conversations/${conversationId}/assign`, { agent_id: agentId });
-
-export const closeTicket = (conversationId: string, rating?: number, feedback?: string) =>
-    supportApi.put(`/admin/support/conversations/${conversationId}/close`, { rating, feedback });
-
-export const getSupportStats = () =>
-    supportApi.get('/admin/support/stats');
-
 export const getSupportAgents = () =>
     supportApi.get('/admin/support/agents');
+
+export const uploadSupportFile = (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return supportApi.post('/admin/support/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+};
+
+export const sendTicketMessage = (conversationId: string, message: string, attachments?: string[]) =>
+    supportApi.post(`/admin/support/conversations/${conversationId}/messages`, {
+        content: message,
+        content_type: 'text',
+        attachments: attachments || []
+    });
 
 export default api;
