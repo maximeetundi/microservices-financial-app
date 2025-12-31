@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -108,8 +108,14 @@ func (s *StorageService) UploadFile(ctx context.Context, objectName string, file
 }
 
 // UploadFileStream uploads a file from a stream (reader)
-func (s *StorageService) UploadFileStream(ctx context.Context, objectName string, reader stdio.Reader, objectSize int64, contentType string) (string, error) {
-	// Need to import io package, but 'stdio' is pseudo-code here, fixing in implementation.
-	// Actually I'll use io.Reader in the interface.
-	return "", fmt.Errorf("not implemented")
+func (s *StorageService) UploadFileStream(ctx context.Context, objectName string, reader io.Reader, objectSize int64, contentType string) (string, error) {
+	// Upload the file from stream
+	_, err := s.client.PutObject(ctx, s.bucket, objectName, reader, objectSize, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload file stream: %w", err)
+	}
+
+	return fmt.Sprintf("%s/%s", s.bucket, objectName), nil
 }
