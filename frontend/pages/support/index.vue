@@ -211,6 +211,9 @@
               <p class="conversation-preview">{{ conv.last_message }}</p>
             </div>
             <div class="conversation-meta">
+              <span :class="conv.agent_type === 'ai' ? 'agent-badge-ai' : 'agent-badge-human'" class="agent-type-badge">
+                {{ conv.agent_type === 'ai' ? '🤖 IA' : '👤 Humain' }}
+              </span>
               <span :class="getStatusClass(conv.status)" class="status-badge">
                 {{ getStatusLabel(conv.status) }}
               </span>
@@ -233,7 +236,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supportAPI } from '~/composables/useApi'
 
@@ -352,8 +355,48 @@ const formatDate = (dateString) => {
   })
 }
 
+// Polling for conversations list every 15 seconds
+let conversationsPollingInterval = null
+
+const startConversationsPolling = () => {
+  if (conversationsPollingInterval) return
+  
+  conversationsPollingInterval = setInterval(async () => {
+    // Only poll if not in active conversation and not selecting agent
+    if (selectedAgent.value || activeConversation.value) return
+    
+    try {
+      const response = await supportAPI.getTickets()
+      if (response.data?.conversations) {
+        conversations.value = response.data.conversations.map(conv => ({
+          id: conv.id,
+          subject: conv.subject,
+          agent_type: conv.agent_type || 'ai',
+          status: conv.status,
+          last_message: conv.last_message || conv.subject,
+          updated_at: conv.updated_at || conv.created_at
+        }))
+      }
+    } catch (error) {
+      console.error('Error polling conversations:', error)
+    }
+  }, 15000) // Poll every 15 seconds
+}
+
+const stopConversationsPolling = () => {
+  if (conversationsPollingInterval) {
+    clearInterval(conversationsPollingInterval)
+    conversationsPollingInterval = null
+  }
+}
+
 onMounted(() => {
   fetchConversations()
+  startConversationsPolling()
+})
+
+onUnmounted(() => {
+  stopConversationsPolling()
 })
 </script>
 
@@ -902,5 +945,25 @@ onMounted(() => {
   font-size: 0.75rem;
   color: #ef4444;
   margin: 0.25rem 0 0 0;
+}
+
+/* Agent type badges */
+.agent-type-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.agent-badge-ai {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.agent-badge-human {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
 }
 </style>
