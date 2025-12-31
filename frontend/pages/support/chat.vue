@@ -447,8 +447,8 @@ const startPolling = () => {
         const newMessages = response.data.messages
         // Only update if we have more messages
         if (newMessages.length > messages.value.length) {
-          const currentIds = new Set(messages.value.map((m: any) => m.id))
-          const newOnes = newMessages.filter((m: any) => !currentIds.has(m.id))
+          const currentIds = new Set(messages.value.map(m => m.id))
+          const newOnes = newMessages.filter(m => !currentIds.has(m.id))
           
           if (newOnes.length > 0) {
             // Add only truly new messages
