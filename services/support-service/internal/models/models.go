@@ -69,12 +69,12 @@ type Conversation struct {
 	Category       string             `json:"category" db:"category"`
 	Status         ConversationStatus `json:"status" db:"status"`
 	Priority       Priority           `json:"priority" db:"priority"`
-	LastMessage    string             `json:"last_message,omitempty" db:"last_message"`
+	LastMessage    *string            `json:"last_message,omitempty" db:"last_message"`
 	LastMessageAt  *time.Time         `json:"last_message_at,omitempty" db:"last_message_at"`
 	UnreadCount    int                `json:"unread_count" db:"unread_count"`
 	MessageCount   int                `json:"message_count" db:"message_count"`
 	Rating         *int               `json:"rating,omitempty" db:"rating"`
-	Feedback       string             `json:"feedback,omitempty" db:"feedback"`
+	Feedback       *string            `json:"feedback,omitempty" db:"feedback"`
 	ResolvedAt     *time.Time         `json:"resolved_at,omitempty" db:"resolved_at"`
 	CreatedAt      time.Time          `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time          `json:"updated_at" db:"updated_at"`
