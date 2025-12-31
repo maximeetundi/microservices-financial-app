@@ -262,6 +262,11 @@ const selectAgent = (type) => {
   selectedAgent.value = type
 }
 
+const openConversation = (conv) => {
+  // Navigate to chat with conversation ID and agent_type
+  router.push(`/support/chat?id=${conv.id}&agent_type=${conv.agent_type || 'ai'}`)
+}
+
 const startConversation = async () => {
   // Validate subject length
   if (newConversation.value.subject.length < 5) {
