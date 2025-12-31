@@ -229,11 +229,9 @@ export default function SupportPage() {
         const file = event.target.files[0];
 
         setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
 
         try {
-            const response = await uploadSupportFile(formData);
+            const response = await uploadSupportFile(file);
             if (response.data?.url) {
                 setPendingAttachments(prev => [...prev, response.data.url]);
             }
