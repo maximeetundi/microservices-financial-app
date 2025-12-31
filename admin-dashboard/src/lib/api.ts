@@ -135,16 +135,25 @@ export const getRoles = () => api.get('/roles');
 export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
-// Support Tickets (direct connection to support-service)
-// In production, set NEXT_PUBLIC_SUPPORT_API_URL to the support-service public URL
-// e.g., https://api.support.maximeetundi.store
-const SUPPORT_API_URL = process.env.NEXT_PUBLIC_SUPPORT_API_URL ||
-    (API_URL.includes('localhost')
-        ? API_URL.replace(':8088', ':8089')
-        : API_URL.replace('admin', 'support'));
+// Support Tickets - route through the same API gateway as admin
+// The support-service is accessible via Kong at /support-service
+// In production, use the main API gateway (same as admin but replace admin-service path)
+const getBaseApiUrl = () => {
+    // For production, use the same base URL as admin but without the /api/v1/admin path
+    // API_URL is like https://api.admin.maximeetundi.store
+    // We need to go through Kong which routes /support-service to the support service
+    if (API_URL.includes('localhost')) {
+        // Local dev: support-service is on port 8089
+        return `http://localhost:8080/support-service/api/v1`;
+    }
+    // Production: use the app API gateway (not admin gateway)
+    // Replace api.admin with api.app to go through the main Kong gateway
+    const appApiUrl = API_URL.replace('api.admin', 'api.app').replace('/api/v1/admin', '');
+    return `${appApiUrl}/support-service/api/v1`;
+};
 
 const supportApi = axios.create({
-    baseURL: `${SUPPORT_API_URL}/api/v1`,
+    baseURL: getBaseApiUrl(),
     headers: {
         'Content-Type': 'application/json',
     },

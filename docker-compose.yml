@@ -334,6 +334,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - ADMIN_JWT_SECRET=admin_ultra_secure_jwt_secret_2024
     networks:
       - crypto-bank-network
     restart: unless-stopped

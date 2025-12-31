@@ -45,6 +45,11 @@ func JWTAuth(secret string) gin.HandlerFunc {
 		if userID, ok := claims["user_id"].(string); ok {
 			c.Set("user_id", userID)
 		}
+		// For admin tokens, admin_id is used instead of user_id
+		if adminID, ok := claims["admin_id"].(string); ok {
+			c.Set("user_id", adminID)
+			c.Set("admin_id", adminID)
+		}
 		if userName, ok := claims["name"].(string); ok {
 			c.Set("user_name", userName)
 		}
@@ -54,6 +59,10 @@ func JWTAuth(secret string) gin.HandlerFunc {
 		if role, ok := claims["role"].(string); ok {
 			c.Set("role", role)
 		}
+		// For admin tokens, 'type' claim is used
+		if tokenType, ok := claims["type"].(string); ok {
+			c.Set("token_type", tokenType)
+		}
 
 		c.Next()
 	}
@@ -61,13 +70,22 @@ func JWTAuth(secret string) gin.HandlerFunc {
 
 func AdminOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role := c.GetString("role")
-		if role != "admin" && role != "support_agent" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Admin or support agent access required"})
-			c.Abort()
+		// Check for admin token type (from admin-service JWT)
+		tokenType := c.GetString("token_type")
+		if tokenType == "admin" {
+			c.Next()
 			return
 		}
-		c.Next()
+		
+		// Fall back to checking role claim (for regular user tokens)
+		role := c.GetString("role")
+		if role == "admin" || role == "support_agent" {
+			c.Next()
+			return
+		}
+		
+		c.JSON(http.StatusForbidden, gin.H{"error": "Admin or support agent access required"})
+		c.Abort()
 	}
 }
 

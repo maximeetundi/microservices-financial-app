@@ -6,13 +6,14 @@ import (
 )
 
 type Config struct {
-	Environment      string
-	DBUrl            string
-	RedisURL         string
-	RabbitMQURL      string
-	JWTSecret        string
-	AIServiceURL     string
-	AIAPIKey         string
+	Environment          string
+	DBUrl                string
+	RedisURL             string
+	RabbitMQURL          string
+	JWTSecret            string
+	AdminJWTSecret       string
+	AIServiceURL         string
+	AIAPIKey             string
 	MaxMessagesPerMinute int
 	ConversationTimeout  int // hours
 }
@@ -24,6 +25,7 @@ func Load() *Config {
 		RedisURL:             getEnv("REDIS_URL", "redis://localhost:6379"),
 		RabbitMQURL:          getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		JWTSecret:            getEnv("JWT_SECRET", "your-secret-key"),
+		AdminJWTSecret:       getEnv("ADMIN_JWT_SECRET", ""),
 		AIServiceURL:         getEnv("AI_SERVICE_URL", "https://api.openai.com/v1"),
 		AIAPIKey:             getEnv("AI_API_KEY", ""),
 		MaxMessagesPerMinute: getEnvInt("MAX_MESSAGES_PER_MINUTE", 30),

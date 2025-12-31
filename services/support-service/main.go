@@ -90,9 +90,13 @@ func main() {
 			support.PUT("/conversations/:id/close", supportHandler.CloseConversation)
 		}
 
-		// Admin routes
+		// Admin routes - use AdminJWTSecret if available, otherwise fall back to JWTSecret
+		adminJWTSecret := cfg.AdminJWTSecret
+		if adminJWTSecret == "" {
+			adminJWTSecret = cfg.JWTSecret
+		}
 		admin := api.Group("/admin/support")
-		admin.Use(middleware.JWTAuth(cfg.JWTSecret))
+		admin.Use(middleware.JWTAuth(adminJWTSecret))
 		admin.Use(middleware.AdminOnly())
 		{
 			// Conversation management
