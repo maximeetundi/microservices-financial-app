@@ -430,7 +430,7 @@ const loadConversation = async () => {
 watch(() => messages.value.length, scrollToBottom)
 
 // Polling for new messages every 5 seconds (for human agent responses)
-let pollingInterval: NodeJS.Timeout | null = null
+let pollingInterval = null
 
 const startPolling = () => {
   if (pollingInterval) return
