@@ -154,11 +154,24 @@ export default function SupportPage() {
                 const response = await getTicketMessages(selectedConv.id);
                 const newMsgs = response.data?.messages || [];
 
-                // Only update if we have more messages
-                if (newMsgs.length > messages.length) {
-                    setMessages(newMsgs);
-                    scrollToBottom();
-                }
+                // Update messages - React will handle diff automatically
+                setMessages(prevMsgs => {
+                    if (newMsgs.length !== prevMsgs.length) {
+                        // Scroll to bottom on new messages
+                        setTimeout(scrollToBottom, 100);
+                        return newMsgs;
+                    }
+                    // Check if last message is different (new message received)
+                    if (newMsgs.length > 0 && prevMsgs.length > 0) {
+                        const lastNew = newMsgs[newMsgs.length - 1];
+                        const lastPrev = prevMsgs[prevMsgs.length - 1];
+                        if (lastNew.id !== lastPrev.id) {
+                            setTimeout(scrollToBottom, 100);
+                            return newMsgs;
+                        }
+                    }
+                    return prevMsgs;
+                });
             } catch (error) {
                 console.error('Error polling messages:', error);
             }
