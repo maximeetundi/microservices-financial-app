@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getSupportTickets, getTicketMessages, sendTicketMessage, closeTicket, getSupportStats, getSupportAgents } from '@/lib/api';
+import { getSupportTickets, getTicketMessages, sendTicketMessage, closeTicket, getSupportStats, getSupportAgents, uploadSupportFile } from '@/lib/api';
 
 interface Conversation {
     id: string;
@@ -29,6 +29,7 @@ interface Message {
     sender_name: string;
     content: string;
     content_type: string;
+    attachments?: string[];
     is_read: boolean;
     created_at: string;
 }
@@ -58,6 +59,9 @@ export default function SupportPage() {
     const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
+    const [pendingAttachments, setPendingAttachments] = useState<string[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [filter, setFilter] = useState('all');
     const [stats, setStats] = useState<Stats | null>(null);
     const [agents, setAgents] = useState<Agent[]>([]);
@@ -181,14 +185,16 @@ export default function SupportPage() {
     }, [selectedConv?.id, selectedConv?.status]);
 
     const sendMessage = async () => {
-        if (!newMessage.trim() || !selectedConv) return;
+        if ((!newMessage.trim() && pendingAttachments.length === 0) || !selectedConv) return;
 
         setSending(true);
         const content = newMessage;
+        const attachments = [...pendingAttachments];
         setNewMessage('');
+        setPendingAttachments([]);
 
         try {
-            const response = await sendTicketMessage(selectedConv.id, content);
+            const response = await sendTicketMessage(selectedConv.id, content, attachments);
 
             // Add the new message to the list
             if (response.data?.message) {
@@ -202,6 +208,7 @@ export default function SupportPage() {
                     sender_name: 'Agent Support',
                     content,
                     content_type: 'text',
+                    attachments,
                     is_read: false,
                     created_at: new Date().toISOString()
                 }]);
@@ -215,6 +222,36 @@ export default function SupportPage() {
         } finally {
             setSending(false);
         }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.files || event.target.files.length === 0) return;
+        const file = event.target.files[0];
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await uploadSupportFile(formData);
+            if (response.data?.url) {
+                setPendingAttachments(prev => [...prev, response.data.url]);
+            }
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Échec du téléchargement du fichier');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const removeAttachment = (index: number) => {
+        setPendingAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
     };
 
     const handleCloseConversation = async () => {
@@ -476,6 +513,19 @@ export default function SupportPage() {
                                                         <p className={`text-xs font-medium mb-1 ${msg.sender_type === 'agent' ? 'text-primary-100' : 'text-gray-500'}`}>
                                                             {msg.sender_name}
                                                         </p>
+                                                        {msg.attachments && msg.attachments.length > 0 && (
+                                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                                {msg.attachments.map((url, idx) => (
+                                                                    <img
+                                                                        key={idx}
+                                                                        src={url}
+                                                                        alt="Attachment"
+                                                                        className="max-w-[200px] max-h-[200px] rounded object-cover cursor-pointer hover:opacity-90 transition"
+                                                                        onClick={() => window.open(url, '_blank')}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                         <p className="whitespace-pre-wrap">{msg.content}</p>
                                                     </div>
                                                     <p className={`text-xs text-gray-400 mt-1 ${msg.sender_type === 'agent' ? 'text-right' : ''}`}>
@@ -501,10 +551,46 @@ export default function SupportPage() {
                                 </div>
                             )}
 
-                            {/* Input */}
                             {selectedConv.status !== 'closed' && selectedConv.status !== 'resolved' && (
                                 <div className="p-4 border-t border-gray-200">
-                                    <div className="flex gap-3">
+                                    {/* Previews */}
+                                    {pendingAttachments.length > 0 && (
+                                        <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
+                                            {pendingAttachments.map((url, idx) => (
+                                                <div key={idx} className="relative w-16 h-16 flex-shrink-0">
+                                                    <img src={url} className="w-full h-full object-cover rounded" />
+                                                    <button
+                                                        onClick={() => removeAttachment(idx)}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3 items-end">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            onChange={handleFileUpload}
+                                            accept="image/*,.pdf"
+                                            disabled={uploading}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={triggerFileInput}
+                                            disabled={uploading}
+                                            className="p-3 text-gray-500 hover:text-primary-600 transition disabled:opacity-50"
+                                            title="Joindre un fichier"
+                                        >
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                            </svg>
+                                        </button>
+
                                         <input
                                             type="text"
                                             value={newMessage}
@@ -516,8 +602,8 @@ export default function SupportPage() {
                                         />
                                         <button
                                             onClick={sendMessage}
-                                            disabled={!newMessage.trim() || sending}
-                                            className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition disabled:opacity-50"
+                                            disabled={(!newMessage.trim() && pendingAttachments.length === 0) || sending || uploading}
+                                            className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition disabled:opacity-50 flex items-center gap-2"
                                         >
                                             {sending ? '...' : 'Envoyer'}
                                         </button>

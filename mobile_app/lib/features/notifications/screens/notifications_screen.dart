@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/notification_api_service.dart';
 import '../models/notification_model.dart';
+import '../../support/support_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -54,6 +55,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _error = 'Impossible de charger les notifications';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleNotificationTap(NotificationModel notif) async {
+    await _markAsRead(notif);
+    _navigateToRelatedScreen(notif);
+  }
+
+  void _navigateToRelatedScreen(NotificationModel notif) {
+    final type = notif.type.toLowerCase();
+    final refId = notif.data?['reference_id']?.toString() ?? 
+                  notif.data?['id']?.toString() ?? 
+                  notif.data?['ticket_id']?.toString();
+
+    if (type == 'support' || type == 'conversation' || type == 'ticket') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(agentType: 'human', ticketId: refId),
+        ),
+      );
+    } else if (type == 'transfer' || type == 'transaction') {
+      Navigator.pushNamed(context, '/wallet');
+    } else if (type == 'card') {
+      Navigator.pushNamed(context, '/cards');
+    } else if (type == 'security' || type == 'kyc') {
+      Navigator.pushNamed(context, '/settings');
+    } else if (type == 'wallet' || type == 'payment') {
+      Navigator.pushNamed(context, '/wallet');
     }
   }
 
@@ -295,7 +325,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             onDismissed: (_) => _deleteNotification(notif),
             child: ListTile(
-              onTap: () => _markAsRead(notif),
+              onTap: () => _handleNotificationTap(notif),
               tileColor: notif.isRead ? null : Theme.of(context).primaryColor.withOpacity(0.05),
               leading: Container(
                 width: 48,

@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS messages (
     sender_type VARCHAR(50) NOT NULL,
     content TEXT NOT NULL,
     content_type VARCHAR(50) DEFAULT 'text',
+    attachments TEXT[], -- Array of attachment URLs
     is_read BOOLEAN DEFAULT false,
     read_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

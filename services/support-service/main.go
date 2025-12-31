@@ -39,8 +39,21 @@ func main() {
 		eventPublisher = publisher
 	}
 
+	// Initialize storage service
+	storageService, err := services.NewStorageService(
+		cfg.MinIOEndpoint,
+		cfg.MinIOAccessKey,
+		cfg.MinIOSecretKey,
+		cfg.MinIOBucket,
+		cfg.MinIOUseSSL,
+		cfg.MinIOPublicURL,
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize storage service: %v", err)
+	}
+
 	// Initialize services
-	supportService := services.NewSupportService(convRepo, msgRepo, agentRepo, cfg, eventPublisher)
+	supportService := services.NewSupportService(convRepo, msgRepo, agentRepo, cfg, eventPublisher, storageService)
 
 	// Initialize handlers
 	supportHandler := handlers.NewSupportHandler(supportService)
@@ -88,6 +101,7 @@ func main() {
 			support.GET("/conversations/:id/messages", supportHandler.GetMessages)
 			support.POST("/conversations/:id/escalate", supportHandler.EscalateConversation)
 			support.PUT("/conversations/:id/close", supportHandler.CloseConversation)
+			support.POST("/upload", supportHandler.UploadFile)
 		}
 
 		// Admin routes - use AdminJWTSecret if available, otherwise fall back to JWTSecret
@@ -104,6 +118,7 @@ func main() {
 			admin.GET("/conversations/:id", supportHandler.GetConversation)
 			admin.GET("/conversations/:id/messages", supportHandler.GetMessages)
 			admin.POST("/conversations/:id/messages", supportHandler.AdminSendMessage)
+			admin.POST("/upload", supportHandler.UploadFile)
 			admin.PUT("/conversations/:id/assign", supportHandler.AdminAssignAgent)
 			admin.PUT("/conversations/:id/close", supportHandler.CloseConversation)
 

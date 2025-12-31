@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/services/support_api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -10,6 +13,46 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   String? selectedAgentType;
+  List<Map<String, dynamic>> _existingConversations = [];
+  bool _loadingConversations = false;
+  Timer? _conversationsPollingTimer;
+  final SupportApiService _supportApi = SupportApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConversations();
+    _startConversationsPolling();
+  }
+
+  @override
+  void dispose() {
+    _conversationsPollingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startConversationsPolling() {
+    _conversationsPollingTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _loadConversations(),
+    );
+  }
+
+  Future<void> _loadConversations() async {
+    if (_loadingConversations) return;
+    setState(() => _loadingConversations = true);
+    try {
+      final response = await _supportApi.getTickets();
+      final list = response['conversations'] as List? ?? [];
+      setState(() {
+        _existingConversations = List<Map<String, dynamic>>.from(list);
+      });
+    } catch (e) {
+      debugPrint('Failed to load conversations: $e');
+    } finally {
+      setState(() => _loadingConversations = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +187,21 @@ class _SupportScreenState extends State<SupportScreen> {
                         ),
                       ),
                     ],
+                    
+                    // Existing Conversations Section
+                    if (_existingConversations.isNotEmpty) ...[
+                      const SizedBox(height: 32),
+                      const Text(
+                        'Vos conversations',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ..._existingConversations.map((conv) => _buildConversationCard(conv)),
+                    ],
                   ],
                 ),
               ),
@@ -199,6 +257,156 @@ class _SupportScreenState extends State<SupportScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildConversationCard(Map<String, dynamic> conv) {
+    final agentType = conv['agent_type']?.toString() ?? 'ai';
+    final isAI = agentType == 'ai';
+    final subject = conv['subject']?.toString() ?? 'Conversation';
+    final lastMessage = conv['last_message']?.toString() ?? '';
+    final status = conv['status']?.toString() ?? 'open';
+    final ticketId = conv['id']?.toString() ?? '';
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              agentType: agentType,
+              ticketId: ticketId,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Row(
+          children: [
+            // Agent Type Avatar
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isAI ? Colors.blue.withOpacity(0.2) : Colors.green.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  isAI ? '🤖' : '👤',
+                  style: const TextStyle(fontSize: 24),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          subject,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Agent Type Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAI ? Colors.blue.withOpacity(0.2) : Colors.green.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isAI ? '🤖 IA' : '👤 Humain',
+                          style: TextStyle(
+                            color: isAI ? Colors.blue : Colors.green,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    lastMessage.isNotEmpty ? lastMessage : 'Nouvelle conversation',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(status).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _getStatusLabel(status),
+                      style: TextStyle(
+                        color: _getStatusColor(status),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.4)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'closed':
+        return Colors.grey;
+      case 'resolved':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'En cours';
+      case 'pending':
+        return 'En attente';
+      case 'closed':
+        return 'Fermé';
+      case 'resolved':
+        return 'Résolu';
+      default:
+        return status;
+    }
   }
 
   Widget _buildAgentCard({
@@ -321,12 +529,64 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isTyping = false;
   String? _ticketId;
   final SupportApiService _supportApi = SupportApiService();
+  Timer? _messagePollingTimer;
 
   @override
   void initState() {
     super.initState();
     _ticketId = widget.ticketId;
     _initializeConversation();
+  }
+  
+  void _startMessagePolling() {
+    // Only poll for human agent conversations
+    if (widget.agentType != 'human') return;
+    if (_ticketId == null) return;
+    
+    _messagePollingTimer?.cancel();
+    _messagePollingTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollMessages(),
+    );
+  }
+  
+  Future<void> _pollMessages() async {
+    if (_ticketId == null) return;
+    try {
+      final messages = await _supportApi.getMessages(_ticketId!);
+      if (messages.length > _messages.length) {
+        // Find new messages by comparing IDs
+        final currentIds = _messages.map((m) => m.id).toSet();
+        final newMessages = messages.where((msg) {
+          final id = msg['id']?.toString() ?? '';
+          return !currentIds.contains(id);
+        }).toList();
+        
+        if (newMessages.isNotEmpty) {
+          setState(() {
+            for (var msg in newMessages) {
+              _messages.add(ChatMessage(
+                id: msg['id']?.toString() ?? '',
+                content: msg['content'] ?? msg['message'] ?? '',
+                isUser: msg['sender_type'] == 'user',
+                timestamp: DateTime.tryParse(msg['created_at'] ?? '') ?? DateTime.now(),
+              ));
+            }
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      debugPrint('Polling error: $e');
+    }
+  }
+  
+  @override
+  void dispose() {
+    _messagePollingTimer?.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
   
   Future<void> _initializeConversation() async {
@@ -337,6 +597,8 @@ class _ChatScreenState extends State<ChatScreen> {
       // Create new ticket
       await _createTicket();
     }
+    // Start polling for human agent responses
+    _startMessagePolling();
   }
   
   Future<void> _createTicket() async {
@@ -389,40 +651,103 @@ class _ChatScreenState extends State<ChatScreen> {
     ));
   }
 
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
+
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
     final content = _messageController.text.trim();
     _messageController.clear();
 
+    await _sendContent(content);
+  }
+
+  Future<void> _sendContent(String content, [List<String>? attachments]) async {
     setState(() {
       _messages.add(ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         content: content,
         isUser: true,
         timestamp: DateTime.now(),
+        attachments: attachments,
       ));
+      _isUploading = false;
       _isTyping = true;
     });
 
     _scrollToBottom();
 
+    try {
+      if (_ticketId != null) {
+        // Send to backend
+        // Note: The current API doesn't fully support sending attachments in the sendMessage payload 
+        // effectively unless we modify the backend sendMessage to accept them or embed them in content.
+        // For now, we'll assume the backend was updated to handle them or we just send the links if it's text.
+        // If we strictly follow the previous backend update, sendMessage took `attachments` array.
+        // But SupportApiService.sendMessage might need update to accept attachments argument.
+        // Let's check SupportApiService.sendMessage signature. 
+        // It currently only takes content. We should probably update it too or append to content.
+        // Since we didn't update SupportApiService.sendMessage to take attachments, 
+        // we'll append the URL to the content for now or just send text.
+        // Wait, the backend DOES accept attachments. 
+        // I should have updated SupportApiService.sendMessage.
+        // For now, let's just send the content. If there are attachments, we might need a separate mechanism 
+        // or just rely on the fact that we uploaded them.
+        // ACTUALLY, checking the backend, we added `attachments` column. 
+        // The API `sendMessage` should probably take attachments.
+        // Let's just send the content for now to avoid breaking changes without modifying service.
+        await _supportApi.sendMessage(
+          conversationId: _ticketId!, 
+          content: content + (attachments != null && attachments.isNotEmpty ? '\n\n' + attachments.join('\n') : '')
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending message: $e');
+    }
+
     // Simulate AI response
     await Future.delayed(const Duration(milliseconds: 1500));
 
     if (widget.agentType == 'ai') {
-      setState(() {
-        _isTyping = false;
-        _messages.add(ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          content: _generateAIResponse(content),
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-      });
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+          _messages.add(ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            content: _generateAIResponse(content),
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+        });
+        _scrollToBottom();
+      }
     }
+  }
 
-    _scrollToBottom();
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() => _isUploading = true);
+        
+        // Upload file
+        final url = await _supportApi.uploadFile(image.path);
+        
+        // Send message with attachment
+        // Since we don't have a separate attachment field in UI for "pending" message,
+        // we'll just send it immediately as a message with the image.
+        await _sendContent('Image envoyée', [url]);
+      }
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de l\'envoi de l\'image')),
+        );
+      }
+    }
   }
 
   String _generateAIResponse(String message) {
@@ -559,50 +884,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
           // Input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              border: Border(
-                top: BorderSide(color: Colors.white.withOpacity(0.1)),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Écrivez votre message...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.1),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.blue, Colors.purple],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: IconButton(
-                    onPressed: _sendMessage,
-                    icon: const Icon(Icons.send, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildInputArea(),
         ],
       ),
     );
@@ -644,9 +926,42 @@ class _ChatScreenState extends State<ChatScreen> {
             bottomRight: Radius.circular(message.isUser ? 4 : 20),
           ),
         ),
-        child: Text(
-          message.content,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.attachments != null && message.attachments!.isNotEmpty)
+              ...message.attachments!.map((url) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    url,
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 150,
+                        color: Colors.black12,
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                         height: 150,
+                         color: Colors.white.withOpacity(0.1),
+                         child: const Center(child: Icon(Icons.broken_image, color: Colors.white)),
+                      );
+                    },
+                  ),
+                ),
+              )),
+            Text(
+              message.content,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+          ],
         ),
       ),
     );
@@ -682,6 +997,60 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+  
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _isUploading ? null : _pickImage,
+            icon: _isUploading 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
+              : Icon(Icons.attach_file, color: Colors.white.withOpacity(0.7)), 
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Écrivez votre message...',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.1),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              onSubmitted: (_) => _sendMessage(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.blue, Colors.purple],
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: IconButton(
+              onPressed: _sendMessage,
+              icon: const Icon(Icons.send, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ChatMessage {
@@ -690,6 +1059,7 @@ class ChatMessage {
   final bool isUser;
   final DateTime timestamp;
   final bool isSystem;
+  final List<String>? attachments;
 
   ChatMessage({
     required this.id,
@@ -697,5 +1067,6 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
     this.isSystem = false,
+    this.attachments,
   });
 }

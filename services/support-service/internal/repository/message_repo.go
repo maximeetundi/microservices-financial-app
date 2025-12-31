@@ -6,6 +6,7 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/models"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type MessageRepository struct {
@@ -21,8 +22,8 @@ func (r *MessageRepository) Create(msg *models.Message) error {
 	msg.CreatedAt = time.Now()
 
 	query := `
-		INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_type, content, content_type, is_read, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_type, content, content_type, attachments, is_read, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	_, err := r.db.Exec(query,
@@ -33,6 +34,7 @@ func (r *MessageRepository) Create(msg *models.Message) error {
 		msg.SenderType,
 		msg.Content,
 		msg.ContentType,
+		pq.Array(msg.Attachments),
 		msg.IsRead,
 		msg.CreatedAt,
 	)
@@ -42,7 +44,7 @@ func (r *MessageRepository) Create(msg *models.Message) error {
 
 func (r *MessageRepository) GetByConversationID(conversationID string, limit, offset int) ([]*models.Message, error) {
 	query := `
-		SELECT id, conversation_id, sender_id, sender_name, sender_type, content, content_type, is_read, read_at, created_at
+		SELECT id, conversation_id, sender_id, sender_name, sender_type, content, content_type, attachments, is_read, read_at, created_at
 		FROM messages 
 		WHERE conversation_id = $1
 		ORDER BY created_at ASC
@@ -66,6 +68,7 @@ func (r *MessageRepository) GetByConversationID(conversationID string, limit, of
 			&msg.SenderType,
 			&msg.Content,
 			&msg.ContentType,
+			pq.Array(&msg.Attachments),
 			&msg.IsRead,
 			&msg.ReadAt,
 			&msg.CreatedAt,

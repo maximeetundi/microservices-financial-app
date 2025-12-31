@@ -1,5 +1,6 @@
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
+import 'package:dio/dio.dart';
 
 /// Service de support client
 class SupportApiService {
@@ -127,6 +128,23 @@ class SupportApiService {
       return response.data;
     }
     throw Exception('Failed to get support stats');
+  }
+
+  /// Upload a file for support chat
+  Future<String> uploadFile(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+
+    final response = await _client.post(
+      ApiEndpoints.supportUpload,
+      data: formData,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return response.data['url'];
+    }
+    throw Exception('Failed to upload file');
   }
 }
 

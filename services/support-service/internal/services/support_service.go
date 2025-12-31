@@ -16,6 +16,7 @@ type SupportService struct {
 	aiAgent     *AIAgent
 	config      *config.Config
 	publisher   *EventPublisher
+	storage     *StorageService
 }
 
 func NewSupportService(
@@ -24,6 +25,7 @@ func NewSupportService(
 	agentRepo *repository.AgentRepository,
 	cfg *config.Config,
 	publisher *EventPublisher,
+	storage *StorageService,
 ) *SupportService {
 	return &SupportService{
 		convRepo:  convRepo,
@@ -32,6 +34,7 @@ func NewSupportService(
 		aiAgent:   NewAIAgent(cfg),
 		config:    cfg,
 		publisher: publisher,
+		storage:   storage,
 	}
 }
 
@@ -326,6 +329,26 @@ func (s *SupportService) GetAgents() ([]*models.Agent, error) {
 // UpdateAgentAvailability updates an agent's availability
 func (s *SupportService) UpdateAgentAvailability(agentID string, available bool) error {
 	return s.agentRepo.UpdateAvailability(agentID, available)
+}
+
+// UploadAttachment uploads an attachment file
+func (s *SupportService) UploadAttachment(ctx context.Context, filePath string, filename string, contentType string) (string, error) {
+	if s.storage == nil {
+		return "", fmt.Errorf("storage service not configured")
+	}
+	
+	// Generate unique object name: date/timestamp_filename
+	objectName := fmt.Sprintf("%s/%d_%s", time.Now().Format("2006-01-02"), time.Now().Unix(), filename)
+	
+	// Upload
+	path, err := s.storage.UploadFile(ctx, objectName, filePath, contentType)
+	if err != nil {
+		return "", err
+	}
+	
+	// Return full public URL
+	fullURL := fmt.Sprintf("%s/%s", s.config.MinIOPublicURL, path)
+	return fullURL, nil
 }
 
 // GetResponseTime calculates average response time

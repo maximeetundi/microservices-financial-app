@@ -19,6 +19,40 @@ func NewSupportHandler(supportService *services.SupportService) *SupportHandler 
 	}
 }
 
+// UploadFile uploads an attachment
+func (h *SupportHandler) UploadFile(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	// Validate file size (e.g. 10MB)
+	if file.Size > 10*1024*1024 {
+		c.JSON(400, gin.H{"error": "File size exceeds 10MB limit"})
+		return
+	}
+
+	// Save file to temporary location
+	tempDir := os.TempDir()
+	tempPath := filepath.Join(tempDir, fmt.Sprintf("upload_%d_%s", time.Now().UnixNano(), file.Filename))
+	
+	if err := c.SaveUploadedFile(file, tempPath); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to save uploaded file"})
+		return
+	}
+	defer os.Remove(tempPath) // Clean up temp file
+
+	// Upload using service
+	url, err := h.supportService.UploadAttachment(c, tempPath, file.Filename, file.Header.Get("Content-Type"))
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to upload file: %v", err)})
+		return
+	}
+
+	c.JSON(200, gin.H{"url": url})
+}
+
 // CreateConversation creates a new support conversation
 func (h *SupportHandler) CreateConversation(c *gin.Context) {
 	userID := c.GetString("user_id")

@@ -60,7 +60,10 @@
             </div>
             <div>
               <div class="message-bubble agent-bubble">
-                <p>{{ message.content }}</p>
+                <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments">
+                  <img v-for="(url, idx) in message.attachments" :key="idx" :src="url" class="message-image" @click="openImage(url)" />
+                </div>
+                <p v-if="message.content">{{ message.content }}</p>
               </div>
               <p class="message-time">{{ formatTime(message.created_at) }}</p>
             </div>
@@ -70,7 +73,10 @@
           <div v-else class="message-bubble-wrapper user-wrapper">
             <div>
               <div class="message-bubble user-bubble">
-                <p>{{ message.content }}</p>
+                <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments">
+                  <img v-for="(url, idx) in message.attachments" :key="idx" :src="url" class="message-image" @click="openImage(url)" />
+                </div>
+                <p v-if="message.content">{{ message.content }}</p>
               </div>
               <p class="message-time user-time">
                 {{ formatTime(message.created_at) }}
@@ -111,7 +117,39 @@
 
       <!-- Input Area -->
       <div class="input-area glass-card">
+        <!-- Attachment Preview -->
+        <div v-if="pendingAttachments.length > 0" class="attachment-previews">
+          <div v-for="(url, index) in pendingAttachments" :key="index" class="attachment-preview">
+            <img :src="url" class="preview-img" />
+            <button @click="removeAttachment(index)" class="remove-attachment-btn">×</button>
+          </div>
+        </div>
+
         <form @submit.prevent="sendMessage" class="input-form">
+          <input 
+            type="file" 
+            ref="fileInput" 
+            class="hidden" 
+            accept="image/*,.pdf" 
+            @change="handleFileUpload" 
+            :disabled="uploading"
+          />
+          
+          <button 
+            type="button" 
+            @click="triggerFileInput" 
+            class="attach-btn btn-secondary-premium"
+            :disabled="uploading"
+          >
+            <svg v-if="!uploading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </button>
+
           <textarea
             ref="messageInput"
             v-model="newMessage"
@@ -123,7 +161,7 @@
           ></textarea>
           <button 
             type="submit"
-            :disabled="!newMessage.trim() || sending"
+            :disabled="(!newMessage.trim() && pendingAttachments.length === 0) || sending || uploading"
             class="send-btn btn-premium"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,11 +233,49 @@ const conversation = ref({
 const agentName = ref('Support Zekora')
 const messages = ref([])
 const newMessage = ref('')
+const pendingAttachments = ref([])
+const uploading = ref(false)
+const fileInput = ref(null)
 const isTyping = ref(false)
 const sending = ref(false)
 const showRatingModal = ref(false)
 const rating = ref(5)
 const feedback = ref('')
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  uploading.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await supportAPI.uploadFile(formData)
+    if (response.data?.url) {
+      pendingAttachments.value.push(response.data.url)
+    }
+  } catch (error) {
+    console.error('Upload failed:', error)
+    // Show notification error?
+  } finally {
+    uploading.value = false
+    // Reset input
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
+
+const removeAttachment = (index) => {
+  pendingAttachments.value.splice(index, 1)
+}
+
+const openImage = (url) => {
+  window.open(url, '_blank')
+}
 
 const quickReplies = ref([
   'Solde du compte',
@@ -217,10 +293,13 @@ const scrollToBottom = () => {
 }
 
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || sending.value) return
+  if ((!newMessage.value.trim() && pendingAttachments.value.length === 0) || sending.value || uploading.value) return
 
   const content = newMessage.value.trim()
+  const attachments = [...pendingAttachments.value]
+  
   newMessage.value = ''
+  pendingAttachments.value = [] // Clear pending attachments
   sending.value = true
 
   // Add user message immediately
@@ -229,6 +308,7 @@ const sendMessage = async () => {
     sender_type: 'user',
     sender_name: 'Vous',
     content: content,
+    attachments: attachments,
     created_at: new Date().toISOString(),
     is_read: true
   }
@@ -241,7 +321,7 @@ const sendMessage = async () => {
   try {
     // Send to backend
     if (conversation.value.id) {
-      await supportAPI.sendMessage(conversation.value.id, content)
+      await supportAPI.sendMessage(conversation.value.id, content, attachments)
     }
 
     // Simulate delay for AI response
@@ -391,6 +471,7 @@ const loadConversation = async () => {
           sender_type: msg.sender_type || (msg.is_agent ? 'agent' : 'user'),
           sender_name: msg.sender_name || (msg.is_agent ? 'Support' : 'Vous'),
           content: msg.content || msg.message,
+          attachments: msg.attachments || [],
           created_at: msg.created_at,
           is_read: msg.is_read
         }))
@@ -458,6 +539,7 @@ const startPolling = () => {
                 sender_type: msg.sender_type || (msg.is_agent ? 'agent' : 'user'),
                 sender_name: msg.sender_name || (msg.is_agent ? 'Support' : 'Vous'),
                 content: msg.content || msg.message,
+                attachments: msg.attachments || [],
                 created_at: msg.created_at,
                 is_read: msg.is_read
               })
@@ -941,5 +1023,76 @@ onUnmounted(() => {
   .input-area {
     padding: 0.75rem;
   }
+}
+/* Attachments */
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.message-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.attachment-previews {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  margin-bottom: 0.5rem;
+}
+
+.dark .attachment-previews {
+  border-bottom-color: rgba(255,255,255,0.1);
+}
+
+.attachment-preview {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.remove-attachment-btn {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: red;
+  color: white;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+.attach-btn {
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hidden {
+  display: none;
 }
 </style>

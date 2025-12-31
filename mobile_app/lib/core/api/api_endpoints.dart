@@ -105,6 +105,7 @@ class ApiEndpoints {
   static String sendConversationMessage(String id) => '$support/conversations/$id/messages';
   static String closeConversation(String id) => '$support/conversations/$id/close';
   static String supportStats = '$support/stats';
+  static String supportUpload = '$support/upload';
   
   // Alias for backwards compatibility
   static String supportTickets = supportConversations;

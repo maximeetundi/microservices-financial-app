@@ -471,10 +471,17 @@ export const supportAPI = {
     }),
 
     // Send a message to a conversation
-    sendMessage: (conversationId: string, message: string) =>
+    sendMessage: (conversationId: string, message: string, attachments: string[] = []) =>
         api.post(`/support-service/api/v1/support/conversations/${conversationId}/messages`, {
             content: message,
-            content_type: 'text'
+            content_type: 'text',
+            attachments: attachments
+        }),
+
+    // Upload a file
+    uploadFile: (formData: FormData) =>
+        api.post('/support-service/api/v1/support/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
         }),
 
     // Get messages for a conversation
