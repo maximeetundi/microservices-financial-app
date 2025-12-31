@@ -132,14 +132,19 @@
 
           <form @submit.prevent="startConversation" class="conversation-form">
             <div class="form-group">
-              <label class="form-label">Sujet</label>
+              <label class="form-label">Sujet <span class="required-hint">(min. 5 caractères)</span></label>
               <input 
                 v-model="newConversation.subject" 
                 type="text" 
                 placeholder="Ex: Problème avec mon transfert"
                 class="input-premium"
+                :class="{ 'input-error': newConversation.subject.length > 0 && newConversation.subject.length < 5 }"
+                minlength="5"
                 required
               />
+              <p v-if="newConversation.subject.length > 0 && newConversation.subject.length < 5" class="error-hint">
+                Le sujet doit contenir au moins 5 caractères ({{ newConversation.subject.length }}/5)
+              </p>
             </div>
 
             <div class="form-group">
@@ -255,6 +260,12 @@ const selectAgent = (type) => {
 }
 
 const startConversation = async () => {
+  // Validate subject length
+  if (newConversation.value.subject.length < 5) {
+    alert('Le sujet doit contenir au moins 5 caractères.')
+    return
+  }
+  
   loading.value = true
   
   try {
@@ -873,5 +884,23 @@ onMounted(() => {
     margin-top: 0.5rem;
     padding-left: 3.5rem;
   }
+}
+
+/* Validation styles */
+.required-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2) !important;
+}
+
+.error-hint {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin: 0.25rem 0 0 0;
 }
 </style>

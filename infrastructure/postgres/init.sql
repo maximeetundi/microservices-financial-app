@@ -92,7 +92,7 @@ CREATE TABLE transactions (
 );
 
 -- Notifications table
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL, -- transfer, transaction, security, card, kyc, etc.
@@ -324,17 +324,8 @@ CREATE TABLE user_sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Notifications table
-CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL, -- email, sms, push
-    subject VARCHAR(255),
-    content TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending', -- pending, sent, failed
-    sent_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Note: Notifications table is already created above (lines 95-105)
+-- Removed duplicate CREATE TABLE notifications declaration that was causing errors
 
 -- Compliance checks table
 CREATE TABLE compliance_checks (
