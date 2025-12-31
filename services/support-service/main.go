@@ -25,6 +25,13 @@ func main() {
 	}
 	defer db.Close()
 
+	// Run migration to add missing 'attachments' column if needed (Fix for VPS deployment issue)
+	if _, err := db.Exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments TEXT[];"); err != nil {
+		log.Printf("Warning: Failed to run auto-migration for attachments: %v", err)
+	} else {
+		log.Printf("Verified database schema: 'attachments' column present or added.")
+	}
+
 	// Initialize repositories
 	convRepo := repository.NewConversationRepository(db)
 	msgRepo := repository.NewMessageRepository(db)
