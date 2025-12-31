@@ -144,6 +144,29 @@ export default function SupportPage() {
         await fetchMessages(conv.id);
     };
 
+    // Poll messages for selected conversation every 5 seconds
+    useEffect(() => {
+        if (!selectedConv) return;
+        if (selectedConv.status === 'closed' || selectedConv.status === 'resolved') return;
+
+        const messagePollingInterval = setInterval(async () => {
+            try {
+                const response = await getTicketMessages(selectedConv.id);
+                const newMsgs = response.data?.messages || [];
+
+                // Only update if we have more messages
+                if (newMsgs.length > messages.length) {
+                    setMessages(newMsgs);
+                    scrollToBottom();
+                }
+            } catch (error) {
+                console.error('Error polling messages:', error);
+            }
+        }, 5000); // Poll every 5 seconds
+
+        return () => clearInterval(messagePollingInterval);
+    }, [selectedConv?.id, selectedConv?.status]);
+
     const sendMessage = async () => {
         if (!newMessage.trim() || !selectedConv) return;
 

@@ -170,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supportAPI } from '~/composables/useApi'
 
@@ -429,8 +429,63 @@ const loadConversation = async () => {
 
 watch(() => messages.value.length, scrollToBottom)
 
+// Polling for new messages every 5 seconds (for human agent responses)
+let pollingInterval: NodeJS.Timeout | null = null
+
+const startPolling = () => {
+  if (pollingInterval) return
+  
+  pollingInterval = setInterval(async () => {
+    // Only poll if we have a valid conversation with a human agent
+    if (!conversation.value.id || conversation.value.id.startsWith('demo-')) return
+    if (conversation.value.agent_type !== 'human') return
+    if (conversation.value.status === 'closed' || conversation.value.status === 'resolved') return
+    
+    try {
+      const response = await supportAPI.getMessages(conversation.value.id)
+      if (response.data?.messages) {
+        const newMessages = response.data.messages
+        // Only update if we have more messages
+        if (newMessages.length > messages.value.length) {
+          const currentIds = new Set(messages.value.map((m: any) => m.id))
+          const newOnes = newMessages.filter((m: any) => !currentIds.has(m.id))
+          
+          if (newOnes.length > 0) {
+            // Add only truly new messages
+            for (const msg of newOnes) {
+              messages.value.push({
+                id: msg.id,
+                sender_type: msg.sender_type || (msg.is_agent ? 'agent' : 'user'),
+                sender_name: msg.sender_name || (msg.is_agent ? 'Support' : 'Vous'),
+                content: msg.content || msg.message,
+                created_at: msg.created_at,
+                is_read: msg.is_read
+              })
+            }
+            scrollToBottom()
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error polling messages:', error)
+    }
+  }, 5000) // Poll every 5 seconds
+}
+
+const stopPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
 onMounted(() => {
   loadConversation()
+  startPolling()
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>
 
