@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     HomeIcon,
     UsersIcon,
@@ -81,6 +81,7 @@ function getRelativeTime(dateString: string): string {
 
 export default function DashboardLayout({ children }: SidebarProps) {
     const pathname = usePathname();
+    const router = useRouter();
     const { admin } = useAuthStore();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -90,6 +91,29 @@ export default function DashboardLayout({ children }: SidebarProps) {
     const notificationRef = useRef<HTMLDivElement>(null);
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
+
+    // Handle notification click - navigate to relevant page
+    const handleNotificationClick = (notification: Notification) => {
+        setNotificationDropdownOpen(false);
+
+        const type = notification.type?.toLowerCase() || '';
+
+        if (type === 'support' || type === 'conversation' || type === 'ticket') {
+            router.push('/dashboard/support');
+        } else if (type === 'transfer' || type === 'transaction') {
+            router.push('/dashboard/transactions');
+        } else if (type === 'card') {
+            router.push('/dashboard/cards');
+        } else if (type === 'kyc') {
+            router.push('/dashboard/kyc');
+        } else if (type === 'wallet') {
+            router.push('/dashboard/wallets');
+        } else if (type === 'security' || type === 'admin') {
+            router.push('/dashboard/logs');
+        } else {
+            router.push('/dashboard/notifications');
+        }
+    };
 
     // Load notifications from admin-service (admin-specific notifications)
     const loadNotifications = async () => {
@@ -319,6 +343,7 @@ export default function DashboardLayout({ children }: SidebarProps) {
                                                 return (
                                                     <div
                                                         key={notification.id}
+                                                        onClick={() => handleNotificationClick(notification)}
                                                         className={clsx(
                                                             'px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer',
                                                             !notification.is_read && 'bg-indigo-50/50'

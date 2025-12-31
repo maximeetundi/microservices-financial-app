@@ -95,8 +95,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { notificationAPI } from '~/composables/useApi'
 
+const router = useRouter()
 const isOpen = ref(false)
 const loading = ref(false)
 const notifications = ref([])
@@ -134,6 +136,7 @@ const fetchUnreadCount = async () => {
 }
 
 const handleClick = async (notif) => {
+  // Mark as read
   if (!notif.is_read) {
     try {
       await notificationAPI.markAsRead(notif.id)
@@ -142,6 +145,35 @@ const handleClick = async (notif) => {
     } catch (e) {
       console.error('Failed to mark as read:', e)
     }
+  }
+  
+  // Navigate based on notification type and reference
+  isOpen.value = false
+  
+  const type = notif.type?.toLowerCase() || ''
+  const refId = notif.reference_id || notif.data?.reference_id || notif.data?.id
+  
+  if (type === 'support' || type === 'conversation' || type === 'ticket') {
+    // Navigate to support conversation
+    if (refId) {
+      router.push(`/support/chat?id=${refId}&agent_type=human`)
+    } else {
+      router.push('/support')
+    }
+  } else if (type === 'transfer' || type === 'transaction') {
+    // Navigate to wallet/transactions
+    router.push('/wallet')
+  } else if (type === 'card') {
+    router.push('/cards')
+  } else if (type === 'wallet' || type === 'payment') {
+    router.push('/wallet')
+  } else if (type === 'security') {
+    router.push('/settings')
+  } else if (type === 'kyc') {
+    router.push('/settings')
+  } else {
+    // Default: go to notifications page
+    router.push('/notifications')
   }
 }
 
