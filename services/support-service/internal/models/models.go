@@ -131,7 +131,7 @@ type CreateConversationRequest struct {
 }
 
 type SendMessageRequest struct {
-	Content     string   `json:"content" binding:"required,min=1,max=2000"`
+	Content     string   `json:"content" binding:"max=2000"`
 	ContentType string   `json:"content_type,omitempty"`
 	Attachments []string `json:"attachments,omitempty"`
 }

@@ -61,7 +61,13 @@
             <div>
               <div class="message-bubble agent-bubble">
                 <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments">
-                  <img v-for="(url, idx) in message.attachments" :key="idx" :src="url" class="message-image" @click="openImage(url)" />
+                  <template v-for="(url, idx) in message.attachments" :key="idx">
+                    <img v-if="isImageUrl(url)" :src="url" class="message-image" @click="openImage(url)" />
+                    <a v-else :href="url" target="_blank" class="file-attachment">
+                      <span class="file-icon">📄</span>
+                      <span class="file-name">{{ getFileName(url) }}</span>
+                    </a>
+                  </template>
                 </div>
                 <p v-if="message.content">{{ message.content }}</p>
               </div>
@@ -74,7 +80,13 @@
             <div>
               <div class="message-bubble user-bubble">
                 <div v-if="message.attachments && message.attachments.length > 0" class="message-attachments">
-                  <img v-for="(url, idx) in message.attachments" :key="idx" :src="url" class="message-image" @click="openImage(url)" />
+                  <template v-for="(url, idx) in message.attachments" :key="idx">
+                    <img v-if="isImageUrl(url)" :src="url" class="message-image" @click="openImage(url)" />
+                    <a v-else :href="url" target="_blank" class="file-attachment">
+                      <span class="file-icon">📄</span>
+                      <span class="file-name">{{ getFileName(url) }}</span>
+                    </a>
+                  </template>
                 </div>
                 <p v-if="message.content">{{ message.content }}</p>
               </div>
@@ -120,7 +132,11 @@
         <!-- Attachment Preview -->
         <div v-if="pendingAttachments.length > 0" class="attachment-previews">
           <div v-for="(url, index) in pendingAttachments" :key="index" class="attachment-preview">
-            <img :src="url" class="preview-img" />
+            <img v-if="isImageUrl(url)" :src="url" class="preview-img" />
+            <div v-else class="preview-file">
+              <span class="file-icon-large">📄</span>
+              <span class="file-name-small">{{ getFileName(url) }}</span>
+            </div>
             <button @click="removeAttachment(index)" class="remove-attachment-btn">×</button>
           </div>
         </div>
@@ -275,6 +291,24 @@ const removeAttachment = (index) => {
 
 const openImage = (url) => {
   window.open(url, '_blank')
+}
+
+const isImageUrl = (url) => {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp']
+  const lowerUrl = url.toLowerCase()
+  return imageExtensions.some(ext => lowerUrl.includes(ext))
+}
+
+const getFileName = (url) => {
+  try {
+    const parts = url.split('/')
+    const fullName = parts[parts.length - 1]
+    // Remove timestamp prefix if present (e.g., 1234567890_filename.pdf)
+    const match = fullName.match(/^\d+_(.+)$/)
+    return match ? match[1] : fullName
+  } catch {
+    return 'Document'
+  }
 }
 
 const quickReplies = ref([
@@ -1094,5 +1128,57 @@ onUnmounted(() => {
 
 .hidden {
   display: none;
+}
+
+/* File attachment styles */
+.file-attachment {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(100, 116, 139, 0.15);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s;
+}
+
+.file-attachment:hover {
+  background: rgba(100, 116, 139, 0.25);
+}
+
+.file-icon {
+  font-size: 1.25rem;
+}
+
+.file-name {
+  font-size: 0.875rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: rgba(100, 116, 139, 0.1);
+  border-radius: 0.25rem;
+}
+
+.file-icon-large {
+  font-size: 1.5rem;
+}
+
+.file-name-small {
+  font-size: 0.5rem;
+  max-width: 45px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
