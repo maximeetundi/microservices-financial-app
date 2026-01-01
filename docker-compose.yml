@@ -349,6 +349,29 @@ services:
       - crypto-bank-network
     restart: unless-stopped
 
+  # Ticket Service
+  ticket-service:
+    build:
+      context: ./services
+      dockerfile: ./ticket-service/Dockerfile
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=secure_password
+      - DB_NAME=crypto_bank
+      - DB_SSL_MODE=disable
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - PORT=8090
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

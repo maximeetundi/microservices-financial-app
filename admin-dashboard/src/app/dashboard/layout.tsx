@@ -60,6 +60,7 @@ const navigation = [
     { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
     { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
+    { name: 'Événements', href: '/dashboard/events', icon: SparklesIcon },
     { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
     { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
 ];

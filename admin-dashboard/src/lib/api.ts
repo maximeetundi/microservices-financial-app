@@ -209,4 +209,45 @@ export const sendTicketMessage = (conversationId: string, message: string, attac
         attachments: attachments || []
     });
 
+// ========== Ticket/Events API ==========
+const ticketApi = axios.create({
+    baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088').replace('/api/v1/admin', ''),
+    headers: { 'Content-Type': 'application/json' },
+});
+
+ticketApi.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+// Get all events (admin view)
+export const getAllEvents = (limit = 50, offset = 0) =>
+    ticketApi.get(`/ticket-service/api/v1/events/active?limit=${limit}&offset=${offset}`);
+
+// Get event details
+export const getEventDetails = (eventId: string) =>
+    ticketApi.get(`/ticket-service/api/v1/events/${eventId}`);
+
+// Get event statistics
+export const getEventStats = (eventId: string) =>
+    ticketApi.get(`/ticket-service/api/v1/events/${eventId}/stats`);
+
+// Get event tickets
+export const getEventTickets = (eventId: string, limit = 50, offset = 0) =>
+    ticketApi.get(`/ticket-service/api/v1/events/${eventId}/tickets?limit=${limit}&offset=${offset}`);
+
+// Verify ticket
+export const verifyTicket = (code: string) =>
+    ticketApi.post('/ticket-service/api/v1/tickets/verify', { ticket_code: code });
+
+// Mark ticket as used
+export const useTicket = (ticketId: string) =>
+    ticketApi.post(`/ticket-service/api/v1/tickets/${ticketId}/use`);
+
 export default api;
+

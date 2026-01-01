@@ -64,6 +64,14 @@ services:
           - /support-service
         strip_path: true
 
+  - name: ticket-service
+    url: http://ticket-service:8090
+    routes:
+      - name: ticket-routes
+        paths:
+          - /ticket-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:

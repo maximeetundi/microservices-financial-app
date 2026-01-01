@@ -513,6 +513,7 @@ export function useApi() {
         adminPaymentApi: adminPaymentAPI,
         supportApi: supportAPI,
         notificationApi: notificationAPI,
+        ticketApi: ticketAPI,
     }
 }
 
@@ -527,6 +528,37 @@ export const notificationAPI = {
     markAsRead: (id: string) => api.post(`/notification-service/api/v1/notifications/${id}/read`),
     markAllAsRead: () => api.post('/notification-service/api/v1/notifications/read-all'),
     delete: (id: string) => api.delete(`/notification-service/api/v1/notifications/${id}`),
+}
+
+// ========== Tickets & Events ==========
+export const ticketAPI = {
+    // Event management (organizer)
+    createEvent: (data: any) => api.post('/ticket-service/api/v1/events', data),
+    getMyEvents: (limit = 20, offset = 0) => api.get(`/ticket-service/api/v1/events?limit=${limit}&offset=${offset}`),
+    getEvent: (id: string) => api.get(`/ticket-service/api/v1/events/${id}`),
+    getEventByCode: (code: string) => api.get(`/ticket-service/api/v1/events/code/${code}`),
+    updateEvent: (id: string, data: any) => api.put(`/ticket-service/api/v1/events/${id}`, data),
+    deleteEvent: (id: string) => api.delete(`/ticket-service/api/v1/events/${id}`),
+    publishEvent: (id: string) => api.post(`/ticket-service/api/v1/events/${id}/publish`),
+    getEventTickets: (id: string, limit = 50, offset = 0) => api.get(`/ticket-service/api/v1/events/${id}/tickets?limit=${limit}&offset=${offset}`),
+    getEventStats: (id: string) => api.get(`/ticket-service/api/v1/events/${id}/stats`),
+
+    // Public events
+    getActiveEvents: (limit = 20, offset = 0) => api.get(`/ticket-service/api/v1/events/active?limit=${limit}&offset=${offset}`),
+    getPublicEvent: (id: string) => api.get(`/ticket-service/api/v1/events/public/${id}`),
+
+    // Ticket purchase
+    purchaseTicket: (data: { event_id: string; tier_id: string; form_data: any; wallet_id: string; pin: string }) =>
+        api.post('/ticket-service/api/v1/tickets/purchase', data),
+    getMyTickets: (limit = 20, offset = 0) => api.get(`/ticket-service/api/v1/tickets?limit=${limit}&offset=${offset}`),
+    getTicket: (id: string) => api.get(`/ticket-service/api/v1/tickets/${id}`),
+
+    // Ticket verification
+    verifyTicket: (code: string) => api.post('/ticket-service/api/v1/tickets/verify', { ticket_code: code }),
+    useTicket: (id: string) => api.post(`/ticket-service/api/v1/tickets/${id}/use`),
+
+    // Available icons
+    getIcons: () => api.get('/ticket-service/api/v1/icons'),
 }
 
 export default api
