@@ -144,7 +144,13 @@ func (s *SupportService) SendMessage(conversationID, senderID, senderName string
 		SenderType:     senderType,
 		Content:        req.Content,
 		ContentType:    "text",
+		Attachments:    req.Attachments,
 		IsRead:         false,
+	}
+
+	// Ensure attachments is not nil
+	if msg.Attachments == nil {
+		msg.Attachments = []string{}
 	}
 
 	if req.ContentType != "" {
