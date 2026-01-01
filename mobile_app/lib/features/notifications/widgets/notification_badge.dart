@@ -36,9 +36,24 @@ class _NotificationBadgeState extends State<NotificationBadge> {
   Future<void> _fetchUnreadCount() async {
     try {
       final response = await _notificationService.getUnreadCount();
+      int count = response['unread_count'] ?? 0;
+      
+      // If user is on support screen, exclude support-related notifications from count
+      if (NotificationApiService.isOnSupportScreen && count > 0) {
+        // Get notifications to filter out support ones
+        final notifResponse = await _notificationService.getNotifications(limit: 20);
+        final notifications = (notifResponse['notifications'] ?? []) as List;
+        final supportCount = notifications.where((n) {
+          if (n['is_read'] == true) return false;
+          final type = (n['type'] ?? '').toString().toLowerCase();
+          return type == 'support' || type == 'conversation' || type == 'ticket' || type == 'message';
+        }).length;
+        count = (count - supportCount).clamp(0, count);
+      }
+      
       if (mounted) {
         setState(() {
-          _unreadCount = response['unread_count'] ?? 0;
+          _unreadCount = count;
         });
       }
     } catch (e) {

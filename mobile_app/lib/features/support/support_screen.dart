@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/services/support_api_service.dart';
+import '../../core/services/notification_api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -537,6 +538,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _ticketId = widget.ticketId;
+    // Mark that user is on support screen to suppress notifications
+    NotificationApiService.isOnSupportScreen = true;
     _initializeConversation();
   }
   
@@ -585,6 +588,8 @@ class _ChatScreenState extends State<ChatScreen> {
   
   @override
   void dispose() {
+    // Mark that user left support screen
+    NotificationApiService.isOnSupportScreen = false;
     _messagePollingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();

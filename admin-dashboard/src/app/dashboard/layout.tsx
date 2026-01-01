@@ -158,7 +158,16 @@ export default function DashboardLayout({ children }: SidebarProps) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = notifications.filter(n => {
+        // If we're on the support page, exclude support-related notifications from count
+        if (pathname?.startsWith('/dashboard/support')) {
+            const type = n.type?.toLowerCase() || '';
+            if (type === 'support' || type === 'conversation' || type === 'ticket' || type === 'message') {
+                return false;
+            }
+        }
+        return !n.is_read;
+    }).length;
 
     const getNotificationIcon = (type: string) => {
         const config = notificationTypeConfig[type] || notificationTypeConfig.admin;

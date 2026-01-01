@@ -2,6 +2,10 @@ import '../api/api_client.dart';
 
 class NotificationApiService {
   final ApiClient _client = ApiClient();
+  
+  /// Static flag to track if user is currently on support chat screen
+  /// When true, support-related notifications will be excluded from count
+  static bool isOnSupportScreen = false;
 
   /// Get list of notifications
   Future<Map<String, dynamic>> getNotifications({int limit = 20, int offset = 0}) async {
