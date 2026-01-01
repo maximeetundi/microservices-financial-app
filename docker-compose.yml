@@ -84,7 +84,8 @@ services:
       /bin/sh -c "
       mc alias set myminio http://minio:9000 minioadmin minioadmin123;
       mc mb myminio/kyc-documents --ignore-existing;
-      echo 'Bucket kyc-documents created (private access only)';
+      mc mb myminio/support-attachments --ignore-existing;
+      echo 'Buckets kyc-documents and support-attachments created (private access only)';
       exit 0;
       "
     networks:
@@ -329,12 +330,20 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - ADMIN_JWT_SECRET=admin_ultra_secure_jwt_secret_2024
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_BUCKET=support-attachments
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
