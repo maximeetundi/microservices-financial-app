@@ -74,7 +74,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Create default bucket on startup (PRIVATE - no anonymous access)
+  # Create default bucket on startup
   minio-init:
     image: minio/mc
     depends_on:
@@ -85,7 +85,8 @@ services:
       mc alias set myminio http://minio:9000 minioadmin minioadmin123;
       mc mb myminio/kyc-documents --ignore-existing;
       mc mb myminio/support-attachments --ignore-existing;
-      echo 'Buckets kyc-documents and support-attachments created (private access only)';
+      mc anonymous set download myminio/support-attachments;
+      echo 'Buckets created. support-attachments has public read access.';
       exit 0;
       "
     networks:
