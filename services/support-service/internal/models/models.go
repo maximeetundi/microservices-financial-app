@@ -93,7 +93,7 @@ type Message struct {
 	SenderType     MessageType `json:"sender_type" db:"sender_type"`
 	Content        string      `json:"content" db:"content"`
 	ContentType    string      `json:"content_type" db:"content_type"` // text, image, file
-	Attachments    []string    `json:"attachments,omitempty" db:"attachments"`
+	Attachments    []string    `json:"attachments" db:"attachments"`
 	IsRead         bool        `json:"is_read" db:"is_read"`
 	ReadAt         *time.Time  `json:"read_at,omitempty" db:"read_at"`
 	CreatedAt      time.Time   `json:"created_at" db:"created_at"`

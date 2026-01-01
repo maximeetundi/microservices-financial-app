@@ -76,6 +76,10 @@ func (r *MessageRepository) GetByConversationID(conversationID string, limit, of
 		if err != nil {
 			return nil, err
 		}
+		// Ensure attachments is never nil (for proper JSON serialization)
+		if msg.Attachments == nil {
+			msg.Attachments = []string{}
+		}
 		messages = append(messages, msg)
 	}
 
