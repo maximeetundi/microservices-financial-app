@@ -513,15 +513,30 @@ export default function SupportPage() {
                                                         </p>
                                                         {msg.attachments && msg.attachments.length > 0 && (
                                                             <div className="flex flex-wrap gap-2 mb-2">
-                                                                {msg.attachments.map((url, idx) => (
-                                                                    <img
-                                                                        key={idx}
-                                                                        src={url}
-                                                                        alt="Attachment"
-                                                                        className="max-w-[200px] max-h-[200px] rounded object-cover cursor-pointer hover:opacity-90 transition"
-                                                                        onClick={() => window.open(url, '_blank')}
-                                                                    />
-                                                                ))}
+                                                                {msg.attachments.map((url, idx) => {
+                                                                    const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(url);
+                                                                    const fileName = url.split('/').pop()?.replace(/^\d+_/, '') || 'Document';
+                                                                    return isImage ? (
+                                                                        <img
+                                                                            key={idx}
+                                                                            src={url}
+                                                                            alt="Attachment"
+                                                                            className="max-w-[200px] max-h-[200px] rounded object-cover cursor-pointer hover:opacity-90 transition"
+                                                                            onClick={() => window.open(url, '_blank')}
+                                                                        />
+                                                                    ) : (
+                                                                        <a
+                                                                            key={idx}
+                                                                            href={url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg ${msg.sender_type === 'agent' ? 'bg-primary-500 hover:bg-primary-400' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                                                        >
+                                                                            <span className="text-lg">📄</span>
+                                                                            <span className="text-sm truncate max-w-[150px]">{fileName}</span>
+                                                                        </a>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         )}
                                                         <p className="whitespace-pre-wrap">{msg.content}</p>

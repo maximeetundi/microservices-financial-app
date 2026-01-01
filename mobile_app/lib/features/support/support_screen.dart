@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/services/support_api_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 class SupportScreen extends StatefulWidget {
@@ -930,33 +931,63 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (message.attachments != null && message.attachments!.isNotEmpty)
-              ...message.attachments!.map((url) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    url,
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 150,
-                        color: Colors.black12,
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                         height: 150,
-                         color: Colors.white.withOpacity(0.1),
-                         child: const Center(child: Icon(Icons.broken_image, color: Colors.white)),
-                      );
-                    },
-                  ),
-                ),
-              )),
+              ...message.attachments!.map((url) {
+                final isImage = RegExp(r'\.(jpg|jpeg|png|gif|webp|svg|bmp)$', caseSensitive: false).hasMatch(url);
+                final fileName = url.split('/').last.replaceFirst(RegExp(r'^\d+_'), '');
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: isImage
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          url,
+                          height: 150,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 150,
+                              color: Colors.black12,
+                              child: const Center(child: CircularProgressIndicator()),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                               height: 150,
+                               color: Colors.white.withOpacity(0.1),
+                               child: const Center(child: Icon(Icons.broken_image, color: Colors.white)),
+                            );
+                          },
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: () => _openUrl(url),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.insert_drive_file, color: Colors.white, size: 24),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  fileName,
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                );
+              }),
             Text(
               message.content,
               style: const TextStyle(color: Colors.white, fontSize: 15),
@@ -965,6 +996,13 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _buildTypingIndicator() {
