@@ -3,11 +3,11 @@ FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
 # Copy go mod files
-COPY go.mod go.sum* ./
+COPY ticket-service/go.mod ticket-service/go.sum* ./
 RUN go mod download || true
 
 # Copy source code
-COPY . .
+COPY ticket-service/ .
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -o ticket-service .
