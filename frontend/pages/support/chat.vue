@@ -127,8 +127,8 @@
         </button>
       </div>
 
-      <!-- Input Area -->
-      <div class="input-area glass-card">
+      <!-- Input Area (hidden when conversation is closed/resolved) -->
+      <div v-if="conversation.status !== 'closed' && conversation.status !== 'resolved'" class="input-area glass-card">
         <!-- Attachment Preview -->
         <div v-if="pendingAttachments.length > 0" class="attachment-previews">
           <div v-for="(url, index) in pendingAttachments" :key="index" class="attachment-preview">
@@ -185,6 +185,12 @@
             </svg>
           </button>
         </form>
+      </div>
+
+      <!-- Closed Conversation Banner -->
+      <div v-else class="closed-banner glass-card">
+        <p class="closed-message">✅ Cette conversation a été résolue. Merci pour votre confiance !</p>
+        <button @click="navigateToSupport" class="btn-secondary-premium">Nouvelle demande</button>
       </div>
 
       <!-- Rating Modal -->

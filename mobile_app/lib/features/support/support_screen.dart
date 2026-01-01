@@ -529,6 +529,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
   String? _ticketId;
+  String _conversationStatus = 'open';
   final SupportApiService _supportApi = SupportApiService();
   Timer? _messagePollingTimer;
 
@@ -624,6 +625,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _loadMessages() async {
     if (_ticketId == null) return;
     try {
+      // Load conversation details to get status
+      final conv = await _supportApi.getConversation(_ticketId!);
+      setState(() {
+        _conversationStatus = conv['status']?.toString() ?? 'open';
+      });
+      
       final messages = await _supportApi.getMessages(_ticketId!);
       setState(() {
         _messages.addAll(messages.map((msg) => ChatMessage(
@@ -631,6 +638,7 @@ class _ChatScreenState extends State<ChatScreen> {
           content: msg['content'] ?? '',
           isUser: msg['sender_type'] == 'user',
           timestamp: DateTime.tryParse(msg['created_at'] ?? '') ?? DateTime.now(),
+          attachments: (msg['attachments'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
         )));
       });
     } catch (e) {
@@ -697,10 +705,11 @@ class _ChatScreenState extends State<ChatScreen> {
         // or just rely on the fact that we uploaded them.
         // ACTUALLY, checking the backend, we added `attachments` column. 
         // The API `sendMessage` should probably take attachments.
-        // Let's just send the content for now to avoid breaking changes without modifying service.
+        // Send message with attachments using updated API
         await _supportApi.sendMessage(
           conversationId: _ticketId!, 
-          content: content + (attachments != null && attachments.isNotEmpty ? '\n\n' + attachments.join('\n') : '')
+          content: content,
+          attachments: attachments ?? [],
         );
       }
     } catch (e) {
@@ -884,8 +893,11 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Input
-          _buildInputArea(),
+          // Input (hidden when closed/resolved)
+          if (_conversationStatus != 'closed' && _conversationStatus != 'resolved')
+            _buildInputArea()
+          else
+            _buildClosedBanner(),
         ],
       ),
     );
@@ -1032,6 +1044,46 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           )),
         ),
+      ),
+    );
+  }
+
+  Widget _buildClosedBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.1),
+        border: Border(
+          top: BorderSide(color: Colors.green.withOpacity(0.3)),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Conversation résolue',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Nouvelle demande'),
+          ),
+        ],
       ),
     );
   }

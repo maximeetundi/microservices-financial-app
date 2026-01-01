@@ -97,10 +97,15 @@ class SupportApiService {
   Future<Map<String, dynamic>> sendMessage({
     required String conversationId,
     required String content,
+    List<String>? attachments,
   }) async {
     final response = await _client.post(
       ApiEndpoints.sendConversationMessage(conversationId),
-      data: {'content': content},
+      data: {
+        'content': content,
+        'content_type': 'text',
+        'attachments': attachments ?? [],
+      },
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
       return response.data['message'] ?? response.data;

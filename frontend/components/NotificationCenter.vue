@@ -129,7 +129,31 @@ const fetchNotifications = async () => {
 const fetchUnreadCount = async () => {
   try {
     const res = await notificationAPI.getUnreadCount()
-    unreadCount.value = res.data?.unread_count || 0
+    let count = res.data?.unread_count || 0
+    
+    // If user is on support chat page, auto-mark support notifications as read
+    // to avoid notification sounds/badges during active chat
+    const currentPath = router.currentRoute.value?.path || ''
+    if (currentPath.startsWith('/support/chat') && count > 0) {
+      // Fetch notifications to mark support ones as read
+      const notifRes = await notificationAPI.getAll(20, 0)
+      const notifications = notifRes.data?.notifications || []
+      const supportNotifs = notifications.filter(n => 
+        !n.is_read && (n.type === 'support' || n.type === 'conversation' || n.type === 'ticket')
+      )
+      
+      // Mark support notifications as read silently
+      for (const notif of supportNotifs) {
+        try {
+          await notificationAPI.markAsRead(notif.id)
+          count = Math.max(0, count - 1)
+        } catch {
+          // Ignore errors
+        }
+      }
+    }
+    
+    unreadCount.value = count
   } catch (e) {
     // Silently fail
   }
