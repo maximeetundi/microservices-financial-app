@@ -40,12 +40,4 @@ type Member struct {
 	UserEmail string `json:"user_email,omitempty"`
 }
 
-// JoinAssociationRequest is the request to join an association
-type JoinAssociationRequest struct {
-	Message string `json:"message"`
-}
-
-// UpdateMemberRoleRequest is the request to update a member's role
-type UpdateMemberRoleRequest struct {
-	Role MemberRole `json:"role" binding:"required"`
-}
+// Note: JoinAssociationRequest and UpdateMemberRoleRequest are defined in association.go
