@@ -9,8 +9,8 @@ RUN go mod download || true
 # Copy source code
 COPY association-service/ .
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o association-service .
+# Build - run go mod tidy to update go.sum with new dependencies
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o association-service .
 
 # Runtime stage
 FROM alpine:latest
