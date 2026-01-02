@@ -54,5 +54,6 @@ type TreasuryReport struct {
 	TotalRepayments    float64                `json:"total_repayments"`
 	TotalDistributions float64                `json:"total_distributions"`
 	TotalExpenses      float64                `json:"total_expenses"`
-	Transactions       []TreasuryTransaction  `json:"transactions"`
+	Transactions       []*TreasuryTransaction `json:"transactions"`
 }
+

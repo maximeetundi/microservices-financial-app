@@ -4,79 +4,104 @@ import (
 	"log"
 	"os"
 
-	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/database"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
+	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/middleware"
+	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/services"
 )
 
 func main() {
-	// Get environment variables
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbSSLMode := os.Getenv("DB_SSL_MODE")
-	port := os.Getenv("PORT")
-
-	if port == "" {
-		port = "8091"
-	}
-
 	// Initialize database
-	db, err := database.InitDB(dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
+	db, err := database.InitDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
-	// Initialize Gin
+	// Initialize repositories
+	assocRepo := repository.NewAssociationRepository(db)
+	memberRepo := repository.NewMemberRepository(db)
+	treasuryRepo := repository.NewTreasuryRepository(db)
+	meetingRepo := repository.NewMeetingRepository(db)
+	loanRepo := repository.NewLoanRepository(db)
+
+	// Initialize service
+	assocService := services.NewAssociationService(
+		assocRepo,
+		memberRepo,
+		treasuryRepo,
+		meetingRepo,
+		loanRepo,
+	)
+
+	// Initialize handlers
+	handler := handlers.NewHandler(assocService)
+
+	// Setup Gin router
 	r := gin.Default()
 
-	// CORS middleware
+	// CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy", "service": "association-service"})
+		c.JSON(200, gin.H{"status": "ok", "service": "association-service"})
 	})
 
 	// API routes
-	v1 := r.Group("/api/v1")
+	api := r.Group("/api/v1")
 	{
-		// Associations
-		v1.POST("/associations", func(c *gin.Context) {
-			c.JSON(501, gin.H{"error": "Not implemented yet - coming soon"})
-		})
-		v1.GET("/associations", func(c *gin.Context) {
-			c.JSON(501, gin.H{"error": "Not implemented yet - coming soon"})
-		})
-		v1.GET("/associations/:id", func(c *gin.Context) {
-			c.JSON(501, gin.H{"error": "Not implemented yet - coming soon"})
-		})
+		// Public/Admin routes (for admin dashboard without user JWT)
+		api.GET("/associations", handler.GetAllAssociations)
 
-		// Placeholder routes to show structure
-		v1.POST("/associations/:id/join", func(c *gin.Context) {
-			c.JSON(501, gin.H{"message": "Join association - coming soon"})
-		})
-		v1.GET("/associations/:id/members", func(c *gin.Context) {
-			c.JSON(501, gin.H{"message": "List members - coming soon"})
-		})
-		v1.POST("/associations/:id/meetings", func(c *gin.Context) {
-			c.JSON(501, gin.H{"message": "Create meeting - coming soon"})
-		})
-		v1.POST("/associations/:id/contributions", func(c *gin.Context) {
-			c.JSON(501, gin.H{"message": "Record contribution - coming soon"})
-		})
-		v1.POST("/associations/:id/loans", func(c *gin.Context) {
-			c.JSON(501, gin.H{"message": "Request loan - coming soon"})
-		})
+		// Protected routes
+		protected := api.Group("")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			// Associations CRUD
+			protected.POST("/associations", handler.CreateAssociation)
+			protected.GET("/associations/me", handler.GetAssociations)
+			protected.GET("/associations/:id", handler.GetAssociation)
+			protected.PUT("/associations/:id", handler.UpdateAssociation)
+			protected.DELETE("/associations/:id", handler.DeleteAssociation)
+
+			// Members
+			protected.POST("/associations/:id/join", handler.JoinAssociation)
+			protected.POST("/associations/:id/leave", handler.LeaveAssociation)
+			protected.GET("/associations/:id/members", handler.GetMembers)
+			protected.PUT("/associations/:id/members/:uid/role", handler.UpdateMemberRole)
+
+			// Contributions & Treasury
+			protected.POST("/associations/:id/contributions", handler.PayContribution)
+			protected.GET("/associations/:id/treasury", handler.GetTreasury)
+			protected.POST("/associations/:id/distribute", handler.DistributeFunds)
+
+			// Loans
+			protected.POST("/associations/:id/loans", handler.RequestLoan)
+			protected.GET("/associations/:id/loans", handler.GetLoans)
+			protected.PUT("/loans/:loanId/approve", handler.ApproveLoan)
+			protected.POST("/loans/:loanId/repay", handler.RepayLoan)
+
+			// Meetings
+			protected.POST("/associations/:id/meetings", handler.CreateMeeting)
+			protected.GET("/associations/:id/meetings", handler.GetMeetings)
+			protected.POST("/meetings/:meetingId/attendance", handler.RecordAttendance)
+			protected.PUT("/meetings/:meetingId/minutes", handler.UpdateMinutes)
+		}
+	}
+
+	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8091"
 	}
 
 	log.Printf("Association service starting on port %s", port)

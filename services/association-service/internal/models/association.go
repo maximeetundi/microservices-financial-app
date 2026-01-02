@@ -59,6 +59,16 @@ type UpdateAssociationRequest struct {
 	Status      *string `json:"status"`
 }
 
+// JoinAssociationRequest is the request to join an association
+type JoinAssociationRequest struct {
+	Message string `json:"message"`
+}
+
+// UpdateMemberRoleRequest is the request to update a member's role
+type UpdateMemberRoleRequest struct {
+	Role MemberRole `json:"role" binding:"required"`
+}
+
 // AssociationStats represents statistics for an association
 type AssociationStats struct {
 	TotalMembers       int     `json:"total_members"`
@@ -101,3 +111,4 @@ func (j *JSONB) Scan(value interface{}) error {
 	*j = result
 	return nil
 }
+

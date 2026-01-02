@@ -249,5 +249,46 @@ export const verifyTicket = (code: string) =>
 export const useTicket = (ticketId: string) =>
     ticketApi.post(`/ticket-service/api/v1/tickets/${ticketId}/use`);
 
+// ========== Associations API ==========
+const associationApi = axios.create({
+    baseURL: API_URL,
+    headers: { 'Content-Type': 'application/json' },
+});
+
+associationApi.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+// Get all associations
+export const getAllAssociations = (limit = 50, offset = 0) =>
+    associationApi.get(`/association-service/api/v1/associations?limit=${limit}&offset=${offset}`);
+
+// Get association details
+export const getAssociationDetails = (id: string) =>
+    associationApi.get(`/association-service/api/v1/associations/${id}`);
+
+// Get association members
+export const getAssociationMembers = (id: string) =>
+    associationApi.get(`/association-service/api/v1/associations/${id}/members`);
+
+// Get association treasury
+export const getAssociationTreasury = (id: string) =>
+    associationApi.get(`/association-service/api/v1/associations/${id}/treasury`);
+
+// Suspend association
+export const suspendAssociation = (id: string) =>
+    associationApi.put(`/association-service/api/v1/associations/${id}`, { status: 'suspended' });
+
+// Reactivate association
+export const activateAssociation = (id: string) =>
+    associationApi.put(`/association-service/api/v1/associations/${id}`, { status: 'active' });
+
 export default api;
+
 

@@ -31,6 +31,11 @@ import 'dart:async';
 import '../../features/merchant/scan_pay_screen.dart';
 import '../../main.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/events/events_screen.dart';
+import '../../features/events/event_details_screen.dart';
+import '../../features/associations/associations_screen.dart';
+import '../../features/associations/association_details_screen.dart';
+import '../../features/associations/create_association_screen.dart';
 
 class AppRouter {
   static late GoRouter router;
@@ -132,6 +137,58 @@ class AppRouter {
         path: '/transactions',
         name: 'transactions',
         builder: (context, state) => const TransactionsPage(),
+      ),
+      
+      // Events Route
+      GoRoute(
+        path: '/events',
+        name: 'events',
+        builder: (context, state) => const EventsScreen(),
+        routes: [
+          GoRoute(
+            path: ':eventId',
+            name: 'event-detail',
+            builder: (context, state) => EventDetailsScreen(
+              eventId: state.pathParameters['eventId']!,
+              isOwner: false,
+            ),
+          ),
+        ],
+      ),
+      
+      // Associations Route
+      GoRoute(
+        path: '/associations',
+        name: 'associations',
+        builder: (context, state) => const AssociationsScreen(),
+        routes: [
+          GoRoute(
+            path: 'create',
+            name: 'create-association',
+            builder: (context, state) => const CreateAssociationScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'association-detail',
+            builder: (context, state) => AssociationDetailsScreen(
+              associationId: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      ),
+      
+      // Support Route (top level)
+      GoRoute(
+        path: '/support',
+        name: 'support-main',
+        builder: (context, state) => const SupportScreen(),
+      ),
+      
+      // Notifications Route (top level)
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications-main',
+        builder: (context, state) => const NotificationsPage(),
       ),
       
       // More/Settings Route

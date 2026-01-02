@@ -61,6 +61,7 @@ const navigation = [
     { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
     { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
     { name: 'Événements', href: '/dashboard/events', icon: SparklesIcon },
+    { name: 'Associations', href: '/dashboard/associations', icon: UsersIcon },
     { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
     { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
 ];

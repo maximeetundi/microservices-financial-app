@@ -99,6 +99,56 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSettingsGrid(bool isDark) {
     return Column(
       children: [
+        // === Community Section ===
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'COMMUNAUTÉ',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+        ),
+        _buildSettingsCard(
+          emoji: '🎫',
+          title: 'Événements',
+          subtitle: 'Billets, concerts, spectacles',
+          color: const Color(0xFFEC4899),
+          onTap: () => context.go('/events'),
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '👥',
+          title: 'Associations',
+          subtitle: 'Tontines, cotisations, prêts',
+          color: const Color(0xFF8B5CF6),
+          onTap: () => context.go('/associations'),
+          isDark: isDark,
+        ),
+        const SizedBox(height: 16),
+        
+        // === Account Section ===
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'COMPTE',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+        ),
         _buildSettingsCard(
           emoji: '👤',
           title: 'Profil',
@@ -179,6 +229,14 @@ class _SettingsPageState extends State<SettingsPage> {
           subtitle: 'Cartes, comptes bancaires',
           color: const Color(0xFF14B8A6),
           onTap: () => context.go('/more/payment-methods'),
+          isDark: isDark,
+        ),
+        _buildSettingsCard(
+          emoji: '🎧',
+          title: 'Assistance',
+          subtitle: 'Centre d\'aide, chat support',
+          color: const Color(0xFF6366F1),
+          onTap: () => context.go('/support'),
           isDark: isDark,
         ),
       ],

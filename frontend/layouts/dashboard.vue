@@ -69,6 +69,20 @@
         </NuxtLink>
 
         <div class="pt-4 pb-2">
+          <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Communauté</p>
+        </div>
+
+        <NuxtLink to="/events" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">🎫</span>
+          <span>Événements</span>
+        </NuxtLink>
+
+        <NuxtLink to="/associations" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">👥</span>
+          <span>Associations</span>
+        </NuxtLink>
+
+        <div class="pt-4 pb-2">
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
         </div>
 

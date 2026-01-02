@@ -498,24 +498,7 @@ export const supportAPI = {
 }
 
 
-// ========== Composable ==========
-export function useApi() {
-    return {
-        authApi: authAPI,
-        userApi: userAPI,
-        walletApi: walletAPI,
-        transferApi: transferAPI,
-        cardApi: cardAPI,
-        exchangeApi: exchangeAPI,
-        dashboardApi: dashboardAPI,
-        merchantApi: merchantAPI,
-        paymentApi: paymentAPI,
-        adminPaymentApi: adminPaymentAPI,
-        supportApi: supportAPI,
-        notificationApi: notificationAPI,
-        ticketApi: ticketAPI,
-    }
-}
+
 
 // ========== Notifications ==========
 export const notificationAPI = {
@@ -561,5 +544,55 @@ export const ticketAPI = {
     getIcons: () => api.get('/ticket-service/api/v1/icons'),
 }
 
-export default api
+// ========== Associations ==========
+export const associationAPI = {
+    // Associations
+    create: (data: any) => api.post('/association-service/api/v1/associations', data),
+    getAll: () => api.get('/association-service/api/v1/associations'),
+    get: (id: string) => api.get(`/association-service/api/v1/associations/${id}`),
+    update: (id: string, data: any) => api.put(`/association-service/api/v1/associations/${id}`, data),
+    delete: (id: string) => api.delete(`/association-service/api/v1/associations/${id}`),
+
+    // Members
+    join: (id: string, data: { message: string }) => api.post(`/association-service/api/v1/associations/${id}/join`, data),
+    leave: (id: string) => api.post(`/association-service/api/v1/associations/${id}/leave`),
+    getMembers: (id: string) => api.get(`/association-service/api/v1/associations/${id}/members`),
+    updateMemberRole: (id: string, userId: string, role: string) =>
+        api.put(`/association-service/api/v1/associations/${id}/members/${userId}/role`, { role }),
+
+    // Meetings
+    createMeeting: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/meetings`, data),
+    getMeetings: (id: string) => api.get(`/association-service/api/v1/associations/${id}/meetings`),
+    recordAttendance: (meetingId: string, attendance: any) => api.post(`/association-service/api/v1/meetings/${meetingId}/attendance`, { attendance }),
+    updateMinutes: (meetingId: string, minutes: string) => api.put(`/association-service/api/v1/meetings/${meetingId}/minutes`, { minutes }),
+
+    // Treasury & Finance
+    recordContribution: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/contributions`, data),
+    getTreasury: (id: string) => api.get(`/association-service/api/v1/associations/${id}/treasury`),
+    requestLoan: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/loans`, data),
+    approveLoan: (loanId: string, approve: boolean, reason: string) =>
+        api.put(`/association-service/api/v1/loans/${loanId}/approve`, { approve, reason }),
+    repayLoan: (loanId: string, amount: number) => api.post(`/association-service/api/v1/loans/${loanId}/repay`, { amount }),
+    distributeFunds: (id: string, amount: number, memberIds: string[]) =>
+        api.post(`/association-service/api/v1/associations/${id}/distribute`, { amount, member_ids: memberIds }),
+}
+
+export const useApi = () => {
+    return {
+        authApi: authAPI,
+        userApi: userAPI,
+        walletApi: walletAPI,
+        transferApi: transferAPI,
+        cardApi: cardAPI,
+        exchangeApi: exchangeAPI,
+        dashboardApi: dashboardAPI,
+        merchantApi: merchantAPI,
+        paymentApi: paymentAPI,
+        adminPaymentApi: adminPaymentAPI,
+        supportApi: supportAPI,
+        notificationApi: notificationAPI,
+        ticketApi: ticketAPI,
+        associationApi: associationAPI,
+    }
+}
 

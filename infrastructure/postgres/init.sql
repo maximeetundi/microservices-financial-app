@@ -816,3 +816,169 @@ INSERT INTO quick_replies (id, label, response, category, is_active) VALUES
 ('qr-004', 'Temps d''attente', 'Nous traitons votre demande. Le temps de traitement moyen est de 24-48h ouvrées.', 'general', true),
 ('qr-005', 'Fermeture ticket', 'Votre demande a été traitée. N''hésitez pas à nous recontacter si nécessaire. Bonne journée !', 'closing', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- TICKET SERVICE TABLES (Events & Tickets)
+-- =====================================================
+
+-- Events table
+CREATE TABLE IF NOT EXISTS events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    location VARCHAR(500),
+    cover_image VARCHAR(500),
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    sale_start_date TIMESTAMP NOT NULL,
+    sale_end_date TIMESTAMP NOT NULL,
+    form_fields JSONB DEFAULT '[]',
+    qr_code VARCHAR(500),
+    event_code VARCHAR(20) UNIQUE,
+    status VARCHAR(20) DEFAULT 'draft', -- draft, active, ended, cancelled
+    currency VARCHAR(10) DEFAULT 'XOF',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ticket tiers table
+CREATE TABLE IF NOT EXISTS ticket_tiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    icon VARCHAR(50) DEFAULT '🎫',
+    price DECIMAL(20,2) NOT NULL DEFAULT 0,
+    quantity INTEGER DEFAULT -1, -- -1 for unlimited
+    sold INTEGER DEFAULT 0,
+    description TEXT,
+    benefits JSONB DEFAULT '[]',
+    color VARCHAR(10) DEFAULT '#6366f1',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tickets table
+CREATE TABLE IF NOT EXISTS tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    buyer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tier_id UUID NOT NULL REFERENCES ticket_tiers(id),
+    tier_name VARCHAR(100),
+    tier_icon VARCHAR(50),
+    price DECIMAL(20,2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'XOF',
+    form_data JSONB DEFAULT '{}',
+    qr_code VARCHAR(500),
+    ticket_code VARCHAR(20) UNIQUE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, paid, used, cancelled, refunded
+    transaction_id VARCHAR(100),
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ticket service indexes
+CREATE INDEX IF NOT EXISTS idx_events_creator ON events(creator_id);
+CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
+CREATE INDEX IF NOT EXISTS idx_ticket_tiers_event ON ticket_tiers(event_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_event ON tickets(event_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_buyer ON tickets(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_code ON tickets(ticket_code);
+
+-- =====================================================
+-- ASSOCIATION SERVICE TABLES (Tontines, Cotisations)
+-- =====================================================
+
+-- Associations table
+CREATE TABLE IF NOT EXISTS associations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NOT NULL DEFAULT 'tontine', -- tontine, savings, credit, general
+    creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    currency VARCHAR(10) DEFAULT 'XOF',
+    contribution_amount DECIMAL(20,2) DEFAULT 0,
+    contribution_frequency VARCHAR(20) DEFAULT 'monthly', -- weekly, monthly, quarterly
+    treasury_balance DECIMAL(20,2) DEFAULT 0,
+    total_members INTEGER DEFAULT 1,
+    rules JSONB DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'active', -- active, inactive, dissolved
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Association members table
+CREATE TABLE IF NOT EXISTS association_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_name VARCHAR(255),
+    user_email VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'member', -- president, treasurer, secretary, member
+    contributions_paid DECIMAL(20,2) DEFAULT 0,
+    contributions_count INTEGER DEFAULT 0,
+    loans_received DECIMAL(20,2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'active', -- active, inactive, suspended
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(association_id, user_id)
+);
+
+-- Treasury transactions table
+CREATE TABLE IF NOT EXISTS association_treasury (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+    type VARCHAR(30) NOT NULL, -- contribution, loan, repayment, distribution, expense
+    amount DECIMAL(20,2) NOT NULL,
+    from_member_id UUID REFERENCES association_members(id),
+    to_member_id UUID REFERENCES association_members(id),
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'completed', -- pending, completed, cancelled
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Loans table
+CREATE TABLE IF NOT EXISTS association_loans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+    borrower_id UUID NOT NULL REFERENCES association_members(id),
+    amount DECIMAL(20,2) NOT NULL,
+    interest_rate DECIMAL(5,2) DEFAULT 0,
+    duration INTEGER DEFAULT 3, -- months
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    repayments JSONB DEFAULT '[]',
+    status VARCHAR(20) DEFAULT 'pending', -- pending, approved, active, paid, defaulted, rejected
+    approved_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Meetings table
+CREATE TABLE IF NOT EXISTS association_meetings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    date TIMESTAMP NOT NULL,
+    location VARCHAR(500),
+    attendees JSONB DEFAULT '[]', -- array of member IDs
+    minutes TEXT,
+    status VARCHAR(20) DEFAULT 'scheduled', -- scheduled, ongoing, completed, cancelled
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Association service indexes
+CREATE INDEX IF NOT EXISTS idx_associations_creator ON associations(creator_id);
+CREATE INDEX IF NOT EXISTS idx_associations_status ON associations(status);
+CREATE INDEX IF NOT EXISTS idx_association_members_assoc ON association_members(association_id);
+CREATE INDEX IF NOT EXISTS idx_association_members_user ON association_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_association_treasury_assoc ON association_treasury(association_id);
+CREATE INDEX IF NOT EXISTS idx_association_loans_assoc ON association_loans(association_id);
+CREATE INDEX IF NOT EXISTS idx_association_loans_borrower ON association_loans(borrower_id);
+CREATE INDEX IF NOT EXISTS idx_association_meetings_assoc ON association_meetings(association_id);
