@@ -596,3 +596,5 @@ export const useApi = () => {
     }
 }
 
+// Default export for direct api access (used by stores)
+export default api
