@@ -9,6 +9,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/lib/pq v1.10.9
 	github.com/streadway/amqp v1.1.0
+	github.com/prometheus/client_golang v1.18.0
 	golang.org/x/time v0.5.0
 )
 

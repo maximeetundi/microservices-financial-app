@@ -3,9 +3,14 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/handlers"
@@ -13,6 +18,24 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 )
+
+var (
+	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
+	transfersTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "transfers_total", Help: "Total transfers"}, []string{"type", "status"})
+)
+
+func prometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		start := time.Now()
+		c.Next()
+		status := strconv.Itoa(c.Writer.Status())
+		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
+		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
+	}
+}
 
 func main() {
 	// Load configuration
@@ -56,10 +79,8 @@ func main() {
 	}
 
 	router := gin.New()
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.RateLimiter())
+	router.Use(gin.Logger(), gin.Recovery(), prometheusMiddleware())
+	router.Use(middleware.SecurityHeaders(), middleware.RateLimiter())
 
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
@@ -70,13 +91,8 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"service": "transfer-service",
-		})
-	})
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "transfer-service"}) })
 
 	// Transfer routes
 	api := router.Group("/api/v1")

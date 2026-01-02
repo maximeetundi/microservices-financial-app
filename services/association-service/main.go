@@ -3,15 +3,38 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/handlers"
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/services"
 )
+
+var (
+	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
+	contributionsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "contributions_total", Help: "Total contributions"}, []string{"association", "status"})
+)
+
+func prometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		start := time.Now()
+		c.Next()
+		status := strconv.Itoa(c.Writer.Status())
+		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
+		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
+	}
+}
 
 func main() {
 	// Initialize database
@@ -41,7 +64,8 @@ func main() {
 	handler := handlers.NewHandler(assocService)
 
 	// Setup Gin router
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery(), prometheusMiddleware())
 
 	// CORS
 	r.Use(cors.New(cors.Config{
@@ -51,10 +75,9 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Health check
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok", "service": "association-service"})
-	})
+	// Prometheus metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "association-service"}) })
 
 	// API routes
 	api := r.Group("/api/v1")

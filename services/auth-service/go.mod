@@ -14,6 +14,7 @@ require (
 	github.com/streadway/amqp v1.1.0
 	github.com/google/uuid v1.4.0
 	github.com/minio/minio-go/v7 v7.0.66
+	github.com/prometheus/client_golang v1.18.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/time v0.5.0
 )

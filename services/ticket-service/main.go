@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/handlers"
@@ -11,7 +13,28 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/services"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var (
+	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
+	ticketsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "tickets_sold_total", Help: "Total tickets sold"}, []string{"event", "tier"})
+)
+
+func prometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		start := time.Now()
+		c.Next()
+		status := strconv.Itoa(c.Writer.Status())
+		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
+		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
+	}
+}
 
 func main() {
 	// Connect to database
@@ -36,7 +59,8 @@ func main() {
 	handler := handlers.NewTicketHandler(ticketService)
 
 	// Setup Gin
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery(), prometheusMiddleware())
 
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
@@ -47,7 +71,8 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Health check
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/health", handler.HealthCheck)
 
 	// API routes
