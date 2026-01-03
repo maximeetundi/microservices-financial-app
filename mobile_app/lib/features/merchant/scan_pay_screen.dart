@@ -71,12 +71,83 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
     });
 
     try {
-      // Extract payment ID from URL or code
-      String paymentId = code;
-      if (code.contains('/pay/')) {
-        paymentId = code.split('/pay/').last.split('?').first;
-      } else if (code.startsWith('pay_')) {
-        paymentId = code;
+      String rawCode = code.trim();
+      
+      // ========== SMART TYPE DETECTION ==========
+      
+      // 1. EVENT QR Code: "ZEKORA_EVENT:EVT-XXXXX" or "EVT-XXXXX"
+      if (rawCode.startsWith('ZEKORA_EVENT:')) {
+        final eventCode = rawCode.replaceFirst('ZEKORA_EVENT:', '');
+        setState(() => _loading = false);
+        if (mounted) {
+          context.go('/events/code/$eventCode');
+        }
+        return;
+      }
+      if (rawCode.startsWith('EVT-')) {
+        setState(() => _loading = false);
+        if (mounted) {
+          context.go('/events/code/$rawCode');
+        }
+        return;
+      }
+      
+      // 2. TICKET QR Code: "ZEKORA_TICKET:TKT-XXXXX" or "TKT-XXXXX"
+      if (rawCode.startsWith('ZEKORA_TICKET:')) {
+        final ticketCode = rawCode.replaceFirst('ZEKORA_TICKET:', '');
+        setState(() => _loading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ticket: $ticketCode'), backgroundColor: Colors.blue),
+          );
+          context.go('/tickets');
+        }
+        return;
+      }
+      if (rawCode.startsWith('TKT-')) {
+        setState(() => _loading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ticket: $rawCode'), backgroundColor: Colors.blue),
+          );
+          context.go('/tickets');
+        }
+        return;
+      }
+      
+      // 3. USER TRANSFER: "ZEKORA_USER:uuid" or raw UUID
+      if (rawCode.startsWith('ZEKORA_USER:')) {
+        final userId = rawCode.replaceFirst('ZEKORA_USER:', '');
+        setState(() => _loading = false);
+        if (mounted) {
+          context.go('/transfer?to=$userId');
+        }
+        return;
+      }
+      // UUID pattern check
+      final uuidRegex = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+      if (uuidRegex.hasMatch(rawCode)) {
+        setState(() => _loading = false);
+        if (mounted) {
+          context.go('/transfer?to=$rawCode');
+        }
+        return;
+      }
+      
+      // 4. ASSOCIATION: "ZEKORA_ASSOC:uuid"
+      if (rawCode.startsWith('ZEKORA_ASSOC:')) {
+        final assocId = rawCode.replaceFirst('ZEKORA_ASSOC:', '');
+        setState(() => _loading = false);
+        if (mounted) {
+          context.go('/associations/$assocId');
+        }
+        return;
+      }
+      
+      // 5. MERCHANT PAYMENT: "pay_XXXXX" or URL containing "/pay/"
+      String paymentId = rawCode;
+      if (rawCode.contains('/pay/')) {
+        paymentId = rawCode.split('/pay/').last.split('?').first;
       }
 
       // Fetch payment details
@@ -90,7 +161,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Code de paiement invalide ou expiré';
+          _error = 'Code invalide ou expiré';
           _hasScanned = false;
         });
       }
@@ -249,7 +320,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Payer un marchand',
+          'Scanner un QR Code',
           style: GoogleFonts.inter(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -258,7 +329,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Scannez ou entrez le code de paiement',
+          'Paiement, événement ou transfert',
           style: GoogleFonts.inter(
             fontSize: 14,
             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -463,7 +534,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Code de paiement',
+            'Code (paiement, événement, etc.)',
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -479,7 +550,7 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
             ),
             textAlign: TextAlign.center,
             decoration: InputDecoration(
-              hintText: 'pay_abc123...',
+              hintText: 'pay_xxx, EVT-xxx, TKT-xxx...',
               hintStyle: GoogleFonts.sourceCodePro(
                 color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
               ),
