@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/association-service/internal/models"
