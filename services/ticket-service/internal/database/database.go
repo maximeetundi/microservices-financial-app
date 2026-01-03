@@ -138,6 +138,13 @@ func InitSchema() error {
 		log.Println("DEBUG: Successfully altered qr_code column to TEXT")
 	}
 
+	// Migration for tickets table qr_code column
+	if _, err := DB.Exec("ALTER TABLE tickets ALTER COLUMN qr_code TYPE TEXT"); err != nil {
+		log.Printf("DEBUG: Failed to alter tickets.qr_code column: %v", err)
+	} else {
+		log.Println("DEBUG: Successfully altered tickets.qr_code column to TEXT")
+	}
+
 	// DEBUG: Inspect actual schema state
 	rows, err := DB.Query(`
 		SELECT column_name, data_type, character_maximum_length 

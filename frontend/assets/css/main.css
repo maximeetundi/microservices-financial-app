@@ -180,7 +180,7 @@ body {
 }
 
 .dark .glass-card {
-    background: rgba(30, 41, 59, 0.85);
+    background: #1e293b;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 2px solid #475569;
@@ -423,7 +423,7 @@ body {
 }
 
 .dark .input-premium {
-    background: rgba(30, 41, 59, 0.8);
+    background: #1e293b;
     border: 2px solid #475569;
     color: white;
 }
@@ -461,14 +461,14 @@ textarea:focus {
 .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 .dark select,
 .dark textarea {
-    background-color: rgba(30, 41, 59, 0.8);
+    background-color: #1e293b;
     border: 2px solid #475569;
     color: #f1f5f9;
 }
 
 .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"])::placeholder,
 .dark textarea::placeholder {
-    color: rgba(148, 163, 184, 0.8);
+    color: #64748b;
 }
 
 /* Select dropdown options - dark mode */
