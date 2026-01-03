@@ -62,12 +62,19 @@
             </section>
 
             <!-- QR Code for organizer -->
-            <section v-if="isOwner && event.qr_code" class="info-section qr-section">
-              <h3>🔲 QR Code de l'événement</h3>
+            <section v-if="isOwner" class="info-section qr-section">
+              <h3>🔲 Code de l'événement</h3>
               <div class="qr-container">
-                <img :src="event.qr_code" alt="QR Code" class="qr-image" />
-                <p class="event-code">{{ event.event_code }}</p>
-                <p class="qr-hint">Partagez ce QR code pour permettre aux participants de trouver votre événement</p>
+                <img v-if="event.qr_code" :src="event.qr_code" alt="QR Code" class="qr-image" />
+                <div v-else class="qr-placeholder">
+                  <span>📱</span>
+                  <p>QR Code non disponible</p>
+                </div>
+                <div class="event-code-box" @click="copyEventCode">
+                  <span class="event-code">{{ event.event_code }}</span>
+                  <span class="copy-icon">📋</span>
+                </div>
+                <p class="qr-hint">Partagez ce code pour permettre aux participants de trouver votre événement</p>
               </div>
             </section>
           </div>
@@ -309,6 +316,16 @@ const getStatusLabel = (status) => {
   return labels[status] || status
 }
 
+const copyEventCode = async () => {
+  if (!event.value?.event_code) return
+  try {
+    await navigator.clipboard.writeText(event.value.event_code)
+    alert('Code copié: ' + event.value.event_code)
+  } catch (e) {
+    console.error('Failed to copy', e)
+  }
+}
+
 onMounted(() => {
   loadEvent()
   loadWallets()
@@ -474,12 +491,55 @@ onMounted(() => {
   border-radius: 12px;
 }
 
+.qr-placeholder {
+  width: 180px;
+  height: 180px;
+  background: var(--surface-hover);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.qr-placeholder span {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.qr-placeholder p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.event-code-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-hover);
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 12px 0;
+  transition: all 0.2s;
+}
+
+.event-code-box:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
 .event-code {
   font-family: monospace;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin: 12px 0 8px;
+  letter-spacing: 1px;
+}
+
+.copy-icon {
+  font-size: 16px;
+  opacity: 0.7;
 }
 
 .qr-hint {
