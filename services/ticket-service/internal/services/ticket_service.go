@@ -425,7 +425,7 @@ func (s *TicketService) generateEventCode() string {
 }
 
 func (s *TicketService) generateTicketCode() string {
-	b := make([]byte, 8)
+	b := make([]byte, 9) // 9 bytes = 12 base64 chars
 	rand.Read(b)
 	code := strings.ToUpper(base64.RawURLEncoding.EncodeToString(b))
 	return "TKT-" + code[:12]
