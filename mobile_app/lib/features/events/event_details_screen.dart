@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/ticket_api_service.dart';
 import 'purchase_ticket_screen.dart';
+import 'ticket_scanner_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final String eventId;
@@ -475,7 +476,36 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openTicketScanner(event),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('📷 Scanner les tickets'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFf59e0b),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _openTicketScanner(Map<String, dynamic> event) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TicketScannerScreen(
+          eventId: widget.eventId,
+          eventTitle: event['title'] ?? 'Événement',
+        ),
       ),
     );
   }

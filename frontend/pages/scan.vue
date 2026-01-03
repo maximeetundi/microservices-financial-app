@@ -4,10 +4,10 @@
       <!-- Header -->
       <div class="text-center mb-10">
         <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-primary-600 flex items-center justify-center shadow-lg shadow-primary/30">
-          <span class="text-4xl">📱</span>
+          <span class="text-4xl">📷</span>
         </div>
-        <h1 class="text-2xl font-bold text-base mb-2">Payer un marchand</h1>
-        <p class="text-muted">Scannez ou entrez le code de paiement</p>
+        <h1 class="text-2xl font-bold text-base mb-2">Scanner un QR Code</h1>
+        <p class="text-muted">Paiement, événement ou transfert - détection automatique</p>
       </div>
 
       <!-- Method Tabs -->
@@ -110,17 +110,17 @@
       <div v-if="activeTab === 'code'" class="glass-card">
         <form @submit.prevent="submitCode" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-muted mb-2">Code de paiement</label>
+            <label class="block text-sm font-medium text-muted mb-2">Entrez le code</label>
             <input
               v-model="paymentCode"
               type="text"
-              placeholder="pay_abc123..."
+              placeholder="pay_xxx, EVT-xxx, TKT-xxx..."
               class="input-field text-center text-lg font-mono"
               autofocus
             />
           </div>
           <p class="text-xs text-muted text-center">
-            Le code se trouve sous le QR code du marchand
+            Code marchand (pay_), événement (EVT-) ou ticket (TKT-)
           </p>
           <button 
             type="submit"
@@ -179,11 +179,15 @@
       </div>
 
       <!-- Help -->
-      <div class="mt-8 text-center">
+      <div class="mt-8 text-center space-y-2">
         <p class="text-sm text-muted">
-          Vous n'avez pas de code ?
           <NuxtLink to="/merchant" class="text-primary hover:underline">
-            Créer un paiement marchand
+            💳 Créer un paiement marchand
+          </NuxtLink>
+        </p>
+        <p class="text-sm text-muted">
+          <NuxtLink to="/events" class="text-primary hover:underline">
+            🎫 Voir les événements
           </NuxtLink>
         </p>
       </div>
@@ -294,20 +298,84 @@ const handleScanResult = (data) => {
   // Stop camera
   stopCamera()
   
-  let code = data
+  let code = data.trim()
   
   // Parse if JSON
   try {
     const json = JSON.parse(code)
-    code = json.payment_id || json.id || code
+    code = json.payment_id || json.id || json.code || code
   } catch {
-    // Not JSON, try URL parsing
-    if (code.includes('/pay/')) {
-      code = code.split('/pay/').pop()
-    }
+    // Not JSON, continue with raw data
   }
   
-  // Navigate to payment
+  // ========== SMART TYPE DETECTION ==========
+  
+  // 1. EVENT QR Code: "ZEKORA_EVENT:EVT-XXXXX"
+  if (code.startsWith('ZEKORA_EVENT:')) {
+    const eventCode = code.replace('ZEKORA_EVENT:', '')
+    console.log('Detected: EVENT -', eventCode)
+    navigateTo(`/events/code/${eventCode}`)
+    return
+  }
+  
+  // 2. TICKET QR Code: "ZEKORA_TICKET:TKT-XXXXX"
+  if (code.startsWith('ZEKORA_TICKET:')) {
+    const ticketCode = code.replace('ZEKORA_TICKET:', '')
+    console.log('Detected: TICKET -', ticketCode)
+    navigateTo(`/tickets/verify/${ticketCode}`)
+    return
+  }
+  
+  // 3. USER TRANSFER QR Code: "ZEKORA_USER:user-uuid" or just UUID
+  if (code.startsWith('ZEKORA_USER:')) {
+    const userId = code.replace('ZEKORA_USER:', '')
+    console.log('Detected: USER TRANSFER -', userId)
+    navigateTo(`/transfer?to=${userId}`)
+    return
+  }
+  
+  // 4. MERCHANT PAYMENT: "pay_XXXXX" or URL containing /pay/
+  if (code.startsWith('pay_') || code.includes('/pay/')) {
+    let paymentId = code
+    if (code.includes('/pay/')) {
+      paymentId = code.split('/pay/').pop()
+    }
+    console.log('Detected: MERCHANT PAYMENT -', paymentId)
+    navigateTo(`/pay/${paymentId}`)
+    return
+  }
+  
+  // 5. ASSOCIATION: "ZEKORA_ASSOC:assoc-uuid"
+  if (code.startsWith('ZEKORA_ASSOC:')) {
+    const assocId = code.replace('ZEKORA_ASSOC:', '')
+    console.log('Detected: ASSOCIATION -', assocId)
+    navigateTo(`/associations/${assocId}`)
+    return
+  }
+  
+  // 6. EVENT CODE FORMAT: "EVT-XXXXX" (direct event code)
+  if (code.match(/^EVT-[A-Z0-9]+$/i)) {
+    console.log('Detected: EVENT CODE -', code)
+    navigateTo(`/events/code/${code}`)
+    return
+  }
+  
+  // 7. TICKET CODE FORMAT: "TKT-XXXXX" (direct ticket code)
+  if (code.match(/^TKT-[A-Z0-9]+$/i)) {
+    console.log('Detected: TICKET CODE -', code)
+    navigateTo(`/tickets/verify/${code}`)
+    return
+  }
+  
+  // 8. UUID format - could be user ID, try transfer
+  if (code.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    console.log('Detected: UUID (assuming user) -', code)
+    navigateTo(`/transfer?to=${code}`)
+    return
+  }
+  
+  // 9. Default: assume merchant payment code
+  console.log('Detected: UNKNOWN (treating as merchant) -', code)
   navigateTo(`/pay/${code}`)
 }
 
@@ -389,16 +457,8 @@ const submitCode = () => {
   loading.value = true
   error.value = ''
   
-  // Extract payment ID from code
-  let code = paymentCode.value.trim()
-  
-  // Handle URL format
-  if (code.includes('/pay/')) {
-    code = code.split('/pay/').pop()
-  }
-  
-  // Navigate to payment page
-  navigateTo(`/pay/${code}`)
+  // Use the same smart detection as camera scan
+  handleScanResult(paymentCode.value)
 }
 
 const scanImage = async () => {

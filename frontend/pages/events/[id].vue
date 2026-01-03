@@ -121,6 +121,9 @@
               <button v-if="event.status === 'draft'" @click="publishEvent" class="btn-publish">
                 🚀 Publier l'événement
               </button>
+              <button @click="showScannerModal = true" class="btn-scan">
+                📷 Scanner les tickets
+              </button>
               <NuxtLink :to="`/events/${event.id}/tickets`" class="btn-secondary">
                 📊 Voir les tickets vendus
               </NuxtLink>
@@ -240,15 +243,71 @@
           </div>
         </div>
       </Teleport>
+
+      <!-- Ticket Scanner Modal for Organizers -->
+      <Teleport to="body">
+        <div v-if="showScannerModal" class="modal-overlay" @click.self="closeScannerModal">
+          <div class="scanner-modal">
+            <button class="close-btn" @click="closeScannerModal">✕</button>
+            <h2>📷 Scanner un ticket</h2>
+            <p class="modal-subtitle">Scannez le QR code du ticket pour vérifier sa validité</p>
+            
+            <!-- Camera View -->
+            <div class="scanner-camera-container">
+              <video ref="ticketScannerVideo" class="scanner-video" playsinline></video>
+              <div class="scanner-overlay">
+                <div class="scanner-frame">
+                  <div class="scanner-corner top-left"></div>
+                  <div class="scanner-corner top-right"></div>
+                  <div class="scanner-corner bottom-left"></div>
+                  <div class="scanner-corner bottom-right"></div>
+                  <div v-if="scannerActive" class="scanner-line"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Manual Code Entry -->
+            <div class="manual-entry">
+              <input 
+                v-model="manualTicketCode" 
+                placeholder="Ou entrez le code TKT-XXXXX"
+                class="ticket-code-input"
+              />
+              <button @click="verifyManualCode" :disabled="!manualTicketCode" class="btn-verify">
+                Vérifier
+              </button>
+            </div>
+
+            <!-- Scan Result -->
+            <div v-if="scanResult" :class="['scan-result', scanResult.valid ? 'valid' : 'invalid']">
+              <div class="result-icon">{{ scanResult.valid ? '✅' : '❌' }}</div>
+              <h3>{{ scanResult.valid ? 'Ticket Valide!' : 'Ticket Invalide' }}</h3>
+              <p>{{ scanResult.message }}</p>
+              <div v-if="scanResult.valid && scanResult.ticket" class="ticket-info">
+                <p><strong>Ticket:</strong> {{ scanResult.ticket.ticket_code }}</p>
+                <p><strong>Type:</strong> {{ scanResult.ticket.tier_name }}</p>
+                <p><strong>Statut:</strong> {{ scanResult.ticket.used ? 'Déjà utilisé' : 'Non utilisé' }}</p>
+              </div>
+              <button v-if="scanResult.valid && !scanResult.ticket?.used" @click="markTicketAsUsed" class="btn-mark-used">
+                ✓ Marquer comme utilisé
+              </button>
+              <button @click="resetScanner" class="btn-scan-another">
+                Scanner un autre ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </NuxtLayout>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ticketAPI, walletAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
+import QrScanner from 'qr-scanner'
 
 definePageMeta({
   layout: false,
@@ -272,6 +331,14 @@ const selectedWalletId = ref('')
 const pin = ref('')
 const formData = reactive({})
 const showQRModal = ref(false)
+
+// Ticket Scanner state
+const showScannerModal = ref(false)
+const ticketScannerVideo = ref(null)
+const scannerActive = ref(false)
+const manualTicketCode = ref('')
+const scanResult = ref(null)
+const ticketScanner = ref(null)
 
 // Auth store for user info
 const authStore = useAuthStore()
@@ -418,11 +485,136 @@ const shareEvent = async () => {
   }
 }
 
+// ========== TICKET SCANNER FUNCTIONS ==========
+
+// Start ticket scanner when modal opens
+watch(showScannerModal, async (isOpen) => {
+  if (isOpen) {
+    await nextTick()
+    startTicketScanner()
+  } else {
+    stopTicketScanner()
+  }
+})
+
+const startTicketScanner = async () => {
+  scanResult.value = null
+  manualTicketCode.value = ''
+  
+  if (!ticketScannerVideo.value) {
+    console.error('Video element not found')
+    return
+  }
+
+  try {
+    ticketScanner.value = new QrScanner(
+      ticketScannerVideo.value,
+      (result) => handleTicketScan(result.data),
+      {
+        returnDetailedScanResult: true,
+        highlightScanRegion: false,
+        highlightCodeOutline: true,
+        preferredCamera: 'environment'
+      }
+    )
+    await ticketScanner.value.start()
+    scannerActive.value = true
+  } catch (e) {
+    console.error('Scanner error:', e)
+  }
+}
+
+const stopTicketScanner = () => {
+  if (ticketScanner.value) {
+    ticketScanner.value.stop()
+    ticketScanner.value.destroy()
+    ticketScanner.value = null
+  }
+  scannerActive.value = false
+}
+
+const closeScannerModal = () => {
+  stopTicketScanner()
+  showScannerModal.value = false
+  scanResult.value = null
+}
+
+const handleTicketScan = async (data) => {
+  if (!data) return
+  
+  // Stop scanning while processing
+  stopTicketScanner()
+  
+  // Extract ticket code from scanned data
+  let ticketCode = data.trim()
+  
+  // Handle ZEKORA_TICKET: prefix
+  if (ticketCode.startsWith('ZEKORA_TICKET:')) {
+    ticketCode = ticketCode.replace('ZEKORA_TICKET:', '')
+  }
+  
+  await verifyTicket(ticketCode)
+}
+
+const verifyManualCode = async () => {
+  if (!manualTicketCode.value) return
+  stopTicketScanner()
+  await verifyTicket(manualTicketCode.value.trim())
+}
+
+const verifyTicket = async (ticketCode) => {
+  try {
+    const res = await ticketAPI.verifyTicket({ ticket_code: ticketCode, event_id: eventId })
+    const ticket = res.data?.ticket
+    
+    if (ticket) {
+      scanResult.value = {
+        valid: true,
+        message: ticket.used ? 'Ce ticket a déjà été utilisé' : 'Ticket valide et prêt à être utilisé',
+        ticket: ticket
+      }
+    } else {
+      scanResult.value = {
+        valid: false,
+        message: 'Ticket non trouvé pour cet événement'
+      }
+    }
+  } catch (e) {
+    scanResult.value = {
+      valid: false,
+      message: e.response?.data?.error || 'Erreur lors de la vérification'
+    }
+  }
+}
+
+const markTicketAsUsed = async () => {
+  if (!scanResult.value?.ticket?.id) return
+  
+  try {
+    await ticketAPI.useTicket(scanResult.value.ticket.id)
+    scanResult.value.ticket.used = true
+    scanResult.value.message = 'Ticket marqué comme utilisé ✓'
+    alert('Ticket validé avec succès!')
+  } catch (e) {
+    alert(e.response?.data?.error || 'Erreur lors de la validation')
+  }
+}
+
+const resetScanner = () => {
+  scanResult.value = null
+  manualTicketCode.value = ''
+  startTicketScanner()
+}
+
 onMounted(async () => {
   // Ensure auth store is initialized (user data loaded)
   await authStore.initializeAuth()
   loadEvent()
   loadWallets()
+})
+
+onUnmounted(() => {
+  stopTicketScanner()
 })
 </script>
 
@@ -1096,5 +1288,227 @@ onMounted(async () => {
   .tickets-section {
     position: static;
   }
+}
+
+/* Scan Button */
+.btn-scan {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-scan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+/* Scanner Modal */
+.scanner-modal {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  position: relative;
+  text-align: center;
+}
+
+.scanner-modal h2 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+
+.scanner-modal .modal-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.scanner-camera-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 16px;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scanner-frame {
+  width: 70%;
+  height: 70%;
+  position: relative;
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-color: #f59e0b;
+  border-style: solid;
+  border-width: 0;
+}
+
+.scanner-corner.top-left {
+  top: 0; left: 0;
+  border-top-width: 4px;
+  border-left-width: 4px;
+  border-top-left-radius: 12px;
+}
+
+.scanner-corner.top-right {
+  top: 0; right: 0;
+  border-top-width: 4px;
+  border-right-width: 4px;
+  border-top-right-radius: 12px;
+}
+
+.scanner-corner.bottom-left {
+  bottom: 0; left: 0;
+  border-bottom-width: 4px;
+  border-left-width: 4px;
+  border-bottom-left-radius: 12px;
+}
+
+.scanner-corner.bottom-right {
+  bottom: 0; right: 0;
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-bottom-right-radius: 12px;
+}
+
+.scanner-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+  animation: scan-anim 2s linear infinite;
+}
+
+@keyframes scan-anim {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+
+.manual-entry {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ticket-code-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: monospace;
+  text-align: center;
+}
+
+.btn-verify {
+  padding: 12px 20px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-verify:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scan-result {
+  padding: 20px;
+  border-radius: 16px;
+  margin-top: 16px;
+}
+
+.scan-result.valid {
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid #10b981;
+}
+
+.scan-result.invalid {
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+}
+
+.result-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.scan-result h3 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+
+.scan-result p {
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.ticket-info {
+  background: var(--surface-hover);
+  padding: 12px;
+  border-radius: 10px;
+  margin: 12px 0;
+  text-align: left;
+}
+
+.ticket-info p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.btn-mark-used {
+  width: 100%;
+  padding: 14px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.btn-scan-another {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 500;
+  cursor: pointer;
 }
 </style>
