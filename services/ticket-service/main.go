@@ -55,8 +55,33 @@ func main() {
 	// Initialize service
 	ticketService := services.NewTicketService(eventRepo, tierRepo, ticketRepo)
 
-	// Initialize handler
+	// Initialize MinIO storage
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "minio:9000"
+	}
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = "minioadmin"
+	}
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	if minioSecretKey == "" {
+		minioSecretKey = "minioadmin123"
+	}
+	minioPublicURL := os.Getenv("MINIO_PUBLIC_URL")
+	if minioPublicURL == "" {
+		minioPublicURL = "https://minio.maximeetundi.store"
+	}
+	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	storageService, err := services.NewStorageService(minioEndpoint, minioAccessKey, minioSecretKey, "event-images", minioUseSSL, minioPublicURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize storage service: %v", err)
+	}
+
+	// Initialize handlers
 	handler := handlers.NewTicketHandler(ticketService)
+	uploadHandler := handlers.NewUploadHandler(storageService)
 
 	// Setup Gin
 	router := gin.New()
@@ -97,6 +122,9 @@ func main() {
 			protected.POST("/events/:id/publish", handler.PublishEvent)
 			protected.GET("/events/:id/tickets", handler.GetEventTickets)
 			protected.GET("/events/:id/stats", handler.GetEventStats)
+
+			// Upload image (for events)
+			protected.POST("/upload", uploadHandler.UploadImage)
 
 			// Ticket purchase (buyer)
 			protected.POST("/tickets/purchase", handler.PurchaseTicket)

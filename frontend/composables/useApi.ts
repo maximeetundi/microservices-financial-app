@@ -542,6 +542,15 @@ export const ticketAPI = {
 
     // Available icons
     getIcons: () => api.get('/ticket-service/api/v1/icons'),
+
+    // Upload image
+    uploadImage: (file: File) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        return api.post('/ticket-service/api/v1/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+    },
 }
 
 // ========== Associations ==========

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllEvents, getEventStats, getEventTickets, verifyTicket, useTicket } from '@/lib/api';
+import { getAllEvents, getEventStats, getEventTickets, verifyTicket, useTicket, suspendEvent, deleteEvent, updateEventStatus } from '@/lib/api';
 import {
     TicketIcon,
     CalendarIcon,
@@ -13,6 +13,7 @@ import {
     XCircleIcon,
     ClockIcon,
 } from '@heroicons/react/24/outline';
+import { TrashIcon, NoSymbolIcon, PlayIcon } from '@heroicons/react/24/solid';
 
 interface Event {
     id: string;
@@ -120,6 +121,48 @@ export default function EventsPage() {
             }
         } catch (e: any) {
             alert(e.response?.data?.error || 'Erreur');
+        }
+    };
+
+    const handleSuspendEvent = async () => {
+        if (!selectedEvent) return;
+        if (!confirm(`⚠️ Êtes-vous sûr de vouloir SUSPENDRE cet événement?\n\n"${selectedEvent.title}"\n\nCette action empêchera les nouvelles ventes.`)) return;
+
+        try {
+            await suspendEvent(selectedEvent.id);
+            alert('✅ Événement suspendu avec succès');
+            loadEvents();
+            setSelectedEvent(null);
+        } catch (e: any) {
+            alert('Erreur: ' + (e.response?.data?.error || 'Échec de la suspension'));
+        }
+    };
+
+    const handleDeleteEvent = async () => {
+        if (!selectedEvent) return;
+        if (!confirm(`🗑️ ATTENTION: Voulez-vous vraiment SUPPRIMER définitivement cet événement?\n\n"${selectedEvent.title}"\n\nCette action est IRRÉVERSIBLE!`)) return;
+
+        try {
+            await deleteEvent(selectedEvent.id);
+            alert('✅ Événement supprimé');
+            loadEvents();
+            setSelectedEvent(null);
+        } catch (e: any) {
+            alert('Erreur: ' + (e.response?.data?.error || 'Échec de la suppression'));
+        }
+    };
+
+    const handleReactivateEvent = async () => {
+        if (!selectedEvent) return;
+        if (!confirm(`Réactiver l'événement "${selectedEvent.title}"?`)) return;
+
+        try {
+            await updateEventStatus(selectedEvent.id, 'active');
+            alert('✅ Événement réactivé');
+            loadEvents();
+            setSelectedEvent(null);
+        } catch (e: any) {
+            alert('Erreur: ' + (e.response?.data?.error || 'Échec de la réactivation'));
         }
     };
 
@@ -246,6 +289,33 @@ export default function EventsPage() {
                                             <QrCodeIcon className="w-4 h-4" />
                                             Code: <span className="font-mono font-bold">{selectedEvent.event_code}</span>
                                         </div>
+                                    </div>
+                                    {/* Admin Actions */}
+                                    <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2 flex-wrap">
+                                        {selectedEvent.status !== 'cancelled' ? (
+                                            <button
+                                                onClick={handleSuspendEvent}
+                                                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                                            >
+                                                <NoSymbolIcon className="w-4 h-4" />
+                                                Suspendre (Scam/Fraude)
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleReactivateEvent}
+                                                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                                            >
+                                                <PlayIcon className="w-4 h-4" />
+                                                Réactiver
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleDeleteEvent}
+                                            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                            Supprimer
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -377,8 +447,8 @@ export default function EventsPage() {
                                                     <td className="px-4 py-3">{formatAmount(ticket.price)} {ticket.currency}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${ticket.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                                                ticket.status === 'used' ? 'bg-gray-100 text-gray-800' :
-                                                                    'bg-yellow-100 text-yellow-800'
+                                                            ticket.status === 'used' ? 'bg-gray-100 text-gray-800' :
+                                                                'bg-yellow-100 text-yellow-800'
                                                             }`}>
                                                             {ticket.status === 'paid' ? 'Valide' : ticket.status === 'used' ? 'Utilisé' : ticket.status}
                                                         </span>

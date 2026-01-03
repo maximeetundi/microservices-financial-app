@@ -198,4 +198,17 @@ class TicketApiService {
       '🔥', '💫', '⚡', '🌈', '🎯', '🚀', '💥', '🎉', '🎊', '🎁',
     ];
   }
+
+  /// Upload an image for event cover
+  Future<String> uploadImage(dynamic file) async {
+    final response = await _client.uploadFile(
+      '/ticket-service/api/v1/upload',
+      file,
+      fieldName: 'file',
+    );
+    if (response.statusCode == 200) {
+      return response.data['url'] ?? '';
+    }
+    throw Exception(response.data['error'] ?? 'Failed to upload image');
+  }
 }

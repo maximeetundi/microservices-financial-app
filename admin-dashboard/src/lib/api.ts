@@ -249,6 +249,18 @@ export const verifyTicket = (code: string) =>
 export const useTicket = (ticketId: string) =>
     ticketApi.post(`/ticket-service/api/v1/tickets/${ticketId}/use`);
 
+// Admin: Update event status (suspend, cancel, activate)
+export const updateEventStatus = (eventId: string, status: string) =>
+    ticketApi.put(`/ticket-service/api/v1/events/${eventId}`, { status });
+
+// Admin: Suspend event (mark as cancelled for scam/fraud)
+export const suspendEvent = (eventId: string) =>
+    ticketApi.put(`/ticket-service/api/v1/events/${eventId}`, { status: 'cancelled' });
+
+// Admin: Delete event entirely
+export const deleteEvent = (eventId: string) =>
+    ticketApi.delete(`/ticket-service/api/v1/events/${eventId}`);
+
 // ========== Associations API ==========
 const associationApi = axios.create({
     baseURL: API_URL,

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/services/ticket_api_service.dart';
 
 class CreateEventFormScreen extends StatefulWidget {
@@ -16,7 +18,8 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
   String _title = '';
   String _description = '';
   String _location = '';
-  String _coverImage = '';
+  String _coverImageUrl = '';
+  File? _coverImageFile;
   DateTime? _startDate;
   DateTime? _endDate;
   DateTime? _saleStartDate;
@@ -43,6 +46,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
   List<String> _availableIcons = [];
   bool _loading = false;
   bool _saving = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -73,11 +77,21 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
 
     setState(() => _saving = true);
     try {
+      // Upload cover image if selected
+      String? coverImageUrl = _coverImageUrl.isNotEmpty ? _coverImageUrl : null;
+      if (_coverImageFile != null) {
+        try {
+          coverImageUrl = await _ticketApi.uploadImage(_coverImageFile!);
+        } catch (e) {
+          debugPrint('Image upload failed: $e');
+        }
+      }
+
       await _ticketApi.createEvent({
         'title': _title,
         'description': _description,
         'location': _location,
-        'cover_image': _coverImage.isNotEmpty ? _coverImage : null,
+        'cover_image': coverImageUrl,
         'start_date': _startDate!.toIso8601String(),
         'end_date': _endDate!.toIso8601String(),
         'sale_start_date': _saleStartDate!.toIso8601String(),
@@ -102,6 +116,20 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() {
+        _coverImageFile = File(image.path);
+      });
     }
   }
 
@@ -184,7 +212,56 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
         _buildTextField('Titre de l\'événement', (v) => _title = v, required: true),
         _buildTextField('Description', (v) => _description = v, maxLines: 3),
         _buildTextField('Lieu', (v) => _location = v),
-        _buildTextField('URL de l\'image de couverture', (v) => _coverImage = v),
+        const SizedBox(height: 8),
+        const Text(
+          'Image de couverture',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
+            height: 150,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                style: BorderStyle.solid,
+              ),
+            ),
+            child: _coverImageFile != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      _coverImageFile!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate, size: 48, color: Colors.white.withOpacity(0.5)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Appuyez pour choisir une image',
+                        style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        if (_coverImageFile != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextButton.icon(
+              onPressed: () => setState(() => _coverImageFile = null),
+              icon: const Icon(Icons.delete, color: Colors.red),
+              label: const Text('Supprimer l\'image', style: TextStyle(color: Colors.red)),
+            ),
+          ),
       ],
     );
   }

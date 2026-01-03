@@ -28,8 +28,23 @@
 
           <div class="form-group">
             <label>Image de couverture</label>
-            <input v-model="form.cover_image" type="url" placeholder="URL de l'image" />
-            <img v-if="form.cover_image" :src="form.cover_image" class="cover-preview" />
+            <div class="image-upload-wrapper">
+              <input 
+                type="file" 
+                accept="image/*" 
+                @change="handleCoverImageUpload" 
+                ref="coverImageInput"
+                class="file-input"
+              />
+              <div class="upload-area" @click="$refs.coverImageInput.click()">
+                <div v-if="!coverImagePreview" class="upload-placeholder">
+                  <span class="upload-icon">📷</span>
+                  <span>Cliquez pour choisir une image</span>
+                </div>
+                <img v-else :src="coverImagePreview" class="cover-preview" />
+              </div>
+              <button v-if="coverImagePreview" type="button" @click="removeCoverImage" class="remove-image-btn">✕ Supprimer</button>
+            </div>
           </div>
         </section>
 
@@ -179,6 +194,8 @@ const router = useRouter()
 const submitting = ref(false)
 const showIconPicker = ref(false)
 const selectedTierIndex = ref(0)
+const coverImagePreview = ref(null)
+const coverImageFile = ref(null)
 const availableIcons = ref([
   '⭐', '🌟', '✨', '💎', '👑', '🏆', '🎖️', '🥇', '🥈', '🥉',
   '🎫', '🎟️', '🎪', '🎭', '🎬', '🎵', '🎸', '🎤', '🎧', '🎹',
@@ -235,6 +252,25 @@ const updateFieldOptions = (field) => {
   }
 }
 
+// Image upload handlers
+const handleCoverImageUpload = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    coverImageFile.value = file
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      coverImagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removeCoverImage = () => {
+  coverImageFile.value = null
+  coverImagePreview.value = null
+  form.cover_image = ''
+}
+
 const addTier = () => {
   form.ticket_tiers.push({
     name: '',
@@ -265,9 +301,24 @@ const selectIcon = (icon) => {
 const createEvent = async () => {
   submitting.value = true
   try {
+    let coverImageUrl = form.cover_image
+    
+    // Upload cover image if selected
+    if (coverImageFile.value) {
+      try {
+        const uploadRes = await ticketAPI.uploadImage(coverImageFile.value)
+        if (uploadRes.data?.url) {
+          coverImageUrl = uploadRes.data.url
+        }
+      } catch (uploadErr) {
+        console.warn('Image upload failed, continuing without image:', uploadErr)
+      }
+    }
+    
     // Format dates to ISO
     const payload = {
       ...form,
+      cover_image: coverImageUrl,
       start_date: new Date(form.start_date).toISOString(),
       end_date: new Date(form.end_date).toISOString(),
       sale_start_date: new Date(form.sale_start_date).toISOString(),
@@ -372,19 +423,19 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(30, 30, 40, 0.8);
-  color: #ffffff;
+  background: var(--bg-tertiary, var(--surface));
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .form-group select option {
-  background: #1e1e2d;
-  color: #ffffff;
+  background: var(--surface);
+  color: var(--text-primary);
   padding: 10px;
 }
 
@@ -396,6 +447,59 @@ onMounted(async () => {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
+/* Image Upload Styles */
+.image-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-tertiary, var(--surface));
+}
+
+.upload-area:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.upload-icon {
+  font-size: 48px;
+}
+
+.remove-image-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  align-self: flex-start;
+}
+
+.remove-image-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -403,7 +507,6 @@ onMounted(async () => {
 }
 
 .cover-preview {
-  margin-top: 12px;
   max-width: 100%;
   max-height: 200px;
   border-radius: 12px;
@@ -429,7 +532,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  background: rgba(20, 20, 35, 0.6);
+  background: var(--bg-tertiary, var(--surface));
   border-radius: 8px;
   margin-left: 20px;
   border-left: 3px solid #6366f1;
@@ -437,48 +540,48 @@ onMounted(async () => {
 
 .options-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-muted);
 }
 
 .options-input {
-  background: rgba(20, 20, 30, 0.9);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-tertiary, var(--surface));
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   padding: 10px 12px;
   border-radius: 8px;
   width: 100%;
 }
 
 .options-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .field-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(30, 30, 45, 0.5);
+  background: var(--bg-tertiary, var(--surface));
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
 }
 
 .field-item input,
 .field-item select {
-  background: rgba(20, 20, 30, 0.9);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   padding: 10px 12px;
   border-radius: 8px;
 }
 
 .field-item input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .field-item select option {
-  background: #1a1a2e;
-  color: #ffffff;
+  background: var(--surface);
+  color: var(--text-primary);
 }
 
 .field-label {
@@ -495,7 +598,7 @@ onMounted(async () => {
   gap: 4px;
   font-size: 13px;
   white-space: nowrap;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .remove-btn {
@@ -537,10 +640,10 @@ onMounted(async () => {
 }
 
 .tier-card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(30, 30, 45, 0.5);
+  background: var(--bg-tertiary, var(--surface));
 }
 
 .tier-header {
@@ -548,13 +651,13 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(20, 20, 35, 0.8);
+  background: var(--surface);
 }
 
 .icon-btn {
   font-size: 28px;
-  background: rgba(30, 30, 45, 0.6);
-  border: 2px dashed rgba(255, 255, 255, 0.3);
+  background: var(--bg-tertiary, var(--surface));
+  border: 2px dashed var(--border);
   border-radius: 10px;
   width: 50px;
   height: 50px;
@@ -569,15 +672,15 @@ onMounted(async () => {
   flex: 1;
   font-size: 16px;
   font-weight: 600;
-  background: rgba(20, 20, 30, 0.9);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   padding: 10px 12px;
   border-radius: 8px;
 }
 
 .tier-name::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .tier-color {

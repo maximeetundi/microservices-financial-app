@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
+	github.com/minio/minio-go/v7 v7.0.66
 	github.com/prometheus/client_golang v1.18.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 )
