@@ -1,16 +1,17 @@
 <template>
-  <div class="max-w-3xl mx-auto space-y-6">
-    <div class="flex items-center space-x-4 mb-6">
-      <button @click="navigateTo('/associations')" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-        <ArrowLeftIcon class="w-6 h-6 text-gray-500" />
-      </button>
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Créer une association</h1>
-        <p class="text-gray-500 dark:text-gray-400">Configurez votre nouvelle communauté financière</p>
+  <NuxtLayout name="dashboard">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="flex items-center space-x-4 mb-6">
+        <button @click="navigateTo('/associations')" class="p-2 rounded-full hover:bg-surface-hover transition-colors">
+          <ArrowLeftIcon class="w-6 h-6 text-muted" />
+        </button>
+        <div>
+          <h1 class="text-2xl font-bold text-base">Créer une association</h1>
+          <p class="text-muted">Configurez votre nouvelle communauté financière</p>
+        </div>
       </div>
-    </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div class="bg-surface rounded-2xl border border-secondary-200 dark:border-secondary-700 overflow-hidden">
       <!-- Progress Steps -->
       <div class="flex border-b border-gray-100 dark:border-gray-700">
         <div v-for="(step, index) in steps" :key="index" 
@@ -149,8 +150,9 @@
           </div>
         </form>
       </div>
+      </div>
     </div>
-  </div>
+  </NuxtLayout>
 </template>
 
 <script setup lang="ts">
@@ -165,6 +167,11 @@ import {
   BanknotesIcon, 
   ScaleIcon 
 } from '@heroicons/vue/24/outline'
+
+definePageMeta({
+  layout: false,
+  middleware: 'auth'
+})
 
 const { associationApi } = useApi()
 const router = useRouter()

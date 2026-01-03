@@ -1,7 +1,8 @@
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+  <NuxtLayout name="dashboard">
+    <div class="space-y-6">
+      <!-- Header -->
+      <div class="bg-surface rounded-2xl border border-secondary-200 dark:border-secondary-700 overflow-hidden">
       <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-4">
@@ -189,7 +190,8 @@
       @close="showLoanModal = false"
       @success="handleLoanSuccess"
     />
-  </div>
+    </div>
+  </NuxtLayout>
 </template>
 
 <script setup lang="ts">
@@ -204,6 +206,11 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/vue/24/outline'
+
+definePageMeta({
+  layout: false,
+  middleware: 'auth'
+})
 
 const route = useRoute()
 const { associationApi } = useApi()
@@ -288,30 +295,9 @@ onMounted(async () => {
     treasury.value = treasuryRes.data || treasury.value
   } catch (err) {
     console.error('Failed to load association', err)
-    // Mock data for demo
-    association.value = {
-      id,
-      name: 'Tontine Famille Toure',
-      type: 'tontine',
-      total_members: 12,
-      treasury_balance: 1200000,
-      currency: 'XOF',
-      status: 'active'
-    }
-    members.value = [
-      { id: '1', user_name: 'Mamadou Toure', role: 'president', contributions_paid: 150000 },
-      { id: '2', user_name: 'Fatou Diallo', role: 'treasurer', contributions_paid: 150000 },
-      { id: '3', user_name: 'Ibrahim Kone', role: 'member', contributions_paid: 100000 }
-    ]
-    treasury.value = {
-      total_balance: 1200000,
-      total_contributions: 1500000,
-      total_loans: 300000,
-      transactions: [
-        { id: '1', type: 'contribution', amount: 50000, description: 'Cotisation Janvier - Mamadou', created_at: '2024-01-15' },
-        { id: '2', type: 'loan', amount: 100000, description: 'Prêt à Ibrahim', created_at: '2024-01-10' }
-      ]
-    }
+    association.value = null
+    members.value = []
+    treasury.value = { total_balance: 0, total_contributions: 0, total_loans: 0, transactions: [] }
   }
 })
 </script>
