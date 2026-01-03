@@ -66,19 +66,32 @@
           <p class="section-desc">Définissez les informations à collecter lors de l'achat</p>
           
           <div class="fields-list">
-            <div v-for="(field, index) in form.form_fields" :key="index" class="field-item">
-              <input v-model="field.label" type="text" placeholder="Nom du champ" class="field-label" />
-              <select v-model="field.type" class="field-type">
-                <option value="text">Texte</option>
-                <option value="email">Email</option>
-                <option value="phone">Téléphone</option>
-                <option value="number">Nombre</option>
-                <option value="select">Liste déroulante</option>
-              </select>
-              <label class="field-required">
-                <input type="checkbox" v-model="field.required" /> Obligatoire
-              </label>
-              <button type="button" @click="removeField(index)" class="remove-btn">✕</button>
+            <div v-for="(field, index) in form.form_fields" :key="index" class="field-item-wrapper">
+              <div class="field-item">
+                <input v-model="field.label" type="text" placeholder="Nom du champ" class="field-label" />
+                <select v-model="field.type" class="field-type" @change="onFieldTypeChange(field)">
+                  <option value="text">Texte</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Téléphone</option>
+                  <option value="number">Nombre</option>
+                  <option value="select">Liste déroulante</option>
+                </select>
+                <label class="field-required">
+                  <input type="checkbox" v-model="field.required" /> Obligatoire
+                </label>
+                <button type="button" @click="removeField(index)" class="remove-btn">✕</button>
+              </div>
+              <!-- Options for select type -->
+              <div v-if="field.type === 'select'" class="field-options">
+                <label class="options-label">Options (séparées par des virgules) :</label>
+                <input 
+                  v-model="field.optionsText" 
+                  type="text" 
+                  placeholder="Ex: Option 1, Option 2, Option 3"
+                  class="options-input"
+                  @input="updateFieldOptions(field)"
+                />
+              </div>
             </div>
           </div>
           <button type="button" @click="addField" class="add-btn">+ Ajouter un champ</button>
@@ -197,12 +210,29 @@ const addField = () => {
     name: `field_${Date.now()}`,
     label: '',
     type: 'text',
-    required: false
+    required: false,
+    options: [],
+    optionsText: ''
   })
 }
 
 const removeField = (index) => {
   form.form_fields.splice(index, 1)
+}
+
+const onFieldTypeChange = (field) => {
+  if (field.type === 'select') {
+    field.options = field.options || []
+    field.optionsText = field.optionsText || ''
+  }
+}
+
+const updateFieldOptions = (field) => {
+  if (field.optionsText) {
+    field.options = field.optionsText.split(',').map(opt => opt.trim()).filter(opt => opt)
+  } else {
+    field.options = []
+  }
 }
 
 const addTier = () => {
@@ -342,9 +372,20 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--surface);
-  color: var(--text-primary);
+  background: rgba(30, 30, 40, 0.8);
+  color: #ffffff;
   font-size: 14px;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.form-group select option {
+  background: #1e1e2d;
+  color: #ffffff;
+  padding: 10px;
 }
 
 .form-group input:focus,
@@ -377,13 +418,67 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
+.field-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(20, 20, 35, 0.6);
+  border-radius: 8px;
+  margin-left: 20px;
+  border-left: 3px solid #6366f1;
+}
+
+.options-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.options-input {
+  background: rgba(20, 20, 30, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 12px;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.options-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .field-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--surface-hover);
+  background: rgba(30, 30, 45, 0.5);
   padding: 12px;
   border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.field-item input,
+.field-item select {
+  background: rgba(20, 20, 30, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.field-item input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.field-item select option {
+  background: #1a1a2e;
+  color: #ffffff;
 }
 
 .field-label {
@@ -400,6 +495,7 @@ onMounted(async () => {
   gap: 4px;
   font-size: 13px;
   white-space: nowrap;
+  color: #ffffff;
 }
 
 .remove-btn {
@@ -441,9 +537,10 @@ onMounted(async () => {
 }
 
 .tier-card {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow: hidden;
+  background: rgba(30, 30, 45, 0.5);
 }
 
 .tier-header {
@@ -451,13 +548,13 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--surface-hover);
+  background: rgba(20, 20, 35, 0.8);
 }
 
 .icon-btn {
   font-size: 28px;
-  background: none;
-  border: 2px dashed var(--border);
+  background: rgba(30, 30, 45, 0.6);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   width: 50px;
   height: 50px;
@@ -472,6 +569,15 @@ onMounted(async () => {
   flex: 1;
   font-size: 16px;
   font-weight: 600;
+  background: rgba(20, 20, 30, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.tier-name::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .tier-color {
