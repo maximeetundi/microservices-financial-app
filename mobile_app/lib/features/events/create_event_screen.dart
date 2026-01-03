@@ -446,7 +446,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        '${tier['price']} XOF',
+                        '${tier['price']} $_selectedCurrency',
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ),

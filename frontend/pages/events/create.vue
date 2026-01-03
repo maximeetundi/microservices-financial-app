@@ -146,7 +146,7 @@
               <div class="tier-body">
                 <div class="tier-row">
                   <div class="form-group">
-                    <label>Prix (XOF) *</label>
+                    <label>Prix ({{ form.currency }}) *</label>
                     <input v-model.number="tier.price" type="number" min="0" required />
                   </div>
                   <div class="form-group">
