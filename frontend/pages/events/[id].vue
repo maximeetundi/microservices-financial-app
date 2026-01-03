@@ -248,6 +248,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ticketAPI, walletAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   layout: false,
@@ -272,10 +273,14 @@ const pin = ref('')
 const formData = reactive({})
 const showQRModal = ref(false)
 
+// Auth store for user info
+const authStore = useAuthStore()
+
 // Check if current user is the event owner
 const isOwner = computed(() => {
   if (!event.value) return false
-  const userId = localStorage.getItem('userId')
+  const userId = authStore.user?.id
+  console.log('DEBUG isOwner:', { creatorId: event.value.creator_id, userId, isOwner: event.value.creator_id === userId })
   return event.value.creator_id === userId
 })
 
@@ -413,7 +418,9 @@ const shareEvent = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Ensure auth store is initialized (user data loaded)
+  await authStore.initializeAuth()
   loadEvent()
   loadWallets()
 })
