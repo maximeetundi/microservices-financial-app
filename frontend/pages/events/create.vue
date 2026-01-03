@@ -437,9 +437,9 @@ onMounted(async () => {
 .form-group select {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-tertiary, var(--surface));
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--text-primary);
   font-size: 14px;
 }
@@ -564,11 +564,11 @@ onMounted(async () => {
 }
 
 .options-input {
-  background: var(--bg-tertiary, var(--surface));
+  background: var(--surface);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   width: 100%;
 }
 
@@ -580,19 +580,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--bg-tertiary, var(--surface));
+  background: var(--surface);
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 12px;
+  border: 2px solid var(--border);
 }
 
 .field-item input,
 .field-item select {
-  background: var(--surface);
+  background: var(--background);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .field-item input::placeholder {

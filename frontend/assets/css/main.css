@@ -64,6 +64,15 @@
         /* Sidebar specific */
         --sidebar-bg-light: rgba(241, 245, 249, 0.95);
         /* Slate-100/50 mix */
+
+        /* UI Variables - Light Mode */
+        --border: #cbd5e1;
+        --border-light: #e2e8f0;
+        --surface: #ffffff;
+        --surface-hover: #f1f5f9;
+        --background: #f8fafc;
+        --text-primary: #1e293b;
+        --text-muted: #64748b;
     }
 
     .dark {
@@ -74,6 +83,15 @@
         --color-text-base: 241 245 249;
         --color-text-muted: 148 163 184;
         --color-text-inverted: 15 23 42;
+
+        /* UI Variables - Dark Mode */
+        --border: #475569;
+        --border-light: #334155;
+        --surface: #1e293b;
+        --surface-hover: #334155;
+        --background: #0f172a;
+        --text-primary: #f1f5f9;
+        --text-muted: #94a3b8;
     }
 
     body {
@@ -152,20 +170,20 @@ body {
 
 .glass-card {
     @apply relative overflow-hidden;
-    /* Light mode styles - Softer White */
-    background: rgba(255, 255, 255, 0.6);
+    /* Light mode styles - visible border */
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-    border-radius: 24px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
 }
 
 .dark .glass-card {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(30, 41, 59, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 2px solid #475569;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
@@ -254,16 +272,16 @@ body {
 
 .stat-card {
     @apply glass-card p-6;
-    /* Light mode - softer slate background */
+    /* Light mode - visible border */
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    /* Slate-50/100 */
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
     color: #1e293b;
 }
 
 .dark .stat-card {
-    background: linear-gradient(135deg, rgba(30, 30, 60, 0.8) 0%, rgba(45, 45, 80, 0.6) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.7) 100%);
+    border: 2px solid #475569;
     color: white;
 }
 
@@ -394,9 +412,9 @@ body {
 
 .input-premium {
     @apply w-full px-4 py-3 rounded-xl transition-all duration-300 outline-none;
-    /* Light mode */
+    /* Light mode - more visible border */
     background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    border: 2px solid #cbd5e1;
     color: #1e293b;
 }
 
@@ -405,8 +423,8 @@ body {
 }
 
 .dark .input-premium {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 41, 59, 0.8);
+    border: 2px solid #475569;
     color: white;
 }
 
@@ -417,6 +435,40 @@ body {
 .input-premium:focus {
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ========== Global Form Elements ========== */
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+    /* Light mode */
+    background-color: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    color: #1e293b;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select,
+.dark textarea {
+    background-color: rgba(30, 41, 59, 0.8);
+    border: 2px solid #475569;
+    color: #f1f5f9;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"])::placeholder,
+.dark textarea::placeholder {
+    color: rgba(148, 163, 184, 0.8);
 }
 
 /* Select dropdown options - dark mode */
