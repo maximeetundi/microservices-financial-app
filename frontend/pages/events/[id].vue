@@ -65,15 +65,13 @@
             <section v-if="isOwner" class="info-section qr-section">
               <h3>🔲 Code de l'événement</h3>
               <div class="qr-container">
-                <img v-if="event.qr_code" :src="event.qr_code" alt="QR Code" class="qr-image" />
-                <div v-else class="qr-placeholder">
-                  <span>📱</span>
-                  <p>QR Code non disponible</p>
-                </div>
                 <div class="event-code-box" @click="copyEventCode">
                   <span class="event-code">{{ event.event_code }}</span>
                   <span class="copy-icon">📋</span>
                 </div>
+                <button class="btn-qr-modal" @click="showQRModal = true">
+                  🔍 Voir QR Code & Télécharger
+                </button>
                 <p class="qr-hint">Partagez ce code pour permettre aux participants de trouver votre événement</p>
               </div>
             </section>
@@ -187,6 +185,61 @@
           </div>
         </div>
       </Teleport>
+
+      <!-- QR Code Modal for Organizer -->
+      <Teleport to="body">
+        <div v-if="showQRModal" class="modal-overlay" @click.self="showQRModal = false">
+          <div class="qr-modal">
+            <button class="close-btn" @click="showQRModal = false">✕</button>
+            
+            <!-- Large QR Code -->
+            <div class="qr-large-container">
+              <img v-if="event?.qr_code" :src="event.qr_code" alt="QR Code" class="qr-large" />
+              <div v-else class="qr-placeholder-large">
+                <span>📱</span>
+                <p>QR Code non disponible</p>
+              </div>
+            </div>
+
+            <!-- Event Info -->
+            <div class="qr-modal-info">
+              <div class="info-row">
+                <span class="label">Événement</span>
+                <span class="value">{{ event?.title }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Statut</span>
+                <span :class="['status-pill', event?.status]">{{ getStatusLabel(event?.status) }}</span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="qr-actions">
+              <button class="qr-action-btn" @click="copyEventCode">
+                <span class="action-icon">📋</span>
+                <span>Code</span>
+              </button>
+              <button class="qr-action-btn" @click="downloadQRCode">
+                <span class="action-icon">⬇️</span>
+                <span>DL PNG</span>
+              </button>
+              <button class="qr-action-btn" @click="shareEvent">
+                <span class="action-icon">📤</span>
+                <span>Partager</span>
+              </button>
+            </div>
+
+            <!-- Event Code -->
+            <div class="qr-code-display">
+              <span class="qr-code-label">CODE DE L'ÉVÉNEMENT</span>
+              <div class="qr-code-value" @click="copyEventCode">
+                <span>{{ event?.event_code }}</span>
+                <span class="copy-btn">📋</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </NuxtLayout>
 </template>
@@ -217,6 +270,7 @@ const wallets = ref([])
 const selectedWalletId = ref('')
 const pin = ref('')
 const formData = reactive({})
+const showQRModal = ref(false)
 
 // Check if current user is the event owner
 const isOwner = computed(() => {
@@ -323,6 +377,39 @@ const copyEventCode = async () => {
     alert('Code copié: ' + event.value.event_code)
   } catch (e) {
     console.error('Failed to copy', e)
+  }
+}
+
+const downloadQRCode = () => {
+  if (!event.value?.qr_code) {
+    alert('QR Code non disponible')
+    return
+  }
+  
+  const link = document.createElement('a')
+  link.href = event.value.qr_code
+  link.download = `event-${event.value.event_code}-qr.png`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+const shareEvent = async () => {
+  const shareData = {
+    title: event.value?.title || 'Événement',
+    text: `Rejoignez l'événement "${event.value?.title}" - Code: ${event.value?.event_code}`,
+    url: window.location.href
+  }
+  
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData)
+    } else {
+      await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`)
+      alert('Lien copié dans le presse-papiers!')
+    }
+  } catch (e) {
+    console.error('Share failed:', e)
   }
 }
 
@@ -545,6 +632,189 @@ onMounted(() => {
 .qr-hint {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+.btn-qr-modal {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-qr-modal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+/* QR Modal */
+.qr-modal {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  position: relative;
+  text-align: center;
+}
+
+.qr-large-container {
+  margin-bottom: 24px;
+}
+
+.qr-large {
+  width: 220px;
+  height: 220px;
+  border-radius: 16px;
+  border: 4px solid var(--border);
+}
+
+.qr-placeholder-large {
+  width: 220px;
+  height: 220px;
+  background: var(--surface-hover);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.qr-placeholder-large span {
+  font-size: 64px;
+  margin-bottom: 8px;
+}
+
+.qr-placeholder-large p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.qr-modal-info {
+  background: var(--surface-hover);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.info-row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.info-row .label {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.info-row .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.status-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pill.draft { background: #6b7280; color: white; }
+.status-pill.active { background: #10b981; color: white; }
+.status-pill.ended { background: #f59e0b; color: white; }
+.status-pill.cancelled { background: #ef4444; color: white; }
+
+.qr-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.qr-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-action-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
+}
+
+.action-icon {
+  font-size: 24px;
+}
+
+.qr-action-btn span:last-child {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.qr-code-display {
+  background: var(--surface-hover);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.qr-code-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.qr-code-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid #6366f1;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-code-value:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.qr-code-value span:first-child {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+}
+
+.copy-btn {
+  font-size: 16px;
 }
 
 /* Tickets Section */
