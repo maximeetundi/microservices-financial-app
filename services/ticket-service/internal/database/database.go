@@ -132,6 +132,12 @@ func InitSchema() error {
 		log.Println("DEBUG: Successfully altered cover_image column to TEXT")
 	}
 
+	if _, err := DB.Exec("ALTER TABLE events ALTER COLUMN qr_code TYPE TEXT"); err != nil {
+		log.Printf("DEBUG: Failed to alter qr_code column: %v", err)
+	} else {
+		log.Println("DEBUG: Successfully altered qr_code column to TEXT")
+	}
+
 	// DEBUG: Inspect actual schema state
 	rows, err := DB.Query(`
 		SELECT column_name, data_type, character_maximum_length 
