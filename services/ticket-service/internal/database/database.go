@@ -117,6 +117,11 @@ func InitSchema() error {
 		return fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
+	// Auto-migration: Force columns to TEXT to fix varchar limits if table already existed
+	// We ignore errors here in case columns don't exist or other issues, as the CREATE TABLE above handles new DBs
+	_, _ = DB.Exec("ALTER TABLE events ALTER COLUMN location TYPE TEXT")
+	_, _ = DB.Exec("ALTER TABLE events ALTER COLUMN cover_image TYPE TEXT")
+
 	log.Println("Database schema initialized")
 	return nil
 }
