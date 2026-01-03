@@ -529,6 +529,7 @@ export const ticketAPI = {
     // Public events
     getActiveEvents: (limit = 20, offset = 0) => api.get(`/ticket-service/api/v1/events/active?limit=${limit}&offset=${offset}`),
     getPublicEvent: (id: string) => api.get(`/ticket-service/api/v1/events/public/${id}`),
+    getEventByCode: (code: string) => api.get(`/ticket-service/api/v1/events/code/${code}`),
 
     // Ticket purchase
     purchaseTicket: (data: { event_id: string; tier_id: string; form_data: any; wallet_id: string; pin: string }) =>
