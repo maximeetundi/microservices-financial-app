@@ -37,6 +37,10 @@ func prometheusMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	log.Println("----------------------------------------------------------------")
+	log.Println("--- STARTING TICKET SERVICE VERSION 2.0 (DB FIX APPLIED) ---")
+	log.Println("----------------------------------------------------------------")
+
 	// Connect to database
 	if err := database.Connect(); err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
