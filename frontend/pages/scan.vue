@@ -353,15 +353,15 @@ const handleScanResult = (data) => {
     return
   }
   
-  // 6. EVENT CODE FORMAT: "EVT-XXXXX" (direct event code)
-  if (code.match(/^EVT-[A-Z0-9]+$/i)) {
+  // 6. EVENT CODE FORMAT: "EVT-XXXXX" (direct event code, may contain dashes)
+  if (code.match(/^EVT-[A-Z0-9_-]+$/i)) {
     console.log('Detected: EVENT CODE -', code)
     navigateTo(`/events/code/${code}`)
     return
   }
   
-  // 7. TICKET CODE FORMAT: "TKT-XXXXX" (direct ticket code)
-  if (code.match(/^TKT-[A-Z0-9]+$/i)) {
+  // 7. TICKET CODE FORMAT: "TKT-XXXXX" (direct ticket code, may contain dashes)
+  if (code.match(/^TKT-[A-Z0-9_-]+$/i)) {
     console.log('Detected: TICKET CODE -', code)
     navigateTo(`/tickets/verify/${code}`)
     return
