@@ -132,7 +132,7 @@
         </div>
       </template>
 
-      <!-- Purchase Modal -->
+      <!-- Purchase Modal - Step 1: Info + Wallet -->
       <Teleport to="body">
         <div v-if="showPurchaseModal" class="modal-overlay" @click.self="showPurchaseModal = false">
           <div class="purchase-modal">
@@ -141,7 +141,7 @@
             <p class="modal-subtitle">{{ selectedTier?.icon }} {{ selectedTier?.name }} - {{ formatAmount(selectedTier?.price || 0) }} {{ event?.currency }}</p>
             
             <!-- Form Fields -->
-            <form @submit.prevent="purchaseTicket">
+            <form @submit.prevent="openPinModal">
               <div v-for="field in event?.form_fields" :key="field.name" class="form-group">
                 <label>{{ field.label }} <span v-if="field.required">*</span></label>
                 <input 
@@ -162,15 +162,60 @@
                 </select>
               </div>
 
-              <div class="form-group">
-                <label>Code PIN *</label>
-                <input v-model="pin" type="password" maxlength="5" required placeholder="•••••" />
+              <div class="purchase-summary">
+                <div class="summary-row">
+                  <span>🎫 {{ selectedTier?.name }}</span>
+                  <span class="summary-price">{{ formatAmount(selectedTier?.price || 0) }} {{ event?.currency }}</span>
+                </div>
               </div>
 
-              <button type="submit" :disabled="purchasing" class="btn-confirm">
-                {{ purchasing ? 'Traitement...' : 'Confirmer l\'achat' }}
+              <button type="submit" class="btn-confirm">
+                Continuer vers le paiement →
               </button>
             </form>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- PIN Confirmation Modal - Step 2 -->
+      <Teleport to="body">
+        <div v-if="showPinModal" class="modal-overlay">
+          <div class="pin-modal">
+            <div class="pin-header">
+              <div class="pin-icon">🔐</div>
+              <h3>Confirmation du paiement</h3>
+              <p class="pin-subtitle">Entrez votre code PIN pour confirmer</p>
+            </div>
+
+            <div class="pin-amount">
+              <span class="pin-amount-value">{{ formatAmount(selectedTier?.price || 0) }}</span>
+              <span class="pin-amount-currency">{{ event?.currency }}</span>
+            </div>
+
+            <div class="pin-input-container">
+              <input 
+                v-model="pin"
+                type="password"
+                maxlength="5"
+                class="pin-input"
+                placeholder="•••••"
+                autofocus
+                @keyup.enter="purchaseTicket"
+              />
+              <p class="pin-hint">Code à 5 chiffres</p>
+            </div>
+
+            <p v-if="purchaseError" class="pin-error">{{ purchaseError }}</p>
+
+            <div class="pin-actions">
+              <button @click="closePinModal" class="btn-cancel" :disabled="purchasing">
+                Annuler
+              </button>
+              <button @click="purchaseTicket" :disabled="purchasing || pin.length !== 5" class="btn-pay">
+                <span v-if="purchasing" class="spinner-small"></span>
+                {{ purchasing ? 'Paiement...' : 'Payer' }}
+              </button>
+            </div>
           </div>
         </div>
       </Teleport>
@@ -331,6 +376,8 @@ const selectedWalletId = ref('')
 const pin = ref('')
 const formData = reactive({})
 const showQRModal = ref(false)
+const showPinModal = ref(false)
+const purchaseError = ref('')
 
 // Ticket Scanner state
 const showScannerModal = ref(false)
@@ -390,10 +437,31 @@ const isSoldOut = (tier) => {
   return tier.sold >= tier.quantity
 }
 
+// Open PIN confirmation modal after form is filled
+const openPinModal = () => {
+  if (!selectedWalletId.value) {
+    alert('Veuillez sélectionner un portefeuille')
+    return
+  }
+  showPurchaseModal.value = false
+  pin.value = ''
+  purchaseError.value = ''
+  showPinModal.value = true
+}
+
+// Close PIN modal and go back to purchase modal
+const closePinModal = () => {
+  showPinModal.value = false
+  pin.value = ''
+  purchaseError.value = ''
+  showPurchaseModal.value = true
+}
+
 const purchaseTicket = async () => {
-  if (!selectedTier.value || !selectedWalletId.value || !pin.value) return
+  if (!selectedTier.value || !selectedWalletId.value || pin.value.length !== 5) return
   
   purchasing.value = true
+  purchaseError.value = ''
   try {
     const res = await ticketAPI.purchaseTicket({
       event_id: eventId,
@@ -404,10 +472,10 @@ const purchaseTicket = async () => {
     })
     
     purchasedTicket.value = res.data?.ticket
-    showPurchaseModal.value = false
+    showPinModal.value = false
     purchaseSuccess.value = true
   } catch (e) {
-    alert(e.response?.data?.error || 'Erreur lors de l\'achat')
+    purchaseError.value = e.response?.data?.error || 'Erreur lors du paiement. Vérifiez votre PIN et réessayez.'
   } finally {
     purchasing.value = false
   }
@@ -1164,68 +1232,104 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  padding: 20px;
+  overflow-y: auto;
 }
 
 .purchase-modal, .success-modal {
   background: var(--surface);
   border-radius: 20px;
-  padding: 32px;
+  padding: 28px;
   max-width: 440px;
-  width: 90%;
+  width: 100%;
   position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .close-btn {
   position: absolute;
   top: 16px;
   right: 16px;
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  font-size: 18px;
   color: var(--text-muted);
   cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
 }
 
 .purchase-modal h2 {
   margin: 0 0 8px;
   color: var(--text-primary);
+  font-size: 22px;
 }
 
 .modal-subtitle {
   color: var(--text-muted);
   margin-bottom: 24px;
+  font-size: 15px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .form-group label {
   display: block;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.form-group label span {
+  color: var(--error);
 }
 
 .form-group input, .form-group select {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
 }
 
 .btn-confirm {
   width: 100%;
-  padding: 14px;
+  padding: 16px;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
@@ -1233,7 +1337,13 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
 }
 
 .btn-confirm:disabled {
@@ -1510,5 +1620,183 @@ onUnmounted(() => {
   border-radius: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* Purchase Summary */
+.purchase-summary {
+  background: var(--surface-hover);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.summary-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* PIN Confirmation Modal */
+.pin-modal {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 380px;
+  width: 95%;
+  text-align: center;
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+}
+
+.pin-header {
+  margin-bottom: 24px;
+}
+
+.pin-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.pin-header h3 {
+  color: var(--text-primary);
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.pin-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.pin-amount {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.pin-amount-value {
+  display: block;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pin-amount-currency {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.pin-input-container {
+  margin-bottom: 20px;
+}
+
+.pin-input {
+  width: 100%;
+  padding: 18px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 12px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--background);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.pin-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.pin-input::placeholder {
+  color: var(--text-muted);
+  letter-spacing: 8px;
+}
+
+.pin-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.pin-error {
+  color: var(--error);
+  font-size: 14px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 10px;
+}
+
+.pin-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 14px;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: var(--border);
+}
+
+.btn-pay {
+  flex: 2;
+  padding: 14px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-pay:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.btn-pay:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

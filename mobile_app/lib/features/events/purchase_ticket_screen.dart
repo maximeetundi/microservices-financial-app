@@ -352,19 +352,24 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
               labelText: field['label'] ?? '',
               labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
               filled: true,
-              fillColor: Colors.white.withOpacity(0.1),
+              fillColor: const Color(0xFF1e293b),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
               ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.red, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
             keyboardType: field['type'] == 'email'
                 ? TextInputType.emailAddress
@@ -410,20 +415,25 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _selectedWalletId,
-          dropdownColor: const Color(0xFF1a1a2e),
+          dropdownColor: const Color(0xFF1e293b),
           decoration: InputDecoration(
             labelText: 'Sélectionner un portefeuille',
             labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.1),
+            fillColor: const Color(0xFF1e293b),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
             ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           style: const TextStyle(color: Colors.white),
           items: _wallets.map<DropdownMenuItem<String>>((wallet) {
@@ -450,20 +460,25 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
             labelText: 'Code PIN',
             labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.1),
+            fillColor: const Color(0xFF1e293b),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
             counterText: '',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
