@@ -73,6 +73,22 @@
               <input v-model="form.sale_end_date" type="datetime-local" required />
             </div>
           </div>
+
+          <div class="form-group">
+            <label>Devise des prix *</label>
+            <select v-model="form.currency" required>
+              <option value="XOF">XOF - Franc CFA (BCEAO)</option>
+              <option value="XAF">XAF - Franc CFA (BEAC)</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="USD">USD - Dollar américain</option>
+              <option value="GBP">GBP - Livre sterling</option>
+              <option value="MAD">MAD - Dirham marocain</option>
+              <option value="TND">TND - Dinar tunisien</option>
+              <option value="NGN">NGN - Naira nigérian</option>
+              <option value="GHS">GHS - Cedi ghanéen</option>
+              <option value="KES">KES - Shilling kenyan</option>
+            </select>
+          </div>
         </section>
 
         <!-- Form Fields -->
@@ -434,9 +450,13 @@ onMounted(async () => {
 }
 
 .form-group select option {
-  background: var(--surface);
-  color: var(--text-primary);
+  background: #1a1a2e;
+  color: #ffffff;
   padding: 10px;
+}
+
+.form-group select {
+  color-scheme: dark;
 }
 
 .form-group input:focus,
@@ -580,8 +600,12 @@ onMounted(async () => {
 }
 
 .field-item select option {
-  background: var(--surface);
-  color: var(--text-primary);
+  background: #1a1a2e;
+  color: #ffffff;
+}
+
+.field-item select {
+  color-scheme: dark;
 }
 
 .field-label {

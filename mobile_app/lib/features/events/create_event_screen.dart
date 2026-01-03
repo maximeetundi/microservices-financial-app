@@ -24,6 +24,20 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
   DateTime? _endDate;
   DateTime? _saleStartDate;
   DateTime? _saleEndDate;
+  String _selectedCurrency = 'XOF';
+  
+  final List<Map<String, String>> _availableCurrencies = [
+    {'code': 'XOF', 'name': 'Franc CFA (BCEAO)'},
+    {'code': 'XAF', 'name': 'Franc CFA (BEAC)'},
+    {'code': 'EUR', 'name': 'Euro'},
+    {'code': 'USD', 'name': 'Dollar américain'},
+    {'code': 'GBP', 'name': 'Livre sterling'},
+    {'code': 'MAD', 'name': 'Dirham marocain'},
+    {'code': 'TND', 'name': 'Dinar tunisien'},
+    {'code': 'NGN', 'name': 'Naira nigérian'},
+    {'code': 'GHS', 'name': 'Cedi ghanéen'},
+    {'code': 'KES', 'name': 'Shilling kenyan'},
+  ];
   
   // Form fields
   List<Map<String, dynamic>> _formFields = [
@@ -96,7 +110,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
         'end_date': _endDate!.toIso8601String(),
         'sale_start_date': _saleStartDate!.toIso8601String(),
         'sale_end_date': _saleEndDate!.toIso8601String(),
-        'currency': 'XOF',
+        'currency': _selectedCurrency,
         'form_fields': _formFields,
         'ticket_tiers': _tiers.asMap().entries.map((e) => {
           ...e.value,
@@ -279,6 +293,39 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
         _buildDatePicker('Fin de l\'événement', _endDate, (d) => setState(() => _endDate = d)),
         _buildDatePicker('Début des ventes', _saleStartDate, (d) => setState(() => _saleStartDate = d)),
         _buildDatePicker('Fin des ventes', _saleEndDate, (d) => setState(() => _saleEndDate = d)),
+        const SizedBox(height: 16),
+        const Text(
+          '💰 Devise',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedCurrency,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF1a1a2e),
+              style: const TextStyle(color: Colors.white),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
+              items: _availableCurrencies.map((currency) {
+                return DropdownMenuItem<String>(
+                  value: currency['code'],
+                  child: Text('${currency['code']} - ${currency['name']}'),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedCurrency = value);
+                }
+              },
+            ),
+          ),
+        ),
       ],
     );
   }
