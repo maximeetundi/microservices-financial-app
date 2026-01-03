@@ -72,6 +72,14 @@ services:
           - /ticket-service
         strip_path: true
 
+  - name: association-service
+    url: http://association-service:8091
+    routes:
+      - name: association-routes
+        paths:
+          - /association-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:
@@ -100,19 +108,3 @@ plugins:
       allowed_payload_size: 50
       size_unit: megabytes
       require_content_length: false
-
-# Ticket Service
-- name: ticket-service
-  url: http://ticket-service:8090
-  routes:
-    - name: ticket-route
-      paths:
-        - /ticket-service
-
-# Association Service  
-- name: association-service
-  url: http://association-service:8091
-  routes:
-    - name: association-route
-      paths:
-        - /association-service
