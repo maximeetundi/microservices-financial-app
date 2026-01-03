@@ -132,6 +132,31 @@ func InitSchema() error {
 		log.Println("DEBUG: Successfully altered cover_image column to TEXT")
 	}
 
+	// DEBUG: Inspect actual schema state
+	rows, err := DB.Query(`
+		SELECT column_name, data_type, character_maximum_length 
+		FROM information_schema.columns 
+		WHERE table_name = 'events'
+	`)
+	if err == nil {
+		log.Println("DEBUG: --- EVENTS TABLE SCHEMA ---")
+		for rows.Next() {
+			var colName, dataType string
+			var charMaxLen sql.NullInt64
+			if err := rows.Scan(&colName, &dataType, &charMaxLen); err == nil {
+				lenStr := "NULL"
+				if charMaxLen.Valid {
+					lenStr = fmt.Sprintf("%d", charMaxLen.Int64)
+				}
+				log.Printf("DEBUG: Column: %s | Type: %s | MaxLen: %s", colName, dataType, lenStr)
+			}
+		}
+		rows.Close()
+		log.Println("DEBUG: -----------------------------")
+	} else {
+		log.Printf("DEBUG: Failed to inspect schema: %v", err)
+	}
+
 	log.Println("Database schema initialized")
 	return nil
 }
