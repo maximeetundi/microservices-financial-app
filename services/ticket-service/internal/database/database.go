@@ -118,9 +118,19 @@ func InitSchema() error {
 	}
 
 	// Auto-migration: Force columns to TEXT to fix varchar limits if table already existed
-	// We ignore errors here in case columns don't exist or other issues, as the CREATE TABLE above handles new DBs
-	_, _ = DB.Exec("ALTER TABLE events ALTER COLUMN location TYPE TEXT")
-	_, _ = DB.Exec("ALTER TABLE events ALTER COLUMN cover_image TYPE TEXT")
+	log.Println("DEBUG: Starting forced schema migration for events table...")
+	
+	if _, err := DB.Exec("ALTER TABLE events ALTER COLUMN location TYPE TEXT"); err != nil {
+		log.Printf("DEBUG: Failed to alter location column: %v", err)
+	} else {
+		log.Println("DEBUG: Successfully altered location column to TEXT")
+	}
+
+	if _, err := DB.Exec("ALTER TABLE events ALTER COLUMN cover_image TYPE TEXT"); err != nil {
+		log.Printf("DEBUG: Failed to alter cover_image column: %v", err)
+	} else {
+		log.Println("DEBUG: Successfully altered cover_image column to TEXT")
+	}
 
 	log.Println("Database schema initialized")
 	return nil
