@@ -166,15 +166,21 @@ func createTables(db *sql.DB) error {
 
 	// Add missing columns for existing tables (migrations)
 	migrations := []string{
+		// Handle created_by column
 		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
 		`UPDATE associations SET created_by = 'system' WHERE created_by IS NULL`,
-		`ALTER TABLE associations ALTER COLUMN created_by SET NOT NULL`,
+		
+		// Handle creator_id column (some databases might have this instead)
+		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS creator_id VARCHAR(255)`,
+		`UPDATE associations SET creator_id = created_by WHERE creator_id IS NULL`,
+		
+		// Meetings
 		`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
 		`UPDATE meetings SET created_by = 'system' WHERE created_by IS NULL`,
-		`ALTER TABLE meetings ALTER COLUMN created_by SET NOT NULL`,
+		
+		// Treasury transactions
 		`ALTER TABLE treasury_transactions ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
 		`UPDATE treasury_transactions SET created_by = 'system' WHERE created_by IS NULL`,
-		`ALTER TABLE treasury_transactions ALTER COLUMN created_by SET NOT NULL`,
 	}
 
 	for _, migration := range migrations {
