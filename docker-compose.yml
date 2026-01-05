@@ -494,6 +494,32 @@ services:
     networks:
       - crypto-bank-network
 
+  # Messaging Service
+  messaging-service:
+    build:
+      context: ./services/messaging-service
+      dockerfile: Dockerfile
+    ports:
+      - "8095:8095"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/messaging
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_BUCKET=chat-attachments
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - PORT=8095
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
