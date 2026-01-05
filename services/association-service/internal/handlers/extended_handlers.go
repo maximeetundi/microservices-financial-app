@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -12,6 +13,7 @@ import (
 
 // ExtendedHandler handles the new features (roles, approvals, chat, solidarity)
 type ExtendedHandler struct {
+	DB            *sql.DB // For emergency fund operations
 	roleRepo      *repository.RoleRepository
 	approvalRepo  *repository.ApprovalRepository
 	chatRepo      *repository.ChatRepository
@@ -21,6 +23,7 @@ type ExtendedHandler struct {
 }
 
 func NewExtendedHandler(
+	db *sql.DB,
 	roleRepo *repository.RoleRepository,
 	approvalRepo *repository.ApprovalRepository,
 	chatRepo *repository.ChatRepository,
@@ -29,6 +32,7 @@ func NewExtendedHandler(
 	memberRepo *repository.MemberRepository,
 ) *ExtendedHandler {
 	return &ExtendedHandler{
+		DB:            db,
 		roleRepo:      roleRepo,
 		approvalRepo:  approvalRepo,
 		chatRepo:      chatRepo,

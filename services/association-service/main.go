@@ -69,7 +69,7 @@ func main() {
 
 	// Initialize handlers
 	handler := handlers.NewHandler(assocService)
-	extHandler := handlers.NewExtendedHandler(roleRepo, approvalRepo, chatRepo, solidarityRepo, calledRepo, memberRepo)
+	extHandler := handlers.NewExtendedHandler(db.DB, roleRepo, approvalRepo, chatRepo, solidarityRepo, calledRepo, memberRepo)
 
 	// Setup Gin router
 	r := gin.New()
