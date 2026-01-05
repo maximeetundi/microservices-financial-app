@@ -187,5 +187,141 @@ func createTables(db *sql.DB) error {
 		_, _ = db.Exec(migration) // Ignore errors as column might already exist
 	}
 
+	// Phase 1: Custom roles, approvers, and multi-signature approval
+	phase1Schema := `
+	-- Custom roles per association
+	CREATE TABLE IF NOT EXISTS association_roles (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		name VARCHAR(100) NOT NULL,
+		permissions JSONB NOT NULL DEFAULT '[]',
+		is_default BOOLEAN DEFAULT false,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(association_id, name)
+	);
+
+	-- Designated approvers (for multi-signature)
+	CREATE TABLE IF NOT EXISTS association_approvers (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+		position INT NOT NULL CHECK (position >= 1 AND position <= 5),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(association_id, position),
+		UNIQUE(association_id, member_id)
+	);
+
+	-- Approval requests (loans, distributions)
+	CREATE TABLE IF NOT EXISTS approval_requests (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		request_type VARCHAR(50) NOT NULL,
+		reference_id UUID NOT NULL,
+		amount DECIMAL(15,2) NOT NULL,
+		requester_id UUID NOT NULL REFERENCES members(id),
+		status VARCHAR(20) DEFAULT 'pending',
+		required_approvals INT DEFAULT 4,
+		description TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	-- Approval votes
+	CREATE TABLE IF NOT EXISTS approval_votes (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		request_id UUID NOT NULL REFERENCES approval_requests(id) ON DELETE CASCADE,
+		approver_id UUID NOT NULL REFERENCES members(id),
+		vote VARCHAR(20) NOT NULL,
+		comment TEXT,
+		voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(request_id, approver_id)
+	);
+
+	-- Association chat messages
+	CREATE TABLE IF NOT EXISTS association_messages (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		sender_id UUID NOT NULL REFERENCES members(id),
+		content TEXT NOT NULL,
+		is_admin_only BOOLEAN DEFAULT false,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	-- Solidarity events (deuil, mariage, etc.)
+	CREATE TABLE IF NOT EXISTS solidarity_events (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		event_type VARCHAR(50) NOT NULL,
+		beneficiary_id UUID NOT NULL REFERENCES members(id),
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		target_amount DECIMAL(15,2),
+		collected_amount DECIMAL(15,2) DEFAULT 0,
+		status VARCHAR(20) DEFAULT 'active',
+		created_by VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		closed_at TIMESTAMP
+	);
+
+	-- Solidarity contributions
+	CREATE TABLE IF NOT EXISTS solidarity_contributions (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		event_id UUID NOT NULL REFERENCES solidarity_events(id) ON DELETE CASCADE,
+		contributor_id UUID NOT NULL REFERENCES members(id),
+		amount DECIMAL(15,2) NOT NULL,
+		paid BOOLEAN DEFAULT false,
+		paid_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	-- Called tontine rounds (each person's turn)
+	CREATE TABLE IF NOT EXISTS called_rounds (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		beneficiary_id UUID NOT NULL REFERENCES members(id),
+		round_number INT NOT NULL,
+		total_collected DECIMAL(15,2) DEFAULT 0,
+		status VARCHAR(20) DEFAULT 'active',
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		closed_at TIMESTAMP
+	);
+
+	-- Called tontine pledges (what each person contributes)
+	CREATE TABLE IF NOT EXISTS called_pledges (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		round_id UUID NOT NULL REFERENCES called_rounds(id) ON DELETE CASCADE,
+		contributor_id UUID NOT NULL REFERENCES members(id),
+		amount DECIMAL(15,2) NOT NULL,
+		paid BOOLEAN DEFAULT false,
+		paid_at TIMESTAMP,
+		UNIQUE(round_id, contributor_id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_roles_association ON association_roles(association_id);
+	CREATE INDEX IF NOT EXISTS idx_approvers_association ON association_approvers(association_id);
+	CREATE INDEX IF NOT EXISTS idx_approval_requests_association ON approval_requests(association_id);
+	CREATE INDEX IF NOT EXISTS idx_messages_association ON association_messages(association_id);
+	CREATE INDEX IF NOT EXISTS idx_solidarity_association ON solidarity_events(association_id);
+	`
+
+	_, _ = db.Exec(phase1Schema)
+
+	// Additional migrations for new features
+	phase1Migrations := []string{
+		// Add shares_count to members (multiple names per person)
+		`ALTER TABLE members ADD COLUMN IF NOT EXISTS shares_count INT DEFAULT 1`,
+		// Add settings to associations
+		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'`,
+		// Add role_id to members for custom roles
+		`ALTER TABLE members ADD COLUMN IF NOT EXISTS role_id UUID`,
+		// Add chat_enabled setting
+		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS chat_enabled BOOLEAN DEFAULT true`,
+		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS chat_admin_only BOOLEAN DEFAULT false`,
+	}
+
+	for _, migration := range phase1Migrations {
+		_, _ = db.Exec(migration)
+	}
+
 	return nil
 }

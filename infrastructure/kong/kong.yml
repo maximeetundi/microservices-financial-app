@@ -80,6 +80,14 @@ services:
           - /association-service
         strip_path: true
 
+  - name: messaging-service
+    url: http://messaging-service:8095
+    routes:
+      - name: messaging-route
+        paths:
+          - /messaging-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:

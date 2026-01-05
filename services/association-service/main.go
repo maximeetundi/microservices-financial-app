@@ -51,6 +51,13 @@ func main() {
 	meetingRepo := repository.NewMeetingRepository(db)
 	loanRepo := repository.NewLoanRepository(db)
 
+	// New repositories for extended features
+	roleRepo := repository.NewRoleRepository(db)
+	approvalRepo := repository.NewApprovalRepository(db)
+	chatRepo := repository.NewChatRepository(db)
+	solidarityRepo := repository.NewSolidarityRepository(db)
+	calledRepo := repository.NewCalledRoundRepository(db)
+
 	// Initialize service
 	assocService := services.NewAssociationService(
 		assocRepo,
@@ -62,6 +69,7 @@ func main() {
 
 	// Initialize handlers
 	handler := handlers.NewHandler(assocService)
+	extHandler := handlers.NewExtendedHandler(roleRepo, approvalRepo, chatRepo, solidarityRepo, calledRepo, memberRepo)
 
 	// Setup Gin router
 	r := gin.New()
@@ -120,6 +128,35 @@ func main() {
 			protected.GET("/associations/:id/meetings", handler.GetMeetings)
 			protected.POST("/meetings/:meetingId/attendance", handler.RecordAttendance)
 			protected.PUT("/meetings/:meetingId/minutes", handler.UpdateMinutes)
+
+			// === NEW FEATURES ===
+
+			// Custom Roles
+			protected.POST("/associations/:id/roles", extHandler.CreateRole)
+			protected.GET("/associations/:id/roles", extHandler.GetRoles)
+			protected.DELETE("/associations/:id/roles/:roleId", extHandler.DeleteRole)
+
+			// Multi-Signature Approvers
+			protected.POST("/associations/:id/approvers", extHandler.SetApprovers)
+			protected.GET("/associations/:id/approvers", extHandler.GetApprovers)
+			protected.GET("/associations/:id/approvals", extHandler.GetPendingApprovals)
+			protected.POST("/approvals/:requestId/vote", extHandler.VoteOnApproval)
+
+			// Chat
+			protected.POST("/associations/:id/chat", extHandler.SendMessage)
+			protected.GET("/associations/:id/chat", extHandler.GetMessages)
+
+			// Solidarity Events
+			protected.POST("/associations/:id/solidarity", extHandler.CreateSolidarityEvent)
+			protected.GET("/associations/:id/solidarity", extHandler.GetSolidarityEvents)
+			protected.POST("/solidarity/:eventId/contribute", extHandler.ContributeToSolidarity)
+
+			// Called Tontine
+			protected.POST("/associations/:id/rounds", extHandler.CreateCalledRound)
+			protected.GET("/associations/:id/rounds", extHandler.GetCalledRounds)
+			protected.POST("/rounds/:roundId/pledge", extHandler.MakePledge)
+			protected.POST("/rounds/:roundId/pledges/:pledgeId/pay", extHandler.PayPledge)
+			protected.GET("/rounds/:roundId/pledges", extHandler.GetPledges)
 		}
 	}
 

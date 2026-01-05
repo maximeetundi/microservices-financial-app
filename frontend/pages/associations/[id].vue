@@ -14,9 +14,14 @@
               <p class="text-indigo-100 mt-1">{{ getTypeLabel(association?.type) }}</p>
             </div>
           </div>
-          <span class="px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
-            {{ association?.status === 'active' ? 'Actif' : association?.status }}
-          </span>
+          <div class="flex items-center space-x-3">
+            <button @click="navigateTo(`/associations/${id}/settings`)" class="p-2 rounded-full bg-white/10 hover:bg-white/20 transition">
+              ⚙️
+            </button>
+            <span class="px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
+              {{ association?.status === 'active' ? 'Actif' : association?.status }}
+            </span>
+          </div>
         </div>
       </div>
       
@@ -171,6 +176,24 @@
             <p>Aucun prêt en cours</p>
           </div>
         </div>
+
+        <!-- Chat Tab -->
+        <AssociationChat v-if="activeTab === 'chat'" :associationId="id" />
+
+        <!-- Solidarity Tab -->
+        <SolidarityEvents v-if="activeTab === 'solidarity'" :associationId="id" />
+
+        <!-- Tontine Tab -->
+        <CalledTontine v-if="activeTab === 'tontine'" :associationId="id" />
+
+        <!-- Approvals Tab -->
+        <div v-if="activeTab === 'approvals'">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium">Approbations en attente</h3>
+            <button @click="showApprovalModal = true" class="btn-primary">Voir toutes</button>
+          </div>
+          <p class="text-gray-500 text-center py-12">Cliquez sur "Voir toutes" pour voter</p>
+        </div>
       </div>
     </div>
 
@@ -189,6 +212,12 @@
       :interest-rate="5"
       @close="showLoanModal = false"
       @success="handleLoanSuccess"
+    />
+    <ApprovalModal
+      :show="showApprovalModal"
+      :association-id="id"
+      @close="showApprovalModal = false"
+      @refresh="handleContributionSuccess"
     />
     </div>
   </NuxtLayout>
@@ -209,6 +238,10 @@ import {
 import { associationAPI } from '~/composables/useApi'
 import ContributionModal from '~/components/associations/ContributionModal.vue'
 import LoanRequestModal from '~/components/associations/LoanRequestModal.vue'
+import ApprovalModal from '~/components/associations/ApprovalModal.vue'
+import AssociationChat from '~/components/associations/AssociationChat.vue'
+import SolidarityEvents from '~/components/associations/SolidarityEvents.vue'
+import CalledTontine from '~/components/associations/CalledTontine.vue'
 
 definePageMeta({
   layout: false,
@@ -226,11 +259,17 @@ const activeTab = ref('members')
 const showContributionModal = ref(false)
 const showLoanModal = ref(false)
 
+const showApprovalModal = ref(false)
+
 const tabs = [
   { id: 'members', name: 'Membres', icon: UsersIcon },
   { id: 'treasury', name: 'Trésorerie', icon: BanknotesIcon },
   { id: 'meetings', name: 'Réunions', icon: CalendarIcon },
-  { id: 'loans', name: 'Prêts', icon: ScaleIcon }
+  { id: 'loans', name: 'Prêts', icon: ScaleIcon },
+  { id: 'chat', name: 'Chat', icon: ArrowUpIcon },
+  { id: 'solidarity', name: 'Solidarité', icon: ArrowDownIcon },
+  { id: 'tontine', name: 'Tontine', icon: BanknotesIcon },
+  { id: 'approvals', name: 'Approbations', icon: ScaleIcon },
 ]
 
 const handleContributionSuccess = async () => {

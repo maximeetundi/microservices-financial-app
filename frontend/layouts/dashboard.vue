@@ -111,6 +111,11 @@
           <span>Notifications</span>
         </NuxtLink>
 
+        <NuxtLink to="/messages" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">💬</span>
+          <span>Messages</span>
+        </NuxtLink>
+
         <NuxtLink to="/settings" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">⚙️</span>
           <span>Paramètres</span>

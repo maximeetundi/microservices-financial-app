@@ -74,6 +74,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # MongoDB (for messaging and notifications)
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secure_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Create default bucket on startup
   minio-init:
     image: minio/mc
@@ -405,6 +424,23 @@ services:
       - crypto-bank-network
     restart: unless-stopped
 
+  # Messaging Service (User-to-user + Association Chat)
+  messaging-service:
+    build:
+      context: ./services
+      dockerfile: ./messaging-service/Dockerfile
+    ports:
+      - "8095:8095"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/messaging?authSource=admin
+      - PORT=8095
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
@@ -461,6 +497,7 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  mongodb_data:
 
 networks:
   crypto-bank-network:
