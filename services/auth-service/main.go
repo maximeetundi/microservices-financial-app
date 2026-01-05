@@ -122,7 +122,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
 	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService, eventPublisher)
-	userHandler := handlers.NewUserHandler(db.DB)
+	userHandler := handlers.NewUserHandler(db)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
