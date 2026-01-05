@@ -18,11 +18,11 @@ func NewAssociationRepository(db *sql.DB) *AssociationRepository {
 func (r *AssociationRepository) Create(a *models.Association) error {
 	query := `
 		INSERT INTO associations (name, type, description, rules, currency, status, created_by, creator_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRow(query,
-		a.Name, a.Type, a.Description, a.Rules, a.Currency, a.Status, a.CreatedBy,
+		a.Name, a.Type, a.Description, a.Rules, a.Currency, a.Status, a.CreatedBy, a.CreatedBy,
 	).Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt)
 }
 
