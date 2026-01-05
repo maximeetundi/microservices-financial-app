@@ -1,18 +1,18 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type UserHandler struct {
-	db *gorm.DB
+	db *sql.DB
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
+func NewUserHandler(db *sql.DB) *UserHandler {
 	return &UserHandler{db: db}
 }
 
@@ -27,23 +27,32 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 
 	query = strings.ToLower(strings.TrimSpace(query))
 
-	var users []struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Email string `json:"email"`
-		Phone string `json:"phone"`
-	}
-
-	// Search by email or phone
-	err := h.db.Table("users").
-		Select("id, first_name || ' ' || last_name as name, email, phone").
-		Where("LOWER(email) LIKE ? OR LOWER(phone) LIKE ?", "%"+query+"%", "%"+query+"%").
-		Limit(10).
-		Find(&users).Error
-
+	// Search by email or phone using raw SQL
+	rows, err := h.db.Query(`
+		SELECT id, first_name || ' ' || last_name as name, email, phone
+		FROM users
+		WHERE LOWER(email) LIKE $1 OR LOWER(phone) LIKE $1
+		LIMIT 10
+	`, "%"+query+"%")
+	
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
 		return
+	}
+	defer rows.Close()
+
+	var users []map[string]interface{}
+	for rows.Next() {
+		var id,  name, email, phone string
+		if err := rows.Scan(&id, &name, &email, &phone); err != nil {
+			continue
+		}
+		users = append(users, map[string]interface{}{
+			"id":    id,
+			"name":  name,
+			"email": email,
+			"phone": phone,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"users": users})
