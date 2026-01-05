@@ -158,6 +158,28 @@ func createTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_loans_borrower ON loans(borrower_id);
 	`
 
+	// Execute main schema
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Add missing columns for existing tables (migrations)
+	migrations := []string{
+		`ALTER TABLE associations ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
+		`UPDATE associations SET created_by = 'system' WHERE created_by IS NULL`,
+		`ALTER TABLE associations ALTER COLUMN created_by SET NOT NULL`,
+		`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
+		`UPDATE meetings SET created_by = 'system' WHERE created_by IS NULL`,
+		`ALTER TABLE meetings ALTER COLUMN created_by SET NOT NULL`,
+		`ALTER TABLE treasury_transactions ADD COLUMN IF NOT EXISTS created_by VARCHAR(255)`,
+		`UPDATE treasury_transactions SET created_by = 'system' WHERE created_by IS NULL`,
+		`ALTER TABLE treasury_transactions ALTER COLUMN created_by SET NOT NULL`,
+	}
+
+	for _, migration := range migrations {
+		_, _ = db.Exec(migration) // Ignore errors as column might already exist
+	}
+
+	return nil
 }
