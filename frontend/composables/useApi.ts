@@ -557,7 +557,7 @@ export const ticketAPI = {
 export const associationAPI = {
     // Associations
     create: (data: any) => api.post('/association-service/api/v1/associations', data),
-    getAll: () => api.get('/association-service/api/v1/associations'),
+    getAll: () => api.get('/association-service/api/v1/associations/me'),
     get: (id: string) => api.get(`/association-service/api/v1/associations/${id}`),
     update: (id: string, data: any) => api.put(`/association-service/api/v1/associations/${id}`, data),
     delete: (id: string) => api.delete(`/association-service/api/v1/associations/${id}`),
