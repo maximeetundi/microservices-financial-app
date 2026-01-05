@@ -33,7 +33,7 @@ func (h *MessageHandler) UploadFile(c *gin.Context) {
 
 	// Upload to MinIO
 	ctx := context.Background()
-	objectPath, err := h.storage.UploadFileStream(ctx, objectName, file, header.Size, header.Header.Get("Content-Type"))
+	_, err = h.storage.UploadFileStream(ctx, objectName, file, header.Size, header.Header.Get("Content-Type"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to upload file: %v", err)})
 		return
