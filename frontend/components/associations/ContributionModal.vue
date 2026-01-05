@@ -122,12 +122,21 @@ const loadWallets = async () => {
   loadingWallets.value = true
   try {
     const response = await walletAPI.getWallets()
-    wallets.value = response.data?.filter((w: any) => w.currency === props.currency) || response.data || []
+    // Handle different response formats
+    let walletsData = response.data?.wallets || response.data || []
+    // Ensure it's an array
+    if (!Array.isArray(walletsData)) {
+      walletsData = []
+    }
+    // Filter by currency if needed
+    wallets.value = walletsData.filter((w: any) => w.currency === props.currency)
+    
     if (wallets.value.length > 0 && !form.value.wallet_id) {
       form.value.wallet_id = wallets.value[0].id
     }
   } catch (err) {
     console.error('Failed to load wallets', err)
+    wallets.value = []
   } finally {
     loadingWallets.value = false
   }
