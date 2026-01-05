@@ -185,6 +185,11 @@ const formatCurrency = (amount: number, currency: string) => {
 
 onMounted(async () => {
   try {
+    if (!associationApi || typeof associationApi.getAll !== 'function') {
+      console.warn('Association API not available yet')
+      associations.value = []
+      return
+    }
     const response = await associationApi.getAll()
     associations.value = response.data?.associations || response.data || []
   } catch (err) {

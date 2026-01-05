@@ -235,6 +235,10 @@ const tabs = [
 const handleContributionSuccess = async () => {
   // Reload treasury data
   try {
+    if (!associationApi || typeof associationApi.getTreasury !== 'function') {
+      console.warn('Association API not available')
+      return
+    }
     const treasuryRes = await associationApi.getTreasury(id)
     treasury.value = treasuryRes.data || treasury.value
     const assocRes = await associationApi.get(id)
@@ -285,6 +289,10 @@ const formatDate = (dateStr: string) => {
 
 onMounted(async () => {
   try {
+    if (!associationApi || typeof associationApi.get !== 'function') {
+      console.warn('Association API not available yet')
+      return
+    }
     const [assocRes, membersRes, treasuryRes] = await Promise.all([
       associationApi.get(id),
       associationApi.getMembers(id),
