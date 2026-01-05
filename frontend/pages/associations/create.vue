@@ -138,6 +138,11 @@
             </button>
             <div v-else></div> <!-- Spacer -->
 
+            <!-- Error Message -->
+            <div v-if="errorMessage" class="col-span-2 mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-center">
+              {{ errorMessage }}
+            </div>
+
             <button v-if="currentStep < steps.length - 1" type="button" @click="nextStep"
                     class="px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors shadow-lg shadow-indigo-500/30">
               Suivant
@@ -216,15 +221,21 @@ const canNavigateTo = (index: number) => {
   return index < currentStep.value
 }
 
+const errorMessage = ref('')
+
 const handleSubmit = async () => {
   loading.value = true
+  errorMessage.value = ''
   try {
+    if (!associationApi || typeof associationApi.create !== 'function') {
+      throw new Error('Le service des associations n\'est pas disponible. Veuillez réessayer plus tard.')
+    }
     const response = await associationApi.create(form)
     // Success notification could be added here
     await router.push('/associations')
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to create association', err)
-    // Show error
+    errorMessage.value = err.message || err.response?.data?.error || 'Erreur lors de la création'
   } finally {
     loading.value = false
   }
