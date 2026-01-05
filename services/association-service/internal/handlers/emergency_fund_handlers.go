@@ -10,7 +10,6 @@ import (
 
 // CreateEmergencyFund creates a new emergency fund for an association
 func (h *ExtendedHandler) CreateEmergencyFund(c *gin.Context) {
-	userID := middleware.GetUserID(c)
 	associationID := c.Param("id")
 
 	var req struct {
@@ -40,7 +39,7 @@ func (h *ExtendedHandler) CreateEmergencyFund(c *gin.Context) {
 		CreatedAt           string  `json:"created_at"`
 	}
 
-	err := h.db.QueryRow(query, associationID, req.MonthlyContribution).Scan(
+	err := h.DB.QueryRow(query, associationID, req.MonthlyContribution).Scan(
 		&fund.ID, &fund.AssociationID, &fund.Balance, &fund.MonthlyContribution, &fund.CreatedAt,
 	)
 
@@ -69,7 +68,7 @@ func (h *ExtendedHandler) GetEmergencyFund(c *gin.Context) {
 		CreatedAt           string  `json:"created_at"`
 	}
 
-	err := h.db.QueryRow(query, associationID).Scan(
+	err := h.DB.QueryRow(query, associationID).Scan(
 		&fund.ID, &fund.AssociationID, &fund.Balance, &fund.MonthlyContribution, &fund.CreatedAt,
 	)
 
@@ -101,7 +100,7 @@ func (h *ExtendedHandler) ContributeToEmergencyFund(c *gin.Context) {
 	// Get emergency fund
 	var fundID string
 	var monthlyAmount float64
-	err := h.db.QueryRow(`SELECT id, monthly_contribution FROM emergency_funds WHERE association_id = $1`, associationID).
+	err := h.DB.QueryRow(`SELECT id, monthly_contribution FROM emergency_funds WHERE association_id = $1`, associationID).
 		Scan(&fundID, &monthlyAmount)
 
 	if err != nil {
@@ -117,7 +116,7 @@ func (h *ExtendedHandler) ContributeToEmergencyFund(c *gin.Context) {
 
 	// Get member ID
 	var memberID string
-	err = h.db.QueryRow(`SELECT id FROM members WHERE association_id = $1 AND user_id = $2`, associationID, userID).Scan(&memberID)
+	err = h.DB.QueryRow(`SELECT id FROM members WHERE association_id = $1 AND user_id = $2`, associationID, userID).Scan(&memberID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found"})
 		return
@@ -126,7 +125,7 @@ func (h *ExtendedHandler) ContributeToEmergencyFund(c *gin.Context) {
 	// TODO: Call wallet service to verify PIN and deduct amount
 
 	// Record contribution
-	_, err = h.db.Exec(`
+	_, err = h.DB.Exec(`
 		INSERT INTO emergency_contributions (emergency_fund_id, member_id, amount, period, paid, paid_at)
 		VALUES ($1, $2, $3, $4, true, NOW())
 		ON CONFLICT (emergency_fund_id, member_id, period) DO UPDATE
@@ -139,7 +138,7 @@ func (h *ExtendedHandler) ContributeToEmergencyFund(c *gin.Context) {
 	}
 
 	// Update fund balance
-	_, err = h.db.Exec(`UPDATE emergency_funds SET balance = balance + $1 WHERE id = $2`, req.Amount, fundID)
+	_, err = h.DB.Exec(`UPDATE emergency_funds SET balance = balance + $1 WHERE id = $2`, req.Amount, fundID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update balance"})
 		return
@@ -168,7 +167,7 @@ func (h *ExtendedHandler) RequestEmergencyWithdrawal(c *gin.Context) {
 	// Get emergency fund
 	var fundID string
 	var balance float64
-	err := h.db.QueryRow(`SELECT id, balance FROM emergency_funds WHERE association_id = $1`, associationID).
+	err := h.DB.QueryRow(`SELECT id, balance FROM emergency_funds WHERE association_id = $1`, associationID).
 		Scan(&fundID, &balance)
 
 	if err != nil {
@@ -183,7 +182,7 @@ func (h *ExtendedHandler) RequestEmergencyWithdrawal(c *gin.Context) {
 
 	// Create approval request (4/5 required)
 	var approvalID string
-	err = h.db.QueryRow(`
+	err = h.DB.QueryRow(`
 		INSERT INTO approval_requests (association_id, request_type, amount, metadata, status, required_approvals, current_approvals, created_by)
 		VALUES ($1, 'emergency_withdrawal', $2, $3::jsonb, 'pending', 4, 0, $4)
 		RETURNING id
@@ -196,7 +195,7 @@ func (h *ExtendedHandler) RequestEmergencyWithdrawal(c *gin.Context) {
 
 	// Create withdrawal record
 	var withdrawalID string
-	err = h.db.QueryRow(`
+	err = h.DB.QueryRow(`
 		INSERT INTO emergency_withdrawals (emergency_fund_id, event_type, beneficiary_id, amount, reason, status, approval_request_id, created_by)
 		VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
 		RETURNING id
@@ -218,7 +217,7 @@ func (h *ExtendedHandler) RequestEmergencyWithdrawal(c *gin.Context) {
 func (h *ExtendedHandler) GetEmergencyWithdrawals(c *gin.Context) {
 	associationID := c.Param("id")
 
-	rows, err := h.db.Query(`
+	rows, err := h.DB.Query(`
 		SELECT ew.id, ew.event_type, ew.beneficiary_id, m.user_id as beneficiary_name,
 		       ew.amount, ew.reason, ew.status, ew.created_at
 		FROM emergency_withdrawals ew
