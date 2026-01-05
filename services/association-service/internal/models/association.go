@@ -49,6 +49,7 @@ type CreateAssociationRequest struct {
 	Description string          `json:"description"`
 	Rules       JSONB           `json:"rules"`
 	Currency    string          `json:"currency"`
+	CreatorRole MemberRole      `json:"creator_role"` // Optional: role of the creator (default: president)
 }
 
 // UpdateAssociationRequest is the request to update an association

@@ -64,11 +64,17 @@ func (s *AssociationService) CreateAssociation(userID string, req *models.Create
 		return nil, fmt.Errorf("failed to create association: %w", err)
 	}
 
-	// Add creator as president
+	// Determine creator's role (default: president)
+	creatorRole := req.CreatorRole
+	if creatorRole == "" {
+		creatorRole = models.MemberRolePresident
+	}
+
+	// Add creator as member with chosen role
 	member := &models.Member{
 		AssociationID: assoc.ID,
 		UserID:        userID,
-		Role:          models.MemberRolePresident,
+		Role:          creatorRole,
 		Status:        models.MemberStatusActive,
 	}
 	if err := s.memberRepo.Create(member); err != nil {
