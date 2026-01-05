@@ -207,6 +207,8 @@ import {
   ArrowDownIcon
 } from '@heroicons/vue/24/outline'
 import { associationAPI } from '~/composables/useApi'
+import ContributionModal from '~/components/associations/ContributionModal.vue'
+import LoanRequestModal from '~/components/associations/LoanRequestModal.vue'
 
 definePageMeta({
   layout: false,
