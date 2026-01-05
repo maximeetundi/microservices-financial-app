@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { associationAPI } from '~/composables/useApi'
 
 const props = defineProps<{
   show: boolean
@@ -84,7 +85,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'success'])
 
-const { associationApi } = useApi()
 
 const loading = ref(false)
 const error = ref('')
@@ -113,7 +113,7 @@ const submit = async () => {
   error.value = ''
   
   try {
-    await associationApi.requestLoan(props.associationId, {
+    await associationAPI.requestLoan(props.associationId, {
       amount: form.value.amount,
       interest_rate: props.interestRate || 5,
       duration: form.value.duration,

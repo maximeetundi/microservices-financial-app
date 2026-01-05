@@ -86,6 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { walletAPI, associationAPI } from '~/composables/useApi'
 
 const props = defineProps<{
   show: boolean
@@ -95,7 +96,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'success'])
 
-const { walletApi, associationApi } = useApi()
 
 const loading = ref(false)
 const loadingWallets = ref(true)
@@ -121,7 +121,7 @@ const formatBalance = (amount: number, currency: string) => {
 const loadWallets = async () => {
   loadingWallets.value = true
   try {
-    const response = await walletApi.getWallets()
+    const response = await walletAPI.getWallets()
     wallets.value = response.data?.filter((w: any) => w.currency === props.currency) || response.data || []
     if (wallets.value.length > 0 && !form.value.wallet_id) {
       form.value.wallet_id = wallets.value[0].id
@@ -140,7 +140,7 @@ const submit = async () => {
   error.value = ''
   
   try {
-    await associationApi.recordContribution(props.associationId, {
+    await associationAPI.recordContribution(props.associationId, {
       wallet_id: form.value.wallet_id,
       pin: form.value.pin,
       amount: form.value.amount,
