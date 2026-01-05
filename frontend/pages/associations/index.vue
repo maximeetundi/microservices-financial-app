@@ -102,12 +102,12 @@ import {
   ArrowRightIcon
 } from '@heroicons/vue/24/outline'
 
+import { associationAPI } from '~/composables/useApi'
+
 definePageMeta({
   layout: false,
   middleware: 'auth'
 })
-
-const { associationApi } = useApi()
 
 const loading = ref(true)
 const associations = ref<any[]>([])
@@ -185,12 +185,7 @@ const formatCurrency = (amount: number, currency: string) => {
 
 onMounted(async () => {
   try {
-    if (!associationApi || typeof associationApi.getAll !== 'function') {
-      console.warn('Association API not available yet')
-      associations.value = []
-      return
-    }
-    const response = await associationApi.getAll()
+    const response = await associationAPI.getAll()
     associations.value = response.data?.associations || response.data || []
   } catch (err) {
     console.error('Failed to load associations', err)

@@ -173,12 +173,13 @@ import {
   ScaleIcon 
 } from '@heroicons/vue/24/outline'
 
+import { associationAPI } from '~/composables/useApi'
+
 definePageMeta({
   layout: false,
   middleware: 'auth'
 })
 
-const { associationApi } = useApi()
 const router = useRouter()
 const loading = ref(false)
 const currentStep = ref(0)
@@ -227,10 +228,7 @@ const handleSubmit = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    if (!associationApi || typeof associationApi.create !== 'function') {
-      throw new Error('Le service des associations n\'est pas disponible. Veuillez réessayer plus tard.')
-    }
-    const response = await associationApi.create(form)
+    const response = await associationAPI.create(form)
     // Success notification could be added here
     await router.push('/associations')
   } catch (err: any) {

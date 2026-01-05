@@ -206,6 +206,7 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/vue/24/outline'
+import { associationAPI } from '~/composables/useApi'
 
 definePageMeta({
   layout: false,
@@ -213,8 +214,6 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { associationApi } = useApi()
-
 const id = route.params.id as string
 const association = ref<any>(null)
 const members = ref<any[]>([])
@@ -235,13 +234,9 @@ const tabs = [
 const handleContributionSuccess = async () => {
   // Reload treasury data
   try {
-    if (!associationApi || typeof associationApi.getTreasury !== 'function') {
-      console.warn('Association API not available')
-      return
-    }
-    const treasuryRes = await associationApi.getTreasury(id)
+    const treasuryRes = await associationAPI.getTreasury(id)
     treasury.value = treasuryRes.data || treasury.value
-    const assocRes = await associationApi.get(id)
+    const assocRes = await associationAPI.get(id)
     association.value = assocRes.data
   } catch (err) {
     console.error('Failed to refresh', err)
@@ -289,14 +284,10 @@ const formatDate = (dateStr: string) => {
 
 onMounted(async () => {
   try {
-    if (!associationApi || typeof associationApi.get !== 'function') {
-      console.warn('Association API not available yet')
-      return
-    }
     const [assocRes, membersRes, treasuryRes] = await Promise.all([
-      associationApi.get(id),
-      associationApi.getMembers(id),
-      associationApi.getTreasury(id)
+      associationAPI.get(id),
+      associationAPI.getMembers(id),
+      associationAPI.getTreasury(id)
     ])
     association.value = assocRes.data
     members.value = membersRes.data || []
