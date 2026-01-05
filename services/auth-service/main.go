@@ -122,6 +122,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
 	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService, eventPublisher)
+	userHandler := handlers.NewUserHandler(db.DB)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -184,6 +185,10 @@ func main() {
 		// useApi: userAPI calls /users/2fa. Backend: /enable-2fa.
 		// I'll group users routes correctly too while I am here.
 		
+		// User search (public - no auth required)
+		api.GET("/users/search", userHandler.SearchUsers)
+		
+		// Protected user routes
 		users := api.Group("/users")
 		users.Use(middleware.JWTAuth(cfg.JWTSecret)) 
 		{

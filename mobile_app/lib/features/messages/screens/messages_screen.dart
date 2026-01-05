@@ -88,6 +88,11 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
           ),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showNewConversationDialog,
+        backgroundColor: const Color(0xFF25D366),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 
@@ -261,6 +266,158 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
         );
       },
     );
+  }
+
+  void _showNewConversationDialog() {
+    final searchController = TextEditingController();
+    List<Map<String, dynamic>> searchResults = [];
+    bool isSearching = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Nouvelle conversation',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Email ou numéro...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (query) async {
+                  if (query.length < 3) {
+                    setState(() {
+                      searchResults = [];
+                    });
+                    return;
+                  }
+
+                  setState(() => isSearching = true);
+
+                  try {
+                    final response = await _api.dio.get(
+                      '/auth-service/api/v1/users/search',
+                      queryParameters: {'q': query},
+                    );
+                    setState(() {
+                      searchResults = (response.data['users'] as List)
+                          .map((u) => Map<String, dynamic>.from(u))
+                          .toList();
+                      isSearching = false;
+                    });
+                  } catch (e) {
+                    setState(() => isSearching = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              if (isSearching)
+                const Center(child: CircularProgressIndicator())
+              else if (searchResults.isNotEmpty)
+                SizedBox(
+                  height: 300,
+                  child: ListView.builder(
+                    itemCount: searchResults.length,
+                    itemBuilder: (context, index) {
+                      final user = searchResults[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF25D366),
+                          child: Text(
+                            (user['name'] ?? 'U')[0].toUpperCase(),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        title: Text(user['name'] ?? 'Utilisateur'),
+                        subtitle: Text(user['email'] ?? user['phone'] ?? ''),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await _createConversation(user);
+                        },
+                      );
+                    },
+                  ),
+                )
+              else if (searchController.text.length >= 3)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('Aucun utilisateur trouvé'),
+                  ),
+                )
+              else
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'Tapez au moins 3 caractères pour rechercher',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createConversation(Map<String, dynamic> user) async {
+    try {
+      final response = await _api.dio.post(
+        '/messaging-service/api/v1/conversations',
+        data: {'participant_id': user['id']},
+      );
+
+      final conversation = Map<String, dynamic>.from(response.data);
+      conversation['name'] = user['name'];
+
+      setState(() {
+        _userConversations.insert(0, conversation);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conversation créée !')),
+      );
+
+      _openChat(conversation, false);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
   }
 }
 
