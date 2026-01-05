@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	
 	"messaging-service/internal/handlers"
+	"messaging-service/internal/middleware"
 	"messaging-service/internal/services"
 )
 
@@ -93,8 +94,9 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "service": "messaging-service"}) 
 	})
 
-	// API routes
+	// API routes (protected with JWT)
 	api := r.Group("/api/v1")
+	api.Use(middleware.JWTAuth(os.Getenv("JWT_SECRET")))
 	{
 		// File upload
 		api.POST("/upload", handler.UploadFile)
