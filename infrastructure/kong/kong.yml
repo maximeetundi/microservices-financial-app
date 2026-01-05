@@ -84,7 +84,10 @@ plugins:
   - name: cors
     config:
       origins:
-        - "*"
+        - "https://app.maximeetundi.store"
+        - "https://admin.maximeetundi.store"
+        - "http://localhost:3000"
+        - "http://localhost:3001"
       methods:
         - GET
         - POST
@@ -103,6 +106,7 @@ plugins:
         - Content-Length
       credentials: true
       max_age: 3600
+      preflight_continue: false
   - name: request-size-limiting
     config:
       allowed_payload_size: 50
