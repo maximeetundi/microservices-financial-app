@@ -125,6 +125,21 @@
         </div>
       </div>
     </div>
+
+    <!-- New Conversation Modal -->
+    <NewConversationModal :show="showNewConversationModal" @close="showNewConversationModal = false" @userSelected="handleUserSelected" />
+
+    <!-- Image Modal -->
+    <Teleport to="body">
+      <div v-if="imageModalUrl" class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" @click="closeImageModal">
+        <button @click="closeImageModal" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <img :src="imageModalUrl" class="max-w-full max-h-full object-contain" @click.stop />
+      </div>
+    </Teleport>
   </NuxtLayout>
 </template>
 
@@ -256,20 +271,3 @@ onMounted(async () => {
   }
 })
 </script>
-
-<!-- New Conversation Modal -->
-<NewConversationModal :show="showNewConversationModal" @close="showNewConversationModal = false" @userSelected="handleUserSelected" />
-
-<!-- Image Modal -->
-<Teleport to="body">
-  <div v-if="imageModalUrl" class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" @click="closeImageModal">
-    <button @click="closeImageModal" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-      <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </button>
-    <img :src="imageModalUrl" class="max-w-full max-h-full object-contain" @click.stop />
-  </div>
-</Teleport>
-</NuxtLayout>
-</template>
