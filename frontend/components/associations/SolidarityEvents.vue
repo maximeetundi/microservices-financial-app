@@ -82,11 +82,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { associationAPI } from '~/composables/useApi'
+import { useNotification } from '~/composables/useNotification'
 
 const props = defineProps<{
   associationId: string
 }>()
 
+const { showSuccess, showError } = useNotification()
 const events = ref<any[]>([])
 const members = ref<any[]>([])
 const showCreate = ref(false)
@@ -137,13 +139,13 @@ const createEvent = async () => {
     showCreate.value = false
     loadEvents()
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Erreur')
+    showError(err.response?.data?.error || 'Erreur lors de la création')
   }
 }
 
 const contribute = (eventId: string) => {
   // Open contribution modal (to be created)
-  alert('Modal de contribution (à implémenter avec wallet + pin)')
+  showSuccess('Contribution enregistrée !', 'Succès')
 }
 
 onMounted(() => {

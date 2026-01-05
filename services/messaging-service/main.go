@@ -10,6 +10,9 @@ import (
 	"github.com/gin-contrib/cors"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	
+	"messaging-service/internal/handlers"
+	"messaging-service/internal/services"
 )
 
 var db *mongo.Database
@@ -38,6 +41,41 @@ func main() {
 	db = client.Database("messaging")
 	log.Println("Connected to MongoDB")
 
+	// Initialize MinIO storage
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "minio:9000"
+	}
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = "minioadmin"
+	}
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	if minioSecretKey == "" {
+		minioSecretKey = "minioadmin123"
+	}
+	minioPublicURL := os.Getenv("MINIO_PUBLIC_URL")
+	if minioPublicURL == "" {
+		minioPublicURL = "https://minio.maximeetundi.store"
+	}
+	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	storageService, err := services.NewStorageService(
+		minioEndpoint,
+		minioAccessKey,
+		minioSecretKey,
+		"chat-attachments",
+		minioUseSSL,
+		minioPublicURL,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize MinIO: %v", err)
+	}
+	log.Println("Connected to MinIO")
+
+	// Create handler with storage
+	handler := handlers.NewMessageHandler(db, storageService)
+
 	// Setup Gin router
 	r := gin.Default()
 
@@ -58,19 +96,21 @@ func main() {
 	// API routes
 	api := r.Group("/api/v1")
 	{
+		// File upload
+		api.POST("/upload", handler.UploadFile)
+		
 		// User-to-user messaging
-		api.GET("/conversations", getConversations)
-		api.GET("/conversations/:id", getConversation)
-		api.POST("/conversations", createConversation)
-		api.POST("/conversations/:id/messages", sendMessage)
-		api.GET("/conversations/:id/messages", getMessages)
-		api.POST("/messages/:id/read", markAsRead)
-		api.DELETE("/conversations/:id", deleteConversation)
+		api.GET("/conversations", handler.GetConversations)
+		api.POST("/conversations", handler.CreateConversation)
+		api.GET("/conversations/:id/messages", handler.GetMessages)
+		api.POST("/conversations/:id/messages", handler.SendMessage)
+		api.POST("/messages/:id/read", handler.MarkAsRead)
+		api.DELETE("/conversations/:id", handler.DeleteConversation)
 
-		// Association chat
-		api.GET("/associations/:id/chat", getAssociationChat)
-		api.POST("/associations/:id/chat", sendAssociationMessage)
-		api.DELETE("/associations/:id/chat/:messageId", deleteAssociationMessage)
+		// Association chat (centralized in messaging-service)
+		api.GET("/associations/:id/chat", handler.GetAssociationChat)
+		api.POST("/associations/:id/chat", handler.SendAssociationMessage)
+		api.DELETE("/associations/:id/chat/:messageId", handler.DeleteAssociationMessage)
 	}
 
 	port := os.Getenv("PORT")
@@ -82,45 +122,4 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
-}
-
-// Placeholder handlers
-func getConversations(c *gin.Context) {
-	c.JSON(200, gin.H{"conversations": []interface{}{}})
-}
-
-func getConversation(c *gin.Context) {
-	c.JSON(200, gin.H{})
-}
-
-func createConversation(c *gin.Context) {
-	c.JSON(201, gin.H{})
-}
-
-func sendMessage(c *gin.Context) {
-	c.JSON(201, gin.H{})
-}
-
-func getMessages(c *gin.Context) {
-	c.JSON(200, gin.H{"messages": []interface{}{}})
-}
-
-func markAsRead(c *gin.Context) {
-	c.JSON(200, gin.H{})
-}
-
-func deleteConversation(c *gin.Context) {
-	c.JSON(200, gin.H{})
-}
-
-func getAssociationChat(c *gin.Context) {
-	c.JSON(200, gin.H{"messages": []interface{}{}})
-}
-
-func sendAssociationMessage(c *gin.Context) {
-	c.JSON(201, gin.H{})
-}
-
-func deleteAssociationMessage(c *gin.Context) {
-	c.JSON(200, gin.H{})
 }

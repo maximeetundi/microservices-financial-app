@@ -177,11 +177,10 @@
           </div>
         </div>
 
-        <!-- Chat Tab -->
-        <AssociationChat v-if="activeTab === 'chat'" :associationId="id" />
 
-        <!-- Solidarity Tab -->
-        <SolidarityEvents v-if="activeTab === 'solidarity'" :associationId="id" />
+
+        <!-- Emergency Fund Tab (Caisse de Secours) -->
+        <EmergencyFund v-if="activeTab === 'emergency'" :associationId="id" />
 
         <!-- Tontine Tab -->
         <CalledTontine v-if="activeTab === 'tontine'" :associationId="id" />
@@ -239,8 +238,8 @@ import { associationAPI } from '~/composables/useApi'
 import ContributionModal from '~/components/associations/ContributionModal.vue'
 import LoanRequestModal from '~/components/associations/LoanRequestModal.vue'
 import ApprovalModal from '~/components/associations/ApprovalModal.vue'
-import AssociationChat from '~/components/associations/AssociationChat.vue'
-import SolidarityEvents from '~/components/associations/SolidarityEvents.vue'
+
+import EmergencyFund from '~/components/associations/EmergencyFund.vue'
 import CalledTontine from '~/components/associations/CalledTontine.vue'
 
 definePageMeta({
@@ -266,8 +265,7 @@ const tabs = [
   { id: 'treasury', name: 'Trésorerie', icon: BanknotesIcon },
   { id: 'meetings', name: 'Réunions', icon: CalendarIcon },
   { id: 'loans', name: 'Prêts', icon: ScaleIcon },
-  { id: 'chat', name: 'Chat', icon: ArrowUpIcon },
-  { id: 'solidarity', name: 'Solidarité', icon: ArrowDownIcon },
+  { id: 'emergency', name: 'Caisse Secours', icon: ArrowDownIcon },
   { id: 'tontine', name: 'Tontine', icon: BanknotesIcon },
   { id: 'approvals', name: 'Approbations', icon: ScaleIcon },
 ]

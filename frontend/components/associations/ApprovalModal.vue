@@ -49,15 +49,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { associationAPI } from '~/composables/useApi'
+import { useNotification } from '~/composables/useNotification'
 
 const props = defineProps<{
   show: boolean
   associationId: string
 }>()
 
-const emit = defineEmits(['close', 'refresh'])
+const emit = emit(['close', 'refresh'])
+
+const { showSuccess, showError } = useNotification()
 
 const loading = ref(false)
 const requests = ref<any[]>([])
@@ -84,7 +87,8 @@ const vote = async (requestId: string, voteType: 'approve' | 'reject') => {
     loadRequests()
     emit('refresh')
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Erreur de vote')
+    showError(err.response?.data?.error || 'Erreur lors du vote')
+  } finally {
   }
 }
 

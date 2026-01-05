@@ -297,11 +297,50 @@ func createTables(db *sql.DB) error {
 		UNIQUE(round_id, contributor_id)
 	);
 
+	-- Emergency Fund (Caisse de Secours) - separate from main treasury
+	CREATE TABLE IF NOT EXISTS emergency_funds (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		association_id UUID NOT NULL REFERENCES associations(id) ON DELETE CASCADE,
+		balance DECIMAL(15,2) DEFAULT 0,
+		monthly_contribution DECIMAL(10,2) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(association_id)
+	);
+
+	-- Emergency fund monthly contributions
+	CREATE TABLE IF NOT EXISTS emergency_contributions (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		emergency_fund_id UUID NOT NULL REFERENCES emergency_funds(id) ON DELETE CASCADE,
+		member_id UUID NOT NULL REFERENCES members(id),
+		amount DECIMAL(10,2) NOT NULL,
+		period VARCHAR(20) NOT NULL,
+		paid BOOLEAN DEFAULT false,
+		paid_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(emergency_fund_id, member_id, period)
+	);
+
+	-- Emergency fund withdrawals (require 4/5 approval)
+	CREATE TABLE IF NOT EXISTS emergency_withdrawals (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		emergency_fund_id UUID NOT NULL REFERENCES emergency_funds(id) ON DELETE CASCADE,
+		event_type VARCHAR(50) NOT NULL,
+		beneficiary_id UUID NOT NULL REFERENCES members(id),
+		amount DECIMAL(10,2) NOT NULL,
+		reason TEXT,
+		status VARCHAR(20) DEFAULT 'pending',
+		approval_request_id UUID,
+		created_by VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		processed_at TIMESTAMP
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_roles_association ON association_roles(association_id);
 	CREATE INDEX IF NOT EXISTS idx_approvers_association ON association_approvers(association_id);
 	CREATE INDEX IF NOT EXISTS idx_approval_requests_association ON approval_requests(association_id);
 	CREATE INDEX IF NOT EXISTS idx_messages_association ON association_messages(association_id);
 	CREATE INDEX IF NOT EXISTS idx_solidarity_association ON solidarity_events(association_id);
+	CREATE INDEX IF NOT EXISTS idx_emergency_funds_association ON emergency_funds(association_id);
 	`
 
 	_, _ = db.Exec(phase1Schema)

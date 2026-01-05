@@ -103,4 +103,52 @@ class AssociationApiService {
       data: {'amount': amount, 'member_ids': memberIds}
     );
   }
+
+  // ========== Messaging (Association Chat) ==========
+
+  Future<Response> getMyAssociations() async {
+    return await _dio.get('${ApiConstants.baseUrl}/association-service/api/v1/associations/me');
+  }
+
+  Future<Response> getAssociationMessages(String id, {int limit = 50}) async {
+    return await _dio.get('${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/chat?limit=$limit');
+  }
+
+  Future<Response> sendAssociationMessage(String id, String content) async {
+    return await _dio.post(
+      '${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/chat',
+      data: {'content': content}
+    );
+  }
+
+  // ========== Emergency Fund (Caisse de Secours) ==========
+
+  Future<Response> createEmergencyFund(String id, double monthlyContribution) async {
+    return await _dio.post(
+      '${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/emergency-fund',
+      data: {'monthly_contribution': monthlyContribution}
+    );
+  }
+
+  Future<Response> getEmergencyFund(String id) async {
+    return await _dio.get('${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/emergency-fund');
+  }
+
+  Future<Response> contributeToEmergencyFund(String id, Map<String, dynamic> data) async {
+    return await _dio.post(
+      '${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/emergency-fund/contribute',
+      data: data
+    );
+  }
+
+  Future<Response> requestEmergencyWithdrawal(String id, Map<String, dynamic> data) async {
+    return await _dio.post(
+      '${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/emergency-fund/withdraw',
+      data: data
+    );
+  }
+
+  Future<Response> getEmergencyWithdrawals(String id) async {
+    return await _dio.get('${ApiConstants.baseUrl}/association-service/api/v1/associations/$id/emergency-fund/withdrawals');
+  }
 }

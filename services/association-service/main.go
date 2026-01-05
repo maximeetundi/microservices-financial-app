@@ -157,6 +157,13 @@ func main() {
 			protected.POST("/rounds/:roundId/pledge", extHandler.MakePledge)
 			protected.POST("/rounds/:roundId/pledges/:pledgeId/pay", extHandler.PayPledge)
 			protected.GET("/rounds/:roundId/pledges", extHandler.GetPledges)
+
+			// Emergency Fund (Caisse de Secours)
+			protected.POST("/associations/:id/emergency-fund", extHandler.CreateEmergencyFund)
+			protected.GET("/associations/:id/emergency-fund", extHandler.GetEmergencyFund)
+			protected.POST("/associations/:id/emergency-fund/contribute", extHandler.ContributeToEmergencyFund)
+			protected.POST("/associations/:id/emergency-fund/withdraw", extHandler.RequestEmergencyWithdrawal)
+			protected.GET("/associations/:id/emergency-fund/withdrawals", extHandler.GetEmergencyWithdrawals)
 		}
 	}
 

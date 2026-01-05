@@ -28,10 +28,13 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { associationAPI } from '~/composables/useApi'
+import { useNotification } from '~/composables/useNotification'
 
 const props = defineProps<{
   associationId: string
 }>()
+
+const { showError } = useNotification()
 
 const messages = ref<any[]>([])
 const newMessage = ref('')
@@ -57,7 +60,7 @@ const sendMessage = async () => {
     newMessage.value = ''
     loadMessages()
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Erreur')
+    showError(err.response?.data?.error || 'Erreur lors de l\'envoi')
   }
 }
 

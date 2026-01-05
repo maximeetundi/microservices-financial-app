@@ -56,10 +56,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { associationAPI } from '~/composables/useApi'
+import { useNotification } from '~/composables/useNotification'
 
 const props = defineProps<{
   associationId: string
 }>()
+
+const { showSuccess, showError } = useNotification()
 
 const rounds = ref<any[]>([])
 const members = ref<any[]>([])
@@ -97,7 +100,7 @@ const createRound = async () => {
     showCreate.value = false
     loadRounds()
   } catch (err: any) {
-    alert(err.response?.data?.error || 'Erreur')
+    showError(err.response?.data?.error || 'Erreur lors de la création du tour')
   }
 }
 
@@ -105,14 +108,17 @@ const makePledge = (roundId: string) => {
   const amount = prompt('Montant de votre promesse:')
   if (amount) {
     associationAPI.makePledge(roundId, parseFloat(amount))
-      .then(() => loadRounds())
-      .catch((err: any) => alert(err.response?.data?.error || 'Erreur'))
+      .then(() => {
+      showSuccess('Promesse enregistrée !', 'Succès')
+      loadRounds()
+    })
+    .catch((err: any) => showError(err.response?.data?.error || 'Erreur lors de la promesse'))
   }
 }
 
 const viewPledges = (roundId: string) => {
-  // Navigate to pledges view or open modal
-  alert('Vue des promesses (à implémenter)')
+  // Navigate tconst viewPledges = (roundId: string) => {
+  showSuccess('Vue des promesses disponible prochainement', 'Information')
 }
 
 onMounted(() => {

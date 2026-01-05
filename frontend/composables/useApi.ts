@@ -625,6 +625,16 @@ export const associationAPI = {
     payPledge: (roundId: string, pledgeId: string, walletId: string, pin: string) =>
         api.post(`/association-service/api/v1/rounds/${roundId}/pledges/${pledgeId}/pay`, { wallet_id: walletId, pin }),
     getPledges: (roundId: string) => api.get(`/association-service/api/v1/rounds/${roundId}/pledges`),
+
+    // === NEW: Emergency Fund (Caisse de Secours) ===
+    createEmergencyFund: (id: string, monthlyContribution: number) =>
+        api.post(`/association-service/api/v1/associations/${id}/emergency-fund`, { monthly_contribution: monthlyContribution }),
+    getEmergencyFund: (id: string) => api.get(`/association-service/api/v1/associations/${id}/emergency-fund`),
+    contributeToEmergencyFund: (id: string, data: { period: string; wallet_id: string; pin: string; amount: number }) =>
+        api.post(`/association-service/api/v1/associations/${id}/emergency-fund/contribute`, data),
+    requestEmergencyWithdrawal: (id: string, data: { event_type: string; beneficiary_id: string; amount: number; reason: string }) =>
+        api.post(`/association-service/api/v1/associations/${id}/emergency-fund/withdraw`, data),
+    getEmergencyWithdrawals: (id: string) => api.get(`/association-service/api/v1/associations/${id}/emergency-fund/withdrawals`),
 }
 
 export const useApi = () => {
