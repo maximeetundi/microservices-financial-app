@@ -271,3 +271,5 @@ onMounted(async () => {
     <img :src="imageModalUrl" class="max-w-full max-h-full object-contain" @click.stop />
   </div>
 </Teleport>
+</NuxtLayout>
+</template>
