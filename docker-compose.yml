@@ -427,8 +427,8 @@ services:
   # Messaging Service (User-to-user + Association Chat)
   messaging-service:
     build:
-      context: ./services
-      dockerfile: ./messaging-service/Dockerfile
+      context: ./services/messaging-service
+      dockerfile: Dockerfile
     ports:
       - "8095:8095"
     depends_on:
