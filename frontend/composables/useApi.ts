@@ -637,6 +637,27 @@ export const associationAPI = {
     getEmergencyWithdrawals: (id: string) => api.get(`/association-service/api/v1/associations/${id}/emergency-fund/withdrawals`),
 }
 
+// === CONTACTS API ===
+export const contactsAPI = {
+    // Get all user's synced contacts
+    getAll: () => api.get('/auth-service/api/v1/users/contacts'),
+
+    // Add a single contact manually
+    add: (data: { phone?: string; email?: string; name: string }) =>
+        api.post('/auth-service/api/v1/users/contacts', data),
+
+    // Bulk sync contacts from mobile
+    sync: (contacts: Array<{ phone?: string; email?: string; name: string }>) =>
+        api.post('/auth-service/api/v1/users/contacts/sync', { contacts }),
+
+    // Delete a contact
+    delete: (id: string) => api.delete(`/auth-service/api/v1/users/contacts/${id}`),
+
+    // Lookup contact name by phone or email
+    lookup: (phone?: string, email?: string) =>
+        api.get('/auth-service/api/v1/users/contacts/lookup', { params: { phone, email } }),
+}
+
 export const useApi = () => {
     return {
         authApi: authAPI,
@@ -653,6 +674,7 @@ export const useApi = () => {
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,
         associationApi: associationAPI,
+        contactsApi: contactsAPI,
     }
 }
 

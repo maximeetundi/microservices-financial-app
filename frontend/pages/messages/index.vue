@@ -6,11 +6,18 @@
         <!-- Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
-          <button @click="showNewConversationModal = true" class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors" title="Nouvelle conversation">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <div class="flex items-center gap-2">
+            <button @click="showContactsModal = true" class="w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors" title="Mes Contacts">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+            <button @click="showNewConversationModal = true" class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors" title="Nouvelle conversation">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Search -->
@@ -134,6 +141,7 @@
 
     <!-- New Conversation Modal -->
     <NewConversationModal :show="showNewConversationModal" @close="showNewConversationModal = false" @userSelected="handleUserSelected" />
+    <ContactsModal :show="showContactsModal" @close="showContactsModal = false" @startConversation="handleContactConversation" />
 
     <!-- Image Modal -->
     <Teleport to="body">
@@ -157,6 +165,7 @@ import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
 import MessageInput from '~/components/messages/MessageInput.vue'
 import NewConversationModal from '~/components/messages/NewConversationModal.vue'
+import ContactsModal from '~/components/messages/ContactsModal.vue'
 
 definePageMeta({
   layout: false,
@@ -175,6 +184,7 @@ const messages = ref<any[]>([])
 const messagesContainer = ref<HTMLElement>()
 const imageModalUrl = ref<string | null>(null)
 const showNewConversationModal = ref(false)
+const showContactsModal = ref(false)
 const userConversations = ref<any[]>([])
 const associationChats = ref<any[]>([])
 const onlineStatus = ref<Record<string, string>>({})
@@ -490,6 +500,25 @@ const loadConversations = async () => {
 const handleUserSelected = (conversation: any) => {
   userConversations.value.unshift(conversation)
   selectConversation(conversation)
+}
+
+const handleContactConversation = async (user: any) => {
+  showContactsModal.value = false
+  // Create or get existing conversation with this user
+  try {
+    const res = await api.post('/messaging-service/api/v1/conversations', {
+      participant_id: user.id,
+      participant_name: user.contactName || user.name || 'Utilisateur',
+      participant_email: user.email || '',
+      participant_phone: user.phone || '',
+      my_name: authStore.user?.firstName || 'Moi'
+    })
+    const conversation = res.data
+    userConversations.value.unshift(conversation)
+    selectConversation(conversation)
+  } catch (e) {
+    console.error('Failed to create conversation:', e)
+  }
 }
 
 const handleMessageSent = () => {

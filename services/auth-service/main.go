@@ -123,6 +123,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)
 	prefsHandler := handlers.NewPreferencesHandler(prefsRepo, storageService, eventPublisher)
 	userHandler := handlers.NewUserHandler(db)
+	contactsHandler := handlers.NewContactsHandler(db)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -225,6 +226,13 @@ func main() {
              users.POST("/presence", userHandler.UpdatePresence)
              users.GET("/presence/:id", userHandler.GetUserPresence)
              users.POST("/presence/batch", userHandler.GetMultiplePresence)
+
+             // Contacts management
+             users.GET("/contacts", contactsHandler.GetContacts)
+             users.POST("/contacts", contactsHandler.AddContact)
+             users.POST("/contacts/sync", contactsHandler.SyncContacts)
+             users.DELETE("/contacts/:id", contactsHandler.DeleteContact)
+             users.GET("/contacts/lookup", contactsHandler.LookupContactName)
 		}
 		
 		// Restore original root for backward compat if needed? No, user wants paradigm fix.

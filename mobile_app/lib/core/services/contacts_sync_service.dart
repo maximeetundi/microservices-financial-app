@@ -1,6 +1,7 @@
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import 'dart:convert';
 
 /// Service for syncing and matching phone contacts
@@ -71,8 +72,52 @@ class ContactsSyncService {
       
       // Cache for next app start
       await _saveToCache();
+      
+      // Upload to backend for cross-device sync
+      await _uploadToBackend();
     } catch (e) {
       debugPrint('ContactsSyncService: Error syncing contacts: $e');
+    }
+  }
+
+  /// Upload contacts to backend for cross-device access
+  Future<void> _uploadToBackend() async {
+    if (_phoneToName.isEmpty && _emailToName.isEmpty) return;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken');
+      if (token == null) {
+        debugPrint('ContactsSyncService: No auth token, skipping backend sync');
+        return;
+      }
+      
+      // Build contacts list
+      final List<Map<String, String>> contacts = [];
+      
+      _phoneToName.forEach((phone, name) {
+        contacts.add({'phone': phone, 'name': name});
+      });
+      
+      _emailToName.forEach((email, name) {
+        // Only add if not already added by phone
+        if (!contacts.any((c) => c['name'] == name)) {
+          contacts.add({'email': email, 'name': name});
+        }
+      });
+      
+      // Send to backend
+      final dio = Dio();
+      dio.options.headers['Authorization'] = 'Bearer $token';
+      
+      await dio.post(
+        'https://api.app.maximeetundi.store/auth-service/api/v1/users/contacts/sync',
+        data: {'contacts': contacts},
+      );
+      
+      debugPrint('ContactsSyncService: Uploaded ${contacts.length} contacts to backend');
+    } catch (e) {
+      debugPrint('ContactsSyncService: Error uploading to backend: $e');
     }
   }
 
