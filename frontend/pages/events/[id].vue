@@ -124,9 +124,9 @@
               <button @click="showScannerModal = true" class="btn-scan">
                 📷 Scanner les tickets
               </button>
-              <NuxtLink :to="`/events/${event.id}/tickets`" class="btn-secondary">
+              <button @click="navigateTo(`/events/${event.id}/tickets`)" class="btn-secondary">
                 📊 Voir les tickets vendus
-              </NuxtLink>
+              </button>
             </div>
           </div>
         </div>
