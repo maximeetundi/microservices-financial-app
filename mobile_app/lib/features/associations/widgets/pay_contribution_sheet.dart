@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/services/association_api_service.dart';
-import '../../core/services/wallet_api_service.dart';
-import '../../core/services/api_client.dart';
+import '../../../core/services/association_api_service.dart';
+import '../../../core/services/wallet_api_service.dart';
+import '../../../core/api/api_client.dart';
 
 class PayContributionSheet extends StatefulWidget {
   final String associationId;

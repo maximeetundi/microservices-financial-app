@@ -89,6 +89,9 @@ dependencies:
   
   # WebSocket for real-time messaging
   web_socket_channel: ^2.4.0
+  
+  # URL Launcher (for opening links, emails, phone calls)
+  url_launcher: ^6.2.1
 
 dev_dependencies:
   flutter_test:

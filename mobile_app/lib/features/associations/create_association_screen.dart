@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/association_api_service.dart';
-import '../../core/services/api_client.dart';
+import '../../core/api/api_client.dart';
 
 class CreateAssociationScreen extends StatefulWidget {
   const CreateAssociationScreen({super.key});

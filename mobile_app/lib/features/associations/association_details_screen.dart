@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/association_api_service.dart';
-import '../../core/services/api_client.dart';
+import '../../core/api/api_client.dart';
 import 'widgets/pay_contribution_sheet.dart';
 
 class AssociationDetailsScreen extends StatefulWidget {

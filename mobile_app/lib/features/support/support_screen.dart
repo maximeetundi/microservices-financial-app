@@ -44,10 +44,9 @@ class _SupportScreenState extends State<SupportScreen> {
     if (_loadingConversations) return;
     setState(() => _loadingConversations = true);
     try {
-      final response = await _supportApi.getTickets();
-      final list = response['conversations'] as List? ?? [];
+      final list = await _supportApi.getTickets();
       setState(() {
-        _existingConversations = List<Map<String, dynamic>>.from(list);
+        _existingConversations = list;
       });
     } catch (e) {
       debugPrint('Failed to load conversations: $e');

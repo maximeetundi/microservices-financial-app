@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'association_details_screen.dart';
 import 'create_association_screen.dart';
 import '../../core/services/association_api_service.dart';
-import '../../core/services/api_client.dart';
+import '../../core/api/api_client.dart';
 
 class AssociationsScreen extends StatefulWidget {
   const AssociationsScreen({super.key});

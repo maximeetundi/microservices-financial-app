@@ -404,9 +404,9 @@ class _CardDetailPageState extends State<CardDetailPage> {
   void _toggleCardStatus() {
     final status = _card!['status'];
     if (status == 'active') {
-      context.read<CardsBloc>().add(FreezeCardEvent(widget.cardId));
+      context.read<CardsBloc>().add(FreezeCardEvent(cardId: widget.cardId));
     } else {
-      context.read<CardsBloc>().add(UnfreezeCardEvent(widget.cardId));
+      context.read<CardsBloc>().add(UnfreezeCardEvent(cardId: widget.cardId));
     }
   }
 
