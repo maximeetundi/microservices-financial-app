@@ -172,7 +172,7 @@ func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*mod
 			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
 			t.transaction_id, t.used_at, t.created_at
 		FROM tickets t
-		WHERE t.event_id = $1 AND t.status IN ('paid', 'used')
+		WHERE t.event_id = $1
 		ORDER BY t.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
