@@ -527,11 +527,28 @@ class _ChatScreenState extends State<ChatScreen> {
   
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
+  String _currentUserId = '';
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadMessages();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString('user');
+    if (userJson != null) {
+      try {
+        final user = jsonDecode(userJson);
+        setState(() {
+          _currentUserId = user['id']?.toString() ?? '';
+        });
+      } catch (e) {
+        debugPrint('Failed to parse user: $e');
+      }
+    }
   }
 
   @override
@@ -687,7 +704,8 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
-                final isMine = false; // TODO: Check current user
+                final senderId = message['sender_id']?.toString() ?? '';
+                final isMine = senderId == _currentUserId;
                 return _buildMessageBubble(message, isMine);
               },
             ),
@@ -748,5 +766,70 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       return '';
     }
+  }
+
+  Widget _buildMessageBubble(Map<String, dynamic> message, bool isMine) {
+    final content = message['content']?.toString() ?? '';
+    final timestamp = _formatTime(message['created_at']);
+    
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: isMine ? const Color(0xFF25D366) : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12),
+            topRight: const Radius.circular(12),
+            bottomLeft: Radius.circular(isMine ? 12 : 0),
+            bottomRight: Radius.circular(isMine ? 0 : 12),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              content,
+              style: TextStyle(
+                color: isMine ? Colors.white : Colors.black87,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  timestamp,
+                  style: TextStyle(
+                    color: isMine ? Colors.white70 : Colors.grey[600],
+                    fontSize: 11,
+                  ),
+                ),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.done_all,
+                    size: 14,
+                    color: Colors.white70,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

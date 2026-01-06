@@ -311,7 +311,26 @@ const getOtherParticipantName = (conv: any) => {
   for (const p of participants) {
     const uid = p.user_id || p
     if (uid !== currentUserId.value) {
-      return p.user_name || p.phone || p.email || formatPhoneNumber(p.phone) || 'Utilisateur'
+      // Priority: name (if not generic) > phone > email > fallback
+      const name = p.name || p.user_name
+      const phone = p.phone
+      const email = p.email
+      
+      // If name is valid and not generic
+      if (name && name !== 'Utilisateur' && name !== 'Moi' && name.length > 0) {
+        return name
+      }
+      // Show phone if available
+      if (phone && phone.length > 0) {
+        return formatPhoneNumber(phone)
+      }
+      // Show email if available
+      if (email && email.length > 0) {
+        return email
+      }
+      // Fallback to name even if generic
+      if (name) return name
+      return 'Utilisateur'
     }
   }
   
