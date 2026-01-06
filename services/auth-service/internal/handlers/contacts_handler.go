@@ -152,6 +152,7 @@ func (h *ContactsHandler) AddContact(c *gin.Context) {
 }
 
 // SyncContacts bulk syncs contacts from mobile
+// Only contacts whose phone/email matches a registered user are saved
 func (h *ContactsHandler) SyncContacts(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -176,8 +177,27 @@ func (h *ContactsHandler) SyncContacts(c *gin.Context) {
 	h.ensureContactsTable()
 
 	synced := 0
+	skipped := 0
 	for _, contact := range req.Contacts {
 		if contact.Name == "" || (contact.Phone == "" && contact.Email == "") {
+			continue
+		}
+
+		// Check if this phone/email belongs to a registered user
+		var userExists bool
+		if contact.Phone != "" {
+			err := h.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE phone = $1)`, contact.Phone).Scan(&userExists)
+			if err != nil || !userExists {
+				// Try with normalized phone (remove spaces, dashes)
+				err = h.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE REPLACE(REPLACE(phone, ' ', ''), '-', '') = REPLACE(REPLACE($1, ' ', ''), '-', ''))`, contact.Phone).Scan(&userExists)
+			}
+		}
+		if !userExists && contact.Email != "" {
+			h.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1))`, contact.Email).Scan(&userExists)
+		}
+
+		if !userExists {
+			skipped++
 			continue
 		}
 
@@ -199,8 +219,9 @@ func (h *ContactsHandler) SyncContacts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"synced":  synced,
+		"skipped": skipped,
 		"total":   len(req.Contacts),
-		"message": "Contacts synced successfully",
+		"message": "Contacts synced successfully (only registered users)",
 	})
 }
 
