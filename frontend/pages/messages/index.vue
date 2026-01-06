@@ -302,6 +302,48 @@ const updateConversationLastMessage = (convId: string, message: any) => {
 }
 
 // Update presence (heartbeat)
+// Enrich conversation participants with user phone/email data
+const enrichConversationParticipants = async () => {
+  // Collect user IDs of other participants who don't have phone/email
+  const userIdsToFetch = new Set<string>()
+  
+  for (const conv of userConversations.value) {
+    for (const p of conv.participants || []) {
+      if (p.user_id !== currentUserId.value && !p.phone && !p.email) {
+        userIdsToFetch.add(p.user_id)
+      }
+    }
+  }
+  
+  if (userIdsToFetch.size === 0) return
+  
+  // Fetch user data for each missing participant
+  const userDataMap: Record<string, any> = {}
+  
+  for (const userId of userIdsToFetch) {
+    try {
+      const res = await api.get(`/auth-service/api/v1/users/${userId}`)
+      if (res.data) {
+        userDataMap[userId] = res.data
+      }
+    } catch (e) {
+      // Ignore errors for individual user fetches
+    }
+  }
+  
+  // Update conversations with fetched user data
+  for (const conv of userConversations.value) {
+    for (const p of conv.participants || []) {
+      if (p.user_id !== currentUserId.value && userDataMap[p.user_id]) {
+        const userData = userDataMap[p.user_id]
+        // Only update if data is missing
+        if (!p.phone && userData.phone) p.phone = userData.phone
+        if (!p.email && userData.email) p.email = userData.email
+      }
+    }
+  }
+}
+
 const updatePresence = async () => {
   try {
     await api.post('/auth-service/api/v1/users/presence')
@@ -565,6 +607,9 @@ onMounted(async () => {
     userConversations.value = convRes.data?.conversations || []
     associationChats.value = assocRes.data || []
     syncedContacts.value = contactsRes.data?.contacts || []
+    
+    // Enrich participants with user data (phone/email) for conversations missing this info
+    await enrichConversationParticipants()
   } catch (err) {
     console.error(err)
   }
