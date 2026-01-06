@@ -114,3 +114,41 @@ func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "notification deleted"})
 }
+
+// CreateNotification creates a new notification for a user (used by other services)
+func (h *NotificationHandler) CreateNotification(c *gin.Context) {
+	var req struct {
+		UserID  string                 `json:"user_id" binding:"required"`
+		Title   string                 `json:"title" binding:"required"`
+		Message string                 `json:"message" binding:"required"`
+		Type    string                 `json:"type"`
+		Data    map[string]interface{} `json:"data"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	if req.Type == "" {
+		req.Type = "message"
+	}
+
+	notification := models.Notification{
+		UserID:  req.UserID,
+		Title:   req.Title,
+		Message: req.Message,
+		Type:    req.Type,
+		Read:    false,
+	}
+
+	if err := h.repo.Create(&notification); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create notification"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message":      "notification created",
+		"notification": notification,
+	})
+}

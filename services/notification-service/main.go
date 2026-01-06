@@ -142,6 +142,9 @@ func main() {
 
 	// Notification API routes (protected by JWT)
 	if notificationHandler != nil {
+		// Public endpoint for other services to create notifications
+		router.POST("/api/v1/notifications", notificationHandler.CreateNotification)
+		
 		api := router.Group("/api/v1")
 		api.Use(middleware.JWTAuth(cfg.JWTSecret))
 		{

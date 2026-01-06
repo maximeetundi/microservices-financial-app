@@ -395,7 +395,7 @@ func (h *MessageHandler) sendNotification(userID, senderName, content string) {
 		return
 	}
 	
-	req, err := http.NewRequest("POST", "http://notification-service:8084/api/v1/notifications", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", "http://notification-service:8087/api/v1/notifications", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return
 	}
