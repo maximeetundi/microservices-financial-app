@@ -96,7 +96,7 @@ func main() {
 
 	// API routes (protected with JWT)
 	api := r.Group("/api/v1")
-	api.Use(middleware.JWTAuth(os.Getenv("JWT_SECRET")))
+	api.Use(middleware.AuthMiddleware())
 	{
 		// File upload
 		api.POST("/upload", handler.UploadFile)
