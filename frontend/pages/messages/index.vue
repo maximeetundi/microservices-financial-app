@@ -40,11 +40,11 @@
             <div v-for="conv in userConversations" :key="conv.id" @click="selectConversation(conv)"
               :class="['flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800', selectedConv?.id === conv.id && 'bg-gray-100 dark:bg-gray-800']">
               <div class="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
-                {{ conv.name?.[0]?.toUpperCase() }}
+                {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-baseline">
-                  <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ conv.name }}</h3>
+                  <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
                 <span class="text-xs text-gray-500"><ClientOnly>{{ formatTime(conv.lastMessageAt) }}</ClientOnly></span>
                 </div>
                 <p class="text-sm text-gray-500 truncate">{{ conv.lastMessage }}</p>
@@ -88,13 +88,13 @@
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
           <div class="relative">
             <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
-              {{ selectedConv ? selectedConv.name?.[0]?.toUpperCase() : '👥' }}
+              {{ selectedConv ? getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' : '👥' }}
             </div>
             <!-- Online indicator dot -->
             <div v-if="selectedUserStatus === 'En ligne'" class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
           <div class="flex-1">
-            <h3 class="font-medium text-gray-900 dark:text-white">{{ selectedConv?.name || selectedAssoc?.name }}</h3>
+            <h3 class="font-medium text-gray-900 dark:text-white">{{ selectedConv ? getOtherParticipantName(selectedConv) : selectedAssoc?.name }}</h3>
             <p :class="['text-xs', selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
               {{ selectedAssoc ? `${selectedAssoc.total_members || 0} membres` : selectedUserStatus || 'Chargement...' }}
             </p>
@@ -285,9 +285,58 @@ const updateConversationLastMessage = (convId: string, message: any) => {
 const updatePresence = async () => {
   try {
     await api.post('/auth-service/api/v1/users/presence')
-  } catch (e) {
-    // Ignore errors
+  } catch (e: any) {
+    // Ignore errors - presence endpoint may not exist
+    if (e?.response?.status !== 404) {
+      console.debug('Presence update skipped')
+    }
   }
+}
+
+// Get the name of the other participant in a conversation (not "Moi")
+const getOtherParticipantName = (conv: any) => {
+  if (!conv) return 'Inconnu'
+  
+  // If conv has participants array, find the one that's not the current user
+  const participants = conv.participants || []
+  for (const p of participants) {
+    const uid = p.user_id || p
+    if (uid !== currentUserId.value) {
+      return p.user_name || p.phone || p.email || formatPhoneNumber(p.phone) || 'Utilisateur'
+    }
+  }
+  
+  // If conv has other_user_name, use it
+  if (conv.other_user_name) return conv.other_user_name
+  if (conv.other_user_phone) return formatPhoneNumber(conv.other_user_phone)
+  
+  // Fallback to conv.name but check it's not the current user's name
+  const currentUserName = getCurrentUserName()
+  if (conv.name && conv.name !== currentUserName && conv.name !== 'Moi') {
+    return conv.name
+  }
+  
+  return conv.phone || 'Conversation'
+}
+
+// Get current user name from localStorage
+const getCurrentUserName = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+// Format phone number for display
+const formatPhoneNumber = (phone: string | undefined) => {
+  if (!phone) return ''
+  // Format as +XXX XX XX XX XX (if long enough)
+  if (phone.length >= 10) {
+    return phone.replace(/(\d{3})(\d{2})(\d{2})(\d{2})(\d{2})/, '+$1 $2 $3 $4 $5')
+  }
+  return phone
 }
 
 // Get display status for selected conversation
@@ -356,10 +405,18 @@ const loadMessages = async () => {
   if (!selectedConv.value) return
   try {
     const res = await api.get(`/messaging-service/api/v1/conversations/${selectedConv.value.id}/messages`)
-    messages.value = (res.data?.messages || []).map((m: any) => ({
-      ...m,
-      isMine: m.sender_id === currentUserId.value
-    }))
+    const userId = currentUserId.value
+    console.log('Current user ID:', userId)
+    messages.value = (res.data?.messages || []).map((m: any) => {
+      // Compare as strings and trim to handle format differences
+      const senderId = String(m.sender_id || '').trim()
+      const isMine = senderId === String(userId).trim()
+      console.log('Message sender:', senderId, '| isMine:', isMine)
+      return {
+        ...m,
+        isMine
+      }
+    })
     await nextTick()
     scrollToBottom()
   } catch (err) {
