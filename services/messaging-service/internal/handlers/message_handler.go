@@ -60,10 +60,16 @@ type Conversation struct {
 
 // GetConversations gets all conversations for the current user
 func (h *MessageHandler) GetConversations(c *gin.Context) {
-	// TODO: Get userID from JWT token
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
+	// Get userID from context (set by auth middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
