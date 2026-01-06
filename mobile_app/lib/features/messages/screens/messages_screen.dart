@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +30,7 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
   List<Map<String, dynamic>> _userConversations = [];
   List<Map<String, dynamic>> _associationChats = [];
   bool _loading = true;
+  Timer? _chatActivityTimer; // Added
 
   @override
   void initState() {
@@ -37,12 +39,24 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
     _initContacts();
     _initWebSocket();
     _loadData();
+    _setChatActivity(true); // Added
+    // Heartbeat every 30 seconds
+    _chatActivityTimer = Timer.periodic(const Duration(seconds: 30), (_) { // Added
+      _setChatActivity(true); // Added
+    }); // Added
   }
+
+  Future<void> _setChatActivity(bool active) async { // Added
+    try { // Added
+      await ApiClient().dio.post('/auth-service/api/v1/users/chat-activity', data: {'active': active}); // Added
+    } catch (e) { // Added
+      // Ignore errors // Added
+    } // Added
+  } // Added
 
   Future<void> _initWebSocket() async {
     // Get current user ID from secure storage
     final prefs = await SharedPreferences.getInstance();
-    final userJson = prefs.getString('user');
     if (userJson != null) {
       try {
         final user = jsonDecode(userJson);
@@ -108,6 +122,8 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
   void dispose() {
     _tabController.dispose();
     _wsService.disconnect();
+    _chatActivityTimer?.cancel(); // Added
+    _setChatActivity(false); // Added
     super.dispose();
   }
 
