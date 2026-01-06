@@ -28,14 +28,14 @@ func NewMessageHandler(db *mongo.Database, storage *services.StorageService) *Me
 
 // Message models
 type Attachment struct {
-	FileName     string `json:"file_name" bson:"file_name"`
-	FileURL      string `json:"file_url" bson:"file_url"`
-	FileSize     int64  `json:"file_size" bson:"file_size"`
-	MimeType     string `json:"mime_type" bson:"mime_type"`
-	Duration     int    `json:"duration,omitempty" bson:"duration,omitempty"`
-	ThumbnailURL string `json:"thumbnail_url,omitempty" bson:"thumbnail_url,omitempty"`
-	Width        int    `json:"width,omitempty" bson:"width,omitempty"`
-	Height       int    `json:"height,omitempty" bson:"height,omitempty"`
+	FileName     string  `json:"file_name" bson:"file_name"`
+	FileURL      string  `json:"file_url" bson:"file_url"`
+	FileSize     int64   `json:"file_size" bson:"file_size"`
+	MimeType     string  `json:"mime_type" bson:"mime_type"`
+	Duration     float64 `json:"duration,omitempty" bson:"duration,omitempty"`
+	ThumbnailURL string  `json:"thumbnail_url,omitempty" bson:"thumbnail_url,omitempty"`
+	Width        int     `json:"width,omitempty" bson:"width,omitempty"`
+	Height       int     `json:"height,omitempty" bson:"height,omitempty"`
 }
 
 type Message struct {
