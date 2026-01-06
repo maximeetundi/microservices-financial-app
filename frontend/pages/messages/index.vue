@@ -153,6 +153,7 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { associationAPI } from '~/composables/useApi'
 import api from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
 import MessageInput from '~/components/messages/MessageInput.vue'
 import NewConversationModal from '~/components/messages/NewConversationModal.vue'
@@ -179,8 +180,16 @@ const associationChats = ref<any[]>([])
 const onlineStatus = ref<Record<string, string>>({})
 const currentUserId = ref<string>('')
 
-// Get current user ID from localStorage
+// Initialize auth store
+const authStore = useAuthStore()
+
+// Get current user ID from auth store
 const getCurrentUserId = () => {
+  // Try from Pinia store first
+  if (authStore.user?.id) {
+    return authStore.user.id
+  }
+  // Fallback to localStorage (in case store not yet initialized)
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     return user.id || ''
