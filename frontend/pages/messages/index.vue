@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-lg">
+    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-lg max-w-full">
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
       <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', (selectedConv || selectedAssoc) ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
@@ -95,7 +95,7 @@
       </div>
 
       <!-- Chat Area - Full width on mobile -->
-      <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col w-full">
+      <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col w-full max-w-full overflow-hidden">
         <!-- Chat Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 md:gap-3">
           <!-- Back button for mobile -->
