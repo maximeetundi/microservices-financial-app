@@ -176,7 +176,7 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 	)
 
 	// Send notification to other participants if they're not in chat
-	go h.sendMessageNotifications(conversationID, userID, message.Content, senderName)
+	go h.sendMessageNotifications(conversationID, userID, message.Content, req.SenderName)
 
 	c.JSON(http.StatusCreated, message)
 }
