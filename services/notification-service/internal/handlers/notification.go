@@ -139,7 +139,7 @@ func (h *NotificationHandler) CreateNotification(c *gin.Context) {
 		Title:   req.Title,
 		Message: req.Message,
 		Type:    req.Type,
-		Read:    false,
+		IsRead:  false,
 	}
 
 	if err := h.repo.Create(&notification); err != nil {
