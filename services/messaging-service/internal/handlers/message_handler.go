@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -316,31 +317,40 @@ func (h *MessageHandler) DeleteConversation(c *gin.Context) {
 
 // sendMessageNotifications sends push notifications to conversation participants who are not currently in chat
 func (h *MessageHandler) sendMessageNotifications(conversationID, senderID, content, senderName string) {
+	log.Printf("[NOTIF] Starting sendMessageNotifications for conversation %s, sender %s", conversationID, senderID)
 	ctx := context.Background()
 	
 	// Get conversation to find participants
 	objID, err := primitive.ObjectIDFromHex(conversationID)
 	if err != nil {
+		log.Printf("[NOTIF] Error parsing conversation ID: %v", err)
 		return
 	}
 	
 	var conv Conversation
 	err = h.db.Collection("conversations").FindOne(ctx, bson.M{"_id": objID}).Decode(&conv)
 	if err != nil {
+		log.Printf("[NOTIF] Error fetching conversation: %v", err)
 		return
 	}
+	
+	log.Printf("[NOTIF] Found %d participants in conversation", len(conv.Participants))
 	
 	// For each participant except sender, check if they're in chat and send notification
 	for _, p := range conv.Participants {
 		if p.UserID == senderID {
+			log.Printf("[NOTIF] Skipping sender %s", p.UserID)
 			continue // Skip sender
 		}
 		
+		log.Printf("[NOTIF] Checking if user %s is in chat", p.UserID)
 		// Check if user is currently in chat
 		if h.isUserInChat(p.UserID) {
+			log.Printf("[NOTIF] User %s IS in chat, skipping notification", p.UserID)
 			continue // User is viewing messages, no notification needed
 		}
 		
+		log.Printf("[NOTIF] User %s is NOT in chat, sending notification", p.UserID)
 		// User is not in chat, send notification
 		h.sendNotification(p.UserID, senderName, content)
 	}
@@ -372,6 +382,7 @@ func (h *MessageHandler) isUserInChat(userID string) bool {
 
 // sendNotification sends a push notification via notification-service
 func (h *MessageHandler) sendNotification(userID, senderName, content string) {
+	log.Printf("[NOTIF] Sending notification to user %s from %s: %s", userID, senderName, content)
 	client := &http.Client{Timeout: 5 * time.Second}
 	
 	// Truncate content for notification
@@ -380,30 +391,39 @@ func (h *MessageHandler) sendNotification(userID, senderName, content string) {
 		notifContent = notifContent[:97] + "..."
 	}
 	
+	// Use a default sender name if empty
+	if senderName == "" {
+		senderName = "Nouveau message"
+	}
+	
 	payload := map[string]interface{}{
 		"user_id": userID,
 		"title":   senderName,
 		"message": notifContent,
 		"type":    "message",
-		"data": map[string]string{
-			"type": "new_message",
-		},
 	}
 	
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
+		log.Printf("[NOTIF] Error marshaling payload: %v", err)
 		return
 	}
 	
+	log.Printf("[NOTIF] Calling notification-service with payload: %s", string(jsonData))
+	
 	req, err := http.NewRequest("POST", "http://notification-service:8087/api/v1/notifications", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Printf("[NOTIF] Error creating request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("[NOTIF] Error sending request: %v", err)
 		return
 	}
 	defer resp.Body.Close()
+	
+	log.Printf("[NOTIF] Notification response status: %d", resp.StatusCode)
 }
