@@ -39,6 +39,17 @@ type Claims struct {
 }
 
 func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error) {
+	// Normalize phone number first - remove spaces, dashes, and other non-digit characters except +
+	if req.Phone != "" {
+		normalizedPhone := ""
+		for _, c := range req.Phone {
+			if c == '+' || (c >= '0' && c <= '9') {
+				normalizedPhone += string(c)
+			}
+		}
+		req.Phone = normalizedPhone
+	}
+
 	// Check if email already exists
 	exists, err := s.userRepo.EmailExists(req.Email)
 	if err != nil {
