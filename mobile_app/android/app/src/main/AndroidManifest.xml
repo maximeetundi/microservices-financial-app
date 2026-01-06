@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Contacts permission for messaging contacts sync -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    
     <application
         android:label="Zekora"
         android:name="${applicationName}"

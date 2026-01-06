@@ -220,6 +220,11 @@ func main() {
              users.GET("/kyc/status", prefsHandler.GetKYCStatus)
              users.GET("/kyc/documents", prefsHandler.GetKYCDocuments)
              users.POST("/kyc/documents", prefsHandler.UploadKYCDocument)
+
+             // Presence / Online Status
+             users.POST("/presence", userHandler.UpdatePresence)
+             users.GET("/presence/:id", userHandler.GetUserPresence)
+             users.POST("/presence/batch", userHandler.GetMultiplePresence)
 		}
 		
 		// Restore original root for backward compat if needed? No, user wants paradigm fix.

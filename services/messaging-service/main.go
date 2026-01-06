@@ -14,6 +14,7 @@ import (
 	"messaging-service/internal/handlers"
 	"messaging-service/internal/middleware"
 	"messaging-service/internal/services"
+	ws "messaging-service/internal/websocket"
 )
 
 var db *mongo.Database
@@ -93,6 +94,11 @@ func main() {
 	r.GET("/health", func(c *gin.Context) { 
 		c.JSON(200, gin.H{"status": "ok", "service": "messaging-service"}) 
 	})
+
+	// WebSocket for real-time messaging
+	wsHub := ws.NewHub()
+	go wsHub.Run()
+	r.GET("/ws/chat", ws.HandleWebSocket(wsHub))
 
 	// API routes (protected with JWT)
 	api := r.Group("/api/v1")

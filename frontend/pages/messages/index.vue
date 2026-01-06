@@ -45,7 +45,7 @@
               <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-baseline">
                   <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ conv.name }}</h3>
-                  <span class="text-xs text-gray-500">{{ formatTime(conv.lastMessageAt) }}</span>
+                <span class="text-xs text-gray-500"><ClientOnly>{{ formatTime(conv.lastMessageAt) }}</ClientOnly></span>
                 </div>
                 <p class="text-sm text-gray-500 truncate">{{ conv.lastMessage }}</p>
               </div>
@@ -86,12 +86,18 @@
       <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col">
         <!-- Chat Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
-            {{ selectedConv ? selectedConv.name?.[0]?.toUpperCase() : '👥' }}
+          <div class="relative">
+            <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
+              {{ selectedConv ? selectedConv.name?.[0]?.toUpperCase() : '👥' }}
+            </div>
+            <!-- Online indicator dot -->
+            <div v-if="selectedUserStatus === 'En ligne'" class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
           <div class="flex-1">
             <h3 class="font-medium text-gray-900 dark:text-white">{{ selectedConv?.name || selectedAssoc?.name }}</h3>
-            <p class="text-xs text-gray-500">En ligne</p>
+            <p :class="['text-xs', selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
+              {{ selectedAssoc ? `${selectedAssoc.total_members || 0} membres` : selectedUserStatus || 'Chargement...' }}
+            </p>
           </div>
         </div>
 
@@ -144,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { associationAPI } from '~/composables/useApi'
 import api from '~/composables/useApi'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
@@ -156,6 +162,10 @@ definePageMeta({
   middleware: 'auth'
 })
 
+// WebSocket connection
+let ws: WebSocket | null = null
+let presenceInterval: ReturnType<typeof setInterval> | null = null
+
 const searchQuery = ref('')
 const activeConvType = ref<'users' | 'associations'>('users')
 const selectedConv = ref<any>(null)
@@ -164,9 +174,137 @@ const messages = ref<any[]>([])
 const messagesContainer = ref<HTMLElement>()
 const imageModalUrl = ref<string | null>(null)
 const showNewConversationModal = ref(false)
-
 const userConversations = ref<any[]>([])
 const associationChats = ref<any[]>([])
+const onlineStatus = ref<Record<string, string>>({})
+const currentUserId = ref<string>('')
+
+// Get current user ID from localStorage
+const getCurrentUserId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    return user.id || ''
+  } catch {
+    return ''
+  }
+}
+
+// WebSocket URL
+const getWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//api.app.maximeetundi.store/messaging-service/ws/chat`
+}
+
+// Connect to WebSocket
+const connectWebSocket = () => {
+  if (ws?.readyState === WebSocket.OPEN) return
+  
+  const userId = getCurrentUserId()
+  if (!userId) return
+  
+  currentUserId.value = userId
+  
+  const url = `${getWsUrl()}?user_id=${userId}`
+  console.log('WebSocket connecting:', url)
+  
+  ws = new WebSocket(url)
+  
+  ws.onopen = () => {
+    console.log('WebSocket connected')
+  }
+  
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      handleWebSocketMessage(data)
+    } catch (e) {
+      console.error('WebSocket parse error:', e)
+    }
+  }
+  
+  ws.onclose = (event) => {
+    console.log('WebSocket disconnected:', event.code)
+    // Auto-reconnect after 3 seconds
+    if (event.code !== 1000) {
+      setTimeout(connectWebSocket, 3000)
+    }
+  }
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error)
+  }
+}
+
+// Handle incoming WebSocket messages
+const handleWebSocketMessage = (data: any) => {
+  switch (data.type) {
+    case 'new_message':
+      // Add new message if we're in the same conversation
+      if (selectedConv.value?.id === data.conversation_id) {
+        messages.value.push({
+          ...data.content,
+          isMine: data.sender_id === currentUserId.value
+        })
+        nextTick(() => scrollToBottom())
+      }
+      // Update conversation list
+      updateConversationLastMessage(data.conversation_id, data.content)
+      break
+      
+    case 'typing':
+      // Handle typing indicator
+      console.log('User typing in', data.conversation_id)
+      break
+      
+    case 'read':
+      // Handle read receipt
+      break
+      
+    case 'presence':
+      // Update online status
+      if (data.user_id && data.status) {
+        onlineStatus.value[data.user_id] = data.status
+      }
+      break
+  }
+}
+
+// Update conversation last message
+const updateConversationLastMessage = (convId: string, message: any) => {
+  const index = userConversations.value.findIndex(c => c.id === convId)
+  if (index > -1) {
+    userConversations.value[index].last_message = message
+    userConversations.value[index].updated_at = new Date().toISOString()
+    // Move to top
+    const conv = userConversations.value.splice(index, 1)[0]
+    userConversations.value.unshift(conv)
+  }
+}
+
+// Update presence (heartbeat)
+const updatePresence = async () => {
+  try {
+    await api.post('/auth-service/api/v1/users/presence')
+  } catch (e) {
+    // Ignore errors
+  }
+}
+
+// Get display status for selected conversation
+const selectedUserStatus = computed(() => {
+  if (!selectedConv.value) return ''
+  const participants = selectedConv.value.participants || []
+  for (const p of participants) {
+    const uid = p.user_id || p
+    if (uid !== currentUserId.value) {
+      const status = onlineStatus.value[uid]
+      if (status === 'online') return 'En ligne'
+      if (status === 'away') return 'Absent'
+      return 'Hors ligne'
+    }
+  }
+  return ''
+})
 
 const formatTime = (date: any) => {
   if (!date) return ''
@@ -184,6 +322,28 @@ const selectConversation = (conv: any) => {
   selectedConv.value = conv
   selectedAssoc.value = null
   loadMessages()
+  // Load presence for other participant
+  loadParticipantPresence(conv)
+}
+
+const loadParticipantPresence = async (conv: any) => {
+  const participants = conv.participants || []
+  const otherIds = participants
+    .map((p: any) => p.user_id || p)
+    .filter((id: string) => id !== currentUserId.value)
+  
+  if (otherIds.length > 0) {
+    try {
+      const res = await api.post('/auth-service/api/v1/users/presence/batch', {
+        user_ids: otherIds
+      })
+      for (const p of (res.data?.presences || [])) {
+        onlineStatus.value[p.user_id] = p.status
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
 }
 
 const selectAssociationChat = (assoc: any) => {
@@ -198,7 +358,7 @@ const loadMessages = async () => {
     const res = await api.get(`/messaging-service/api/v1/conversations/${selectedConv.value.id}/messages`)
     messages.value = (res.data?.messages || []).map((m: any) => ({
       ...m,
-      isMine: false // TODO: check current user
+      isMine: m.sender_id === currentUserId.value
     }))
     await nextTick()
     scrollToBottom()
@@ -213,7 +373,7 @@ const loadAssociationMessages = async () => {
     const res = await api.get(`/messaging-service/api/v1/associations/${selectedAssoc.value.id}/chat`)
     messages.value = (res.data?.messages || []).map((m: any) => ({
       ...m,
-      isMine: false // TODO: check current user
+      isMine: m.sender_id === currentUserId.value
     }))
     await nextTick()
     scrollToBottom()
@@ -259,6 +419,8 @@ const closeImageModal = () => {
 }
 
 onMounted(async () => {
+  currentUserId.value = getCurrentUserId()
+  
   try {
     const [convRes, assocRes] = await Promise.all([
       api.get('/messaging-service/api/v1/conversations'),
@@ -268,6 +430,24 @@ onMounted(async () => {
     associationChats.value = assocRes.data || []
   } catch (err) {
     console.error(err)
+  }
+  
+  // Connect WebSocket
+  connectWebSocket()
+  
+  // Start presence heartbeat (every 60 seconds)
+  updatePresence()
+  presenceInterval = setInterval(updatePresence, 60000)
+})
+
+onUnmounted(() => {
+  // Cleanup
+  if (ws) {
+    ws.close(1000)
+    ws = null
+  }
+  if (presenceInterval) {
+    clearInterval(presenceInterval)
   }
 })
 </script>

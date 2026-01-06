@@ -32,9 +32,9 @@ type Attachment struct {
 	FileURL      string `json:"file_url" bson:"file_url"`
 	FileSize     int64  `json:"file_size" bson:"file_size"`
 	MimeType     string `json:"mime_type" bson:"mime_type"`
-	Duration     int    `json:"duration,omitempty" bson:"duration,omitempty"`         // For audio/video
-	ThumbnailURL string `json:"thumbnail_url,omitempty" bson:"thumbnail_url,omitempty"` // For videos
-	Width        int    `json:"width,omitempty" bson:"width,omitempty"`               // For images/videos
+	Duration     int    `json:"duration,omitempty" bson:"duration,omitempty"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty" bson:"thumbnail_url,omitempty"`
+	Width        int    `json:"width,omitempty" bson:"width,omitempty"`
 	Height       int    `json:"height,omitempty" bson:"height,omitempty"`
 }
 
@@ -44,32 +44,44 @@ type Message struct {
 	SenderID       string             `json:"sender_id" bson:"sender_id"`
 	SenderName     string             `json:"sender_name,omitempty" bson:"sender_name,omitempty"`
 	Content        string             `json:"content" bson:"content"`
-	MessageType    string             `json:"message_type" bson:"message_type"` // text, image, audio, video, document
+	MessageType    string             `json:"message_type" bson:"message_type"`
 	Attachment     *Attachment        `json:"attachment,omitempty" bson:"attachment,omitempty"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 	Read           bool               `json:"read" bson:"read"`
 }
 
+type Participant struct {
+	UserID string `json:"user_id" bson:"user_id"`
+	Name   string `json:"name" bson:"name"`
+	Email  string `json:"email,omitempty" bson:"email,omitempty"`
+	Phone  string `json:"phone,omitempty" bson:"phone,omitempty"`
+}
+
 type Conversation struct {
 	ID           primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Participants []string           `json:"participants" bson:"participants"`
+	Participants []Participant      `json:"participants" bson:"participants"`
 	LastMessage  *Message           `json:"last_message,omitempty" bson:"last_message,omitempty"`
 	CreatedAt    time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt    time.Time          `json:"updated_at" bson:"updated_at"`
+	// Helper fields for display
+	Name         string             `json:"name,omitempty" bson:"-"`
+}
+
+// Helper to get user ID from context (set by auth middleware)
+func getUserID(c *gin.Context) (string, bool) {
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		return "", false
+	}
+	userID, ok := userIDInterface.(string)
+	return userID, ok
 }
 
 // GetConversations gets all conversations for the current user
 func (h *MessageHandler) GetConversations(c *gin.Context) {
-	// Get userID from context (set by auth middleware)
-	userIDInterface, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-	
-	userID, ok := userIDInterface.(string)
+	userID, ok := getUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
@@ -77,7 +89,7 @@ func (h *MessageHandler) GetConversations(c *gin.Context) {
 	conversations := []Conversation{}
 
 	cursor, err := h.db.Collection("conversations").Find(ctx, bson.M{
-		"participants": userID,
+		"participants.user_id": userID,
 	}, options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}}))
 	
 	if err != nil {
@@ -91,18 +103,33 @@ func (h *MessageHandler) GetConversations(c *gin.Context) {
 		return
 	}
 
+	// Set display name (the other participant's name)
+	for i := range conversations {
+		for _, p := range conversations[i].Participants {
+			if p.UserID != userID {
+				conversations[i].Name = p.Name
+				break
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"conversations": conversations})
 }
 
 // SendMessage sends a message in a conversation
 func (h *MessageHandler) SendMessage(c *gin.Context) {
 	conversationID := c.Param("id")
-	userID := c.GetHeader("X-User-ID")
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
 	
 	var req struct {
 		Content     string      `json:"content"`
 		MessageType string      `json:"message_type"`
 		Attachment  *Attachment `json:"attachment"`
+		SenderName  string      `json:"sender_name"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,7 +137,6 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	// Default to text if not specified
 	if req.MessageType == "" {
 		req.MessageType = "text"
 	}
@@ -119,6 +145,7 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		ID:             primitive.NewObjectID(),
 		ConversationID: conversationID,
 		SenderID:       userID,
+		SenderName:     req.SenderName,
 		Content:        req.Content,
 		MessageType:    req.MessageType,
 		Attachment:     req.Attachment,
@@ -128,7 +155,6 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 
 	ctx := context.Background()
 	
-	// Insert message
 	_, err := h.db.Collection("messages").InsertOne(ctx, message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send message"})
@@ -136,8 +162,9 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 	}
 
 	// Update conversation's last_message and updated_at
+	objID, _ := primitive.ObjectIDFromHex(conversationID)
 	h.db.Collection("conversations").UpdateOne(ctx,
-		bson.M{"_id": conversationID},
+		bson.M{"_id": objID},
 		bson.M{
 			"$set": bson.M{
 				"last_message": message,
@@ -174,12 +201,20 @@ func (h *MessageHandler) GetMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
-// CreateConversation creates a new conversation
+// CreateConversation creates a new conversation or returns existing one
 func (h *MessageHandler) CreateConversation(c *gin.Context) {
-	userID := c.GetHeader("X-User-ID")
+	userID, ok := getUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
 	
 	var req struct {
-		ParticipantID string `json:"participant_id"`
+		ParticipantID    string `json:"participant_id"`
+		ParticipantName  string `json:"participant_name"`
+		ParticipantEmail string `json:"participant_email"`
+		ParticipantPhone string `json:"participant_phone"`
+		MyName           string `json:"my_name"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -187,20 +222,50 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 		return
 	}
 
-	conversation := Conversation{
-		ID:           primitive.NewObjectID(),
-		Participants: []string{userID, req.ParticipantID},
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+	ctx := context.Background()
+
+	// Check if conversation already exists between these two users
+	var existingConv Conversation
+	err := h.db.Collection("conversations").FindOne(ctx, bson.M{
+		"$and": []bson.M{
+			{"participants.user_id": userID},
+			{"participants.user_id": req.ParticipantID},
+		},
+	}).Decode(&existingConv)
+
+	if err == nil {
+		// Conversation already exists, return it
+		existingConv.Name = req.ParticipantName
+		c.JSON(http.StatusOK, existingConv)
+		return
 	}
 
-	ctx := context.Background()
-	_, err := h.db.Collection("conversations").InsertOne(ctx, conversation)
+	// Create new conversation with participant details
+	conversation := Conversation{
+		ID: primitive.NewObjectID(),
+		Participants: []Participant{
+			{
+				UserID: userID,
+				Name:   req.MyName,
+			},
+			{
+				UserID: req.ParticipantID,
+				Name:   req.ParticipantName,
+				Email:  req.ParticipantEmail,
+				Phone:  req.ParticipantPhone,
+			},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	_, err = h.db.Collection("conversations").InsertOne(ctx, conversation)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conversation"})
 		return
 	}
 
+	conversation.Name = req.ParticipantName
 	c.JSON(http.StatusCreated, conversation)
 }
 
@@ -234,7 +299,8 @@ func (h *MessageHandler) DeleteConversation(c *gin.Context) {
 	h.db.Collection("messages").DeleteMany(ctx, bson.M{"conversation_id": conversationID})
 	
 	// Delete conversation
-	_, err := h.db.Collection("conversations").DeleteOne(ctx, bson.M{"_id": conversationID})
+	objID, _ := primitive.ObjectIDFromHex(conversationID)
+	_, err := h.db.Collection("conversations").DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete conversation"})
 		return

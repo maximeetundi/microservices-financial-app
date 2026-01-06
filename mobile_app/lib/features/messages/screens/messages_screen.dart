@@ -1,12 +1,16 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/association_api_service.dart';
 import '../../core/services/api_client.dart';
+import '../../../core/services/contacts_sync_service.dart';
+import '../../../core/services/websocket_service.dart';
 import 'widgets/pay_contribution_sheet.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -19,6 +23,8 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final AssociationApiService _api = AssociationApiService(ApiClient().dio);
+  final ContactsSyncService _contactsService = ContactsSyncService();
+  final WebSocketService _wsService = WebSocketService();
   
   List<Map<String, dynamic>> _userConversations = [];
   List<Map<String, dynamic>> _associationChats = [];
@@ -28,12 +34,80 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initContacts();
+    _initWebSocket();
     _loadData();
+  }
+
+  Future<void> _initWebSocket() async {
+    // Get current user ID from secure storage
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString('user');
+    if (userJson != null) {
+      try {
+        final user = jsonDecode(userJson);
+        final userId = user['id']?.toString();
+        if (userId != null && userId.isNotEmpty) {
+          _wsService.connect(userId);
+          _wsService.onMessage(_handleWebSocketMessage);
+        }
+      } catch (e) {
+        debugPrint('Failed to parse user for WebSocket: $e');
+      }
+    }
+  }
+
+  void _handleWebSocketMessage(WsMessage msg) {
+    switch (msg.type) {
+      case WsMessageType.newMessage:
+        // Reload conversations to get the new message
+        _loadData();
+        break;
+      case WsMessageType.presence:
+        // Handle presence updates
+        break;
+    }
+  }
+
+  Future<void> _initContacts() async {
+    // Load from cache first for instant display
+    await _contactsService.loadFromCache();
+    // Then sync in background
+    await _contactsService.syncContacts();
+    // Refresh UI if mounted
+    if (mounted) setState(() {});
+  }
+
+  /// Get display name for a conversation
+  /// Uses contact name if phone/email is in device contacts, otherwise fallback
+  String _getConversationDisplayName(Map<String, dynamic> conv) {
+    // Try to get participant info from conversation
+    final participants = conv['participants'] as List?;
+    if (participants != null && participants.isNotEmpty) {
+      for (final p in participants) {
+        if (p is Map) {
+          final phone = p['phone']?.toString();
+          final email = p['email']?.toString();
+          // Use contacts service to get name if available
+          final contactName = _contactsService.getDisplayName(
+            phone: phone,
+            email: email,
+            fallbackName: p['name']?.toString(),
+          );
+          if (contactName != 'Utilisateur') {
+            return contactName;
+          }
+        }
+      }
+    }
+    // Fallback to conversation name or default
+    return conv['name']?.toString() ?? 'Conversation';
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _wsService.disconnect();
     super.dispose();
   }
 
@@ -181,17 +255,18 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final conv = _userConversations[index];
+        final displayName = _getConversationDisplayName(conv);
         return ListTile(
           onTap: () => _openChat(conv, false),
           leading: CircleAvatar(
             backgroundColor: const Color(0xFF25D366),
             child: Text(
-              (conv['name'] ?? 'U')[0].toUpperCase(),
+              displayName[0].toUpperCase(),
               style: const TextStyle(color: Colors.white),
             ),
           ),
           title: Text(
-            conv['name'] ?? 'Utilisateur',
+            displayName,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
@@ -396,13 +471,20 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
 
   Future<void> _createConversation(Map<String, dynamic> user) async {
     try {
+      // TODO: Get current user name from secure storage or state
       final response = await _api.dio.post(
         '/messaging-service/api/v1/conversations',
-        data: {'participant_id': user['id']},
+        data: {
+          'participant_id': user['id'],
+          'participant_name': user['name'] ?? 'Utilisateur',
+          'participant_email': user['email'] ?? '',
+          'participant_phone': user['phone'] ?? '',
+          'my_name': 'Moi', // TODO: Get from user profile
+        },
       );
 
       final conversation = Map<String, dynamic>.from(response.data);
-      conversation['name'] = user['name'];
+      conversation['name'] = user['name'] ?? user['email'] ?? user['phone'];
 
       setState(() {
         _userConversations.insert(0, conversation);

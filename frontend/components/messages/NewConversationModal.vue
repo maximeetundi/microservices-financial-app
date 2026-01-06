@@ -105,14 +105,21 @@ const searchUsers = () => {
 
 const selectUser = async (user: any) => {
   try {
-    // Create conversation
+    // Get current user's name from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+    
+    // Create conversation with participant details
     const res = await api.post('/messaging-service/api/v1/conversations', {
-      participant_id: user.id
+      participant_id: user.id,
+      participant_name: user.name || 'Utilisateur',
+      participant_email: user.email || '',
+      participant_phone: user.phone || '',
+      my_name: currentUser.first_name ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim() : 'Moi'
     })
     
     emit('userSelected', {
       ...res.data,
-      name: user.name,
+      name: user.name || user.email || user.phone,
       email: user.email
     })
     emit('close')

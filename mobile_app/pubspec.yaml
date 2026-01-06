@@ -82,6 +82,13 @@ dependencies:
   
   # WebRTC for video calls (support)
   flutter_webrtc: ^0.9.46
+  
+  # Contacts sync
+  flutter_contacts: ^1.1.7+1
+  permission_handler: ^11.0.1
+  
+  # WebSocket for real-time messaging
+  web_socket_channel: ^2.4.0
 
 dev_dependencies:
   flutter_test:
