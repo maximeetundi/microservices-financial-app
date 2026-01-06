@@ -1,8 +1,8 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg">
-      <!-- Sidebar Conversations -->
-      <div class="w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+    <div class="h-[calc(100vh-120px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg">
+      <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
+      <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', (selectedConv || selectedAssoc) ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
@@ -94,19 +94,25 @@
         </div>
       </div>
 
-      <!-- Chat Area -->
-      <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col">
+      <!-- Chat Area - Full width on mobile -->
+      <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col w-full">
         <!-- Chat Header -->
-        <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+        <div class="bg-gray-50 dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 md:gap-3">
+          <!-- Back button for mobile -->
+          <button @click="goBackToList" class="md:hidden p-2 -ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <div class="relative">
-            <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
+            <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">
               {{ selectedConv ? getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' : '👥' }}
             </div>
             <!-- Online indicator dot -->
             <div v-if="selectedUserStatus === 'En ligne'" class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
-          <div class="flex-1">
-            <h3 class="font-medium text-gray-900 dark:text-white">{{ selectedConv ? getOtherParticipantName(selectedConv) : selectedAssoc?.name }}</h3>
+          <div class="flex-1 min-w-0">
+            <h3 class="font-medium text-gray-900 dark:text-white truncate text-sm md:text-base">{{ selectedConv ? getOtherParticipantName(selectedConv) : selectedAssoc?.name }}</h3>
             <p :class="['text-xs', selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
               {{ selectedAssoc ? `${selectedAssoc.total_members || 0} membres` : selectedUserStatus || 'Chargement...' }}
             </p>
@@ -132,8 +138,9 @@
         />
       </div>
 
-      <!-- Empty State -->
-      <div v-else class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+
+      <!-- Empty State - Only show on desktop, on mobile the sidebar covers the full screen -->
+      <div v-else class="hidden md:flex flex-1 items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div class="text-center">
           <svg class="w-32 h-32 mx-auto text-gray-300 dark:text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -545,6 +552,13 @@ const loadConversations = async () => {
   } catch (err) {
     console.error('Failed to load conversations:', err)
   }
+}
+
+// Go back to conversation list (for mobile)
+const goBackToList = () => {
+  selectedConv.value = null
+  selectedAssoc.value = null
+  messages.value = []
 }
 
 const handleUserSelected = (conversation: any) => {
