@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-120px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg">
+    <div class="h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-lg">
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
       <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', (selectedConv || selectedAssoc) ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
@@ -120,7 +120,7 @@
         </div>
 
         <!-- Messages -->
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;100&quot; height=&quot;100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg opacity=&quot;0.05&quot;%3E%3Cpath d=&quot;M10 10h80v80H10z&quot; fill=&quot;none&quot; stroke=&quot;%23000&quot;/%3E%3C/g%3E%3C/svg%3E');">
+        <div ref="messagesContainer" class="flex-1 overflow-y-auto overflow-x-hidden p-2 md:p-4 space-y-3 bg-gray-50 dark:bg-gray-900" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;100&quot; height=&quot;100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg opacity=&quot;0.05&quot;%3E%3Cpath d=&quot;M10 10h80v80H10z&quot; fill=&quot;none&quot; stroke=&quot;%23000&quot;/%3E%3C/g%3E%3C/svg%3E');">
           <MessageBubble 
             v-for="msg in messages" 
             :key="msg.id" 

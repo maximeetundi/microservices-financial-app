@@ -26,6 +26,19 @@
         </div>
       </button>
 
+      <!-- Video -->
+      <button @click="selectVideo" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        <div class="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+          <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div class="flex-1 text-left">
+          <div class="font-medium text-sm">Vidéo</div>
+          <div class="text-xs text-gray-500">Max 50 Mo</div>
+        </div>
+      </button>
+
       <!-- Document -->
       <button @click="selectDocument" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
         <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -38,24 +51,11 @@
           <div class="text-xs text-gray-500">PDF, DOC, etc.</div>
         </div>
       </button>
-
-      <!-- Camera (future) -->
-      <button disabled class="w-full px-4 py-3 flex items-center gap-3 opacity-50 cursor-not-allowed">
-        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </div>
-        <div class="flex-1 text-left">
-          <div class="font-medium text-sm">Caméra</div>
-          <div class="text-xs text-gray-500">Bientôt disponible</div>
-        </div>
-      </button>
     </div>
 
     <!-- Hidden File Inputs -->
     <input ref="imageInput" type="file" accept="image/*" @change="handleImageSelect" class="hidden" />
+    <input ref="videoInput" type="file" accept="video/*" @change="handleVideoSelect" class="hidden" />
     <input ref="documentInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" @change="handleDocumentSelect" class="hidden" />
   </div>
 </template>
@@ -63,15 +63,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50 Mo
+
 const emit = defineEmits(['fileSelected'])
 
 const showMenu = ref(false)
 const imageInput = ref<HTMLInputElement>()
+const videoInput = ref<HTMLInputElement>()
 const documentInput = ref<HTMLInputElement>()
 
 const selectImage = () => {
   showMenu.value = false
   imageInput.value?.click()
+}
+
+const selectVideo = () => {
+  showMenu.value = false
+  videoInput.value?.click()
 }
 
 const selectDocument = () => {
@@ -83,6 +91,17 @@ const handleImageSelect = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (file) {
     emit('fileSelected', { file, type: 'image' })
+  }
+}
+
+const handleVideoSelect = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (file) {
+    if (file.size > MAX_VIDEO_SIZE) {
+      alert(`La vidéo est trop grande. Taille max: 50 Mo\nTaille du fichier: ${(file.size / (1024 * 1024)).toFixed(1)} Mo`)
+      return
+    }
+    emit('fileSelected', { file, type: 'video' })
   }
 }
 

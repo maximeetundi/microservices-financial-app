@@ -31,6 +31,19 @@
       </div>
     </div>
 
+    <!-- Video Preview -->
+    <div v-if="selectedVideo" class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <div class="relative inline-block">
+        <video :src="selectedVideo.preview" class="max-h-40 rounded-lg" controls></video>
+        <button @click="removeVideo" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs text-gray-500 mt-1">{{ formatFileSize(selectedVideo.file.size) }}</p>
+    </div>
+
     <!-- Audio Recorder -->
     <AudioRecorder v-if="isRecording" :is-recording="isRecording" @audioRecorded="handleAudioRecorded" @cancel="isRecording = false" />
 
@@ -94,6 +107,7 @@ const emit = defineEmits(['messageSent'])
 
 const message = ref('')
 const selectedImage = ref<any>(null)
+const selectedVideo = ref<any>(null)
 const selectedDocument = ref<any>(null)
 const imageCaption = ref('')
 const isUploading = ref(false)
@@ -109,6 +123,11 @@ const handleFileSelected = async ({ file, type }: { file: File, type: string }) 
       file,
       preview: URL.createObjectURL(file)
     }
+  } else if (type === 'video') {
+    selectedVideo.value = {
+      file,
+      preview: URL.createObjectURL(file)
+    }
   } else {
     selectedDocument.value = { file }
   }
@@ -120,6 +139,13 @@ const removeImage = () => {
   }
   selectedImage.value = null
   imageCaption.value = ''
+}
+
+const removeVideo = () => {
+  if (selectedVideo.value?.preview) {
+    URL.revokeObjectURL(selectedVideo.value.preview)
+  }
+  selectedVideo.value = null
 }
 
 const removeDocument = () => {
@@ -175,6 +201,7 @@ const uploadAndSend = async (file: File, messageType: string, caption: string = 
     // Clear inputs
     message.value = ''
     removeImage()
+    removeVideo()
     removeDocument()
     
     emit('messageSent')
@@ -187,10 +214,12 @@ const uploadAndSend = async (file: File, messageType: string, caption: string = 
 }
 
 const sendMessage = async () => {
-  if (!message.value.trim() && !selectedImage.value && !selectedDocument.value) return
+  if (!message.value.trim() && !selectedImage.value && !selectedVideo.value && !selectedDocument.value) return
 
   if (selectedImage.value) {
     await uploadAndSend(selectedImage.value.file, 'image', imageCaption.value)
+  } else if (selectedVideo.value) {
+    await uploadAndSend(selectedVideo.value.file, 'video')
   } else if (selectedDocument.value) {
     await uploadAndSend(selectedDocument.value.file, 'document')
   } else {

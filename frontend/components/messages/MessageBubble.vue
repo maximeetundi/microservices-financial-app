@@ -1,6 +1,6 @@
 <template>
   <div :class="['flex', message.isMine ? 'justify-end' : 'justify-start', 'animate-fade-in']">
-    <div :class="['max-w-[70%] rounded-lg shadow-md overflow-hidden', message.isMine ? 'bg-green-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white']">
+    <div :class="['max-w-[85%] md:max-w-[70%] rounded-lg shadow-md overflow-hidden break-words', message.isMine ? 'bg-green-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white']">
       <!-- Sender name for group chats -->
       <div v-if="!message.isMine && showSenderName" :class="['px-4 pt-2 text-xs font-medium', message.isMine ? 'text-white/70' : 'text-green-600']">
         {{ message.senderName }}

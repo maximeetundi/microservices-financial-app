@@ -80,6 +80,9 @@ func main() {
 
 	// Setup Gin router
 	r := gin.Default()
+	
+	// Increase max multipart memory for video uploads (100 MB)
+	r.MaxMultipartMemory = 100 << 20 // 100 MB
 
 	// CORS
 	r.Use(cors.New(cors.Config{
