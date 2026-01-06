@@ -59,6 +59,40 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
+// GetUserByID gets a user's public info by their ID
+func (h *UserHandler) GetUserByID(c *gin.Context) {
+	userID := c.Param("id")
+	
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	var id, firstName, lastName, email, phone string
+	err := h.db.QueryRow(`
+		SELECT id, COALESCE(first_name, ''), COALESCE(last_name, ''), COALESCE(email, ''), COALESCE(phone, '')
+		FROM users
+		WHERE id = $1
+	`, userID).Scan(&id, &firstName, &lastName, &email, &phone)
+	
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	name := strings.TrimSpace(firstName + " " + lastName)
+	if name == "" {
+		name = "Utilisateur"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":    id,
+		"name":  name,
+		"email": email,
+		"phone": phone,
+	})
+}
+
 // UpdatePresence updates the user's last_seen timestamp (call this when user is active)
 func (h *UserHandler) UpdatePresence(c *gin.Context) {
 	userID, exists := c.Get("user_id")

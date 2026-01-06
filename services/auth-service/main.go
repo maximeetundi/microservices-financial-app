@@ -188,6 +188,8 @@ func main() {
 		
 		// User search (public - no auth required)
 		api.GET("/users/search", userHandler.SearchUsers)
+		// Get user by ID (public - needed for conversation participant info)
+		api.GET("/users/:id", userHandler.GetUserByID)
 		
 		// Protected user routes
 		users := api.Group("/users")
