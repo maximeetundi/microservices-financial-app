@@ -211,3 +211,76 @@ func (h *UserHandler) GetMultiplePresence(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"presences": presences})
 }
+
+// SetChatActivity sets whether the user is currently viewing the messages page
+func (h *UserHandler) SetChatActivity(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req struct {
+		Active bool `json:"active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Ensure column exists
+	h.db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_active BOOLEAN DEFAULT FALSE`)
+	h.db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_active_since TIMESTAMP`)
+
+	if req.Active {
+		_, err := h.db.Exec(`UPDATE users SET chat_active = TRUE, chat_active_since = $1 WHERE id = $2`, time.Now(), userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update activity"})
+			return
+		}
+	} else {
+		_, err := h.db.Exec(`UPDATE users SET chat_active = FALSE, chat_active_since = NULL WHERE id = $1`, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update activity"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// IsUserInChat checks if a user is currently viewing the messages page
+func (h *UserHandler) IsUserInChat(c *gin.Context) {
+	userID := c.Param("id")
+	
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID required"})
+		return
+	}
+
+	var chatActive sql.NullBool
+	var chatActiveSince sql.NullTime
+	
+	err := h.db.QueryRow(`
+		SELECT chat_active, chat_active_since FROM users WHERE id = $1
+	`, userID).Scan(&chatActive, &chatActiveSince)
+	
+	if err != nil {
+		// Column might not exist, return false
+		c.JSON(http.StatusOK, gin.H{"user_id": userID, "in_chat": false})
+		return
+	}
+
+	inChat := false
+	if chatActive.Valid && chatActive.Bool && chatActiveSince.Valid {
+		// Consider active only if updated in last 2 minutes
+		if time.Since(chatActiveSince.Time).Minutes() < 2 {
+			inChat = true
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"in_chat": inChat,
+	})
+}

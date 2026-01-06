@@ -657,7 +657,21 @@ onMounted(async () => {
   // Start presence heartbeat (every 60 seconds)
   updatePresence()
   presenceInterval = setInterval(updatePresence, 60000)
+  
+  // Mark user as active in chat
+  setChatActivity(true)
+  chatActivityInterval = setInterval(() => setChatActivity(true), 30000)
 })
+
+let chatActivityInterval: any = null
+
+const setChatActivity = async (active: boolean) => {
+  try {
+    await api.post('/auth-service/api/v1/users/chat-activity', { active })
+  } catch (e) {
+    // Ignore errors
+  }
+}
 
 onUnmounted(() => {
   // Cleanup
@@ -668,5 +682,11 @@ onUnmounted(() => {
   if (presenceInterval) {
     clearInterval(presenceInterval)
   }
+  if (chatActivityInterval) {
+    clearInterval(chatActivityInterval)
+  }
+  
+  // Mark user as inactive in chat
+  setChatActivity(false)
 })
 </script>

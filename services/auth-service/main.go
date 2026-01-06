@@ -229,6 +229,10 @@ func main() {
              users.GET("/presence/:id", userHandler.GetUserPresence)
              users.POST("/presence/batch", userHandler.GetMultiplePresence)
 
+             // Chat Activity Tracking (for smart notifications)
+             users.POST("/chat-activity", userHandler.SetChatActivity)
+             users.GET("/chat-activity/:id", userHandler.IsUserInChat)
+
              // Contacts management
              users.GET("/contacts", contactsHandler.GetContacts)
              users.POST("/contacts", contactsHandler.AddContact)
