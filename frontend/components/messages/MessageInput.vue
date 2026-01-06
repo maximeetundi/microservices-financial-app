@@ -37,12 +37,8 @@
     <!-- Input Area -->
     <div v-if="!isRecording" class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
       <div class="flex items-center gap-3">
-        <!-- Emoji Button -->
-        <button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
+        <!-- Emoji Picker -->
+        <EmojiPicker @select="insertEmoji" />
 
         <!-- Attachment Menu -->
         <AttachmentMenu @fileSelected="handleFileSelected" />
@@ -86,6 +82,7 @@
 import { ref } from 'vue'
 import AttachmentMenu from './AttachmentMenu.vue'
 import AudioRecorder from './AudioRecorder.vue'
+import EmojiPicker from './EmojiPicker.vue'
 import api from '~/composables/useApi'
 
 const props = defineProps<{
@@ -101,6 +98,10 @@ const selectedDocument = ref<any>(null)
 const imageCaption = ref('')
 const isUploading = ref(false)
 const isRecording = ref(false)
+
+const insertEmoji = (emoji: string) => {
+  message.value += emoji
+}
 
 const handleFileSelected = async ({ file, type }: { file: File, type: string }) => {
   if (type === 'image') {
