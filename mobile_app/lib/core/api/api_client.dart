@@ -58,6 +58,9 @@ class ApiClient {
     return _baseUrlProduction;
   }
   
+  /// Public getter for the Dio instance
+  Dio get dio => _dio;
+  
   /// Check if a URL is an auth endpoint (should skip refresh on 401)
   bool _isAuthEndpoint(String url) {
     return _authEndpoints.any((endpoint) => url.contains(endpoint));

@@ -406,11 +406,22 @@ const loadMessages = async () => {
   try {
     const res = await api.get(`/messaging-service/api/v1/conversations/${selectedConv.value.id}/messages`)
     const userId = currentUserId.value
+    
+    // Get other participant IDs from the conversation
+    const otherParticipantIds = (selectedConv.value.participants || [])
+      .filter((p: any) => (p.user_id || p) !== userId)
+      .map((p: any) => String(p.user_id || p).trim())
+    
     console.log('Current user ID:', userId)
+    console.log('Other participant IDs:', otherParticipantIds)
+    
     messages.value = (res.data?.messages || []).map((m: any) => {
-      // Compare as strings and trim to handle format differences
       const senderId = String(m.sender_id || '').trim()
-      const isMine = senderId === String(userId).trim()
+      // Message is mine if sender is NOT one of the other participants
+      const isMine = otherParticipantIds.length > 0 
+        ? !otherParticipantIds.includes(senderId)
+        : senderId === String(userId).trim()
+      
       console.log('Message sender:', senderId, '| isMine:', isMine)
       return {
         ...m,

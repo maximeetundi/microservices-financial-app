@@ -85,7 +85,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => CreateEventScreen()),
+          MaterialPageRoute(builder: (_) => CreateEventFormScreen()),
         ).then((_) => _loadData()),
         backgroundColor: const Color(0xFF6366f1),
         icon: const Icon(Icons.add),

@@ -22,7 +22,7 @@ class PayContributionSheet extends StatefulWidget {
 
 class _PayContributionSheetState extends State<PayContributionSheet> {
   final AssociationApiService _associationApi = AssociationApiService(ApiClient().dio);
-  final WalletApiService _walletApi = WalletApiService(ApiClient().dio);
+  final WalletApiService _walletApi = WalletApiService(); // No args needed
   
   List<dynamic> _wallets = [];
   String? _selectedWalletId;
@@ -41,8 +41,8 @@ class _PayContributionSheetState extends State<PayContributionSheet> {
 
   Future<void> _loadWallets() async {
     try {
-      final response = await _walletApi.getWallets();
-      final allWallets = response.data is List ? response.data : [];
+      // getWallets() returns List<Map<String, dynamic>> directly
+      final allWallets = await _walletApi.getWallets();
       setState(() {
         _wallets = allWallets.where((w) => w['currency'] == widget.currency).toList();
         if (_wallets.isEmpty) _wallets = allWallets;
