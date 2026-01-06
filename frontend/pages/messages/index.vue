@@ -159,7 +159,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import { associationAPI } from '~/composables/useApi'
+import { associationAPI, contactsAPI } from '~/composables/useApi'
 import api from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
@@ -189,6 +189,7 @@ const userConversations = ref<any[]>([])
 const associationChats = ref<any[]>([])
 const onlineStatus = ref<Record<string, string>>({})
 const currentUserId = ref<string>('')
+const syncedContacts = ref<Array<{id: string, phone: string, email: string, name: string}>>([])
 
 // Initialize auth store
 const authStore = useAuthStore()
@@ -313,6 +314,7 @@ const updatePresence = async () => {
 }
 
 // Get the name of the other participant in a conversation (not "Moi")
+// Priority: synced contact name > phone > email > fallback
 const getOtherParticipantName = (conv: any) => {
   if (!conv) return 'Inconnu'
   
@@ -321,38 +323,39 @@ const getOtherParticipantName = (conv: any) => {
   for (const p of participants) {
     const uid = p.user_id || p
     if (uid !== currentUserId.value) {
-      // Priority: name (if not generic) > phone > email > fallback
-      const name = p.name || p.user_name
       const phone = p.phone
       const email = p.email
       
-      // If name is valid and not generic
-      if (name && name !== 'Utilisateur' && name !== 'Moi' && name.length > 0) {
-        return name
-      }
-      // Show phone if available
+      // Check if this phone/email is in synced contacts
+      // For now, we show phone/email first (like WhatsApp when contact is not saved)
+      // If user has synced contacts from mobile, the name will be in the contact
+      
+      // Show phone if available (privacy first - like WhatsApp)
       if (phone && phone.length > 0) {
+        // Check syncedContacts for this phone to show contact name
+        const contact = syncedContacts.value.find(c => c.phone === phone)
+        if (contact) {
+          return contact.name
+        }
         return formatPhoneNumber(phone)
       }
       // Show email if available
       if (email && email.length > 0) {
+        // Check syncedContacts for this email
+        const contact = syncedContacts.value.find(c => c.email === email)
+        if (contact) {
+          return contact.name
+        }
         return email
       }
-      // Fallback to name even if generic
-      if (name) return name
+      // Fallback to generic
       return 'Utilisateur'
     }
   }
   
-  // If conv has other_user_name, use it
-  if (conv.other_user_name) return conv.other_user_name
+  // If conv has other_user_phone, use it
   if (conv.other_user_phone) return formatPhoneNumber(conv.other_user_phone)
-  
-  // Fallback to conv.name but check it's not the current user's name
-  const currentUserName = getCurrentUserName()
-  if (conv.name && conv.name !== currentUserName && conv.name !== 'Moi') {
-    return conv.name
-  }
+  if (conv.other_user_email) return conv.other_user_email
   
   return conv.phone || 'Conversation'
 }
@@ -554,12 +557,14 @@ onMounted(async () => {
   console.log('Current user ID after init:', currentUserId.value)
   
   try {
-    const [convRes, assocRes] = await Promise.all([
+    const [convRes, assocRes, contactsRes] = await Promise.all([
       api.get('/messaging-service/api/v1/conversations'),
-      associationAPI.getAll()
+      associationAPI.getAll(),
+      contactsAPI.getAll()
     ])
     userConversations.value = convRes.data?.conversations || []
     associationChats.value = assocRes.data || []
+    syncedContacts.value = contactsRes.data?.contacts || []
   } catch (err) {
     console.error(err)
   }
