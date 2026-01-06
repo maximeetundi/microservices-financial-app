@@ -146,6 +146,19 @@ const addContact = async () => {
   if (!newContact.value.phone && !newContact.value.email) return
   
   try {
+    // First, check if user is registered on the platform
+    const searchQuery = newContact.value.phone || newContact.value.email
+    const searchRes = await api.get('/auth-service/api/v1/users/search', {
+      params: { q: searchQuery }
+    })
+    
+    const users = searchRes.data?.users || []
+    if (users.length === 0) {
+      alert('Cet utilisateur n\'est pas inscrit sur la plateforme. Seuls les utilisateurs inscrits peuvent être ajoutés comme contact.')
+      return
+    }
+    
+    // User exists, add as contact
     await contactsAPI.add(newContact.value)
     newContact.value = { phone: '', email: '', name: '' }
     await loadContacts()
