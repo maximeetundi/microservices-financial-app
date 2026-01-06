@@ -667,6 +667,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 Text(
                   'En ligne',
@@ -798,6 +800,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               content,
@@ -805,6 +808,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: isMine ? Colors.white : Colors.black87,
                 fontSize: 15,
               ),
+              softWrap: true,
             ),
             const SizedBox(height: 4),
             Row(

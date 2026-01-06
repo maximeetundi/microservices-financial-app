@@ -56,11 +56,13 @@
       </div>
 
       <!-- Video Message -->
-      <div v-else-if="message.message_type === 'video' && message.attachment">
-        <video controls class="max-w-full h-auto" :poster="message.attachment.thumbnail_url">
-          <source :src="message.attachment.file_url" :type="message.attachment.mime_type" />
-        </video>
-        <div v-if="message.content" class="px-4 py-2">
+      <div v-else-if="message.message_type === 'video' && message.attachment" class="p-1">
+        <VideoPlayer 
+          :src="message.attachment.file_url" 
+          :mime-type="message.attachment.mime_type"
+          :poster="message.attachment.thumbnail_url"
+        />
+        <div v-if="message.content" class="px-3 py-2">
           <p class="text-sm break-words">{{ message.content }}</p>
         </div>
       </div>
@@ -83,6 +85,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import VideoPlayer from './VideoPlayer.vue'
 
 const props = defineProps<{
   message: any
