@@ -515,7 +515,14 @@ const closeImageModal = () => {
 }
 
 onMounted(async () => {
-  currentUserId.value = getCurrentUserId()
+  // Wait for auth store to be ready
+  if (!authStore.user) {
+    await authStore.initializeAuth()
+  }
+  
+  // Get user ID from store (now should be available)
+  currentUserId.value = authStore.user?.id || getCurrentUserId()
+  console.log('Current user ID after init:', currentUserId.value)
   
   try {
     const [convRes, assocRes] = await Promise.all([
