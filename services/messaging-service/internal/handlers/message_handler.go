@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -173,6 +175,9 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		},
 	)
 
+	// Send notification to other participants if they're not in chat
+	go h.sendMessageNotifications(conversationID, userID, message.Content, senderName)
+
 	c.JSON(http.StatusCreated, message)
 }
 
@@ -307,4 +312,98 @@ func (h *MessageHandler) DeleteConversation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// sendMessageNotifications sends push notifications to conversation participants who are not currently in chat
+func (h *MessageHandler) sendMessageNotifications(conversationID, senderID, content, senderName string) {
+	ctx := context.Background()
+	
+	// Get conversation to find participants
+	objID, err := primitive.ObjectIDFromHex(conversationID)
+	if err != nil {
+		return
+	}
+	
+	var conv Conversation
+	err = h.db.Collection("conversations").FindOne(ctx, bson.M{"_id": objID}).Decode(&conv)
+	if err != nil {
+		return
+	}
+	
+	// For each participant except sender, check if they're in chat and send notification
+	for _, p := range conv.Participants {
+		if p.UserID == senderID {
+			continue // Skip sender
+		}
+		
+		// Check if user is currently in chat
+		if h.isUserInChat(p.UserID) {
+			continue // User is viewing messages, no notification needed
+		}
+		
+		// User is not in chat, send notification
+		h.sendNotification(p.UserID, senderName, content)
+	}
+}
+
+// isUserInChat checks if a user is currently viewing the messages page
+func (h *MessageHandler) isUserInChat(userID string) bool {
+	// Call auth-service to check chat activity
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get("http://auth-service:8081/api/v1/users/chat-activity/" + userID)
+	if err != nil {
+		return false // If we can't check, assume not in chat
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 200 {
+		return false
+	}
+	
+	var result struct {
+		InChat bool `json:"in_chat"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false
+	}
+	
+	return result.InChat
+}
+
+// sendNotification sends a push notification via notification-service
+func (h *MessageHandler) sendNotification(userID, senderName, content string) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	// Truncate content for notification
+	notifContent := content
+	if len(notifContent) > 100 {
+		notifContent = notifContent[:97] + "..."
+	}
+	
+	payload := map[string]interface{}{
+		"user_id": userID,
+		"title":   senderName,
+		"message": notifContent,
+		"type":    "message",
+		"data": map[string]string{
+			"type": "new_message",
+		},
+	}
+	
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	
+	req, err := http.NewRequest("POST", "http://notification-service:8084/api/v1/notifications", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
 }
