@@ -10,6 +10,7 @@ type Ticket struct {
 	TierID        string            `json:"tier_id" db:"tier_id"`
 	TierName      string            `json:"tier_name" db:"tier_name"`
 	TierIcon      string            `json:"tier_icon" db:"tier_icon"`
+	TierColor     string            `json:"tier_color" db:"tier_color"`
 	Price         float64           `json:"price" db:"price"`
 	Currency      string            `json:"currency" db:"currency"`
 	FormData      map[string]string `json:"form_data"`

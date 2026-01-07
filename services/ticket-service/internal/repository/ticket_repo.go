@@ -169,9 +169,11 @@ func (r *TicketRepository) GetByBuyer(buyerID string, limit, offset int) ([]*mod
 func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*models.Ticket, error) {
 	query := `
 		SELECT t.id, t.event_id, t.buyer_id, t.tier_id, t.tier_name, t.tier_icon,
+			COALESCE(tt.color, '#6366f1') as tier_color,
 			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
 			t.transaction_id, t.used_at, t.created_at
 		FROM tickets t
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE t.event_id = $1
 		ORDER BY t.created_at DESC
 		LIMIT $2 OFFSET $3
@@ -191,7 +193,8 @@ func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*mod
 
 		err := rows.Scan(
 			&ticket.ID, &ticket.EventID, &ticket.BuyerID, &ticket.TierID,
-			&ticket.TierName, &ticket.TierIcon, &ticket.Price, &ticket.Currency,
+			&ticket.TierName, &ticket.TierIcon, &ticket.TierColor,
+			&ticket.Price, &ticket.Currency,
 			&formDataJSON, &ticket.QRCode, &ticket.TicketCode, &ticket.Status,
 			&ticket.TransactionID, &usedAt, &ticket.CreatedAt,
 		)
