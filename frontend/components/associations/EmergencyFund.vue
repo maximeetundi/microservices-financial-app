@@ -88,9 +88,23 @@
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2">Période</label>
           <select v-model="contributeForm.period" class="w-full px-4 py-2 rounded-lg border">
-            <option value="janvier_2026">Janvier 2026</option>
-            <option value="fevrier_2026">Février 2026</option>
+            <option v-for="p in periodOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
           </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Portefeuille source</label>
+          <div v-if="loadingWallets" class="text-center py-2 text-gray-500">Chargement...</div>
+          <div v-else class="space-y-2">
+            <div v-for="wallet in wallets" :key="wallet.id"
+                 @click="contributeForm.wallet_id = wallet.id"
+                 class="p-3 border rounded-lg cursor-pointer transition-all"
+                 :class="contributeForm.wallet_id === wallet.id ? 'border-green-600 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'">
+              <div class="flex justify-between items-center">
+                <div class="font-medium">{{ wallet.currency }}</div>
+                <div class="font-bold">{{ formatCurrency(wallet.balance) }}</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2">Montant</label>
@@ -102,7 +116,7 @@
         </div>
         <div class="flex gap-3">
           <button @click="showContributeModal = false" class="flex-1 px-4 py-2 border rounded-lg">Annuler</button>
-          <button @click="contribute" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg">Payer</button>
+          <button @click="contribute" :disabled="!contributeForm.wallet_id" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg disabled:bg-gray-400">Payer</button>
         </div>
       </div>
     </div>
@@ -138,8 +152,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { associationAPI } from '~/composables/useApi'
+import { ref, computed, onMounted, watch } from 'vue'
+import { associationAPI, walletAPI } from '~/composables/useApi'
 import { useNotification } from '~/composables/useNotification'
 
 const props = defineProps<{ associationId: string }>()
@@ -148,9 +162,27 @@ const { showSuccess, showError, showWarning } = useNotification()
 
 const fund = ref<any>(null)
 const withdrawals = ref<any[]>([])
+const wallets = ref<any[]>([])
+const loadingWallets = ref(false)
 const showCreateModal = ref(false)
 const showContributeModal = ref(false)
 const showWithdrawalModal = ref(false)
+
+const periodOptions = computed(() => {
+  const now = new Date()
+  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
+                  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+  const options = []
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const monthName = months[date.getMonth()]
+    options.push({
+      value: `${monthName}_${date.getFullYear()}`,
+      label: `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${date.getFullYear()}`
+    })
+  }
+  return options
+})
 
 const createForm = ref({ monthlyContribution: 2000 })
 const contributeForm = ref({ period: 'janvier_2026', pin: '', wallet_id: '' })
@@ -161,8 +193,24 @@ const loadData = async () => {
     const res = await associationAPI.getEmergencyFund(props.associationId)
     fund.value = res.data
     loadWithdrawals()
+    loadWallets()
   } catch (err) {
     fund.value = null
+  }
+}
+
+const loadWallets = async () => {
+  loadingWallets.value = true
+  try {
+    const response = await walletAPI.getWallets()
+    wallets.value = response.data?.wallets || response.data || []
+    if (wallets.value.length > 0 && !contributeForm.value.wallet_id) {
+      contributeForm.value.wallet_id = wallets.value[0].id
+    }
+  } catch (err) {
+    console.error('Failed to load wallets', err)
+  } finally {
+    loadingWallets.value = false
   }
 }
 

@@ -218,6 +218,18 @@ func (r *TicketRepository) UpdateStatus(id, status string) error {
 	return err
 }
 
+func (r *TicketRepository) UpdateTransactionID(id, transactionID string) error {
+	query := `UPDATE tickets SET transaction_id = $2 WHERE id = $1`
+	_, err := r.db.Exec(query, id, transactionID)
+	return err
+}
+
+func (r *TicketRepository) Delete(id string) error {
+	query := `DELETE FROM tickets WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
 func (r *TicketRepository) MarkAsUsed(id string) error {
 	now := time.Now()
 	query := `UPDATE tickets SET status = 'used', used_at = $2 WHERE id = $1`

@@ -13,9 +13,10 @@ import (
 )
 
 type TicketService struct {
-	eventRepo  *repository.EventRepository
-	tierRepo   *repository.TierRepository
-	ticketRepo *repository.TicketRepository
+	eventRepo    *repository.EventRepository
+	tierRepo     *repository.TierRepository
+	ticketRepo   *repository.TicketRepository
+	walletClient *WalletClient
 }
 
 func NewTicketService(
@@ -24,9 +25,10 @@ func NewTicketService(
 	ticketRepo *repository.TicketRepository,
 ) *TicketService {
 	return &TicketService{
-		eventRepo:  eventRepo,
-		tierRepo:   tierRepo,
-		ticketRepo: ticketRepo,
+		eventRepo:    eventRepo,
+		tierRepo:     tierRepo,
+		ticketRepo:   ticketRepo,
+		walletClient: NewWalletClient(),
 	}
 }
 
@@ -310,13 +312,29 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 		return nil, fmt.Errorf("failed to create ticket: %w", err)
 	}
 
-	// Increment sold count
-	s.tierRepo.IncrementSold(req.TierID)
+	// Process payment via wallet service
+	transactionID, err := s.walletClient.DeductPayment(
+		buyerID,
+		req.WalletID,
+		req.PIN,
+		tier.Price,
+		event.Currency,
+		fmt.Sprintf("Ticket %s - %s", event.Title, tier.Name),
+	)
+	if err != nil {
+		// Payment failed, delete ticket and revert
+		s.ticketRepo.Delete(ticket.ID)
+		return nil, fmt.Errorf("payment failed: %w", err)
+	}
 
-	// TODO: Process payment via wallet service
-	// For now, mark as paid immediately
+	// Payment successful - update ticket
+	ticket.TransactionID = transactionID
 	ticket.Status = models.TicketStatusPaid
 	s.ticketRepo.UpdateStatus(ticket.ID, models.TicketStatusPaid)
+	s.ticketRepo.UpdateTransactionID(ticket.ID, transactionID)
+
+	// Increment sold count only after successful payment
+	s.tierRepo.IncrementSold(req.TierID)
 
 	// Add event info to response
 	ticket.EventTitle = event.Title

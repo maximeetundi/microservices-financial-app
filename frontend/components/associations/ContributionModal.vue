@@ -25,10 +25,7 @@
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Période</label>
           <select v-model="form.period" 
                   class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
-            <option value="janvier_2026">Janvier 2026</option>
-            <option value="fevrier_2026">Février 2026</option>
-            <option value="mars_2026">Mars 2026</option>
-            <option value="avril_2026">Avril 2026</option>
+            <option v-for="p in periodOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
           </select>
         </div>
 
@@ -104,10 +101,26 @@ const wallets = ref<any[]>([])
 
 const form = ref({
   amount: 0,
-  period: 'janvier_2026',
+  period: '',
   wallet_id: '',
   pin: '',
   description: ''
+})
+
+const periodOptions = computed(() => {
+  const now = new Date()
+  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
+                  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+  const options = []
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const monthName = months[date.getMonth()]
+    options.push({
+      value: `${monthName}_${date.getFullYear()}`,
+      label: `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${date.getFullYear()}`
+    })
+  }
+  return options
 })
 
 const isValid = computed(() => {
@@ -169,6 +182,7 @@ watch(() => props.show, (val) => {
   if (val) {
     loadWallets()
     form.value.pin = ''
+    form.value.period = periodOptions.value[0]?.value || ''
     error.value = ''
   }
 })

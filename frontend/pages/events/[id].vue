@@ -632,13 +632,13 @@ const verifyManualCode = async () => {
 
 const verifyTicket = async (ticketCode) => {
   try {
-    const res = await ticketAPI.verifyTicket({ ticket_code: ticketCode, event_id: eventId })
+    const res = await ticketAPI.verifyTicket(ticketCode)
     const ticket = res.data?.ticket
     
     if (ticket) {
       scanResult.value = {
         valid: true,
-        message: ticket.used ? 'Ce ticket a déjà été utilisé' : 'Ticket valide et prêt à être utilisé',
+        message: ticket.status === 'used' ? 'Ce ticket a déjà été utilisé' : 'Ticket valide et prêt à être utilisé',
         ticket: ticket
       }
     } else {
@@ -660,7 +660,7 @@ const markTicketAsUsed = async () => {
   
   try {
     await ticketAPI.useTicket(scanResult.value.ticket.id)
-    scanResult.value.ticket.used = true
+    scanResult.value.ticket.status = 'used'
     scanResult.value.message = 'Ticket marqué comme utilisé ✓'
     alert('Ticket validé avec succès!')
   } catch (e) {

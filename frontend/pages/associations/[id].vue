@@ -171,9 +171,22 @@
               + Demander un prêt
             </button>
           </div>
-          <div class="text-center py-12 text-gray-500">
+          <div v-if="loans.length === 0" class="text-center py-12 text-gray-500">
             <BanknotesIcon class="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p>Aucun prêt en cours</p>
+          </div>
+          <div v-else class="space-y-4">
+            <div v-for="loan in loans" :key="loan.id" class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(loan.amount) }}</div>
+                  <div class="text-sm text-gray-500">Taux: {{ loan.interest_rate }}% | Durée: {{ loan.duration }} mois</div>
+                </div>
+                <span :class="getLoanStatusClass(loan.status)" class="px-2 py-1 rounded-full text-xs font-medium">
+                  {{ getLoanStatusLabel(loan.status) }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -252,6 +265,7 @@ const id = route.params.id as string
 const association = ref<any>(null)
 const members = ref<any[]>([])
 const meetings = ref<any[]>([])
+const loans = ref<any[]>([])
 const treasury = ref<any>({ total_balance: 0, total_contributions: 0, total_loans: 0, transactions: [] })
 const stats = ref({ contributions_this_month: 0, pending_loans: 0 })
 const activeTab = ref('members')
@@ -307,6 +321,26 @@ const getRoleLabel = (role: string) => {
   return labels[role] || role
 }
 
+const getLoanStatusClass = (status: string) => {
+  switch (status) {
+    case 'active': return 'bg-green-100 text-green-700'
+    case 'pending': return 'bg-yellow-100 text-yellow-700'
+    case 'paid': return 'bg-blue-100 text-blue-700'
+    case 'rejected': return 'bg-red-100 text-red-700'
+    default: return 'bg-gray-100 text-gray-700'
+  }
+}
+
+const getLoanStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    active: 'En cours',
+    pending: 'En attente',
+    paid: 'Remboursé',
+    rejected: 'Refusé'
+  }
+  return labels[status] || status
+}
+
 const getInitials = (name: string) => {
   if (!name) return '?'
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -323,19 +357,22 @@ const formatDate = (dateStr: string) => {
 
 onMounted(async () => {
   try {
-    const [assocRes, membersRes, treasuryRes] = await Promise.all([
+    const [assocRes, membersRes, treasuryRes, loansRes] = await Promise.all([
       associationAPI.get(id),
       associationAPI.getMembers(id),
-      associationAPI.getTreasury(id)
+      associationAPI.getTreasury(id),
+      associationAPI.getLoans(id)
     ])
     association.value = assocRes.data
     members.value = membersRes.data || []
     treasury.value = treasuryRes.data || treasury.value
+    loans.value = loansRes.data || []
   } catch (err) {
     console.error('Failed to load association', err)
     association.value = null
     members.value = []
     treasury.value = { total_balance: 0, total_contributions: 0, total_loans: 0, transactions: [] }
+    loans.value = []
   }
 })
 </script>

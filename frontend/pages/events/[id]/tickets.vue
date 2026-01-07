@@ -136,7 +136,7 @@ const tickets = ref<any[]>([])
 
 const totalRevenue = computed(() => tickets.value.reduce((sum, t) => sum + (t.price || 0), 0))
 const usedCount = computed(() => tickets.value.filter(t => t.status === 'used').length)
-const pendingCount = computed(() => tickets.value.filter(t => t.status === 'pending' || t.status === 'confirmed').length)
+const pendingCount = computed(() => tickets.value.filter(t => t.status === 'pending').length)
 
 const loadData = async () => {
   loading.value = true
@@ -146,7 +146,7 @@ const loadData = async () => {
       ticketApi.getEvent(eventId.value),
       ticketApi.getEventTickets(eventId.value, 100, 0)
     ])
-    event.value = eventRes.data
+    event.value = eventRes.data?.event || eventRes.data
     tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
   } catch (err: any) {
     console.error('Failed to load data:', err)
@@ -190,7 +190,7 @@ const formatDate = (date: string) => {
 const getStatusClass = (status: string) => {
   switch (status) {
     case 'used': return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-    case 'confirmed': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+    case 'paid': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
     case 'cancelled': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
     default: return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
   }
@@ -199,7 +199,7 @@ const getStatusClass = (status: string) => {
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'used': return '✓ Utilisé'
-    case 'confirmed': return 'Confirmé'
+    case 'paid': return 'Confirmé'
     case 'cancelled': return 'Annulé'
     case 'pending': return 'En attente'
     default: return status
