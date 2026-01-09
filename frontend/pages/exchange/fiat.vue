@@ -444,7 +444,7 @@ const createDestWallet = async () => {
     const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
     const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
     
-    const { data } = await walletAPI.createWallet({
+    const { data: newWalletResponse } = await walletAPI.createWallet({
       currency: toCurrency.value,
       name: walletName,
       wallet_type: 'fiat'
@@ -452,9 +452,11 @@ const createDestWallet = async () => {
     
     // Refresh wallets and select the new one
     await fetchWallets()
+
+    const newWallet = newWalletResponse.wallet || newWalletResponse
     
-    if (data?.id) {
-      toWalletId.value = data.id
+    if (newWallet?.id) {
+      toWalletId.value = newWallet.id
     }
     
     alert(`Portefeuille ${toCurrency.value} créé avec succès !`)
@@ -476,38 +478,42 @@ const executeFiatConversion = async () => {
       const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
       const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
       
-      const { data: newWallet } = await walletAPI.createWallet({
+      const { data: newWalletResponse } = await walletAPI.createWallet({
         currency: toCurrency.value,
         name: walletName,
         wallet_type: 'fiat'
       })
       
+      const newWallet = newWalletResponse.wallet || newWalletResponse
+
       if (!newWallet?.id) throw new Error('Failed to create destination wallet')
       destWalletIdToUse = newWallet.id
     }
     
     // 1. Get Quote
-    const { data: quote } = await exchangeAPI.getQuote(fromCurrency.value, toCurrency.value, fromAmount.value)
+    const { data: quoteResponse } = await exchangeAPI.getQuote(fromCurrency.value, toCurrency.value, fromAmount.value)
+    const quote = quoteResponse.quote
     
-    if (!quote || !quote.ID) throw new Error('Failed to get quote')
+    if (!quote || !quote.id) throw new Error('Failed to get quote')
 
     // 2. Execute Exchange
-    const { data: exchange } = await exchangeAPI.executeExchange(
-        quote.ID,
+    const { data: exchangeResponse } = await exchangeAPI.executeExchange(
+        quote.id,
         fromWalletId.value,
         destWalletIdToUse
     )
+    const exchange = exchangeResponse.exchange || exchangeResponse
 
     // Refresh wallets
     fetchWallets()
 
     // Add to recent conversions
     recentConversions.value.unshift({
-      id: exchange.ID || Date.now(),
-      from_amount: exchange.FromAmount || fromAmount.value,
-      from_currency: exchange.FromCurrency || fromCurrency.value,
-      to_amount: exchange.ToAmount || toAmount.value,
-      to_currency: exchange.ToCurrency || toCurrency.value,
+      id: exchange.id || Date.now(),
+      from_amount: exchange.from_amount || fromAmount.value,
+      from_currency: exchange.from_currency || fromCurrency.value,
+      to_amount: exchange.to_amount || toAmount.value,
+      to_currency: exchange.to_currency || toCurrency.value,
       created_at: new Date().toISOString()
     })
 
