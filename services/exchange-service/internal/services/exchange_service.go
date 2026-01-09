@@ -510,7 +510,21 @@ func (s *ExchangeService) getEstimatedDelivery(fromCurrency, toCurrency string) 
 
 func (s *ExchangeService) isSupportedCurrency(currency string) bool {
 	supportedCurrencies := []string{
-		"USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF",
+		// Major currencies
+		"USD", "EUR", "GBP", "JPY", "CHF",
+		// Americas
+		"CAD", "MXN", "BRL", "ARS", "CLP", "COP", "PEN",
+		// Europe
+		"NOK", "SEK", "DKK", "PLN", "CZK", "HUF", "RON", "TRY", "RUB",
+		// Asia
+		"CNY", "HKD", "SGD", "KRW", "INR", "IDR", "MYR", "THB", "PHP", "VND", "PKR", "BDT",
+		// Middle East
+		"AED", "SAR", "QAR", "KWD", "BHD", "OMR", "ILS", "EGP",
+		// Africa
+		"XAF", "XOF", "NGN", "ZAR", "KES", "GHS", "MAD", "TND", "DZD", "UGX", "TZS", "RWF", "ETB",
+		// Oceania
+		"AUD", "NZD", "FJD",
+		// Crypto
 		"BTC", "ETH", "USDT", "USDC", "BNB", "ADA", "XRP", "DOT", "LTC",
 	}
 	
@@ -539,7 +553,20 @@ func (s *ExchangeService) isCryptoCurrency(currency string) bool {
 
 func (s *ExchangeService) isFiatCurrency(currency string) bool {
 	fiatCurrencies := []string{
-		"USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF", "SEK", "NOK", "DKK",
+		// Major
+		"USD", "EUR", "GBP", "JPY", "CHF",
+		// Americas
+		"CAD", "MXN", "BRL", "ARS", "CLP", "COP", "PEN",
+		// Europe
+		"NOK", "SEK", "DKK", "PLN", "CZK", "HUF", "RON", "TRY", "RUB",
+		// Asia
+		"CNY", "HKD", "SGD", "KRW", "INR", "IDR", "MYR", "THB", "PHP", "VND", "PKR", "BDT",
+		// Middle East
+		"AED", "SAR", "QAR", "KWD", "BHD", "OMR", "ILS", "EGP",
+		// Africa
+		"XAF", "XOF", "NGN", "ZAR", "KES", "GHS", "MAD", "TND", "DZD", "UGX", "TZS", "RWF", "ETB",
+		// Oceania
+		"AUD", "NZD", "FJD",
 	}
 	
 	currency = strings.ToUpper(currency)
