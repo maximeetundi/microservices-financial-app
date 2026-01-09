@@ -160,6 +160,18 @@ func main() {
 				p2p.POST("/offers/:offer_id/accept", exchangeHandler.AcceptP2POffer)
 				p2p.GET("/trades", exchangeHandler.GetP2PTrades)
 			}
+
+			// Fiat Exchange (Fiat-to-Fiat conversions)
+			fiat := protected.Group("/fiat")
+			{
+				fiat.POST("/quote", fiatHandler.GetFiatQuote)
+				fiat.POST("/exchange", fiatHandler.ExecuteFiatExchange)
+				fiat.GET("/rates", fiatHandler.GetFiatRates)
+				fiat.GET("/rates/:from/:to", fiatHandler.GetSpecificFiatRate)
+				fiat.GET("/currencies", fiatHandler.GetSupportedFiatCurrencies)
+				fiat.GET("/convert", fiatHandler.FiatConverter)
+				fiat.GET("/compare-fees", fiatHandler.CompareBankingFees)
+			}
 		}
 
 		// Admin routes
