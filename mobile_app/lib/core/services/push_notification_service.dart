@@ -177,6 +177,27 @@ class PushNotificationService {
     );
   }
 
+  /// Show exchange notification
+  Future<void> showExchangeNotification({
+    required double fromAmount,
+    required String fromCurrency,
+    required double toAmount,
+    required String toCurrency,
+    String? exchangeId,
+  }) async {
+    await showNotification(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: 'Échange réussi 💱',
+      body: 'Vous avez échangé ${fromAmount.toStringAsFixed(2)} $fromCurrency contre ${toAmount.toStringAsFixed(2)} $toCurrency',
+      payload: jsonEncode({
+        'type': 'exchange',
+        'exchange_id': exchangeId,
+      }),
+      channelId: 'exchange',
+      channelName: 'Échanges',
+    );
+  }
+
   /// Register device token with backend
   Future<void> registerDeviceToken(String token) async {
     try {

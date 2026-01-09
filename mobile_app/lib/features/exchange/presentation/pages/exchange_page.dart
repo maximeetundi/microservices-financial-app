@@ -8,6 +8,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/loading_widget.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../bloc/exchange_bloc.dart';
 import '../widgets/currency_selector.dart';
 import '../widgets/exchange_rate_card.dart';
@@ -504,9 +505,26 @@ class _ExchangePageState extends State<ExchangePage>
   void _showCurrencyPicker(Function(String) onCurrencyChanged) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => CurrencySelector(
         selectedCurrency: _fromCurrency,
-        currencies: ['BTC', 'ETH', 'USD', 'EUR'],
+        currencies: [
+          // Crypto
+          'BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'DOT',
+          'LTC', 'AVAX', 'MATIC', 'LINK', 'UNI', 'ATOM',
+          // Major Fiat
+          'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD',
+          // Africa
+          'XAF', 'XOF', 'NGN', 'ZAR', 'KES', 'GHS', 'MAD', 'TND', 'DZD', 'UGX', 'RWF', 'ETB',
+          // Middle East
+          'AED', 'SAR', 'QAR', 'KWD', 'EGP', 'ILS',
+          // Asia
+          'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'IDR', 'MYR', 'THB', 'PHP', 'VND',
+          // Americas
+          'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN',
+          // Europe
+          'NOK', 'SEK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'RUB',
+        ],
         onChanged: (currency) {
           onCurrencyChanged(currency);
         },
@@ -629,6 +647,18 @@ class _ExchangePageState extends State<ExchangePage>
   }
 
   void _showSuccessDialog(dynamic transaction) {
+    // Show push notification
+    final fromAmount = double.tryParse(_fromAmountController.text) ?? 0;
+    final toAmount = double.tryParse(_toAmountController.text) ?? 0;
+    
+    PushNotificationService().showExchangeNotification(
+      fromAmount: fromAmount,
+      fromCurrency: _fromCurrency,
+      toAmount: toAmount,
+      toCurrency: _toCurrency,
+      exchangeId: transaction?.toString(),
+    );
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -637,8 +667,10 @@ class _ExchangePageState extends State<ExchangePage>
           color: AppTheme.successColor,
           size: 48,
         ),
-        title: const Text('Exchange Successful'),
-        content: const Text('Your exchange has been completed successfully!'),
+        title: const Text('Échange réussi!'),
+        content: Text(
+          'Vous avez échangé ${fromAmount.toStringAsFixed(2)} $_fromCurrency contre ${toAmount.toStringAsFixed(2)} $_toCurrency',
+        ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),

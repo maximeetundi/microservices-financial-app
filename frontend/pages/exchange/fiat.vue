@@ -99,7 +99,7 @@
               </div>
               
                <div class="mt-2 text-sm text-muted">
-                 1 {{ fromCurrency }} = {{ (Number(exchangeRate?.rate) || 0).toFixed(4) }} {{ toCurrency }}
+                 1 {{ fromCurrency }} = {{ formatRate(exchangeRate?.Rate || exchangeRate?.rate) }} {{ toCurrency }}
                </div>
             </div>
 
@@ -377,12 +377,34 @@ const updateRates = async () => {
   loading.value = true
   try {
     const { data } = await exchangeAPI.getRate(fromCurrency.value, toCurrency.value)
-    exchangeRate.value = data
+    console.log('Exchange rate response:', data)
+    
+    // API returns { rate: { rate: 562.41, ... } } - extract the inner rate object
+    if (data && data.rate && typeof data.rate === 'object') {
+      exchangeRate.value = data.rate
+    } else if (data && typeof data === 'object') {
+      exchangeRate.value = data
+    } else {
+      throw new Error('Invalid rate response')
+    }
+    
     calculateConversion()
   } catch (error) {
     console.error('Error fetching rates:', error)
-    // mock rate
-    exchangeRate.value = { rate: 0.92, fee_percentage: 0.25, change_24h: 0.05 }
+    // mock rate based on currency pair
+    const mockRates = {
+      'USD_XOF': 600,
+      'USD_XAF': 600,
+      'USD_EUR': 0.92,
+      'EUR_USD': 1.09,
+      'USD_NGN': 1550,
+    }
+    const key = `${fromCurrency.value}_${toCurrency.value}`
+    exchangeRate.value = { 
+      rate: mockRates[key] || 1, 
+      fee_percentage: 0.25, 
+      change_24h: 0.05 
+    }
     calculateConversion()
   } finally {
     loading.value = false
@@ -391,12 +413,18 @@ const updateRates = async () => {
 
 const calculateConversion = () => {
   if (exchangeRate.value && fromAmount.value > 0) {
-    const rateVal = exchangeRate.value.Rate || exchangeRate.value.rate || 1
-    const pFee = exchangeRate.value.FeePercentage || exchangeRate.value.fee_percentage || 0.5
+    // Handle both camelCase and snake_case API responses
+    let rateVal = exchangeRate.value.Rate || exchangeRate.value.rate
+    if (typeof rateVal !== 'number' || isNaN(rateVal) || rateVal <= 0) {
+      rateVal = 1
+    }
+    
+    const pFee = exchangeRate.value.FeePercentage || exchangeRate.value.fee_percentage || 0.25
     
     // Recalculate based on normalized values
     const rawConverted = fromAmount.value * rateVal
-    toAmount.value = (rawConverted * (1 - pFee/100)).toFixed(2)
+    const finalAmount = rawConverted * (1 - pFee/100)
+    toAmount.value = isNaN(finalAmount) ? '0.00' : finalAmount.toFixed(2)
   } else {
     toAmount.value = 0
   }
@@ -504,6 +532,16 @@ const formatTime = (timestamp) => {
 
 const formatMoney = (amount) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: fromCurrency.value }).format(amount)
+}
+
+const formatRate = (rate) => {
+  const numRate = Number(rate)
+  if (!numRate || isNaN(numRate) || numRate <= 0) return '0.00'
+  // For rates >= 1, show 2-4 decimals; for rates < 1, show more decimals
+  if (numRate >= 1) {
+    return numRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+  }
+  return numRate.toFixed(6)
 }
 
 // Lifecycle
