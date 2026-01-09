@@ -71,9 +71,10 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 
 	// Create transfer record
 	ref := generateReferenceID()
+	fromWalletIDPtr := req.FromWalletID
 	transfer := &models.Transfer{
 		ID:             generateID(),
-		FromWalletID:   req.FromWalletID,
+		FromWalletID:   &fromWalletIDPtr,
 		ToWalletID:     destinationWalletID,
 		RecipientEmail: req.ToEmail,
 		RecipientPhone: req.ToPhone,
@@ -302,9 +303,10 @@ func NewInternationalTransferService(config *config.Config) *InternationalTransf
 
 func (s *InternationalTransferService) CreateTransfer(req *models.InternationalTransferRequest) (*models.Transfer, error) {
 	ref := generateReferenceID()
+	fromWalletIDPtr := req.FromWalletID
 	transfer := &models.Transfer{
 		ID:           generateID(),
-		FromWalletID: req.FromWalletID,
+		FromWalletID: &fromWalletIDPtr,
 		TransferType: "international",
 		Amount:       req.Amount,
 		Currency:     req.Currency,
