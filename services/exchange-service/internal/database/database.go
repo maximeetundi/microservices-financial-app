@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/streadway/amqp"
@@ -68,17 +69,21 @@ func InitializeRabbitMQ(rabbitURL string) (*RabbitMQClient, error) {
 	}
 
 	log.Println("RabbitMQ connected and configured successfully")
-	return &RabbitMQClient{conn: conn, channel: channel}, nil
+	return &RabbitMQClient{conn: conn, channel: channel, url: rabbitURL}, nil
 }
 
 // Helper methods for RabbitMQ
 
 type RabbitMQClient struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
+	conn      *amqp.Connection
+	channel   *amqp.Channel
+	url       string
+	mu        sync.Mutex
 }
 
 func (r *RabbitMQClient) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.channel != nil {
 		r.channel.Close()
 	}
@@ -89,10 +94,64 @@ func (r *RabbitMQClient) Close() {
 
 // GetChannel returns the underlying amqp.Channel
 func (r *RabbitMQClient) GetChannel() *amqp.Channel {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return r.channel
 }
 
+// ensureConnection checks if connection is alive and reconnects if needed
+func (r *RabbitMQClient) ensureConnection() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
+	// Check if channel is closed
+	if r.channel == nil || r.conn == nil || r.conn.IsClosed() {
+		log.Println("[RabbitMQ] Connection is closed, attempting to reconnect...")
+		
+		// Close existing connection if any
+		if r.channel != nil {
+			r.channel.Close()
+		}
+		if r.conn != nil {
+			r.conn.Close()
+		}
+		
+		// Reconnect
+		conn, err := amqp.Dial(r.url)
+		if err != nil {
+			return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
+		}
+		
+		channel, err := conn.Channel()
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("failed to reopen RabbitMQ channel: %w", err)
+		}
+		
+		// Redeclare exchanges and queues
+		if err := declareExchangesAndQueues(channel); err != nil {
+			channel.Close()
+			conn.Close()
+			return fmt.Errorf("failed to redeclare exchanges: %w", err)
+		}
+		
+		r.conn = conn
+		r.channel = channel
+		log.Println("[RabbitMQ] Reconnected successfully!")
+	}
+	
+	return nil
+}
+
 func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
+	// Ensure connection is alive
+	if err := r.ensureConnection(); err != nil {
+		return err
+	}
+	
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
 	return r.channel.Publish(
 		exchange,
 		routingKey,
@@ -106,6 +165,14 @@ func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message 
 }
 
 func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
+	// Ensure connection is alive
+	if err := r.ensureConnection(); err != nil {
+		return nil, err
+	}
+	
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
 	return r.channel.Consume(
 		queue, // queue
 		"",    // consumer
