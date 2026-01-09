@@ -3,13 +3,14 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
+	database "github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
-	"github.com/streadway/amqp"
 )
 
 type ExchangeService struct {
@@ -466,7 +467,7 @@ func (s *ExchangeService) FinalizeExchange(exchangeID string) {
 func (s *ExchangeService) FailExchange(exchangeID, reason string) {
 	s.exchangeRepo.UpdateStatus(exchangeID, "failed")
 	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
-	// Log or notify?
+	log.Printf("Exchange %s failed: %s. Details: %+v", exchangeID, reason, exchange)
 }
 
 func (s *ExchangeService) calculateFeePercentage(fromCurrency, toCurrency string, amount float64) float64 {
