@@ -117,11 +117,6 @@ func main() {
 		api.POST("/conversations/:id/messages", handler.SendMessage)
 		api.POST("/messages/:id/read", handler.MarkAsRead)
 		api.DELETE("/conversations/:id", handler.DeleteConversation)
-
-		// Association chat (centralized in messaging-service)
-		api.GET("/associations/:id/chat", handler.GetAssociationChat)
-		api.POST("/associations/:id/chat", handler.SendAssociationMessage)
-		api.DELETE("/associations/:id/chat/:messageId", handler.DeleteAssociationMessage)
 	}
 
 	port := os.Getenv("PORT")
