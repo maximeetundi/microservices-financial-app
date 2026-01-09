@@ -7,7 +7,7 @@ import (
 type Transfer struct {
 	ID              string     `json:"id" db:"id"`
 	UserID          string     `json:"user_id" db:"user_id"`
-	FromWalletID    string     `json:"from_wallet_id" db:"from_wallet_id"`
+	FromWalletID    *string    `json:"from_wallet_id,omitempty" db:"from_wallet_id"`
 	ToWalletID      *string    `json:"to_wallet_id,omitempty" db:"to_wallet_id"`
 	RecipientEmail  *string    `json:"recipient_email,omitempty" db:"recipient_email"`
 	RecipientPhone  *string    `json:"recipient_phone,omitempty" db:"recipient_phone"`
@@ -52,7 +52,7 @@ type MobileMoneyDetails struct {
 type BulkTransfer struct {
 	ID              string    `json:"id" db:"id"`
 	UserID          string    `json:"user_id" db:"user_id"`
-	FromWalletID    string    `json:"from_wallet_id" db:"from_wallet_id"`
+	FromWalletID    *string   `json:"from_wallet_id,omitempty" db:"from_wallet_id"`
 	Currency        string    `json:"currency" db:"currency"`
 	TotalAmount     float64   `json:"total_amount" db:"total_amount"`
 	TotalFee        float64   `json:"total_fee" db:"total_fee"`
