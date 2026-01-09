@@ -171,6 +171,13 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"CHF": 0.8912,
 			"SEK": 10.8765,
 			"NOK": 10.9876,
+			"XOF": 600.0,
+			"XAF": 600.0,
+			"NGN": 1500.0,
+			"GHS": 12.5,
+			"KES": 153.0,
+			"ZAR": 18.5,
+			"MAD": 10.0,
 		},
 		"EUR": {
 			"USD": 1.1826,
@@ -179,6 +186,13 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"CAD": 1.6043,
 			"AUD": 1.8012,
 			"CHF": 1.0539,
+			"XOF": 655.957,
+			"XAF": 655.957,
+			"NGN": 1780.0,
+			"GHS": 14.8,
+			"KES": 181.0,
+			"ZAR": 21.9,
+			"MAD": 10.85,
 		},
 		"GBP": {
 			"USD": 1.2787,
@@ -186,6 +200,9 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"JPY": 190.76,
 			"CAD": 1.7354,
 			"AUD": 1.9467,
+			"XOF": 765.0,
+			"XAF": 765.0,
+			"NGN": 1920.0,
 		},
 		"JPY": {
 			"USD": 0.0067,
@@ -193,6 +210,8 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"GBP": 0.0052,
 			"CAD": 0.0091,
 			"AUD": 0.0102,
+			"XOF": 4.02,
+			"XAF": 4.02,
 		},
 		"CAD": {
 			"USD": 0.7371,
@@ -200,6 +219,8 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"GBP": 0.5764,
 			"JPY": 109.98,
 			"AUD": 1.1228,
+			"XOF": 442.0,
+			"XAF": 442.0,
 		},
 		"AUD": {
 			"USD": 0.6564,
@@ -207,6 +228,71 @@ func (s *FiatExchangeService) fetchLiveFiatRate(fromCurrency, toCurrency string)
 			"GBP": 0.5137,
 			"JPY": 97.96,
 			"CAD": 0.8906,
+			"XOF": 394.0,
+			"XAF": 394.0,
+		},
+		// African currencies
+		"XOF": {
+			"USD": 0.00167,
+			"EUR": 0.001524,
+			"GBP": 0.001307,
+			"XAF": 1.0,
+			"NGN": 2.5,
+			"GHS": 0.0208,
+			"KES": 0.255,
+			"ZAR": 0.0308,
+		},
+		"XAF": {
+			"USD": 0.00167,
+			"EUR": 0.001524,
+			"GBP": 0.001307,
+			"XOF": 1.0,
+			"NGN": 2.5,
+			"GHS": 0.0208,
+			"KES": 0.255,
+			"ZAR": 0.0308,
+		},
+		"NGN": {
+			"USD": 0.000667,
+			"EUR": 0.000562,
+			"XOF": 0.4,
+			"XAF": 0.4,
+			"GHS": 0.00833,
+			"KES": 0.102,
+			"ZAR": 0.0123,
+		},
+		"GHS": {
+			"USD": 0.08,
+			"EUR": 0.0676,
+			"XOF": 48.0,
+			"XAF": 48.0,
+			"NGN": 120.0,
+			"KES": 12.24,
+			"ZAR": 1.48,
+		},
+		"KES": {
+			"USD": 0.00654,
+			"EUR": 0.00553,
+			"XOF": 3.92,
+			"XAF": 3.92,
+			"NGN": 9.8,
+			"GHS": 0.0817,
+			"ZAR": 0.121,
+		},
+		"ZAR": {
+			"USD": 0.054,
+			"EUR": 0.0456,
+			"XOF": 32.4,
+			"XAF": 32.4,
+			"NGN": 81.0,
+			"GHS": 0.676,
+			"KES": 8.27,
+		},
+		"MAD": {
+			"USD": 0.1,
+			"EUR": 0.092,
+			"XOF": 60.0,
+			"XAF": 60.0,
 		},
 	}
 
@@ -300,6 +386,16 @@ func (s *FiatExchangeService) isFiatCurrency(currency string) bool {
 		"KRW": true, // Won sud-coréen
 		"TRY": true, // Livre turque
 		"ZAR": true, // Rand sud-africain
+		// African currencies
+		"XOF": true, // CFA Franc BCEAO (West Africa)
+		"XAF": true, // CFA Franc BEAC (Central Africa)
+		"NGN": true, // Nigerian Naira
+		"GHS": true, // Ghanaian Cedi
+		"KES": true, // Kenyan Shilling
+		"MAD": true, // Moroccan Dirham
+		"EGP": true, // Egyptian Pound
+		"TZS": true, // Tanzanian Shilling
+		"UGX": true, // Ugandan Shilling
 	}
 
 	return fiatCurrencies[strings.ToUpper(currency)]

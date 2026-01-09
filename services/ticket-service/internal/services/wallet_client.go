@@ -40,6 +40,7 @@ func (c *WalletClient) DeductPayment(userID, walletID, pin string, amount float6
 		"amount":      amount,
 		"description": description,
 		"pin":         pin,
+		"currency":    currency, // Send event currency for conversion
 	}
 
 	jsonData, _ := json.Marshal(payload)

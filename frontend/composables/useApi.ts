@@ -553,90 +553,6 @@ export const ticketAPI = {
     },
 }
 
-// ========== Associations ==========
-export const associationAPI = {
-    // Associations
-    create: (data: any) => api.post('/association-service/api/v1/associations', data),
-    getAll: () => api.get('/association-service/api/v1/associations/me'),
-    get: (id: string) => api.get(`/association-service/api/v1/associations/${id}`),
-    update: (id: string, data: any) => api.put(`/association-service/api/v1/associations/${id}`, data),
-    delete: (id: string) => api.delete(`/association-service/api/v1/associations/${id}`),
-
-    // Members
-    join: (id: string, data: { message: string }) => api.post(`/association-service/api/v1/associations/${id}/join`, data),
-    leave: (id: string) => api.post(`/association-service/api/v1/associations/${id}/leave`),
-    getMembers: (id: string) => api.get(`/association-service/api/v1/associations/${id}/members`),
-    updateMemberRole: (id: string, userId: string, role: string) =>
-        api.put(`/association-service/api/v1/associations/${id}/members/${userId}/role`, { role }),
-
-    // Meetings
-    createMeeting: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/meetings`, data),
-    getMeetings: (id: string) => api.get(`/association-service/api/v1/associations/${id}/meetings`),
-    recordAttendance: (meetingId: string, attendance: any) => api.post(`/association-service/api/v1/meetings/${meetingId}/attendance`, { attendance }),
-    updateMinutes: (meetingId: string, minutes: string) => api.put(`/association-service/api/v1/meetings/${meetingId}/minutes`, { minutes }),
-
-    // Treasury & Finance
-    recordContribution: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/contributions`, data),
-    getTreasury: (id: string) => api.get(`/association-service/api/v1/associations/${id}/treasury`),
-    requestLoan: (id: string, data: any) => api.post(`/association-service/api/v1/associations/${id}/loans`, data),
-    getLoans: (id: string) => api.get(`/association-service/api/v1/associations/${id}/loans`),
-    approveLoan: (loanId: string, approve: boolean, reason: string) =>
-        api.put(`/association-service/api/v1/loans/${loanId}/approve`, { approve, reason }),
-    repayLoan: (loanId: string, amount: number) => api.post(`/association-service/api/v1/loans/${loanId}/repay`, { amount }),
-    distributeFunds: (id: string, amount: number, memberIds: string[]) =>
-        api.post(`/association-service/api/v1/associations/${id}/distribute`, { amount, member_ids: memberIds }),
-
-    // === NEW: Custom Roles ===
-    createRole: (id: string, data: { name: string; permissions: string[] }) =>
-        api.post(`/association-service/api/v1/associations/${id}/roles`, data),
-    getRoles: (id: string) => api.get(`/association-service/api/v1/associations/${id}/roles`),
-    deleteRole: (id: string, roleId: string) =>
-        api.delete(`/association-service/api/v1/associations/${id}/roles/${roleId}`),
-
-    // === NEW: Multi-Signature Approvers ===
-    setApprovers: (id: string, memberIds: string[]) =>
-        api.post(`/association-service/api/v1/associations/${id}/approvers`, { member_ids: memberIds }),
-    getApprovers: (id: string) => api.get(`/association-service/api/v1/associations/${id}/approvers`),
-    getPendingApprovals: (id: string) => api.get(`/association-service/api/v1/associations/${id}/approvals`),
-    voteOnApproval: (requestId: string, vote: 'approve' | 'reject', comment?: string) =>
-        api.post(`/association-service/api/v1/approvals/${requestId}/vote`, { vote, comment }),
-
-    // === NEW: Chat ===
-    sendMessage: (id: string, content: string, isAdminOnly: boolean = false) =>
-        api.post(`/association-service/api/v1/associations/${id}/chat`, { content, is_admin_only: isAdminOnly }),
-    getMessages: (id: string, limit: number = 50, offset: number = 0) =>
-        api.get(`/association-service/api/v1/associations/${id}/chat?limit=${limit}&offset=${offset}`),
-
-    // === NEW: Solidarity Events ===
-    createSolidarityEvent: (id: string, data: { event_type: string; beneficiary_id: string; title: string; description?: string; target_amount?: number }) =>
-        api.post(`/association-service/api/v1/associations/${id}/solidarity`, data),
-    getSolidarityEvents: (id: string, status?: string) =>
-        api.get(`/association-service/api/v1/associations/${id}/solidarity${status ? `?status=${status}` : ''}`),
-    contributeToSolidarity: (eventId: string, data: { amount: number; wallet_id: string; pin: string }) =>
-        api.post(`/association-service/api/v1/solidarity/${eventId}/contribute`, data),
-
-    // === NEW: Called Tontine ===
-    createCalledRound: (id: string, beneficiaryId: string) =>
-        api.post(`/association-service/api/v1/associations/${id}/rounds`, { beneficiary_id: beneficiaryId }),
-    getCalledRounds: (id: string, status?: string) =>
-        api.get(`/association-service/api/v1/associations/${id}/rounds${status ? `?status=${status}` : ''}`),
-    makePledge: (roundId: string, amount: number) =>
-        api.post(`/association-service/api/v1/rounds/${roundId}/pledge`, { amount }),
-    payPledge: (roundId: string, pledgeId: string, walletId: string, pin: string) =>
-        api.post(`/association-service/api/v1/rounds/${roundId}/pledges/${pledgeId}/pay`, { wallet_id: walletId, pin }),
-    getPledges: (roundId: string) => api.get(`/association-service/api/v1/rounds/${roundId}/pledges`),
-
-    // === NEW: Emergency Fund (Caisse de Secours) ===
-    createEmergencyFund: (id: string, monthlyContribution: number) =>
-        api.post(`/association-service/api/v1/associations/${id}/emergency-fund`, { monthly_contribution: monthlyContribution }),
-    getEmergencyFund: (id: string) => api.get(`/association-service/api/v1/associations/${id}/emergency-fund`),
-    contributeToEmergencyFund: (id: string, data: { period: string; wallet_id: string; pin: string; amount: number }) =>
-        api.post(`/association-service/api/v1/associations/${id}/emergency-fund/contribute`, data),
-    requestEmergencyWithdrawal: (id: string, data: { event_type: string; beneficiary_id: string; amount: number; reason: string }) =>
-        api.post(`/association-service/api/v1/associations/${id}/emergency-fund/withdraw`, data),
-    getEmergencyWithdrawals: (id: string) => api.get(`/association-service/api/v1/associations/${id}/emergency-fund/withdrawals`),
-}
-
 // === CONTACTS API ===
 export const contactsAPI = {
     // Get all user's synced contacts
@@ -673,7 +589,6 @@ export const useApi = () => {
         supportApi: supportAPI,
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,
-        associationApi: associationAPI,
         contactsApi: contactsAPI,
     }
 }

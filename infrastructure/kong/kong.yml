@@ -72,14 +72,6 @@ services:
           - /ticket-service
         strip_path: true
 
-  - name: association-service
-    url: http://association-service:8091
-    routes:
-      - name: association-routes
-        paths:
-          - /association-service
-        strip_path: true
-
   - name: messaging-service
     url: http://messaging-service:8095
     routes:

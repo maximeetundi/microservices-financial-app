@@ -653,9 +653,13 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 
 	walletID := c.Param("wallet_id")
 	
+	// Support both standard withdraw and ticket purchase withdraw
 	var req struct {
-		Amount      float64 `json:"amount" binding:"required,gt=0"`
-		Destination string  `json:"destination" binding:"required"`
+		Amount       float64 `json:"amount" binding:"required,gt=0"`
+		Destination  string  `json:"destination"`  // Optional for ticket purchase
+		Description  string  `json:"description"`  // For ticket purchase
+		PIN          string  `json:"pin"`          // PIN for verification
+		Currency     string  `json:"currency"`     // Target currency for conversion
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -663,17 +667,91 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 		return
 	}
 
-	// Verify wallet
-	_, err := h.walletService.GetWallet(walletID, userID.(string))
+	// Verify wallet exists and belongs to user
+	wallet, err := h.walletService.GetWallet(walletID, userID.(string))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
 		return
 	}
 
+	// Check if wallet is frozen
+	if wallet.Status == "frozen" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Wallet is frozen"})
+		return
+	}
+
+	// Verify PIN if provided
+	if req.PIN != "" {
+		authClient := services.NewAuthClient()
+		token := c.GetHeader("Authorization")
+		if len(token) > 7 && token[:7] == "Bearer " {
+			token = token[7:]
+		}
+		
+		valid, err := authClient.VerifyPin(userID.(string), req.PIN, token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
+			return
+		}
+		if !valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid PIN"})
+			return
+		}
+	}
+
+	// Calculate amount to debit with currency conversion if needed
+	amountToDebit := req.Amount
+	if req.Currency != "" && req.Currency != wallet.Currency {
+		exchangeClient := services.NewExchangeClient()
+		convertedAmount, err := exchangeClient.ConvertAmount(req.Amount, req.Currency, wallet.Currency)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Currency conversion failed: " + err.Error()})
+			return
+		}
+		amountToDebit = convertedAmount
+	}
+
+	// Check if sufficient balance
+	if wallet.Balance < amountToDebit {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Insufficient balance",
+			"available": wallet.Balance,
+			"required": amountToDebit,
+			"currency": wallet.Currency,
+		})
+		return
+	}
+
+	// Perform the actual withdrawal/debit
+	err = h.balanceService.UpdateBalance(walletID, amountToDebit, "withdraw")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process withdrawal: " + err.Error()})
+		return
+	}
+
+	// Generate transaction ID
+	transactionID := "txn_" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	// Calculate new balance
+	newBalance := wallet.Balance - amountToDebit
+
+	// Determine description
+	description := req.Description
+	if description == "" && req.Destination != "" {
+		description = "Withdrawal to " + req.Destination
+	} else if description == "" {
+		description = "Withdrawal"
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Withdrawal processed",
-		"transaction_id": "sim_" + strconv.FormatInt(time.Now().Unix(), 10),
-		"status": "pending",
+		"message":        "Withdrawal successful",
+		"transaction_id": transactionID,
+		"status":         "completed",
+		"amount":         amountToDebit,
+		"original_amount": req.Amount,
+		"currency":       wallet.Currency,
+		"new_balance":    newBalance,
+		"description":    description,
 	})
 }
 

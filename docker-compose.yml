@@ -400,31 +400,7 @@ services:
       - crypto-bank-network
     restart: unless-stopped
 
-  # Association Service
-  association-service:
-    build:
-      context: ./services
-      dockerfile: ./association-service/Dockerfile
-    ports:
-      - "8091:8091"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=secure_password
-      - DB_NAME=crypto_bank
-      - DB_SSL_MODE=disable
-      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
-      - WALLET_SERVICE_URL=http://wallet-service:8083
-      - PORT=8091
-    networks:
-      - crypto-bank-network
-    restart: unless-stopped
-
-  # Messaging Service (User-to-user + Association Chat)
+  # Messaging Service (User-to-user chat)
   messaging-service:
     build:
       context: ./services/messaging-service

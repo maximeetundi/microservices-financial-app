@@ -100,7 +100,6 @@ import api from '~/composables/useApi'
 
 const props = defineProps<{
   conversationId?: string
-  associationId?: string
 }>()
 
 const emit = defineEmits(['messageSent'])
@@ -192,9 +191,7 @@ const uploadAndSend = async (file: File, messageType: string, caption: string = 
       }
     }
 
-    if (props.associationId) {
-      await api.post(`/association-service/api/v1/associations/${props.associationId}/chat`, messageData)
-    } else if (props.conversationId) {
+    if (props.conversationId) {
       await api.post(`/messaging-service/api/v1/conversations/${props.conversationId}/messages`, messageData)
     }
 
@@ -230,9 +227,7 @@ const sendMessage = async () => {
         message_type: 'text'
       }
 
-      if (props.associationId) {
-        await api.post(`/association-service/api/v1/associations/${props.associationId}/chat`, messageData)
-      } else if (props.conversationId) {
+      if (props.conversationId) {
         await api.post(`/messaging-service/api/v1/conversations/${props.conversationId}/messages`, messageData)
       }
 

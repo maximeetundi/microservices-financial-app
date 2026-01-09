@@ -121,11 +121,6 @@ scrape_configs:
       - targets: ['ticket-service:8090']
     metrics_path: /metrics
 
-  - job_name: 'association-service'
-    static_configs:
-      - targets: ['association-service:8091']
-    metrics_path: /metrics
-
   # Grafana self-monitoring
   - job_name: 'grafana'
     static_configs:
