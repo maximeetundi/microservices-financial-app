@@ -111,7 +111,25 @@
                 <option v-for="wallet in destWallets" :key="wallet.id" :value="wallet.id">
                   {{ wallet.name }} ({{ wallet.balance }} {{ wallet.currency }})
                 </option>
+                <option value="__new__">➕ Créer un nouveau portefeuille {{ toCurrency }}</option>
               </select>
+              
+              <!-- No wallet exists for destination currency -->
+              <div v-else class="p-4 rounded-xl bg-warning/10 border border-warning/30 text-warning">
+                <div class="flex items-center gap-3 mb-3">
+                  <span class="text-xl">⚠️</span>
+                  <span class="font-medium">Aucun portefeuille {{ toCurrency }}</span>
+                </div>
+                <p class="text-sm text-muted mb-3">Un nouveau portefeuille {{ toCurrency }} sera créé automatiquement lors de la conversion.</p>
+                <button
+                  @click="createDestWallet"
+                  class="w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
+                  :disabled="creatingWallet"
+                >
+                  <span v-if="creatingWallet">Création en cours...</span>
+                  <span v-else>➕ Créer un portefeuille {{ toCurrency }} maintenant</span>
+                </button>
+              </div>
           </div>
         </div>
 
@@ -217,25 +235,84 @@ const recentConversions = ref([])
 
 const wallets = ref([])
 const loadingWallets = ref(false)
+const creatingWallet = ref(false)
 const fromWalletId = ref('')
 const toWalletId = ref('')
 
-// Supported currencies
+// Supported currencies - ALL WORLD CURRENCIES
 const supportedCurrencies = ref([
+  // Major currencies
   { code: 'USD', name: 'US Dollar', flag: '🇺🇸' },
   { code: 'EUR', name: 'Euro', flag: '🇪🇺' },
   { code: 'GBP', name: 'British Pound', flag: '🇬🇧' },
   { code: 'JPY', name: 'Japanese Yen', flag: '🇯🇵' },
-  { code: 'CAD', name: 'Canadian Dollar', flag: '🇨🇦' },
-  { code: 'AUD', name: 'Australian Dollar', flag: '🇦🇺' },
   { code: 'CHF', name: 'Swiss Franc', flag: '🇨🇭' },
-  { code: 'XOF', name: 'Franc CFA (BCEAO)', flag: '🇨🇮' },
-  { code: 'XAF', name: 'Franc CFA (BEAC)', flag: '🇨🇲' },
+  // Americas
+  { code: 'CAD', name: 'Canadian Dollar', flag: '🇨🇦' },
+  { code: 'MXN', name: 'Mexican Peso', flag: '🇲🇽' },
+  { code: 'BRL', name: 'Brazilian Real', flag: '🇧🇷' },
+  { code: 'ARS', name: 'Argentine Peso', flag: '🇦🇷' },
+  { code: 'CLP', name: 'Chilean Peso', flag: '🇨🇱' },
+  { code: 'COP', name: 'Colombian Peso', flag: '🇨🇴' },
+  { code: 'PEN', name: 'Peruvian Sol', flag: '🇵🇪' },
+  // Europe
+  { code: 'NOK', name: 'Norwegian Krone', flag: '🇳🇴' },
+  { code: 'SEK', name: 'Swedish Krona', flag: '🇸🇪' },
+  { code: 'DKK', name: 'Danish Krone', flag: '🇩🇰' },
+  { code: 'PLN', name: 'Polish Złoty', flag: '🇵🇱' },
+  { code: 'CZK', name: 'Czech Koruna', flag: '🇨🇿' },
+  { code: 'HUF', name: 'Hungarian Forint', flag: '🇭🇺' },
+  { code: 'RON', name: 'Romanian Leu', flag: '🇷🇴' },
+  { code: 'TRY', name: 'Turkish Lira', flag: '🇹🇷' },
+  { code: 'RUB', name: 'Russian Ruble', flag: '🇷🇺' },
+  // Asia
+  { code: 'CNY', name: 'Chinese Yuan', flag: '🇨🇳' },
+  { code: 'HKD', name: 'Hong Kong Dollar', flag: '🇭🇰' },
+  { code: 'SGD', name: 'Singapore Dollar', flag: '🇸🇬' },
+  { code: 'KRW', name: 'South Korean Won', flag: '🇰🇷' },
+  { code: 'INR', name: 'Indian Rupee', flag: '🇮🇳' },
+  { code: 'IDR', name: 'Indonesian Rupiah', flag: '🇮🇩' },
+  { code: 'MYR', name: 'Malaysian Ringgit', flag: '🇲🇾' },
+  { code: 'THB', name: 'Thai Baht', flag: '🇹🇭' },
+  { code: 'PHP', name: 'Philippine Peso', flag: '🇵🇭' },
+  { code: 'VND', name: 'Vietnamese Đồng', flag: '🇻🇳' },
+  { code: 'PKR', name: 'Pakistani Rupee', flag: '🇵🇰' },
+  { code: 'BDT', name: 'Bangladeshi Taka', flag: '🇧🇩' },
+  // Middle East
+  { code: 'AED', name: 'UAE Dirham', flag: '🇦🇪' },
+  { code: 'SAR', name: 'Saudi Riyal', flag: '🇸🇦' },
+  { code: 'QAR', name: 'Qatari Riyal', flag: '🇶🇦' },
+  { code: 'KWD', name: 'Kuwaiti Dinar', flag: '🇰🇼' },
+  { code: 'BHD', name: 'Bahraini Dinar', flag: '🇧🇭' },
+  { code: 'OMR', name: 'Omani Rial', flag: '🇴🇲' },
+  { code: 'ILS', name: 'Israeli Shekel', flag: '🇮🇱' },
+  { code: 'EGP', name: 'Egyptian Pound', flag: '🇪🇬' },
+  // Africa
+  { code: 'XAF', name: 'Franc CFA (CEMAC)', flag: '🇨🇲' },
+  { code: 'XOF', name: 'Franc CFA (UEMOA)', flag: '🇸🇳' },
+  { code: 'NGN', name: 'Nigerian Naira', flag: '🇳🇬' },
+  { code: 'ZAR', name: 'South African Rand', flag: '🇿🇦' },
+  { code: 'KES', name: 'Kenyan Shilling', flag: '🇰🇪' },
+  { code: 'GHS', name: 'Ghanaian Cedi', flag: '🇬🇭' },
+  { code: 'MAD', name: 'Moroccan Dirham', flag: '🇲🇦' },
+  { code: 'TND', name: 'Tunisian Dinar', flag: '🇹🇳' },
+  { code: 'DZD', name: 'Algerian Dinar', flag: '🇩🇿' },
+  { code: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬' },
+  { code: 'TZS', name: 'Tanzanian Shilling', flag: '🇹🇿' },
+  { code: 'RWF', name: 'Rwandan Franc', flag: '🇷🇼' },
+  { code: 'ETB', name: 'Ethiopian Birr', flag: '🇪🇹' },
+  // Oceania
+  { code: 'AUD', name: 'Australian Dollar', flag: '🇦🇺' },
+  { code: 'NZD', name: 'New Zealand Dollar', flag: '🇳🇿' },
+  { code: 'FJD', name: 'Fijian Dollar', flag: '🇫🇯' },
 ])
 
 // Computed properties
 const canConvert = computed(() => {
-  return fromAmount.value > 0 && fromCurrency.value !== toCurrency.value && fromWalletId.value && toWalletId.value
+  // Allow conversion if we have source wallet and either dest wallet exists OR we'll create one
+  const hasDestWallet = toWalletId.value && toWalletId.value !== '__new__'
+  const willCreateWallet = destWallets.value.length === 0 || toWalletId.value === '__new__'
+  return fromAmount.value > 0 && fromCurrency.value !== toCurrency.value && fromWalletId.value && (hasDestWallet || willCreateWallet)
 })
 
 const sourceWallets = computed(() => wallets.value.filter(w => w.currency === fromCurrency.value))
@@ -333,9 +410,54 @@ const swapCurrencies = () => {
   updateRates()
 }
 
+const createDestWallet = async () => {
+  creatingWallet.value = true
+  try {
+    const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
+    const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
+    
+    const { data } = await walletAPI.createWallet({
+      currency: toCurrency.value,
+      name: walletName,
+      wallet_type: 'fiat'
+    })
+    
+    // Refresh wallets and select the new one
+    await fetchWallets()
+    
+    if (data?.id) {
+      toWalletId.value = data.id
+    }
+    
+    alert(`Portefeuille ${toCurrency.value} créé avec succès !`)
+  } catch (error) {
+    console.error('Failed to create wallet:', error)
+    alert('Erreur lors de la création du portefeuille')
+  } finally {
+    creatingWallet.value = false
+  }
+}
+
 const executeFiatConversion = async () => {
   loading.value = true
   try {
+    let destWalletIdToUse = toWalletId.value
+    
+    // Create destination wallet if needed
+    if (!destWalletIdToUse || destWalletIdToUse === '__new__' || destWallets.value.length === 0) {
+      const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
+      const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
+      
+      const { data: newWallet } = await walletAPI.createWallet({
+        currency: toCurrency.value,
+        name: walletName,
+        wallet_type: 'fiat'
+      })
+      
+      if (!newWallet?.id) throw new Error('Failed to create destination wallet')
+      destWalletIdToUse = newWallet.id
+    }
+    
     // 1. Get Quote
     const { data: quote } = await exchangeAPI.getQuote(fromCurrency.value, toCurrency.value, fromAmount.value)
     
@@ -345,7 +467,7 @@ const executeFiatConversion = async () => {
     const { data: exchange } = await exchangeAPI.executeExchange(
         quote.ID,
         fromWalletId.value,
-        toWalletId.value
+        destWalletIdToUse
     )
 
     // Refresh wallets
@@ -361,11 +483,11 @@ const executeFiatConversion = async () => {
       created_at: new Date().toISOString()
     })
 
-    alert('Conversion réussie !') // Simple alert
+    alert('Conversion réussie !')
     
   } catch (error) {
     console.error('Conversion error:', error)
-     alert('Succès (Simulation mode DEV)')
+    alert('Erreur lors de la conversion: ' + (error.message || 'Unknown error'))
   } finally {
     loading.value = false
   }

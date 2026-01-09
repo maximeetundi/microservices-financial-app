@@ -35,9 +35,22 @@
                   />
                 </div>
                 <select v-model="fromCurrency" @change="calculateToAmount" class="input-premium w-32 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700">
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
+                  <option value="USD">🇺🇸 USD</option>
+                  <option value="EUR">🇪🇺 EUR</option>
+                  <option value="GBP">🇬🇧 GBP</option>
+                  <option value="XAF">🇨🇲 XAF</option>
+                  <option value="XOF">🇸🇳 XOF</option>
+                  <option value="NGN">🇳🇬 NGN</option>
+                  <option value="KES">🇰🇪 KES</option>
+                  <option value="ZAR">🇿🇦 ZAR</option>
+                  <option value="MAD">🇲🇦 MAD</option>
+                  <option value="CAD">🇨🇦 CAD</option>
+                  <option value="AUD">🇦🇺 AUD</option>
+                  <option value="JPY">🇯🇵 JPY</option>
+                  <option value="CHF">🇨🇭 CHF</option>
+                  <option value="CNY">🇨🇳 CNY</option>
+                  <option value="INR">🇮🇳 INR</option>
+                  <option value="BRL">🇧🇷 BRL</option>
                 </select>
               </div>
               <p class="text-xs text-gray-500 dark:text-slate-500 mt-2">Solde disponible: {{ formatMoney(balance[fromCurrency] || 0, fromCurrency) }}</p>
@@ -66,11 +79,22 @@
                   />
                 </div>
                 <select v-model="toCurrency" @change="calculateToAmount" class="input-premium w-32 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700">
-                  <option value="BTC">BTC</option>
-                  <option value="ETH">ETH</option>
-                  <option value="USDT">USDT</option>
-                  <option value="SOL">SOL</option>
-                  <option value="XRP">XRP</option>
+                  <option value="BTC">₿ BTC</option>
+                  <option value="ETH">Ξ ETH</option>
+                  <option value="USDT">💵 USDT</option>
+                  <option value="USDC">💵 USDC</option>
+                  <option value="SOL">☀️ SOL</option>
+                  <option value="XRP">💧 XRP</option>
+                  <option value="BNB">🔶 BNB</option>
+                  <option value="ADA">🔵 ADA</option>
+                  <option value="DOGE">🐶 DOGE</option>
+                  <option value="DOT">⚪ DOT</option>
+                  <option value="LTC">🥈 LTC</option>
+                  <option value="AVAX">🔺 AVAX</option>
+                  <option value="MATIC">🟣 MATIC</option>
+                  <option value="LINK">🔗 LINK</option>
+                  <option value="UNI">🦄 UNI</option>
+                  <option value="ATOM">⚛️ ATOM</option>
                 </select>
               </div>
             </div>
@@ -173,18 +197,33 @@ const resultMessage = ref('')
 const balance = ref({ USD: 0, EUR: 0, GBP: 0 })
 
 const rates = ref({
-  BTC: 45000,
-  ETH: 3000,
+  BTC: 90000,
+  ETH: 3100,
   USDT: 1,
-  SOL: 100,
-  XRP: 0.60
+  USDC: 1,
+  SOL: 180,
+  XRP: 2.2,
+  BNB: 520,
+  ADA: 0.95,
+  DOGE: 0.35,
+  DOT: 7.5,
+  LTC: 105,
+  AVAX: 35,
+  MATIC: 0.45,
+  LINK: 22,
+  UNI: 12,
+  ATOM: 9
 })
 
 const markets = ref([
-  { symbol: 'BTC', name: 'Bitcoin', price: 45000, change: 2.5, bgColor: 'bg-orange-500' },
-  { symbol: 'ETH', name: 'Ethereum', price: 3000, change: 1.8, bgColor: 'bg-blue-500' },
-  { symbol: 'SOL', name: 'Solana', price: 100, change: -0.5, bgColor: 'bg-purple-500' },
-  { symbol: 'XRP', name: 'Ripple', price: 0.60, change: 3.2, bgColor: 'bg-slate-600' }
+  { symbol: 'BTC', name: 'Bitcoin', price: 90000, change: 2.5, bgColor: 'bg-orange-500' },
+  { symbol: 'ETH', name: 'Ethereum', price: 3100, change: 1.8, bgColor: 'bg-blue-500' },
+  { symbol: 'SOL', name: 'Solana', price: 180, change: 4.2, bgColor: 'bg-purple-500' },
+  { symbol: 'XRP', name: 'Ripple', price: 2.2, change: 3.2, bgColor: 'bg-slate-600' },
+  { symbol: 'BNB', name: 'BNB', price: 520, change: 1.1, bgColor: 'bg-yellow-500' },
+  { symbol: 'ADA', name: 'Cardano', price: 0.95, change: -0.8, bgColor: 'bg-blue-600' },
+  { symbol: 'DOGE', name: 'Dogecoin', price: 0.35, change: 5.5, bgColor: 'bg-amber-400' },
+  { symbol: 'DOT', name: 'Polkadot', price: 7.5, change: -1.2, bgColor: 'bg-pink-500' }
 ])
 
 const fee = computed(() => fromAmount.value * 0.005)
