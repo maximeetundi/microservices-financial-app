@@ -324,8 +324,8 @@ const currentSourceBalance = computed(() => {
 })
 
 const ourFee = computed(() => {
-  if (!exchangeRate.value) return '0.25'
-  return Number(exchangeRate.value.fee_percentage || 0.25).toFixed(2)
+  if (!exchangeRate.value) return '0'
+  return Number(exchangeRate.value.fee_percentage || 0).toFixed(2)
 })
 
 const calculateFee = computed(() => {
@@ -402,7 +402,7 @@ const updateRates = async () => {
     const key = `${fromCurrency.value}_${toCurrency.value}`
     exchangeRate.value = { 
       rate: mockRates[key] || 1, 
-      fee_percentage: 0.25, 
+      fee_percentage: 0, 
       change_24h: 0.05 
     }
     calculateConversion()
