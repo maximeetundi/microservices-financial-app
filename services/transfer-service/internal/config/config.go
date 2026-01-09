@@ -10,6 +10,7 @@ type Config struct {
 	Port        string
 	DBUrl       string
 	RabbitMQURL string
+	WalletServiceURL string
 	JWTSecret   string
 	
 	// Transfer limits
@@ -65,6 +66,7 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8084"),
 		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		WalletServiceURL: getEnv("WALLET_SERVICE_URL", "http://wallet-service:8081"),
 		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 		
 		// Daily limits by KYC level
