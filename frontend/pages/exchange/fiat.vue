@@ -288,8 +288,8 @@ const supportedCurrencies = ref([
   { code: 'ILS', name: 'Israeli Shekel', flag: '🇮🇱' },
   { code: 'EGP', name: 'Egyptian Pound', flag: '🇪🇬' },
   // Africa
-  { code: 'XAF', name: 'Franc CFA (CEMAC)', flag: '🇨🇲' },
-  { code: 'XOF', name: 'Franc CFA (UEMOA)', flag: '🇸🇳' },
+  { code: 'XAF', name: 'Franc CFA (CEMAC)', flag: '💰' },
+  { code: 'XOF', name: 'Franc CFA (UEMOA)', flag: '💰' },
   { code: 'NGN', name: 'Nigerian Naira', flag: '🇳🇬' },
   { code: 'ZAR', name: 'South African Rand', flag: '🇿🇦' },
   { code: 'KES', name: 'Kenyan Shilling', flag: '🇰🇪' },

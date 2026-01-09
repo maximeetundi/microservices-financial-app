@@ -38,8 +38,8 @@
                   <option value="USD">🇺🇸 USD</option>
                   <option value="EUR">🇪🇺 EUR</option>
                   <option value="GBP">🇬🇧 GBP</option>
-                  <option value="XAF">🇨🇲 XAF</option>
-                  <option value="XOF">🇸🇳 XOF</option>
+                  <option value="XAF">💰 XAF</option>
+                  <option value="XOF">💰 XOF</option>
                   <option value="NGN">🇳🇬 NGN</option>
                   <option value="KES">🇰🇪 KES</option>
                   <option value="ZAR">🇿🇦 ZAR</option>

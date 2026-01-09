@@ -242,6 +242,8 @@ export const walletAPI = {
     get: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}`),
     create: (data: { currency: string, wallet_type: string, name?: string, description?: string }) =>
         api.post('/wallet-service/api/v1/wallets', data),
+    createWallet: (data: { currency: string, wallet_type: string, name?: string, description?: string }) =>
+        api.post('/wallet-service/api/v1/wallets', data),
     getBalance: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}/balance`),
     getTransactions: (id: string, limit = 50, offset = 0) =>
         api.get(`/wallet-service/api/v1/wallets/${id}/transactions?limit=${limit}&offset=${offset}`),
