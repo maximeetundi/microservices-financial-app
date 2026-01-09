@@ -674,9 +674,9 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 		return
 	}
 
-	// Check if wallet is frozen
-	if wallet.Status == "frozen" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Wallet is frozen"})
+	// Check if wallet is active
+	if !wallet.IsActive {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Wallet is not active"})
 		return
 	}
 
