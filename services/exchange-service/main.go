@@ -72,6 +72,11 @@ func main() {
 		log.Printf("Warning: Failed to initialize fee tables: %v", err)
 	}
 
+	// Initialize exchange tables (includes migration for fee_percentage)
+	if err := exchangeRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize exchange tables: %v", err)
+	}
+
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
 	rateService := services.NewRateService(rateRepo, cfg)

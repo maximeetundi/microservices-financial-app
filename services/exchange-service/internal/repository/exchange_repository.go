@@ -14,6 +14,67 @@ func NewExchangeRepository(db *sql.DB) *ExchangeRepository {
 	return &ExchangeRepository{db: db}
 }
 
+func (r *ExchangeRepository) InitSchema() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS exchanges (
+		id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id VARCHAR(36) NOT NULL,
+		from_wallet_id VARCHAR(36) NOT NULL,
+		to_wallet_id VARCHAR(36) NOT NULL,
+		from_currency VARCHAR(10) NOT NULL,
+		to_currency VARCHAR(10) NOT NULL,
+		from_amount DECIMAL(20, 8) NOT NULL,
+		to_amount DECIMAL(20, 8) NOT NULL,
+		exchange_rate DECIMAL(20, 8) NOT NULL,
+		fee DECIMAL(20, 8) DEFAULT 0,
+		fee_percentage DECIMAL(10, 4) DEFAULT 0,
+		status VARCHAR(20) NOT NULL,
+		quote_id VARCHAR(36),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		completed_at TIMESTAMP
+	);
+	`
+	if _, err := r.db.Exec(query); err != nil {
+		return err
+	}
+
+	// Migration: Add fee_percentage if it doesn't exist
+	alterQuery := `ALTER TABLE exchanges ADD COLUMN IF NOT EXISTS fee_percentage DECIMAL(10, 4) DEFAULT 0;`
+	if _, err := r.db.Exec(alterQuery); err != nil {
+		return err
+	}
+
+	// Create quotes table if not exists
+	quotesQuery := `
+	CREATE TABLE IF NOT EXISTS quotes (
+		id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id VARCHAR(36) NOT NULL,
+		from_currency VARCHAR(10) NOT NULL,
+		to_currency VARCHAR(10) NOT NULL,
+		from_amount DECIMAL(20, 8) NOT NULL,
+		to_amount DECIMAL(20, 8) NOT NULL,
+		exchange_rate DECIMAL(20, 8) NOT NULL,
+		fee DECIMAL(20, 8) DEFAULT 0,
+		fee_percentage DECIMAL(10, 4) DEFAULT 0,
+		valid_until TIMESTAMP NOT NULL,
+		estimated_delivery VARCHAR(50),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	if _, err := r.db.Exec(quotesQuery); err != nil {
+		return err
+	}
+
+	// Migration: Add fee_percentage to quotes if it doesn't exist
+	alterQuotesQuery := `ALTER TABLE quotes ADD COLUMN IF NOT EXISTS fee_percentage DECIMAL(10, 4) DEFAULT 0;`
+	if _, err := r.db.Exec(alterQuotesQuery); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *ExchangeRepository) Create(exchange *models.Exchange) error {
 	query := `
 		INSERT INTO exchanges (user_id, from_wallet_id, to_wallet_id, from_currency, to_currency, 
