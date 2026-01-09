@@ -41,7 +41,7 @@ func Load() *Config {
 			"buy":  getEnvFloat("TRADING_BUY_FEE", 0.1),   // 0.1%
 			"sell": getEnvFloat("TRADING_SELL_FEE", 0.1),  // 0.1%
 		},
-		RateUpdateInterval: getEnvInt("RATE_UPDATE_INTERVAL", 30), // 30 seconds
+		RateUpdateInterval: getEnvInt("RATE_UPDATE_INTERVAL", 3600), // 1 hour (3600 seconds)
 		
 		// Binance API - Get from https://www.binance.com/en/my/settings/api-management
 		BinanceAPIKey:    getEnv("BINANCE_API_KEY", ""),

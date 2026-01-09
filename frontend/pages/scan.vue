@@ -345,14 +345,6 @@ const handleScanResult = (data) => {
     return
   }
   
-  // 5. ASSOCIATION: "ZEKORA_ASSOC:assoc-uuid"
-  if (code.startsWith('ZEKORA_ASSOC:')) {
-    const assocId = code.replace('ZEKORA_ASSOC:', '')
-    console.log('Detected: ASSOCIATION -', assocId)
-    navigateTo(`/associations/${assocId}`)
-    return
-  }
-  
   // 6. EVENT CODE FORMAT: "EVT-XXXXX" (direct event code, may contain dashes)
   if (code.match(/^EVT-[A-Z0-9_-]+$/i)) {
     console.log('Detected: EVENT CODE -', code)

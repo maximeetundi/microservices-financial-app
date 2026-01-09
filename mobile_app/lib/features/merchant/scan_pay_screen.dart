@@ -134,16 +134,6 @@ class _ScanPayScreenState extends State<ScanPayScreen> {
         return;
       }
       
-      // 4. ASSOCIATION: "ZEKORA_ASSOC:uuid"
-      if (rawCode.startsWith('ZEKORA_ASSOC:')) {
-        final assocId = rawCode.replaceFirst('ZEKORA_ASSOC:', '');
-        setState(() => _loading = false);
-        if (mounted) {
-          context.go('/associations/$assocId');
-        }
-        return;
-      }
-      
       // 5. MERCHANT PAYMENT: "pay_XXXXX" or URL containing "/pay/"
       String paymentId = rawCode;
       if (rawCode.contains('/pay/')) {

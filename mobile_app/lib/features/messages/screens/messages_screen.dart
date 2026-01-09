@@ -1,18 +1,11 @@
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:dio/dio.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/services/association_api_service.dart';
 import '../../core/services/api_client.dart';
 import '../../../core/services/contacts_sync_service.dart';
 import '../../../core/services/websocket_service.dart';
-import 'widgets/pay_contribution_sheet.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -21,46 +14,43 @@ class MessagesScreen extends StatefulWidget {
   State<MessagesScreen> createState() => _MessagesScreenState();
 }
 
-class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final AssociationApiService _api = AssociationApiService(ApiClient().dio);
+class _MessagesScreenState extends State<MessagesScreen> {
   final ContactsSyncService _contactsService = ContactsSyncService();
   final WebSocketService _wsService = WebSocketService();
   
   List<Map<String, dynamic>> _userConversations = [];
-  List<Map<String, dynamic>> _associationChats = [];
   bool _loading = true;
-  Timer? _chatActivityTimer; // Added
+  Timer? _chatActivityTimer;
+  String _currentUserId = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _initContacts();
     _initWebSocket();
     _loadData();
-    _setChatActivity(true); // Added
-    // Heartbeat every 30 seconds
-    _chatActivityTimer = Timer.periodic(const Duration(seconds: 30), (_) { // Added
-      _setChatActivity(true); // Added
-    }); // Added
+    _setChatActivity(true);
+    _chatActivityTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _setChatActivity(true);
+    });
   }
 
-  Future<void> _setChatActivity(bool active) async { // Added
-    try { // Added
-      await ApiClient().dio.post('/auth-service/api/v1/users/chat-activity', data: {'active': active}); // Added
-    } catch (e) { // Added
-      // Ignore errors // Added
-    } // Added
-  } // Added
+  Future<void> _setChatActivity(bool active) async {
+    try {
+      await ApiClient().dio.post('/auth-service/api/v1/users/chat-activity', data: {'active': active});
+    } catch (e) {
+      // Ignore errors
+    }
+  }
 
   Future<void> _initWebSocket() async {
-    // Get current user ID from secure storage
     final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString('user');
     if (userJson != null) {
       try {
         final user = jsonDecode(userJson);
         final userId = user['id']?.toString();
+        _currentUserId = userId ?? '';
         if (userId != null && userId.isNotEmpty) {
           _wsService.connect(userId);
           _wsService.onMessage(_handleWebSocketMessage);
@@ -74,67 +64,58 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
   void _handleWebSocketMessage(WsMessage msg) {
     switch (msg.type) {
       case WsMessageType.newMessage:
-        // Reload conversations to get the new message
         _loadData();
         break;
       case WsMessageType.presence:
-        // Handle presence updates
         break;
     }
   }
 
   Future<void> _initContacts() async {
-    // Load from cache first for instant display
     await _contactsService.loadFromCache();
-    // Then sync in background
     await _contactsService.syncContacts();
-    // Refresh UI if mounted
     if (mounted) setState(() {});
   }
 
-  /// Get display name for a conversation
-  /// Uses contact name if phone/email is in device contacts, otherwise fallback
   String _getConversationDisplayName(Map<String, dynamic> conv) {
-    // Try to get participant info from conversation
     final participants = conv['participants'] as List?;
     if (participants != null && participants.isNotEmpty) {
       for (final p in participants) {
         if (p is Map) {
-          final phone = p['phone']?.toString();
-          final email = p['email']?.toString();
-          // Use contacts service to get name if available
-          final contactName = _contactsService.getDisplayName(
-            phone: phone,
-            email: email,
-            fallbackName: p['name']?.toString(),
-          );
-          if (contactName != 'Utilisateur') {
-            return contactName;
+          final participantId = p['user_id']?.toString();
+          if (participantId != _currentUserId) {
+            final phone = p['phone']?.toString();
+            final email = p['email']?.toString();
+            final contactName = _contactsService.getDisplayName(
+              phone: phone,
+              email: email,
+              fallbackName: p['name']?.toString(),
+            );
+            if (contactName != 'Utilisateur') {
+              return contactName;
+            }
           }
         }
       }
     }
-    // Fallback to conversation name or default
     return conv['name']?.toString() ?? 'Conversation';
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _wsService.disconnect();
-    _chatActivityTimer?.cancel(); // Added
-    _setChatActivity(false); // Added
+    _chatActivityTimer?.cancel();
+    _setChatActivity(false);
     super.dispose();
   }
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      // Load associations for chat tab
-      final response = await _api.getMyAssociations();
+      final response = await ApiClient().dio.get('/messaging-service/api/v1/conversations');
       setState(() {
-        _associationChats = (response.data is List ? response.data : [])
-            .map((a) => Map<String, dynamic>.from(a))
+        _userConversations = (response.data?['conversations'] is List ? response.data['conversations'] : [])
+            .map((c) => Map<String, dynamic>.from(c))
             .toList();
       });
     } catch (e) {
@@ -144,14 +125,13 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
     }
   }
 
-  void _openChat(Map<String, dynamic> item, bool isAssociation) {
+  void _openChat(Map<String, dynamic> conversation) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatScreen(
-          chatId: item['id'],
-          chatName: item['name'] ?? 'Chat',
-          isAssociation: isAssociation,
+        builder: (context) => _ChatScreen(
+          conversationId: conversation['id'],
+          chatName: _getConversationDisplayName(conversation),
         ),
       ),
     );
@@ -172,7 +152,6 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
           child: Column(
             children: [
               _buildHeader(),
-              _buildTabBar(),
               Expanded(child: _buildContent()),
             ],
           ),
@@ -204,26 +183,6 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.2))),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: const Color(0xFF25D366),
-        indicatorWeight: 3,
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.white.withOpacity(0.6),
-        tabs: const [
-          Tab(text: 'Utilisateurs'),
-          Tab(text: 'Associations'),
-        ],
-      ),
-    );
-  }
-
   Widget _buildContent() {
     if (_loading) {
       return const Center(
@@ -239,13 +198,7 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
           topRight: Radius.circular(24),
         ),
       ),
-      child: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildUserConversations(),
-          _buildAssociationChats(),
-        ],
-      ),
+      child: _buildUserConversations(),
     );
   }
 
@@ -273,11 +226,11 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
         final conv = _userConversations[index];
         final displayName = _getConversationDisplayName(conv);
         return ListTile(
-          onTap: () => _openChat(conv, false),
+          onTap: () => _openChat(conv),
           leading: CircleAvatar(
             backgroundColor: const Color(0xFF25D366),
             child: Text(
-              displayName[0].toUpperCase(),
+              displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -286,7 +239,7 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            conv['lastMessage'] ?? '',
+            conv['last_message']?.toString() ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -295,19 +248,19 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                conv['time'] ?? '',
+                _formatTime(conv['updated_at']),
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
-              if ((conv['unread'] ?? 0) > 0)
+              if ((conv['unread_count'] ?? 0) > 0)
                 Container(
                   margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.all(6),
                   decoration: const BoxDecoration(
                     color: Color(0xFF25D366),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
-                    '${conv['unread']}',
+                    '${conv['unread_count']}',
                     style: const TextStyle(color: Colors.white, fontSize: 10),
                   ),
                 ),
@@ -318,45 +271,23 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildAssociationChats() {
-    if (_associationChats.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Aucune association',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
-          ],
-        ),
-      );
+  String _formatTime(dynamic timestamp) {
+    if (timestamp == null) return '';
+    try {
+      final date = DateTime.parse(timestamp.toString());
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      
+      if (diff.inHours < 24) {
+        return DateFormat('HH:mm').format(date);
+      } else if (diff.inDays < 2) {
+        return 'Hier';
+      } else {
+        return DateFormat('dd/MM').format(date);
+      }
+    } catch (e) {
+      return '';
     }
-
-    return ListView.separated(
-      itemCount: _associationChats.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final assoc = _associationChats[index];
-        return ListTile(
-          onTap: () => _openChat(assoc, true),
-          leading: const CircleAvatar(
-            backgroundColor: Color(0xFF5b6ecd),
-            child: Icon(Icons.people, color: Colors.white),
-          ),
-          title: Text(
-            assoc['name'] ?? 'Association',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            '${assoc['total_members'] ?? 0} membres',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
-          ),
-        );
-      },
-    );
   }
 
   void _showNewConversationDialog() {
@@ -405,16 +336,14 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
                 ),
                 onChanged: (query) async {
                   if (query.length < 3) {
-                    setState(() {
-                      searchResults = [];
-                    });
+                    setState(() => searchResults = []);
                     return;
                   }
 
                   setState(() => isSearching = true);
 
                   try {
-                    final response = await _api.dio.get(
+                    final response = await ApiClient().dio.get(
                       '/auth-service/api/v1/users/search',
                       queryParameters: {'q': query},
                     );
@@ -487,15 +416,14 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
 
   Future<void> _createConversation(Map<String, dynamic> user) async {
     try {
-      // TODO: Get current user name from secure storage or state
-      final response = await _api.dio.post(
+      final response = await ApiClient().dio.post(
         '/messaging-service/api/v1/conversations',
         data: {
           'participant_id': user['id'],
           'participant_name': user['name'] ?? 'Utilisateur',
           'participant_email': user['email'] ?? '',
           'participant_phone': user['phone'] ?? '',
-          'my_name': 'Moi', // TODO: Get from user profile
+          'my_name': 'Moi',
         },
       );
 
@@ -510,7 +438,7 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
         const SnackBar(content: Text('Conversation créée !')),
       );
 
-      _openChat(conversation, false);
+      _openChat(conversation);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
@@ -519,27 +447,23 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
   }
 }
 
-// Chat Screen
-class ChatScreen extends StatefulWidget {
-  final String chatId;
+// Simple Chat Screen for user-to-user messaging
+class _ChatScreen extends StatefulWidget {
+  final String conversationId;
   final String chatName;
-  final bool isAssociation;
 
-  const ChatScreen({
-    super.key,
-    required this.chatId,
+  const _ChatScreen({
+    required this.conversationId,
     required this.chatName,
-    required this.isAssociation,
   });
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<_ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<_ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final AssociationApiService _api = AssociationApiService(ApiClient().dio);
   
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
@@ -575,18 +499,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadMessages() async {
-    if (!widget.isAssociation) {
-      setState(() => _loading = false);
-      return;
-    }
-
     try {
-      final response = await _api.getAssociationMessages(widget.chatId);
+      final response = await ApiClient().dio.get(
+        '/messaging-service/api/v1/conversations/${widget.conversationId}/messages'
+      );
       setState(() {
-        _messages = (response.data is List ? response.data : [])
+        _messages = (response.data?['messages'] is List ? response.data['messages'] : [])
             .map((m) => Map<String, dynamic>.from(m))
-            .toList()
-            .reversed
             .toList();
         _loading = false;
       });
@@ -603,15 +522,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = _messageController.text;
     _messageController.clear();
 
-    if (!widget.isAssociation) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Messagerie utilisateur bientôt disponible')),
-      );
-      return;
-    }
-
     try {
-      await _api.sendAssociationMessage(widget.chatId, content);
+      await ApiClient().dio.post(
+        '/messaging-service/api/v1/conversations/${widget.conversationId}/messages',
+        data: {
+          'content': content,
+          'message_type': 'text',
+        },
+      );
       _loadMessages();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -664,12 +582,9 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
-          CircleAvatar(
-            backgroundColor: widget.isAssociation ? const Color(0xFF5b6ecd) : const Color(0xFF25D366),
-            child: Icon(
-              widget.isAssociation ? Icons.people : Icons.person,
-              color: Colors.white,
-            ),
+          const CircleAvatar(
+            backgroundColor: Color(0xFF25D366),
+            child: Icon(Icons.person, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -703,17 +618,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessagesArea() {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFECE5DD),
-        image: DecorationImage(
-          image: const AssetImage('assets/images/chat_bg.png'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.white.withOpacity(0.9),
-            BlendMode.lighten,
-          ),
-        ),
-      ),
+      color: const Color(0xFFECE5DD),
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -799,7 +704,7 @@ class _ChatScreenState extends State<ChatScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isMine ? const Color(0xFF25D366) : Colors.white,
+          color: isMine ? const Color(0xFFDCF8C6) : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(12),
             topRight: const Radius.circular(12),
@@ -816,36 +721,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               content,
-              style: TextStyle(
-                color: isMine ? Colors.white : Colors.black87,
-                fontSize: 15,
-              ),
-              softWrap: true,
+              style: const TextStyle(fontSize: 15),
             ),
             const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  timestamp,
-                  style: TextStyle(
-                    color: isMine ? Colors.white70 : Colors.grey[600],
-                    fontSize: 11,
-                  ),
-                ),
-                if (isMine) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.done_all,
-                    size: 14,
-                    color: Colors.white70,
-                  ),
-                ],
-              ],
+            Text(
+              timestamp,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+              ),
             ),
           ],
         ),
