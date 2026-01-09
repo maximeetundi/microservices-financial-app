@@ -45,6 +45,18 @@ func (r *ExchangeRepository) InitSchema() error {
 		return err
 	}
 
+	// Migration: Add quote_id if it doesn't exist
+	alterQuoteIDQuery := `ALTER TABLE exchanges ADD COLUMN IF NOT EXISTS quote_id VARCHAR(36);`
+	if _, err := r.db.Exec(alterQuoteIDQuery); err != nil {
+		return err
+	}
+
+	// Migration: Add completed_at if it doesn't exist
+	alterCompletedAtQuery := `ALTER TABLE exchanges ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`
+	if _, err := r.db.Exec(alterCompletedAtQuery); err != nil {
+		return err
+	}
+
 	// Create quotes table if not exists
 	quotesQuery := `
 	CREATE TABLE IF NOT EXISTS quotes (
