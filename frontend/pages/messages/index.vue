@@ -2,7 +2,7 @@
   <NuxtLayout name="dashboard">
     <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-lg max-w-full">
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
-      <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', (selectedConv || selectedAssoc) ? 'hidden md:flex' : 'flex']">
+      <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', selectedConv ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
@@ -31,19 +31,11 @@
           </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <button @click="activeConvType = 'users'" :class="['flex-1 py-3 text-sm font-medium transition-colors', activeConvType === 'users' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700']">
-            Utilisateurs
-          </button>
-          <button @click="activeConvType = 'associations'" :class="['flex-1 py-3 text-sm font-medium transition-colors', activeConvType === 'associations' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700']">
-            Associations
-          </button>
-        </div>
+
 
         <!-- Conversations List -->
         <div class="flex-1 overflow-y-auto">
-          <div v-if="activeConvType === 'users'">
+          <div>
             <div v-for="conv in userConversations" :key="conv.id" @click="selectConversation(conv)"
               :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800', selectedConv?.id === conv.id && 'bg-gray-100 dark:bg-gray-800']">
               <div class="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
@@ -75,27 +67,14 @@
             </div>
           </div>
 
-          <div v-else>
-            <div v-for="assoc in associationChats" :key="assoc.id" @click="selectAssociationChat(assoc)"
-              :class="['flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800', selectedAssoc?.id === assoc.id && 'bg-gray-100 dark:bg-gray-800']">
-              <div class="w-12 h-12 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold">
-                👥
-              </div>
-              <div class="flex-1 min-w-0">
-                <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ assoc.name }}</h3>
-                <p class="text-sm text-gray-500 truncate">{{ assoc.total_members }} membres</p>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="(activeConvType === 'users' && userConversations.length === 0) || (activeConvType === 'associations' && associationChats.length === 0)" class="p-8 text-center text-gray-500">
+          <div v-if="userConversations.length === 0" class="p-8 text-center text-gray-500">
             <p>Aucune conversation</p>
           </div>
         </div>
       </div>
 
       <!-- Chat Area - Full width on mobile -->
-      <div v-if="selectedConv || selectedAssoc" class="flex-1 flex flex-col w-full max-w-full overflow-hidden">
+      <div v-if="selectedConv" class="flex-1 flex flex-col w-full max-w-full overflow-hidden">
         <!-- Chat Header -->
         <div class="bg-gray-50 dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 md:gap-3">
           <!-- Back button for mobile -->
@@ -106,15 +85,15 @@
           </button>
           <div class="relative">
             <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">
-              {{ selectedConv ? getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' : '👥' }}
+              {{ getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' }}
             </div>
             <!-- Online indicator dot -->
             <div v-if="selectedUserStatus === 'En ligne'" class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
           <div class="flex-1 min-w-0">
-            <h3 class="font-medium text-gray-900 dark:text-white truncate text-sm md:text-base">{{ selectedConv ? getOtherParticipantName(selectedConv) : selectedAssoc?.name }}</h3>
+            <h3 class="font-medium text-gray-900 dark:text-white truncate text-sm md:text-base">{{ getOtherParticipantName(selectedConv) }}</h3>
             <p :class="['text-xs', selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
-              {{ selectedAssoc ? `${selectedAssoc.total_members || 0} membres` : selectedUserStatus || 'Chargement...' }}
+              {{ selectedUserStatus || 'Chargement...' }}
             </p>
           </div>
         </div>
@@ -125,7 +104,7 @@
             v-for="msg in messages" 
             :key="msg.id" 
             :message="msg" 
-            :show-sender-name="!!selectedAssoc"
+            :show-sender-name="false"
             @openImage="openImageModal" 
           />
         </div>
@@ -133,7 +112,6 @@
         <!-- Input Component -->
         <MessageInput 
           :conversation-id="selectedConv?.id" 
-          :association-id="selectedAssoc?.id"
           @messageSent="handleMessageSent" 
         />
       </div>
@@ -171,7 +149,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import { associationAPI, contactsAPI } from '~/composables/useApi'
+import { contactsAPI } from '~/composables/useApi'
 import api from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
@@ -189,16 +167,13 @@ let ws: WebSocket | null = null
 let presenceInterval: ReturnType<typeof setInterval> | null = null
 
 const searchQuery = ref('')
-const activeConvType = ref<'users' | 'associations'>('users')
 const selectedConv = ref<any>(null)
-const selectedAssoc = ref<any>(null)
 const messages = ref<any[]>([])
 const messagesContainer = ref<HTMLElement>()
 const imageModalUrl = ref<string | null>(null)
 const showNewConversationModal = ref(false)
 const showContactsModal = ref(false)
 const userConversations = ref<any[]>([])
-const associationChats = ref<any[]>([])
 const onlineStatus = ref<Record<string, string>>({})
 const currentUserId = ref<string>('')
 const syncedContacts = ref<Array<{id: string, phone: string, email: string, name: string}>>([])
@@ -464,7 +439,6 @@ const formatTime = (date: any) => {
 
 const selectConversation = (conv: any) => {
   selectedConv.value = conv
-  selectedAssoc.value = null
   loadMessages()
   // Load presence for other participant
   loadParticipantPresence(conv)
@@ -490,12 +464,6 @@ const loadParticipantPresence = async (conv: any) => {
   }
 }
 
-const selectAssociationChat = (assoc: any) => {
-  selectedAssoc.value = assoc
-  selectedConv.value = null
-  loadAssociationMessages()
-}
-
 const loadMessages = async () => {
   if (!selectedConv.value) return
   try {
@@ -507,37 +475,17 @@ const loadMessages = async () => {
       .filter((p: any) => (p.user_id || p) !== userId)
       .map((p: any) => String(p.user_id || p).trim())
     
-    console.log('Current user ID:', userId)
-    console.log('Other participant IDs:', otherParticipantIds)
-    
     messages.value = (res.data?.messages || []).map((m: any) => {
       const senderId = String(m.sender_id || '').trim()
-      // Message is mine if sender is NOT one of the other participants
       const isMine = otherParticipantIds.length > 0 
         ? !otherParticipantIds.includes(senderId)
         : senderId === String(userId).trim()
       
-      console.log('Message sender:', senderId, '| isMine:', isMine)
       return {
         ...m,
         isMine
       }
     })
-    await nextTick()
-    scrollToBottom()
-  } catch (err) {
-    console.error(err)
-  }
-}
-
-const loadAssociationMessages = async () => {
-  if (!selectedAssoc.value) return
-  try {
-    const res = await api.get(`/messaging-service/api/v1/associations/${selectedAssoc.value.id}/chat`)
-    messages.value = (res.data?.messages || []).map((m: any) => ({
-      ...m,
-      isMine: m.sender_id === currentUserId.value
-    }))
     await nextTick()
     scrollToBottom()
   } catch (err) {
@@ -557,7 +505,6 @@ const loadConversations = async () => {
 // Go back to conversation list (for mobile)
 const goBackToList = () => {
   selectedConv.value = null
-  selectedAssoc.value = null
   messages.value = []
 }
 
@@ -604,9 +551,7 @@ const deleteConversation = async (conv: any) => {
 }
 
 const handleMessageSent = () => {
-  if (selectedAssoc.value) {
-    loadAssociationMessages()
-  } else if (selectedConv.value) {
+  if (selectedConv.value) {
     loadMessages()
   }
 }
@@ -636,13 +581,11 @@ onMounted(async () => {
   console.log('Current user ID after init:', currentUserId.value)
   
   try {
-    const [convRes, assocRes, contactsRes] = await Promise.all([
+    const [convRes, contactsRes] = await Promise.all([
       api.get('/messaging-service/api/v1/conversations'),
-      associationAPI.getAll(),
       contactsAPI.getAll()
     ])
     userConversations.value = convRes.data?.conversations || []
-    associationChats.value = assocRes.data || []
     syncedContacts.value = contactsRes.data?.contacts || []
     
     // Enrich participants with user data (phone/email) for conversations missing this info
