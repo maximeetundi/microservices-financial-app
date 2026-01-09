@@ -219,7 +219,7 @@ func declareExchangesAndQueues(ch *amqp.Channel) error {
 	}
 
 	// Declare payment.events exchange
-	err = ch.ExchangeDeclare(
+	err := ch.ExchangeDeclare(
 		"payment.events", // name
 		"topic",          // type
 		true,             // durable

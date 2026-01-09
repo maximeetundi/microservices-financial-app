@@ -103,3 +103,13 @@ type TransferRequest struct {
 	Currency     string  `json:"currency" binding:"required"`
 	Description  string  `json:"description,omitempty"`
 }
+
+// TransactionRequest for external service integration (like transfer-service)
+type TransactionRequest struct {
+	UserID    string  `json:"user_id" binding:"required"`
+	WalletID  string  `json:"wallet_id" binding:"required"`
+	Amount    float64 `json:"amount" binding:"required,gt=0"`
+	Type      string  `json:"type" binding:"required,oneof=debit credit"` // debit or credit
+	Currency  string  `json:"currency" binding:"required"`
+	Reference string  `json:"reference" binding:"required"`
+}
