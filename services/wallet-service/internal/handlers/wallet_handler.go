@@ -597,6 +597,23 @@ func getTransactionBgColor(txType string) string {
 	return "bg-gray-500"
 }
 
+// ProcessInterServiceTransaction handles transaction requests from other services
+func (h *WalletHandler) ProcessInterServiceTransaction(c *gin.Context) {
+	var req models.TransactionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.walletService.ProcessTransaction(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 func (h *WalletHandler) Deposit(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {

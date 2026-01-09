@@ -50,7 +50,7 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 }
 
 // Initialize RabbitMQ connection
-func InitializeRabbitMQ(rabbitURL string) (*amqp.Channel, error) {
+func InitializeRabbitMQ(rabbitURL string) (*RabbitMQClient, error) {
 	conn, err := amqp.Dial(rabbitURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
@@ -58,6 +58,7 @@ func InitializeRabbitMQ(rabbitURL string) (*amqp.Channel, error) {
 
 	channel, err := conn.Channel()
 	if err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("failed to open RabbitMQ channel: %w", err)
 	}
 
@@ -67,8 +68,50 @@ func InitializeRabbitMQ(rabbitURL string) (*amqp.Channel, error) {
 	}
 
 	log.Println("RabbitMQ connected and configured successfully")
-	return channel, nil
+	return &RabbitMQClient{conn: conn, channel: channel}, nil
 }
+
+// Helper methods for RabbitMQ
+
+type RabbitMQClient struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
+}
+
+func (r *RabbitMQClient) Close() {
+	if r.channel != nil {
+		r.channel.Close()
+	}
+	if r.conn != nil {
+		r.conn.Close()
+	}
+}
+
+func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
+	return r.channel.Publish(
+		exchange,
+		routingKey,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        message,
+		},
+	)
+}
+
+func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
+	return r.channel.Consume(
+		queue, // queue
+		"",    // consumer
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
+	)
+}
+
 
 // Create necessary database tables
 func createTables(db *sql.DB) error {
@@ -175,6 +218,20 @@ func declareExchangesAndQueues(ch *amqp.Channel) error {
 		}
 	}
 
+	// Declare payment.events exchange
+	err = ch.ExchangeDeclare(
+		"payment.events", // name
+		"topic",          // type
+		true,             // durable
+		false,            // auto-deleted
+		false,            // internal
+		false,            // no-wait
+		nil,              // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare exchange payment.events: %w", err)
+	}
+
 	// Declare queues
 	queues := []string{
 		"exchange.completed",
@@ -182,6 +239,7 @@ func declareExchangesAndQueues(ch *amqp.Channel) error {
 		"trading.order_filled",
 		"rate.crypto_updated",
 		"rate.fiat_updated",
+		"exchange.payment.updates", // Queue for payment status
 	}
 
 	for _, queue := range queues {
@@ -198,5 +256,19 @@ func declareExchangesAndQueues(ch *amqp.Channel) error {
 		}
 	}
 
+	// Bind exchange.payment.updates to payment.events
+	err = ch.QueueBind(
+		"exchange.payment.updates",
+		"payment.status.#",
+		"payment.events",
+		false,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to bind queue exchange.payment.updates: %w", err)
+	}
+
 	return nil
 }
+
+

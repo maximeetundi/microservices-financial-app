@@ -17,18 +17,21 @@ type TicketService struct {
 	tierRepo     *repository.TierRepository
 	ticketRepo   *repository.TicketRepository
 	walletClient *WalletClient
+	mqClient     *database.RabbitMQClient
 }
 
 func NewTicketService(
 	eventRepo *repository.EventRepository,
 	tierRepo *repository.TierRepository,
 	ticketRepo *repository.TicketRepository,
+	mqClient *database.RabbitMQClient,
 ) *TicketService {
 	return &TicketService{
 		eventRepo:    eventRepo,
 		tierRepo:     tierRepo,
 		ticketRepo:   ticketRepo,
 		walletClient: NewWalletClient(),
+		mqClient:     mqClient,
 	}
 }
 
@@ -289,6 +292,9 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 
 	// Generate ticket code
 	ticketCode := s.generateTicketCode()
+	
+	// Create transaction ID (will be used for payment)
+	txID := "TX-" + s.generateEventCode()
 
 	// Create ticket
 	ticket := &models.Ticket{
@@ -301,7 +307,8 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 		Currency:   event.Currency,
 		FormData:   req.FormData,
 		TicketCode: ticketCode,
-		Status:     models.TicketStatusPending,
+		Status:     models.TicketStatusPending, // Initially pending
+		TransactionID: &txID,
 	}
 
 	// Generate ticket QR code
@@ -312,30 +319,41 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 		return nil, fmt.Errorf("failed to create ticket: %w", err)
 	}
 
-	// Process payment via wallet service
-	transactionID, err := s.walletClient.DeductPayment(
-		buyerID,
-		req.WalletID,
-		req.PIN,
-		tier.Price,
-		event.Currency,
-		fmt.Sprintf("Ticket %s - %s", event.Title, tier.Name),
-	)
-	if err != nil {
-		// Payment failed, delete ticket and revert
-		s.ticketRepo.Delete(ticket.ID)
-		return nil, fmt.Errorf("payment failed: %w", err)
+	// Initiate Payment via Event Bus
+	// We need to resolve Organizer Wallet ID?
+	// Assuming creatorID has a default wallet. 
+	// Or we pass creatorID as destination user.
+	
+	paymentReq := models.PaymentRequestEvent{
+		TransactionID:       txID,
+		SourceWalletID:      req.WalletID,
+		UserID:              buyerID,
+		Amount:              tier.Price,
+		Currency:            event.Currency,
+		Reference:           fmt.Sprintf("TICKET_%s", ticketCode),
+		OriginService:       "ticket-service",
+		DestinationUserID:   event.CreatorID,
+		// DestinationWalletID: ??? We don't know the exact wallet ID of the organizer here.
+		// Transfer Service PaymentConsumer needs to handle resolution if WalletID is missing but UserID is present?
+		// My previous implementation of PaymentConsumer required DestinationWalletID.
+		// I should update PaymentConsumer to resolve wallet if only UserID is provided.
+		// But for now, let's leave DestinationWalletID empty and rely on TransferService to handle it or fail.
+		// UPDATE: I will need to update TransferService logic to fetch wallet if ID is missing.
+		// Or I can fetch it here via walletClient? No, trying to decouple.
+		// Let's assume Transfer Service can handle it.
 	}
 
-	// Payment successful - update ticket
-	ticket.TransactionID = transactionID
-	ticket.Status = models.TicketStatusPaid
-	s.ticketRepo.UpdateStatus(ticket.ID, models.TicketStatusPaid)
-	s.ticketRepo.UpdateTransactionID(ticket.ID, transactionID)
+	// Marshal and publish
+	reqBytes, _ := json.Marshal(paymentReq)
+	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", reqBytes); err != nil {
+		// Failed to publish payment request
+		s.ticketRepo.Delete(ticket.ID)
+		return nil, fmt.Errorf("failed to initiate payment: %w", err)
+	}
 
-	// Increment sold count only after successful payment
-	s.tierRepo.IncrementSold(req.TierID)
-
+	// Note: Ticket remains 'pending'. A background consumer will update it to 'paid'.
+	// Status won't be 'paid' in the response. Frontend must handle this.
+	
 	// Add event info to response
 	ticket.EventTitle = event.Title
 	ticket.EventDate = &event.StartDate

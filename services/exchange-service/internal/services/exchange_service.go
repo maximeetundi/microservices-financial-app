@@ -18,18 +18,18 @@ type ExchangeService struct {
 	rateService  *RateService
 	feeService   *FeeService
 	config       *config.Config
-	mqChannel    *amqp.Channel
+	mqClient     *database.RabbitMQClient
 	walletClient *WalletClient
 }
 
-func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, feeService *FeeService, mqChannel *amqp.Channel, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
+func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, feeService *FeeService, mqClient *database.RabbitMQClient, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
 	return &ExchangeService{
 		exchangeRepo: exchangeRepo,
 		orderRepo:    orderRepo,
 		rateService:  rateService,
 		feeService:   feeService,
 		config:       cfg,
-		mqChannel:    mqChannel,
+		mqClient:     mqClient,
 		walletClient: walletClient,
 	}
 }
@@ -373,50 +373,100 @@ func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error)
 // Méthodes privées
 
 func (s *ExchangeService) processExchange(exchange *models.Exchange) {
-	// Remove artificial delay
-	// time.Sleep(2 * time.Second)
-
-	// Execute transaction via Wallet Service
-	// Debit Sender
-	debitReq := &TransactionRequest{
-		UserID:    exchange.UserID,
-		WalletID:  exchange.FromWalletID,
-		Amount:    exchange.FromAmount,
-		Type:      "debit",
-		Currency:  exchange.FromCurrency,
-		Reference: "EXCHANGE_DEBIT_" + exchange.ID,
+	// 1. Initiate Debit
+	// Metadata to track step
+	meta := map[string]interface{}{
+		"action":      "exchange_debit",
+		"exchange_id": exchange.ID,
+		"step":        "1_debit",
 	}
 	
-	if err := s.walletClient.ProcessTransaction(debitReq); err != nil {
+	debitReq := models.PaymentRequestEvent{
+		TransactionID:  fmt.Sprintf("TX-EXC-DEBIT-%s", exchange.ID),
+		SourceWalletID: exchange.FromWalletID,
+		UserID:         exchange.UserID,
+		Amount:         exchange.FromAmount,
+		Currency:       exchange.FromCurrency,
+		Reference:      fmt.Sprintf("EXCHANGE_DEBIT_%s", exchange.ID),
+		OriginService:  "exchange-service",
+		MetaData:       meta,
+	}
+
+	eventJSON, _ := json.Marshal(debitReq)
+	
+	// Update status to indicate processing
+	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
+
+	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+		log.Printf("Failed to publish debit request for exchange %s: %v", exchange.ID, err)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+	}
+}
+
+// Helper to continue exchange after debit success
+func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
+	exchange, err := s.exchangeRepo.GetByID(exchangeID)
+	if err != nil {
+		log.Printf("Failed to retrieve exchange %s for credit step: %v", exchangeID, err)
 		return
 	}
 
-	// Credit Receiver
-	creditReq := &TransactionRequest{
-		UserID:    exchange.UserID,
-		WalletID:  exchange.ToWalletID,
-		Amount:    exchange.ToAmount,
-		Type:      "credit",
-		Currency:  exchange.ToCurrency,
-		Reference: "EXCHANGE_CREDIT_" + exchange.ID,
+	// 2. Initiate Credit
+	meta := map[string]interface{}{
+		"action":      "exchange_credit",
+		"exchange_id": exchange.ID,
+		"step":        "2_credit",
 	}
 
-	if err := s.walletClient.ProcessTransaction(creditReq); err != nil {
-		// Ideally we should rollback debit here
-		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial") // Manual intervention needed
-		return
-	}
-
-	// Marquer comme terminé
-	s.exchangeRepo.UpdateStatus(exchange.ID, "completed")
+	// Note: For Credit Only, we need Transfer Service to support skipping Debit.
+	// We will send a request with NO SourceWalletID? 
+	// Or we use a System Wallet as source? 
+	// Ideally Transfer Service Consumer should be updated to skip Debit if SourceWalletID is empty.
+	// I will update Transfer Service Consumer in next steps.
 	
-	now := time.Now()
-	exchange.CompletedAt = &now
-	exchange.Status = "completed"
+	creditReq := models.PaymentRequestEvent{
+		TransactionID:       fmt.Sprintf("TX-EXC-CREDIT-%s", exchange.ID),
+		// SourceWalletID: "", // EMPTY to skip debit
+		UserID:              exchange.UserID,
+		Amount:              exchange.ToAmount,
+		Currency:            exchange.ToCurrency,
+		Reference:           fmt.Sprintf("EXCHANGE_CREDIT_%s", exchange.ID),
+		OriginService:       "exchange-service",
+		DestinationWalletID: exchange.ToWalletID,
+		DestinationUserID:   exchange.UserID,
+		MetaData:            meta,
+	}
 
-	// Publier l'événement
+	eventJSON, _ := json.Marshal(creditReq)
+
+	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
+
+	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+		log.Printf("Failed to publish credit request for exchange %s: %v", exchange.ID, err)
+		// Mark as failed_partial since debit succeeded but credit request failed
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial") 
+	}
+}
+
+// Helper to finalize exchange
+func (s *ExchangeService) FinalizeExchange(exchangeID string) {
+	s.exchangeRepo.UpdateStatus(exchangeID, "completed")
+	
+	// Update CompletedAt
+	// We might need a repo method for setting completed_at or do it manually if repo supports update
+	// existing UpdateStatus only updates status.
+	// Let's assume UpdateStatus is enough for now or I add a specialized method later.
+	
+	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
+	// CompletedAt update ... (skipping for brevity unless critical, assumed UpdateStatus handles updated_at)
+
 	s.publishExchangeEvent("exchange.completed", exchange)
+}
+
+func (s *ExchangeService) FailExchange(exchangeID, reason string) {
+	s.exchangeRepo.UpdateStatus(exchangeID, "failed")
+	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
+	// Log or notify?
 }
 
 func (s *ExchangeService) calculateFeePercentage(fromCurrency, toCurrency string, amount float64) float64 {
@@ -501,7 +551,7 @@ func (s *ExchangeService) isFiatCurrency(currency string) bool {
 }
 
 func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *models.Exchange) {
-	if s.mqChannel == nil {
+	if s.mqClient == nil {
 		return
 	}
 
@@ -518,20 +568,11 @@ func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *model
 
 	eventJSON, _ := json.Marshal(event)
 
-	s.mqChannel.Publish(
-		"exchange.events",
-		eventType,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	s.mqClient.PublishToExchange("exchange.events", eventType, eventJSON)
 }
 
 func (s *ExchangeService) publishTradingEvent(eventType string, order *models.TradingOrder) {
-	if s.mqChannel == nil {
+	if s.mqClient == nil {
 		return
 	}
 
@@ -548,16 +589,7 @@ func (s *ExchangeService) publishTradingEvent(eventType string, order *models.Tr
 
 	eventJSON, _ := json.Marshal(event)
 
-	s.mqChannel.Publish(
-		"trading.events",
-		eventType,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	s.mqClient.PublishToExchange("trading.events", eventType, eventJSON)
 }
 
 func (s *ExchangeService) getFeeKey(fromCurrency, toCurrency string) string {

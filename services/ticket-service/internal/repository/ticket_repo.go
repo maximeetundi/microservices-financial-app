@@ -224,6 +224,22 @@ func (r *TicketRepository) UpdateTransactionID(id, transactionID string) error {
 	return err
 }
 
+func (r *TicketRepository) UpdateStatusByTransactionID(transactionID, status string) error {
+	query := `UPDATE tickets SET status = $1 WHERE transaction_id = $2`
+	result, err := r.db.Exec(query, status, transactionID)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *TicketRepository) Delete(id string) error {
 	query := `DELETE FROM tickets WHERE id = $1`
 	_, err := r.db.Exec(query, id)

@@ -50,6 +50,7 @@ func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
 		"exchange.events",
 		"card.events",
 		"notification.events",
+		"payment.events",
 	}
 
 	for _, exchange := range exchanges {
@@ -68,12 +69,30 @@ func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
 	}
 
 	// Declare queues
-	queues := []string{"transfers", "notifications", "compliance", "transfer.wallet_updates"}
+	queues := []string{
+		"transfers",
+		"notifications",
+		"compliance",
+		"transfer.wallet_updates",
+		"payments", // New queue for payment requests
+	}
 	for _, q := range queues {
 		_, err = ch.QueueDeclare(q, true, false, false, false, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to declare queue %s: %w", q, err)
 		}
+	}
+
+	// Bind payments queue to payment.events (for payment.request)
+	err = ch.QueueBind(
+		"payments",
+		"payment.request",
+		"payment.events",
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bind payments queue: %w", err)
 	}
 
 	// Bind transfer.wallet_updates to wallet.events for balance confirmations
@@ -124,6 +143,19 @@ func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message 
 			ContentType: "application/json",
 			Body:        message,
 		},
+	)
+}
+
+// Consume consumes messages from a queue
+func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
+	return r.channel.Consume(
+		queue, // queue
+		"",    // consumer
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
 	)
 }
 

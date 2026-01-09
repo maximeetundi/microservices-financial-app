@@ -60,10 +60,17 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 
 	// Initialize services
+	walletClient := services.NewWalletClient(cfg)
 	transferService := services.NewTransferService(transferRepo, walletRepo, mqClient, cfg)
 	mobilemoneyService := services.NewMobileMoneyService(cfg)
 	internationalService := services.NewInternationalTransferService(cfg)
 	complianceService := services.NewComplianceService(cfg)
+	
+	// Start Consumers
+	paymentConsumer := services.NewPaymentRequestConsumer(mqClient, walletClient, walletRepo)
+	if err := paymentConsumer.Start(); err != nil {
+		log.Printf("Warning: Failed to start PaymentRequestConsumer: %v", err)
+	}
 	
 	// Initialize handlers
 	transferHandler := handlers.NewTransferHandler(

@@ -87,6 +87,12 @@ func main() {
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
+	
+	// Start Consumers
+	paymentConsumer := services.NewPaymentStatusConsumer(mqClient, exchangeService)
+	if err := paymentConsumer.Start(); err != nil {
+		log.Printf("Warning: Failed to start PaymentStatusConsumer: %v", err)
+	}
 
 	// Setup Gin
 	if cfg.Environment == "production" {

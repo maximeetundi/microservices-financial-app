@@ -201,6 +201,9 @@ func main() {
 			}
 		}
 
+		// Service-to-Service routes (should be protected by internal network or secret)
+		api.POST("/wallets/transaction", walletHandler.ProcessInterServiceTransaction)
+
 		// Public payment scan endpoint (no auth required)
 		api.GET("/pay/:id", merchantHandler.ScanPayment)
 

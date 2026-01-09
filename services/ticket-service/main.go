@@ -56,8 +56,26 @@ func main() {
 	tierRepo := repository.NewTierRepository(database.DB)
 	ticketRepo := repository.NewTicketRepository(database.DB)
 
+	// Initialize RabbitMQ
+	rabbitmqURL := os.Getenv("RABBITMQ_URL")
+	if rabbitmqURL == "" {
+		rabbitmqURL = "amqp://guest:guest@rabbitmq:5672/"
+	}
+	mqClient, err := database.InitializeRabbitMQ(rabbitmqURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize RabbitMQ: %v", err)
+	} else {
+		defer mqClient.Close()
+		
+		// Start Payment Status Consumer
+		paymentConsumer := services.NewPaymentStatusConsumer(mqClient, ticketRepo)
+		if err := paymentConsumer.Start(); err != nil {
+			log.Printf("Warning: Failed to start PaymentStatusConsumer: %v", err)
+		}
+	}
+
 	// Initialize service
-	ticketService := services.NewTicketService(eventRepo, tierRepo, ticketRepo)
+	ticketService := services.NewTicketService(eventRepo, tierRepo, ticketRepo, mqClient)
 
 	// Initialize MinIO storage
 	minioEndpoint := os.Getenv("MINIO_ENDPOINT")

@@ -320,6 +320,72 @@ func (s *WalletService) GetWalletStats(userID string) (*models.WalletStats, erro
 	return stats, nil
 }
 
+// ProcessTransaction handles transaction requests from other services
+func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error {
+	// Validate wallet ownership/existence
+	wallet, err := s.walletRepo.GetByID(req.WalletID)
+	if err != nil {
+		return fmt.Errorf("wallet not found")
+	}
+	if wallet.UserID != req.UserID {
+		return fmt.Errorf("wallet does not belong to user")
+	}
+
+	// Validate currency
+	if wallet.Currency != req.Currency {
+		return fmt.Errorf("currency mismatch: %s vs %s", wallet.Currency, req.Currency)
+	}
+
+	// For debit, check balance
+	if req.Type == "debit" {
+		if wallet.Balance < req.Amount {
+			return fmt.Errorf("insufficient balance")
+		}
+	}
+
+	// Update balance
+	opType := "send" // default for debit
+	if req.Type == "credit" {
+		opType = "receive"
+	}
+	
+	err = s.walletRepo.UpdateBalanceWithTransaction(req.WalletID, req.Amount, opType)
+	if err != nil {
+		return fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	// Create transaction record
+	transaction := &models.Transaction{
+		ID:              fmt.Sprintf("tx_%d", time.Now().UnixNano()),
+		TransactionType: "exchange", // Assuming this is primarily used for exchange for now, or derive from Reference
+		Amount:          req.Amount,
+		Fee:             0, // Fees are handled by exchange service
+		Currency:        req.Currency,
+		Status:          "completed",
+		Description:     &req.Reference,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if req.Type == "debit" {
+		transaction.FromWalletID = &req.WalletID
+	} else {
+		transaction.ToWalletID = &req.WalletID
+	}
+
+	if err := s.transactionRepo.Create(transaction); err != nil {
+		// Log error but don't fail as balance is already updated? 
+		// Ideally we should transactionally update both.
+		// For now, return error so caller can retry or handle failure.
+		return fmt.Errorf("failed to create transaction record: %w", err)
+	}
+
+	// Publish event
+	s.publishTransactionEvent("transaction.completed", transaction)
+
+	return nil
+}
+
 // Transfer performs an internal wallet-to-wallet transfer
 func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*models.Transaction, error) {
 	// Validate source wallet ownership
