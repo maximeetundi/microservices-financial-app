@@ -3,10 +3,12 @@ package services
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/repository"
 	"github.com/skip2/go-qrcode"
@@ -308,7 +310,7 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 		FormData:   req.FormData,
 		TicketCode: ticketCode,
 		Status:     models.TicketStatusPending, // Initially pending
-		TransactionID: &txID,
+		TransactionID: txID,
 	}
 
 	// Generate ticket QR code
