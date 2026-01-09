@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/google/uuid"
