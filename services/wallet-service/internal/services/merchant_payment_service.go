@@ -23,6 +23,7 @@ const DefaultExpirationMinutes = 60 // 1 hour
 type MerchantPaymentService struct {
 	paymentRepo   *repository.PaymentRequestRepository
 	walletService *WalletService
+	feeService    *FeeService
 	config        *config.Config
 	mqChannel     *amqp.Channel
 	baseURL       string
@@ -32,6 +33,7 @@ type MerchantPaymentService struct {
 func NewMerchantPaymentService(
 	paymentRepo *repository.PaymentRequestRepository,
 	walletService *WalletService,
+	feeService *FeeService,
 	cfg *config.Config,
 	mqChannel *amqp.Channel,
 ) *MerchantPaymentService {
@@ -43,6 +45,7 @@ func NewMerchantPaymentService(
 	return &MerchantPaymentService{
 		paymentRepo:   paymentRepo,
 		walletService: walletService,
+		feeService:    feeService,
 		config:        cfg,
 		mqChannel:     mqChannel,
 		baseURL:       baseURL,
@@ -217,8 +220,12 @@ func (s *MerchantPaymentService) PayPaymentRequest(customerID string, req *model
 		amountToPay = *payment.Amount
 	}
 
-	// Calculate merchant fee (1.5%)
-	fee := amountToPay * 0.015
+	// Calculate merchant fee
+	fee, err := s.feeService.CalculateFee("merchant_payment", amountToPay)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate merchant fee: %w", err)
+	}
+	
 	netAmount := amountToPay - fee
 
 	// Perform wallet transfer

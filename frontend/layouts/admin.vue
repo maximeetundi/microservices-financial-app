@@ -29,6 +29,12 @@
           <span class="text-lg">💳</span>
           <span>Agrégateurs Paiement</span>
         </NuxtLink>
+        <NuxtLink to="/admin/fees"
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/fees') }">
+          <span class="text-lg">💰</span>
+          <span>Frais & Commissions</span>
+        </NuxtLink>
         <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 cursor-not-allowed">
           <span class="text-lg">👥</span>
           <span>Utilisateurs</span>

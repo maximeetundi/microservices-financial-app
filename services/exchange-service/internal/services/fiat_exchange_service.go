@@ -15,14 +15,16 @@ import (
 type FiatExchangeService struct {
 	exchangeRepo *repository.ExchangeRepository
 	rateService  *RateService
+	feeService   *FeeService
 	config       *config.Config
 	mqChannel    *amqp.Channel
 }
 
-func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, mqChannel *amqp.Channel, cfg *config.Config) *FiatExchangeService {
+func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, feeService *FeeService, mqChannel *amqp.Channel, cfg *config.Config) *FiatExchangeService {
 	return &FiatExchangeService{
 		exchangeRepo: exchangeRepo,
 		rateService:  rateService,
+		feeService:   feeService,
 		config:       cfg,
 		mqChannel:    mqChannel,
 	}
@@ -57,8 +59,14 @@ func (s *FiatExchangeService) ConvertFiat(userID, fromCurrency, toCurrency strin
 	convertedAmount := amount * exchangeRate.Rate
 
 	// Calculer les frais (plus faibles pour fiat-to-fiat)
-	feePercentage := s.CalculateFiatExchangeFee(fromCurrency, toCurrency, amount)
-	fee := amount * feePercentage / 100
+	fee, err := s.feeService.CalculateFee("exchange_fiat_to_fiat", amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate fee: %w", err)
+	}
+	
+	// Calculate effective percentage for record keeping
+	feePercentage := (fee / amount) * 100
+
 	finalAmount := convertedAmount - (fee * exchangeRate.Rate)
 
 	// Créer la transaction d'échange

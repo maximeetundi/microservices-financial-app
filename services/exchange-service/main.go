@@ -65,16 +65,23 @@ func main() {
 	exchangeRepo := repository.NewExchangeRepository(db)
 	rateRepo := repository.NewRateRepository(db, redisClient)
 	orderRepo := repository.NewOrderRepository(db)
+	feeRepo := repository.NewFeeRepository(db)
+	
+	// Initialize fee tables
+	if err := feeRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize fee tables: %v", err)
+	}
 
-	// Initialize services
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
 	rateService := services.NewRateService(rateRepo, cfg)
-	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, mqClient, walletClient, cfg)
+	feeService := services.NewFeeService(feeRepo)
+	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, feeService, mqClient, walletClient, cfg)
 	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
 	
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)
+	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -149,6 +156,10 @@ func main() {
 			admin.POST("/rates/update", exchangeHandler.UpdateRates)
 			admin.GET("/analytics", exchangeHandler.GetAnalytics)
 			admin.GET("/volume", exchangeHandler.GetTradingVolume)
+			
+			// Fee Configuration
+			admin.GET("/fees", adminFeeHandler.GetFees)
+			admin.PUT("/fees", adminFeeHandler.UpdateFee)
 		}
 
 		// Webhook endpoints for price feeds

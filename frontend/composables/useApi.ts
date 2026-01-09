@@ -448,6 +448,14 @@ export const adminPaymentAPI = {
         api.delete(`/admin-service/api/v1/admin/payment-providers/${id}/countries/${countryCode}`),
 }
 
+// ========== Admin Fees ==========
+export const adminFeeAPI = {
+    getWalletFees: () => api.get('/wallet-service/api/v1/admin/fees'),
+    updateWalletFee: (data: any) => api.put('/wallet-service/api/v1/admin/fees', data),
+    getExchangeFees: () => api.get('/exchange-service/api/v1/admin/fees'),
+    updateExchangeFee: (data: any) => api.put('/exchange-service/api/v1/admin/fees', data),
+}
+
 // ========== Support ==========
 export const supportAPI = {
     // Get all conversations for the current user
@@ -588,6 +596,7 @@ export const useApi = () => {
         merchantApi: merchantAPI,
         paymentApi: paymentAPI,
         adminPaymentApi: adminPaymentAPI,
+        adminFeeApi: adminFeeAPI,
         supportApi: supportAPI,
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,

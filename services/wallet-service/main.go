@@ -77,17 +77,24 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	paymentRepo := repository.NewPaymentRequestRepository(db)
+	feeRepo := repository.NewFeeRepository(db)
 	
 	// Initialize payment tables
 	if err := paymentRepo.InitTable(); err != nil {
 		log.Printf("Warning: Failed to initialize payment tables: %v", err)
 	}
 
+	// Initialize fee tables
+	if err := feeRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize fee tables: %v", err)
+	}
+
 	// Initialize services
+	feeService := services.NewFeeService(feeRepo)
 	cryptoService := services.NewCryptoService(cfg)
 	balanceService := services.NewBalanceService(walletRepo, redisClient)
-	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, mqClient)
-	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, cfg, mqClient)
+	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, mqClient)
+	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, mqClient)
 	
 	// Start RabbitMQ consumer for inter-service communication
 	consumer := services.NewConsumer(mqClient, walletService)
@@ -98,6 +105,7 @@ func main() {
 	// Initialize handlers
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
+	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -183,6 +191,13 @@ func main() {
 				payments.GET("/:id", merchantHandler.GetPaymentRequest)
 				payments.GET("/:id/qr", merchantHandler.GetPaymentQRCode)
 				payments.POST("/:id/pay", merchantHandler.PayPaymentRequest)
+			}
+
+			// Admin Fee Management
+			admin := protected.Group("/admin")
+			{
+				admin.GET("/fees", adminFeeHandler.GetFees)
+				admin.PUT("/fees", adminFeeHandler.UpdateFee)
 			}
 		}
 

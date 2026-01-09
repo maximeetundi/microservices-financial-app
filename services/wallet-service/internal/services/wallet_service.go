@@ -16,6 +16,7 @@ type WalletService struct {
 	transactionRepo *repository.TransactionRepository
 	cryptoService   *CryptoService
 	balanceService  *BalanceService
+	feeService      *FeeService
 	mqChannel       *amqp.Channel
 }
 
@@ -24,6 +25,7 @@ func NewWalletService(
 	transactionRepo *repository.TransactionRepository,
 	cryptoService *CryptoService,
 	balanceService *BalanceService,
+	feeService *FeeService,
 	mqChannel *amqp.Channel,
 ) *WalletService {
 	return &WalletService{
@@ -31,6 +33,7 @@ func NewWalletService(
 		transactionRepo: transactionRepo,
 		cryptoService:   cryptoService,
 		balanceService:  balanceService,
+		feeService:      feeService,
 		mqChannel:       mqChannel,
 	}
 }
@@ -345,20 +348,27 @@ func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*m
 		return nil, fmt.Errorf("currency mismatch: %s vs %s", fromWallet.Currency, toWallet.Currency)
 	}
 
-	// Check balance
-	if fromWallet.Balance < req.Amount {
-		return nil, fmt.Errorf("insufficient balance: %.2f available, %.2f required", fromWallet.Balance, req.Amount)
+	// Calculate Fee
+	fee, err := s.feeService.CalculateFee("transfer_internal", req.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate fee: %w", err)
 	}
 
-	// Deduct from source
-	if err := s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, req.Amount, "send"); err != nil {
+	// Check balance with fee
+	totalPayload := req.Amount + fee
+	if fromWallet.Balance < totalPayload {
+		return nil, fmt.Errorf("insufficient balance: %.2f available, %.2f required (including fee %.2f)", fromWallet.Balance, totalPayload, fee)
+	}
+
+	// Deduct from source (Amount + Fee)
+	if err := s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, totalPayload, "send"); err != nil {
 		return nil, fmt.Errorf("failed to deduct from source: %w", err)
 	}
 
-	// Add to destination
+	// Add to destination (Amount only)
 	if err := s.walletRepo.UpdateBalanceWithTransaction(req.ToWalletID, req.Amount, "receive"); err != nil {
 		// Rollback source
-		s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, req.Amount, "receive")
+		s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, totalPayload, "receive")
 		return nil, fmt.Errorf("failed to credit destination: %w", err)
 	}
 
@@ -374,7 +384,7 @@ func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*m
 		ToWalletID:      &req.ToWalletID,
 		TransactionType: "transfer",
 		Amount:          req.Amount,
-		Fee:             0,
+		Fee:             fee,
 		Currency:        fromWallet.Currency,
 		Status:          "completed",
 		Description:     &description,

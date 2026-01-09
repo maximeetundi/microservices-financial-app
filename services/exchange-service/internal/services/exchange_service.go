@@ -16,16 +16,18 @@ type ExchangeService struct {
 	exchangeRepo *repository.ExchangeRepository
 	orderRepo    *repository.OrderRepository
 	rateService  *RateService
+	feeService   *FeeService
 	config       *config.Config
 	mqChannel    *amqp.Channel
 	walletClient *WalletClient
 }
 
-func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, mqChannel *amqp.Channel, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
+func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, feeService *FeeService, mqChannel *amqp.Channel, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
 	return &ExchangeService{
 		exchangeRepo: exchangeRepo,
 		orderRepo:    orderRepo,
 		rateService:  rateService,
+		feeService:   feeService,
 		config:       cfg,
 		mqChannel:    mqChannel,
 		walletClient: walletClient,
@@ -61,8 +63,17 @@ func (s *ExchangeService) GetQuote(userID, fromCurrency, toCurrency string, from
 	}
 
 	// Calculer les frais
-	feePercentage := s.calculateFeePercentage(fromCurrency, toCurrency, calculatedFromAmount)
-	fee := calculatedFromAmount * feePercentage / 100
+	feeKey := s.getFeeKey(fromCurrency, toCurrency)
+	fee, err := s.feeService.CalculateFee(feeKey, calculatedFromAmount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate fee: %w", err)
+	}
+
+	// Calculate effective percentage
+	var feePercentage float64
+	if calculatedFromAmount > 0 {
+		feePercentage = (fee / calculatedFromAmount) * 100
+	}
 
 	// Ajuster le montant de destination avec les frais
 	finalToAmount := calculatedToAmount - (fee * rate.Rate)
@@ -169,7 +180,11 @@ func (s *ExchangeService) BuyCrypto(userID, cryptoCurrency, paymentCurrency stri
 
 	// Calculer le montant total nécessaire
 	totalCost := amount * executionPrice
-	fee := s.calculateTradingFee(totalCost, "buy")
+	
+	fee, err := s.feeService.CalculateFee("trading_buy", totalCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate trading fee: %w", err)
+	}
 
 	// Créer l'ordre
 	order := &models.TradingOrder{
@@ -237,7 +252,11 @@ func (s *ExchangeService) SellCrypto(userID, cryptoCurrency, receiveCurrency str
 
 	// Calculer le montant à recevoir
 	totalReceive := amount * executionPrice
-	fee := s.calculateTradingFee(totalReceive, "sell")
+	
+	fee, err := s.feeService.CalculateFee("trading_sell", totalReceive)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate trading fee: %w", err)
+	}
 
 	// Créer l'ordre
 	order := &models.TradingOrder{
@@ -539,4 +558,16 @@ func (s *ExchangeService) publishTradingEvent(eventType string, order *models.Tr
 			Body:        eventJSON,
 		},
 	)
+}
+
+func (s *ExchangeService) getFeeKey(fromCurrency, toCurrency string) string {
+	if s.isCryptoCurrency(fromCurrency) && s.isFiatCurrency(toCurrency) {
+		return "exchange_crypto_to_fiat"
+	} else if s.isFiatCurrency(fromCurrency) && s.isCryptoCurrency(toCurrency) {
+		return "exchange_fiat_to_crypto"
+	} else if s.isCryptoCurrency(fromCurrency) && s.isCryptoCurrency(toCurrency) {
+		return "exchange_crypto_to_crypto"
+	} else {
+		return "exchange_fiat_to_fiat"
+	}
 }
