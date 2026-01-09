@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -424,26 +425,119 @@ func (s *FiatExchangeService) GetSupportedFiatPairs() map[string][]string {
 	}
 }
 
-// Traitement de l'échange fiat (rapide)
+// Traitement de l'échange fiat via événements de paiement
 func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
-	// Simuler un court délai de traitement
-	time.Sleep(500 * time.Millisecond)
+	// 1. Initiate Debit via payment event
+	meta := map[string]interface{}{
+		"action":      "fiat_exchange_debit",
+		"exchange_id": exchange.ID,
+		"step":        "1_debit",
+		"type":        "fiat_to_fiat",
+	}
 
-	// Dans un vrai système:
-	// 1. Vérifier les soldes des portefeuilles
-	// 2. Débiter le portefeuille source
-	// 3. Créditer le portefeuille destination
-	// 4. Enregistrer les transactions
+	debitReq := models.PaymentRequestEvent{
+		TransactionID:  fmt.Sprintf("TX-FIAT-DEBIT-%s", exchange.ID),
+		SourceWalletID: exchange.FromWalletID,
+		UserID:         exchange.UserID,
+		Amount:         exchange.FromAmount,
+		Currency:       exchange.FromCurrency,
+		Reference:      fmt.Sprintf("FIAT_EXCHANGE_DEBIT_%s", exchange.ID),
+		OriginService:  "exchange-service",
+		MetaData:       meta,
+	}
 
-	// Marquer comme complété
-	s.exchangeRepo.UpdateStatus(exchange.ID, "completed")
-	
-	now := time.Now()
-	exchange.CompletedAt = &now
-	exchange.Status = "completed"
+	eventJSON, _ := json.Marshal(debitReq)
 
-	// Publier l'événement
-	s.publishFiatExchangeEvent("fiat_exchange.completed", exchange)
+	// Update status to indicate processing
+	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
+
+	if s.mqChannel != nil {
+		if err := s.mqChannel.Publish(
+			"payment.events", // exchange
+			"payment.request", // routing key
+			false,            // mandatory
+			false,            // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        eventJSON,
+			},
+		); err != nil {
+			log.Printf("Failed to publish debit request for fiat exchange %s: %v", exchange.ID, err)
+			s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		}
+	} else {
+		log.Printf("Warning: No MQ channel for fiat exchange %s, marking as failed", exchange.ID)
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+	}
+}
+
+// CompleteFiatExchangeCredit continues the exchange after debit success
+func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
+	exchange, err := s.exchangeRepo.GetByID(exchangeID)
+	if err != nil {
+		log.Printf("Failed to retrieve fiat exchange %s for credit step: %v", exchangeID, err)
+		return
+	}
+
+	// 2. Initiate Credit
+	meta := map[string]interface{}{
+		"action":      "fiat_exchange_credit",
+		"exchange_id": exchange.ID,
+		"step":        "2_credit",
+		"type":        "fiat_to_fiat",
+	}
+
+	creditReq := models.PaymentRequestEvent{
+		TransactionID:       fmt.Sprintf("TX-FIAT-CREDIT-%s", exchange.ID),
+		UserID:              exchange.UserID,
+		Amount:              exchange.ToAmount,
+		Currency:            exchange.ToCurrency,
+		Reference:           fmt.Sprintf("FIAT_EXCHANGE_CREDIT_%s", exchange.ID),
+		OriginService:       "exchange-service",
+		DestinationWalletID: exchange.ToWalletID,
+		DestinationUserID:   exchange.UserID,
+		MetaData:            meta,
+	}
+
+	eventJSON, _ := json.Marshal(creditReq)
+
+	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
+
+	if s.mqChannel != nil {
+		if err := s.mqChannel.Publish(
+			"payment.events",
+			"payment.request",
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        eventJSON,
+			},
+		); err != nil {
+			log.Printf("Failed to publish credit request for fiat exchange %s: %v", exchange.ID, err)
+			s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial")
+		}
+	}
+}
+
+// FinalizeFiatExchange marks the exchange as completed
+func (s *FiatExchangeService) FinalizeFiatExchange(exchangeID string) {
+	s.exchangeRepo.UpdateStatus(exchangeID, "completed")
+
+	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
+	if exchange != nil {
+		now := time.Now()
+		exchange.CompletedAt = &now
+		exchange.Status = "completed"
+		s.publishFiatExchangeEvent("fiat_exchange.completed", exchange)
+	}
+}
+
+// FailFiatExchange marks the exchange as failed
+func (s *FiatExchangeService) FailFiatExchange(exchangeID, reason string) {
+	s.exchangeRepo.UpdateStatus(exchangeID, "failed")
+	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
+	log.Printf("Fiat Exchange %s failed: %s. Details: %+v", exchangeID, reason, exchange)
 }
 
 func (s *FiatExchangeService) publishFiatExchangeEvent(eventType string, exchange *models.Exchange) {

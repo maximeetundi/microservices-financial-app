@@ -87,6 +87,11 @@ func (r *RabbitMQClient) Close() {
 	}
 }
 
+// GetChannel returns the underlying amqp.Channel
+func (r *RabbitMQClient) GetChannel() *amqp.Channel {
+	return r.channel
+}
+
 func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
 	return r.channel.Publish(
 		exchange,

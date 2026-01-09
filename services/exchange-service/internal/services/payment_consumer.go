@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 )
 
 type PaymentStatusConsumer struct {
-	mqClient        *database.RabbitMQClient
-	exchangeService *ExchangeService
+	mqClient            *database.RabbitMQClient
+	exchangeService     *ExchangeService
+	fiatExchangeService *FiatExchangeService
 }
 
 func NewPaymentStatusConsumer(mqClient *database.RabbitMQClient, exchangeService *ExchangeService) *PaymentStatusConsumer {
@@ -19,6 +21,11 @@ func NewPaymentStatusConsumer(mqClient *database.RabbitMQClient, exchangeService
 		mqClient:        mqClient,
 		exchangeService: exchangeService,
 	}
+}
+
+// SetFiatExchangeService allows setting the fiat exchange service after construction
+func (c *PaymentStatusConsumer) SetFiatExchangeService(fiatService *FiatExchangeService) {
+	c.fiatExchangeService = fiatService
 }
 
 func (c *PaymentStatusConsumer) Start() error {
@@ -36,43 +43,52 @@ func (c *PaymentStatusConsumer) Start() error {
 				continue
 			}
 
-			// Logic to check if this transaction belongs to exchange service
-			// We check if we can retrieve meta_data or simple ID parsing if metadata isn't on status.
-			// The Status Event currently only has TransactionID.
-			// But `processExchange` creating IDs like `TX-EXC-DEBIT-...` 
-			
-			// We need to parse TransactionID or better, rely on Metadata passing through?
-			// `PaymentStatusEvent` struct I defined in transfer-service has NO metadata.
-			// This is a limitation.
-			// But I used `TransactionID` in `processExchange`:
-			// `fmt.Sprintf("TX-EXC-DEBIT-%s", exchange.ID)`
-			// `fmt.Sprintf("TX-EXC-CREDIT-%s", exchange.ID)`
-			
-			// So I can parse string.
-			
 			txID := event.TransactionID
 			var exchangeID, step string
-			
-			// Simple string check
-			if len(txID) > 13 && txID[:13] == "TX-EXC-DEBIT-" {
+			var isFiat bool
+
+			// Check for crypto exchange transactions
+			if strings.HasPrefix(txID, "TX-EXC-DEBIT-") {
 				exchangeID = txID[13:]
 				step = "1_debit"
-			} else if len(txID) > 14 && txID[:14] == "TX-EXC-CREDIT-" {
+				isFiat = false
+			} else if strings.HasPrefix(txID, "TX-EXC-CREDIT-") {
 				exchangeID = txID[14:]
 				step = "2_credit"
+				isFiat = false
+			// Check for fiat exchange transactions
+			} else if strings.HasPrefix(txID, "TX-FIAT-DEBIT-") {
+				exchangeID = txID[14:]
+				step = "1_debit"
+				isFiat = true
+			} else if strings.HasPrefix(txID, "TX-FIAT-CREDIT-") {
+				exchangeID = txID[15:]
+				step = "2_credit"
+				isFiat = true
 			} else {
 				// Not an exchange transaction
 				d.Ack(false)
 				continue
 			}
 
-			log.Printf("Received payment status for Exchange %s Step %s: %s", exchangeID, step, event.Status)
+			log.Printf("Received payment status for %s Exchange %s Step %s: %s",
+				map[bool]string{true: "Fiat", false: "Crypto"}[isFiat], exchangeID, step, event.Status)
 
 			if event.Status == "completed" {
-				if step == "1_debit" {
-					c.exchangeService.CompleteExchangeCredit(exchangeID)
-				} else if step == "2_credit" {
-					c.exchangeService.FinalizeExchange(exchangeID)
+				if isFiat && c.fiatExchangeService != nil {
+					// Handle fiat exchange
+					if step == "1_debit" {
+						c.fiatExchangeService.CompleteFiatExchangeCredit(exchangeID)
+					} else if step == "2_credit" {
+						c.fiatExchangeService.FinalizeFiatExchange(exchangeID)
+					}
+				} else {
+					// Handle crypto exchange
+					if step == "1_debit" {
+						c.exchangeService.CompleteExchangeCredit(exchangeID)
+					} else if step == "2_credit" {
+						c.exchangeService.FinalizeExchange(exchangeID)
+					}
 				}
 			} else {
 				// Failed
@@ -80,7 +96,11 @@ func (c *PaymentStatusConsumer) Start() error {
 				if reason == "" {
 					reason = "Payment failed"
 				}
-				c.exchangeService.FailExchange(exchangeID, reason)
+				if isFiat && c.fiatExchangeService != nil {
+					c.fiatExchangeService.FailFiatExchange(exchangeID, reason)
+				} else {
+					c.exchangeService.FailExchange(exchangeID, reason)
+				}
 			}
 
 			d.Ack(false)
@@ -90,3 +110,4 @@ func (c *PaymentStatusConsumer) Start() error {
 	log.Println("Payment Status Consumer started")
 	return nil
 }
+
