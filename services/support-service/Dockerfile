@@ -3,32 +3,37 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
+# Install git for go mod
 RUN apk add --no-cache git
 
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
 # Copy go mod files
-COPY ./support-service/go.mod ./support-service/go.sum* ./
+COPY ./support-service/go.mod ./support-service/go.sum* ./support-service/
 
 # Download dependencies
+WORKDIR /app/support-service
 RUN go mod download || true
 
-# Copy service source code
+# Copy source code
 COPY ./support-service .
 
-# Tidy and download dependencies
-RUN go mod tidy && go mod download
+# Build
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o support-service .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/support-service/main .
-
-# Final stage
+# Runtime stage
 FROM alpine:latest
 
 WORKDIR /app
 
 RUN apk --no-cache add ca-certificates tzdata
 
-COPY --from=builder /app/support-service/main .
+# Copy binary
+COPY --from=builder /app/support-service/support-service .
 
+# Expose port
 EXPOSE 8089
 
-CMD ["./main"]
+# Run
+CMD ["./support-service"]
