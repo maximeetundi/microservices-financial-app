@@ -191,11 +191,6 @@ func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message 
 }
 
 func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
-	// Ensure connection is alive
-	if err := r.ensureConnection(); err != nil {
-		return nil, err
-	}
-	
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	
