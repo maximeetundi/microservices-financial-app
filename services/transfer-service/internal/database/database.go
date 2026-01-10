@@ -3,6 +3,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"sync"
 
 	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
@@ -28,6 +30,8 @@ func Initialize(dbURL string) (*sql.DB, error) {
 type RabbitMQClient struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
+	url     string
+	mu      sync.Mutex
 }
 
 func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
@@ -107,10 +111,13 @@ func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
 		return nil, fmt.Errorf("failed to bind queue: %w", err)
 	}
 
-	return &RabbitMQClient{conn: conn, channel: ch}, nil
+	log.Println("[RabbitMQ] Transfer-service connected successfully")
+	return &RabbitMQClient{conn: conn, channel: ch, url: url}, nil
 }
 
 func (r *RabbitMQClient) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.channel != nil {
 		r.channel.Close()
 	}
@@ -119,7 +126,78 @@ func (r *RabbitMQClient) Close() {
 	}
 }
 
+// ensureConnection checks if connection is alive and reconnects if needed
+func (r *RabbitMQClient) ensureConnection() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
+	// Check if channel is closed
+	if r.channel == nil || r.conn == nil || r.conn.IsClosed() {
+		log.Println("[RabbitMQ] Connection is closed, attempting to reconnect...")
+		
+		// Close existing connection if any
+		if r.channel != nil {
+			r.channel.Close()
+		}
+		if r.conn != nil {
+			r.conn.Close()
+		}
+		
+		// Reconnect
+		conn, err := amqp.Dial(r.url)
+		if err != nil {
+			return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
+		}
+		
+		channel, err := conn.Channel()
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("failed to reopen RabbitMQ channel: %w", err)
+		}
+		
+		// Redeclare exchanges
+		exchanges := []string{"wallet.events", "transaction.events", "transfer.events", 
+			"exchange.events", "card.events", "notification.events", "payment.events"}
+		for _, exchange := range exchanges {
+			err = channel.ExchangeDeclare(exchange, "topic", true, false, false, false, nil)
+			if err != nil {
+				channel.Close()
+				conn.Close()
+				return fmt.Errorf("failed to redeclare exchange %s: %w", exchange, err)
+			}
+		}
+		
+		// Redeclare queues
+		queues := []string{"transfers", "notifications", "compliance", "transfer.wallet_updates", "payments"}
+		for _, q := range queues {
+			_, err = channel.QueueDeclare(q, true, false, false, false, nil)
+			if err != nil {
+				channel.Close()
+				conn.Close()
+				return fmt.Errorf("failed to redeclare queue %s: %w", q, err)
+			}
+		}
+		
+		// Rebind queues
+		channel.QueueBind("payments", "payment.request", "payment.events", false, nil)
+		channel.QueueBind("transfer.wallet_updates", "wallet.*", "wallet.events", false, nil)
+		
+		r.conn = conn
+		r.channel = channel
+		log.Println("[RabbitMQ] Reconnected successfully!")
+	}
+	
+	return nil
+}
+
 func (r *RabbitMQClient) Publish(queue string, message []byte) error {
+	if err := r.ensureConnection(); err != nil {
+		return err
+	}
+	
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
 	return r.channel.Publish(
 		"",
 		queue,
@@ -134,6 +212,13 @@ func (r *RabbitMQClient) Publish(queue string, message []byte) error {
 
 // PublishToExchange publishes a message to a specific exchange with routing key
 func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
+	if err := r.ensureConnection(); err != nil {
+		return err
+	}
+	
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
 	return r.channel.Publish(
 		exchange,
 		routingKey,
@@ -148,6 +233,13 @@ func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message 
 
 // Consume consumes messages from a queue
 func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
+	if err := r.ensureConnection(); err != nil {
+		return nil, err
+	}
+	
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
 	return r.channel.Consume(
 		queue, // queue
 		"",    // consumer
@@ -158,4 +250,3 @@ func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
 		nil,   // args
 	)
 }
-
