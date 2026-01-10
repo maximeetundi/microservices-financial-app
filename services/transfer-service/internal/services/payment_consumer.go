@@ -26,30 +26,41 @@ func NewPaymentRequestConsumer(mqClient *database.RabbitMQClient, walletClient *
 }
 
 func (c *PaymentRequestConsumer) Start() error {
+	log.Println("[TRANSFER DEBUG] Starting PaymentRequestConsumer...")
+	
 	msgs, err := c.mqClient.Consume("payments")
 	if err != nil {
+		log.Printf("[TRANSFER ERROR] Failed to start consuming payments queue: %v", err)
 		return fmt.Errorf("failed to start consuming payments queue: %w", err)
 	}
 
+	log.Println("[TRANSFER DEBUG] Successfully connected to payments queue, starting message loop")
+
 	go func() {
+		log.Println("[TRANSFER DEBUG] Message loop goroutine started")
 		for d := range msgs {
+			log.Printf("[TRANSFER DEBUG] Received message: %s", string(d.Body))
+			
 			var req models.PaymentRequestEvent
 			if err := json.Unmarshal(d.Body, &req); err != nil {
-				log.Printf("Error unmarshalling payment request: %v", err)
+				log.Printf("[TRANSFER ERROR] Error unmarshalling payment request: %v", err)
 				d.Ack(false) // Ack to remove bad message
 				continue
 			}
 
-			log.Printf("Processing payment request: %s from service: %s", req.TransactionID, req.OriginService)
+			log.Printf("[TRANSFER DEBUG] Processing payment request: %s from service: %s, SourceWallet: %s, Amount: %f", 
+				req.TransactionID, req.OriginService, req.SourceWalletID, req.Amount)
 
 			err := c.processPayment(&req)
 			
 			status := "completed"
 			errorMsg := ""
 			if err != nil {
-				log.Printf("Payment processing failed for %s: %v", req.TransactionID, err)
+				log.Printf("[TRANSFER ERROR] Payment processing failed for %s: %v", req.TransactionID, err)
 				status = "failed"
 				errorMsg = err.Error()
+			} else {
+				log.Printf("[TRANSFER DEBUG] Payment processing succeeded for %s", req.TransactionID)
 			}
 
 			// Publish status event
@@ -64,13 +75,15 @@ func (c *PaymentRequestConsumer) Start() error {
 			
 			// Routing key: payment.status.{completed|failed}
 			routingKey := fmt.Sprintf("payment.status.%s", status)
+			log.Printf("[TRANSFER DEBUG] Publishing status event to payment.events with key %s", routingKey)
 			c.mqClient.PublishToExchange("payment.events", routingKey, eventBytes)
 
 			d.Ack(false)
 		}
+		log.Println("[TRANSFER DEBUG] Message loop ended")
 	}()
 
-	log.Println("Payment Request Consumer started")
+	log.Println("[TRANSFER DEBUG] Payment Request Consumer started successfully")
 	return nil
 }
 
