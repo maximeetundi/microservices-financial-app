@@ -101,6 +101,17 @@ func (r *TicketRepository) GetByBuyer(buyerID string, limit, offset int) ([]*mod
 	return tickets, nil
 }
 
+func (r *TicketRepository) GetByTransactionID(transactionID string) (*models.Ticket, error) {
+	var ticket models.Ticket
+	filter := bson.M{"transaction_id": transactionID}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&ticket)
+	if err != nil {
+		return nil, err
+	}
+	r.populateEventDetails(&ticket)
+	return &ticket, nil
+}
+
 func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*models.Ticket, error) {
 	var tickets []*models.Ticket
 	filter := bson.M{"event_id": eventID}

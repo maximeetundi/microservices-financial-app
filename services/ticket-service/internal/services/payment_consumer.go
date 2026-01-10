@@ -68,23 +68,28 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 		// If payment successful, notify the organizer
 		if newStatus == "paid" {
 			ticket, err := c.ticketRepo.GetByTransactionID(statusEvent.RequestID)
-				// Let's assume ticket struct has what we need or we fetch event.
-				// Checking ticket model in repo: populateEventDetails gets Title, Date, Location.
-				// We probably need to fetch the Event to get CreatorID.
+			if err == nil && ticket != nil && ticket.EventCreatorID != "" {
+				// Create notification event
+				notifEvent := messaging.NotificationEvent{
+					UserID:  ticket.EventCreatorID,
+					Type:    "ticket_sold",
+					Title:   "Nouveau ticket vendu ! 🎫",
+					Message: "Un ticket a été acheté pour votre événement " + ticket.EventTitle,
+					Data: map[string]interface{}{
+						"ticket_id": ticket.ID,
+						"event_id":  ticket.EventID,
+						"amount":    ticket.Price,
+						"currency":  ticket.Currency,
+					},
+				}
 				
-				// Let's try to fetch event directly if needed, or query ticketRepo events collection?
-				// TicketRepo has eventColl.
-				// But we are in consumer.
-				// Let's check if we can get CreatorID easily. 
-				// For now, let's implement the notification publishing assuming we can get the UserID.
-				// Oops, I need to be sure about CreatorID.
-				// Let's look at the Ticket struct in the repo/model first if I need to.
-				// But waiting for view_file is better? No, I am in parallel execution manually here?
-				// I will implement a helper or logic here.
-				
-				// Just implementing the update for now inside this block is risky without knowing fields.
-				// I will hold off on this replace until I verify the Ticket model in the next step.
-				// Actually, I can do it in two steps.
+				// Publish notification
+				envelope := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", notifEvent)
+				if err := c.kafkaClient.Publish(messaging.TopicNotificationEvents, envelope); err != nil {
+					log.Printf("[Kafka] Failed to publish notification event: %v", err)
+				} else {
+					log.Printf("[Kafka] Published notification for organizer %s", ticket.EventCreatorID)
+				}
 			}
 		}
 	}
