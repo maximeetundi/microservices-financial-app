@@ -1,37 +1,36 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
-	database "github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
 )
 
 type ExchangeService struct {
-	exchangeRepo *repository.ExchangeRepository
-	orderRepo    *repository.OrderRepository
-	rateService  *RateService
-	feeService   *FeeService
-	config       *config.Config
-	mqClient     *database.RabbitMQClient
-	walletClient *WalletClient
+	exchangeRepo   *repository.ExchangeRepository
+	orderRepo      *repository.OrderRepository
+	rateService    *RateService
+	feeService     *FeeService
+	config         *config.Config
+	kafkaPublisher *KafkaPublisher
+	walletClient   *WalletClient
 }
 
-func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, feeService *FeeService, mqClient *database.RabbitMQClient, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
+func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *repository.OrderRepository, rateService *RateService, feeService *FeeService, kafkaPublisher *KafkaPublisher, walletClient *WalletClient, cfg *config.Config) *ExchangeService {
 	return &ExchangeService{
-		exchangeRepo: exchangeRepo,
-		orderRepo:    orderRepo,
-		rateService:  rateService,
-		feeService:   feeService,
-		config:       cfg,
-		mqClient:     mqClient,
-		walletClient: walletClient,
+		exchangeRepo:   exchangeRepo,
+		orderRepo:      orderRepo,
+		rateService:    rateService,
+		feeService:     feeService,
+		config:         cfg,
+		kafkaPublisher: kafkaPublisher,
+		walletClient:   walletClient,
 	}
 }
 
@@ -376,48 +375,31 @@ func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error)
 func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 	log.Printf("[EXCHANGE DEBUG] Starting processExchange for exchange %s", exchange.ID)
 	
-	// Check if mqClient is nil
-	if s.mqClient == nil {
-		log.Printf("[EXCHANGE ERROR] mqClient is nil for exchange %s", exchange.ID)
+	// Check if kafkaPublisher is available
+	if s.kafkaPublisher == nil || !s.kafkaPublisher.IsConnected() {
+		log.Printf("[EXCHANGE ERROR] Kafka publisher not available for exchange %s", exchange.ID)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
 		return
 	}
 	
 	// 1. Initiate Debit
-	// Metadata to track step
-	meta := map[string]interface{}{
-		"action":      "exchange_debit",
-		"exchange_id": exchange.ID,
-		"step":        "1_debit",
-	}
-	
-	debitReq := models.PaymentRequestEvent{
-		TransactionID:  fmt.Sprintf("TX-EXC-DEBIT-%s", exchange.ID),
-		SourceWalletID: exchange.FromWalletID,
-		UserID:         exchange.UserID,
-		Amount:         exchange.FromAmount,
-		Currency:       exchange.FromCurrency,
-		Reference:      fmt.Sprintf("EXCHANGE_DEBIT_%s", exchange.ID),
-		OriginService:  "exchange-service",
-		MetaData:       meta,
+	debitReq := &messaging.PaymentRequestEvent{
+		RequestID:    fmt.Sprintf("TX-EXC-DEBIT-%s", exchange.ID),
+		FromWalletID: exchange.FromWalletID,
+		DebitAmount:  exchange.FromAmount,
+		Currency:     exchange.FromCurrency,
+		Type:         "exchange_debit",
+		ReferenceID:  fmt.Sprintf("EXCHANGE_DEBIT_%s", exchange.ID),
 	}
 
 	log.Printf("[EXCHANGE DEBUG] Created debit request for exchange %s: SourceWallet=%s, Amount=%f, Currency=%s", 
 		exchange.ID, exchange.FromWalletID, exchange.FromAmount, exchange.FromCurrency)
 
-	eventJSON, err := json.Marshal(debitReq)
-	if err != nil {
-		log.Printf("[EXCHANGE ERROR] Failed to marshal debit request for exchange %s: %v", exchange.ID, err)
-		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
-		return
-	}
-	
 	// Update status to indicate processing
 	log.Printf("[EXCHANGE DEBUG] Updating status to processing_debit for exchange %s", exchange.ID)
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
 
-	log.Printf("[EXCHANGE DEBUG] Publishing to payment.events for exchange %s", exchange.ID)
-	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+	if err := s.kafkaPublisher.PublishPaymentRequest(debitReq); err != nil {
 		log.Printf("[EXCHANGE ERROR] Failed to publish debit request for exchange %s: %v", exchange.ID, err)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
 	} else {
@@ -439,40 +421,21 @@ func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
 		exchangeID, exchange.ToWalletID, exchange.ToAmount, exchange.ToCurrency)
 
 	// 2. Initiate Credit
-	meta := map[string]interface{}{
-		"action":      "exchange_credit",
-		"exchange_id": exchange.ID,
-		"step":        "2_credit",
+	creditReq := &messaging.PaymentRequestEvent{
+		RequestID:    fmt.Sprintf("TX-EXC-CREDIT-%s", exchange.ID),
+		ToWalletID:   exchange.ToWalletID,
+		CreditAmount: exchange.ToAmount,
+		Currency:     exchange.ToCurrency,
+		Type:         "exchange_credit",
+		ReferenceID:  fmt.Sprintf("EXCHANGE_CREDIT_%s", exchange.ID),
 	}
-
-	// Note: For Credit Only, we need Transfer Service to support skipping Debit.
-	// We will send a request with NO SourceWalletID? 
-	// Or we use a System Wallet as source? 
-	// Ideally Transfer Service Consumer should be updated to skip Debit if SourceWalletID is empty.
-	// I will update Transfer Service Consumer in next steps.
-	
-	creditReq := models.PaymentRequestEvent{
-		TransactionID:       fmt.Sprintf("TX-EXC-CREDIT-%s", exchange.ID),
-		// SourceWalletID: "", // EMPTY to skip debit
-		UserID:              exchange.UserID,
-		Amount:              exchange.ToAmount,
-		Currency:            exchange.ToCurrency,
-		Reference:           fmt.Sprintf("EXCHANGE_CREDIT_%s", exchange.ID),
-		OriginService:       "exchange-service",
-		DestinationWalletID: exchange.ToWalletID,
-		DestinationUserID:   exchange.UserID,
-		MetaData:            meta,
-	}
-
-	eventJSON, _ := json.Marshal(creditReq)
 
 	log.Printf("[EXCHANGE DEBUG] Updating status to processing_credit for exchange %s", exchangeID)
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
 
 	log.Printf("[EXCHANGE DEBUG] Publishing credit request for exchange %s", exchangeID)
-	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+	if err := s.kafkaPublisher.PublishPaymentRequest(creditReq); err != nil {
 		log.Printf("[EXCHANGE ERROR] Failed to publish credit request for exchange %s: %v", exchange.ID, err)
-		// Mark as failed_partial since debit succeeded but credit request failed
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial") 
 	} else {
 		log.Printf("[EXCHANGE DEBUG] Successfully published credit request for exchange %s", exchangeID)
@@ -609,45 +572,41 @@ func (s *ExchangeService) isFiatCurrency(currency string) bool {
 }
 
 func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *models.Exchange) {
-	if s.mqClient == nil {
+	if s.kafkaPublisher == nil {
 		return
 	}
 
 	event := map[string]interface{}{
-		"type":        eventType,
-		"exchange_id": exchange.ID,
-		"user_id":     exchange.UserID,
+		"type":          eventType,
+		"exchange_id":   exchange.ID,
+		"user_id":       exchange.UserID,
 		"from_currency": exchange.FromCurrency,
-		"to_currency": exchange.ToCurrency,
-		"amount":      exchange.FromAmount,
-		"status":      exchange.Status,
-		"timestamp":   time.Now(),
+		"to_currency":   exchange.ToCurrency,
+		"amount":        exchange.FromAmount,
+		"status":        exchange.Status,
+		"timestamp":     time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
-
-	s.mqClient.PublishToExchange("exchange.events", eventType, eventJSON)
+	s.kafkaPublisher.PublishExchangeEvent(eventType, event)
 }
 
 func (s *ExchangeService) publishTradingEvent(eventType string, order *models.TradingOrder) {
-	if s.mqClient == nil {
+	if s.kafkaPublisher == nil {
 		return
 	}
 
 	event := map[string]interface{}{
-		"type":     eventType,
-		"order_id": order.ID,
-		"user_id":  order.UserID,
-		"side":     order.Side,
-		"amount":   order.Amount,
-		"price":    order.Price,
-		"status":   order.Status,
+		"type":      eventType,
+		"order_id":  order.ID,
+		"user_id":   order.UserID,
+		"side":      order.Side,
+		"amount":    order.Amount,
+		"price":     order.Price,
+		"status":    order.Status,
 		"timestamp": time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
-
-	s.mqClient.PublishToExchange("trading.events", eventType, eventJSON)
+	s.kafkaPublisher.PublishTradingEvent(eventType, event)
 }
 
 func (s *ExchangeService) getFeeKey(fromCurrency, toCurrency string) string {

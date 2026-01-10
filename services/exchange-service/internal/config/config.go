@@ -9,7 +9,8 @@ type Config struct {
 	Environment        string
 	DBUrl              string
 	RedisURL           string
-	RabbitMQURL        string
+	KafkaBrokers       string
+	KafkaGroupID       string
 	JWTSecret          string
 	WalletServiceURL   string
 	ExchangeFees       map[string]float64
@@ -28,7 +29,8 @@ func Load() *Config {
 		Environment:      getEnv("ENVIRONMENT", "development"),
 		DBUrl:            getEnv("DATABASE_URL", "postgres://user:password@localhost/crypto_bank_exchange?sslmode=disable"),
 		RedisURL:         getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL:      getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		KafkaBrokers:     getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID:     getEnv("KAFKA_GROUP_ID", "exchange-service-group"),
 		JWTSecret:        getEnv("JWT_SECRET", "your-secret-key"),
 		WalletServiceURL: getEnv("WALLET_SERVICE_URL", "http://localhost:8084"),
 		ExchangeFees: map[string]float64{

@@ -54,12 +54,12 @@ func main() {
 		log.Fatal("Failed to initialize Redis:", err)
 	}
 
-	// Initialize message queue
-	mqClient, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	// Initialize Kafka
+	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers, cfg.KafkaGroupID)
 	if err != nil {
-		log.Fatal("Failed to initialize RabbitMQ:", err)
+		log.Fatal("Failed to initialize Kafka:", err)
 	}
-	defer mqClient.Close()
+	defer kafkaClient.Close()
 
 	// Initialize repositories
 	exchangeRepo := repository.NewExchangeRepository(db)
@@ -77,21 +77,24 @@ func main() {
 		log.Printf("Warning: Failed to initialize exchange tables: %v", err)
 	}
 
+	// Initialize Kafka publisher wrapper
+	kafkaPublisher := services.NewKafkaPublisher(kafkaClient)
+
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
 	rateService := services.NewRateService(rateRepo, cfg)
 	feeService := services.NewFeeService(feeRepo)
-	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, feeService, mqClient, walletClient, cfg)
+	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, feeService, kafkaPublisher, walletClient, cfg)
 	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
-	fiatExchangeService := services.NewFiatExchangeService(exchangeRepo, rateService, feeService, mqClient, cfg)
+	fiatExchangeService := services.NewFiatExchangeService(exchangeRepo, rateService, feeService, kafkaPublisher, cfg)
 	
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
 	fiatHandler := handlers.NewFiatHandler(fiatExchangeService, rateService)
 	
-	// Start Consumers
-	paymentConsumer := services.NewPaymentStatusConsumer(mqClient, exchangeService)
+	// Start Kafka Consumers
+	paymentConsumer := services.NewPaymentStatusConsumer(kafkaClient, exchangeService)
 	paymentConsumer.SetFiatExchangeService(fiatExchangeService)
 	if err := paymentConsumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start PaymentStatusConsumer: %v", err)

@@ -1,33 +1,32 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
-	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
 )
 
 type FiatExchangeService struct {
-	exchangeRepo *repository.ExchangeRepository
-	rateService  *RateService
-	feeService   *FeeService
-	config       *config.Config
-	mqClient     *database.RabbitMQClient
+	exchangeRepo   *repository.ExchangeRepository
+	rateService    *RateService
+	feeService     *FeeService
+	config         *config.Config
+	kafkaPublisher *KafkaPublisher
 }
 
-func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, feeService *FeeService, mqClient *database.RabbitMQClient, cfg *config.Config) *FiatExchangeService {
+func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, feeService *FeeService, kafkaPublisher *KafkaPublisher, cfg *config.Config) *FiatExchangeService {
 	return &FiatExchangeService{
-		exchangeRepo: exchangeRepo,
-		rateService:  rateService,
-		feeService:   feeService,
-		config:       cfg,
-		mqClient:     mqClient,
+		exchangeRepo:   exchangeRepo,
+		rateService:    rateService,
+		feeService:     feeService,
+		config:         cfg,
+		kafkaPublisher: kafkaPublisher,
 	}
 }
 
@@ -425,41 +424,30 @@ func (s *FiatExchangeService) GetSupportedFiatPairs() map[string][]string {
 	}
 }
 
-// Traitement de l'échange fiat via événements de paiement
+// processFiatExchange handles the fiat exchange via Kafka payment events
 func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
-	// 1. Initiate Debit via payment event
-	meta := map[string]interface{}{
-		"action":      "fiat_exchange_debit",
-		"exchange_id": exchange.ID,
-		"step":        "1_debit",
-		"type":        "fiat_to_fiat",
+	// 1. Initiate Debit via Kafka payment event
+	debitReq := &messaging.PaymentRequestEvent{
+		RequestID:    fmt.Sprintf("TX-FIAT-DEBIT-%s", exchange.ID),
+		FromWalletID: exchange.FromWalletID,
+		DebitAmount:  exchange.FromAmount,
+		Currency:     exchange.FromCurrency,
+		Type:         "fiat_exchange_debit",
+		ReferenceID:  fmt.Sprintf("FIAT_EXCHANGE_DEBIT_%s", exchange.ID),
 	}
-
-	debitReq := models.PaymentRequestEvent{
-		TransactionID:  fmt.Sprintf("TX-FIAT-DEBIT-%s", exchange.ID),
-		SourceWalletID: exchange.FromWalletID,
-		UserID:         exchange.UserID,
-		Amount:         exchange.FromAmount,
-		Currency:       exchange.FromCurrency,
-		Reference:      fmt.Sprintf("FIAT_EXCHANGE_DEBIT_%s", exchange.ID),
-		OriginService:  "exchange-service",
-		MetaData:       meta,
-	}
-
-	eventJSON, _ := json.Marshal(debitReq)
 
 	// Update status to indicate processing
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
 
-	if s.mqClient != nil {
-		if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+	if s.kafkaPublisher != nil && s.kafkaPublisher.IsConnected() {
+		if err := s.kafkaPublisher.PublishPaymentRequest(debitReq); err != nil {
 			log.Printf("Failed to publish debit request for fiat exchange %s: %v", exchange.ID, err)
 			s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
 		} else {
 			log.Printf("[FIAT EXCHANGE] Successfully published debit request for %s", exchange.ID)
 		}
 	} else {
-		log.Printf("Warning: No MQ client for fiat exchange %s, marking as failed", exchange.ID)
+		log.Printf("Warning: Kafka publisher not available for fiat exchange %s, marking as failed", exchange.ID)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
 	}
 }
@@ -472,32 +460,20 @@ func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
 		return
 	}
 
-	// 2. Initiate Credit
-	meta := map[string]interface{}{
-		"action":      "fiat_exchange_credit",
-		"exchange_id": exchange.ID,
-		"step":        "2_credit",
-		"type":        "fiat_to_fiat",
+	// 2. Initiate Credit via Kafka
+	creditReq := &messaging.PaymentRequestEvent{
+		RequestID:    fmt.Sprintf("TX-FIAT-CREDIT-%s", exchange.ID),
+		ToWalletID:   exchange.ToWalletID,
+		CreditAmount: exchange.ToAmount,
+		Currency:     exchange.ToCurrency,
+		Type:         "fiat_exchange_credit",
+		ReferenceID:  fmt.Sprintf("FIAT_EXCHANGE_CREDIT_%s", exchange.ID),
 	}
-
-	creditReq := models.PaymentRequestEvent{
-		TransactionID:       fmt.Sprintf("TX-FIAT-CREDIT-%s", exchange.ID),
-		UserID:              exchange.UserID,
-		Amount:              exchange.ToAmount,
-		Currency:            exchange.ToCurrency,
-		Reference:           fmt.Sprintf("FIAT_EXCHANGE_CREDIT_%s", exchange.ID),
-		OriginService:       "exchange-service",
-		DestinationWalletID: exchange.ToWalletID,
-		DestinationUserID:   exchange.UserID,
-		MetaData:            meta,
-	}
-
-	eventJSON, _ := json.Marshal(creditReq)
 
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
 
-	if s.mqClient != nil {
-		if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
+	if s.kafkaPublisher != nil && s.kafkaPublisher.IsConnected() {
+		if err := s.kafkaPublisher.PublishPaymentRequest(creditReq); err != nil {
 			log.Printf("Failed to publish credit request for fiat exchange %s: %v", exchange.ID, err)
 			s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial")
 		} else {
@@ -527,7 +503,7 @@ func (s *FiatExchangeService) FailFiatExchange(exchangeID, reason string) {
 }
 
 func (s *FiatExchangeService) publishFiatExchangeEvent(eventType string, exchange *models.Exchange) {
-	if s.mqClient == nil {
+	if s.kafkaPublisher == nil {
 		return
 	}
 
@@ -545,6 +521,5 @@ func (s *FiatExchangeService) publishFiatExchangeEvent(eventType string, exchang
 		"timestamp":        time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
-	s.mqClient.PublishToExchange("fiat_exchange.events", eventType, eventJSON)
+	s.kafkaPublisher.PublishExchangeEvent(eventType, event)
 }

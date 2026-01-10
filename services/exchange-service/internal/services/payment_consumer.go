@@ -1,24 +1,26 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 
-	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 )
 
+// PaymentStatusConsumer consumes payment status events from Kafka
 type PaymentStatusConsumer struct {
-	mqClient            *database.RabbitMQClient
+	kafkaClient         *messaging.KafkaClient
 	exchangeService     *ExchangeService
 	fiatExchangeService *FiatExchangeService
 }
 
-func NewPaymentStatusConsumer(mqClient *database.RabbitMQClient, exchangeService *ExchangeService) *PaymentStatusConsumer {
+// NewPaymentStatusConsumer creates a new payment status consumer
+func NewPaymentStatusConsumer(kafkaClient *messaging.KafkaClient, exchangeService *ExchangeService) *PaymentStatusConsumer {
 	return &PaymentStatusConsumer{
-		mqClient:        mqClient,
+		kafkaClient:     kafkaClient,
 		exchangeService: exchangeService,
 	}
 }
@@ -28,94 +30,92 @@ func (c *PaymentStatusConsumer) SetFiatExchangeService(fiatService *FiatExchange
 	c.fiatExchangeService = fiatService
 }
 
+// Start begins consuming payment status events
 func (c *PaymentStatusConsumer) Start() error {
-	log.Println("[EXC-CONSUMER DEBUG] Starting PaymentStatusConsumer...")
-	
-	msgs, err := c.mqClient.Consume("exchange.payment.updates")
-	if err != nil {
-		log.Printf("[EXC-CONSUMER ERROR] Failed to consume queue: %v", err)
-		return fmt.Errorf("failed to start consuming exchange payment updates queue: %w", err)
+	log.Println("[Kafka] Starting PaymentStatusConsumer for exchange-service...")
+
+	if err := c.kafkaClient.Subscribe(messaging.TopicPaymentEvents, c.handlePaymentEvent); err != nil {
+		log.Printf("[Kafka] Failed to subscribe to payment events: %v", err)
+		return err
 	}
 
-	log.Println("[EXC-CONSUMER DEBUG] Successfully connected to exchange.payment.updates queue")
-
-	go func() {
-		log.Println("[EXC-CONSUMER DEBUG] Message loop started")
-		for d := range msgs {
-			log.Printf("[EXC-CONSUMER DEBUG] Received status event: %s", string(d.Body))
-			
-			var event models.PaymentStatusEvent
-			if err := json.Unmarshal(d.Body, &event); err != nil {
-				log.Printf("[EXC-CONSUMER ERROR] Error unmarshalling payment status event: %v", err)
-				d.Ack(false)
-				continue
-			}
-
-			txID := event.TransactionID
-			var exchangeID, step string
-			var isFiat bool
-
-			// Check for crypto exchange transactions
-			if strings.HasPrefix(txID, "TX-EXC-DEBIT-") {
-				exchangeID = txID[13:]
-				step = "1_debit"
-				isFiat = false
-			} else if strings.HasPrefix(txID, "TX-EXC-CREDIT-") {
-				exchangeID = txID[14:]
-				step = "2_credit"
-				isFiat = false
-			// Check for fiat exchange transactions
-			} else if strings.HasPrefix(txID, "TX-FIAT-DEBIT-") {
-				exchangeID = txID[14:]
-				step = "1_debit"
-				isFiat = true
-			} else if strings.HasPrefix(txID, "TX-FIAT-CREDIT-") {
-				exchangeID = txID[15:]
-				step = "2_credit"
-				isFiat = true
-			} else {
-				// Not an exchange transaction
-				d.Ack(false)
-				continue
-			}
-
-			log.Printf("Received payment status for %s Exchange %s Step %s: %s",
-				map[bool]string{true: "Fiat", false: "Crypto"}[isFiat], exchangeID, step, event.Status)
-
-			if event.Status == "completed" {
-				if isFiat && c.fiatExchangeService != nil {
-					// Handle fiat exchange
-					if step == "1_debit" {
-						c.fiatExchangeService.CompleteFiatExchangeCredit(exchangeID)
-					} else if step == "2_credit" {
-						c.fiatExchangeService.FinalizeFiatExchange(exchangeID)
-					}
-				} else {
-					// Handle crypto exchange
-					if step == "1_debit" {
-						c.exchangeService.CompleteExchangeCredit(exchangeID)
-					} else if step == "2_credit" {
-						c.exchangeService.FinalizeExchange(exchangeID)
-					}
-				}
-			} else {
-				// Failed
-				reason := event.Error
-				if reason == "" {
-					reason = "Payment failed"
-				}
-				if isFiat && c.fiatExchangeService != nil {
-					c.fiatExchangeService.FailFiatExchange(exchangeID, reason)
-				} else {
-					c.exchangeService.FailExchange(exchangeID, reason)
-				}
-			}
-
-			d.Ack(false)
-		}
-	}()
-
-	log.Println("Payment Status Consumer started")
+	log.Println("[Kafka] PaymentStatusConsumer started")
 	return nil
 }
 
+func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	// Only process payment success/failed events
+	if event.Type != messaging.EventPaymentSuccess && event.Type != messaging.EventPaymentFailed {
+		return nil
+	}
+
+	log.Printf("[Kafka] Exchange-service received payment event: %s", event.Type)
+
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		return err
+	}
+
+	var statusEvent models.PaymentStatusEvent
+	if err := json.Unmarshal(dataBytes, &statusEvent); err != nil {
+		log.Printf("[Kafka] Error unmarshalling payment status: %v", err)
+		return err
+	}
+
+	txID := statusEvent.TransactionID
+	var exchangeID, step string
+	var isFiat bool
+
+	// Check for crypto exchange transactions
+	if strings.HasPrefix(txID, "TX-EXC-DEBIT-") {
+		exchangeID = txID[13:]
+		step = "1_debit"
+		isFiat = false
+	} else if strings.HasPrefix(txID, "TX-EXC-CREDIT-") {
+		exchangeID = txID[14:]
+		step = "2_credit"
+		isFiat = false
+	} else if strings.HasPrefix(txID, "TX-FIAT-DEBIT-") {
+		exchangeID = txID[14:]
+		step = "1_debit"
+		isFiat = true
+	} else if strings.HasPrefix(txID, "TX-FIAT-CREDIT-") {
+		exchangeID = txID[15:]
+		step = "2_credit"
+		isFiat = true
+	} else {
+		// Not an exchange transaction
+		return nil
+	}
+
+	log.Printf("[Kafka] Processing %s exchange %s step %s: %s",
+		map[bool]string{true: "Fiat", false: "Crypto"}[isFiat], exchangeID, step, statusEvent.Status)
+
+	if statusEvent.Status == "completed" || statusEvent.Status == "success" {
+		if isFiat && c.fiatExchangeService != nil {
+			if step == "1_debit" {
+				c.fiatExchangeService.CompleteFiatExchangeCredit(exchangeID)
+			} else if step == "2_credit" {
+				c.fiatExchangeService.FinalizeFiatExchange(exchangeID)
+			}
+		} else {
+			if step == "1_debit" {
+				c.exchangeService.CompleteExchangeCredit(exchangeID)
+			} else if step == "2_credit" {
+				c.exchangeService.FinalizeExchange(exchangeID)
+			}
+		}
+	} else {
+		reason := statusEvent.Error
+		if reason == "" {
+			reason = "Payment failed"
+		}
+		if isFiat && c.fiatExchangeService != nil {
+			c.fiatExchangeService.FailFiatExchange(exchangeID, reason)
+		} else {
+			c.exchangeService.FailExchange(exchangeID, reason)
+		}
+	}
+
+	return nil
+}
