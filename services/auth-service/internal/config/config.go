@@ -1,5 +1,6 @@
 package config
 
+import (
 	"os"
 	"strconv"
 	"strings"
@@ -74,7 +75,6 @@ func Load() *Config {
 		Environment: getEnv("ENVIRONMENT", "development"),
 		Port:        getEnv("PORT", "8081"),
 		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
 		KafkaBrokers: strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
