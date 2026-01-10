@@ -128,6 +128,7 @@ type PaymentRequestEvent struct {
 	Type         string  `json:"type"` // exchange, transfer
 	UserID       string  `json:"user_id"`
 	FromWalletID string  `json:"from_wallet_id"`
+	DestinationUserID string `json:"destination_user_id,omitempty"` // For auto-resolution
 	ToWalletID   string  `json:"to_wallet_id,omitempty"`
 	DebitAmount  float64 `json:"debit_amount"`
 	CreditAmount float64 `json:"credit_amount,omitempty"`

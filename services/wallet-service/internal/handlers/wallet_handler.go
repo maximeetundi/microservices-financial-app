@@ -888,3 +888,59 @@ func (h *WalletHandler) GetStats(c *gin.Context) {
 		"volume":            volume,
 	})
 }
+// === Internal Service-to-Service Handlers ===
+
+func (h *WalletHandler) GetWalletsInternal(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	wallets, err := h.walletService.GetUserWallets(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get wallets"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"wallets": wallets})
+}
+
+func (h *WalletHandler) CreateWalletInternal(c *gin.Context) {
+	var req struct {
+		UserID   string `json:"user_id" binding:"required"`
+		Currency string `json:"currency" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := "Portefeuille " + req.Currency
+	desc := "Auto-generated wallet"
+	createReq := &models.CreateWalletRequest{
+		Currency:    req.Currency,
+		WalletType:  "fiat", // Default to fiat for these auto-creations
+		Name:        &name,
+		Description: &desc,
+	}
+
+	wallet, err := h.walletService.CreateWallet(req.UserID, createReq)
+	if err != nil {
+		if err.Error() == "wallet already exists for currency "+req.Currency {
+			// Try to find existing wallet
+			wallets, _ := h.walletService.GetUserWallets(req.UserID)
+			for _, w := range wallets {
+				if w.Currency == req.Currency {
+					c.JSON(http.StatusOK, gin.H{"wallet": w, "existing": true})
+					return
+				}
+			}
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create wallet: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"wallet": wallet})
+}

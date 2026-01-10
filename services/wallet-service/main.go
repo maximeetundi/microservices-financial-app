@@ -204,6 +204,13 @@ func main() {
 
 		// Service-to-Service routes (should be protected by internal network or secret)
 		api.POST("/wallets/transaction", walletHandler.ProcessInterServiceTransaction)
+		
+		// Internal Wallet Management (for other services like transfer-service)
+		internal := api.Group("/internal")
+		{
+			internal.GET("/wallets", walletHandler.GetWalletsInternal)
+			internal.POST("/wallets", walletHandler.CreateWalletInternal)
+		}
 
 		// Public payment scan endpoint (no auth required)
 		api.GET("/pay/:id", merchantHandler.ScanPayment)

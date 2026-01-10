@@ -329,7 +329,8 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 	paymentReq := messaging.PaymentRequestEvent{
 		RequestID:     txID,
 		FromWalletID:  req.WalletID,
-		ToWalletID:    "", // Resolved by transfer-service based on DestinationUserID
+		DestinationUserID: event.CreatorID, // Set organizer as destination
+		ToWalletID:    "", // Will be resolved by transfer-service using DestinationUserID
 		DebitAmount:   tier.Price,
 		CreditAmount:  tier.Price,
 		Currency:      event.Currency,

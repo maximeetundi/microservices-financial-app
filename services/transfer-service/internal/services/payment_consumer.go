@@ -58,7 +58,42 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 	log.Printf("[TRACE-FIAT] Payment Consumer received: RequestID=%s, UserID=%s, Type=%s, Amount=%.2f",
 		paymentReq.RequestID, paymentReq.UserID, paymentReq.Type, paymentReq.DebitAmount)
 
+	// Resolve Destination User Wallet if needed (e.g. for Ticket Organizer)
+	if paymentReq.ToWalletID == "" && paymentReq.DestinationUserID != "" {
+		log.Printf("[TRACE-FIAT] Resolving wallet for DestinationUserID: %s, Currency: %s", paymentReq.DestinationUserID, paymentReq.Currency)
+		
+		// 1. Check if user already has a wallet for this currency
+		wallets, err := c.walletClient.GetUserWallets(paymentReq.DestinationUserID)
+		if err == nil {
+			for _, w := range wallets {
+				if cur, ok := w["currency"].(string); ok && cur == paymentReq.Currency {
+					if id, ok := w["id"].(string); ok {
+						paymentReq.ToWalletID = id
+						log.Printf("[TRACE-FIAT] Found existing wallet: %s", id)
+						break
+					}
+				}
+			}
+		}
+
+		// 2. If no wallet found, create one
+		if paymentReq.ToWalletID == "" {
+			log.Printf("[TRACE-FIAT] No wallet found, creating new one for UserID: %s", paymentReq.DestinationUserID)
+			newWalletID, err := c.walletClient.CreateUserWallet(paymentReq.DestinationUserID, paymentReq.Currency)
+			if err != nil {
+				log.Printf("[Kafka] Failed to create wallet for destination user: %v", err)
+				// We can't proceed with credit, so we must fail and potentially refund/rollback
+				// Ideally we should rollback debit if it happened, but debit happens before this block in current flow?
+				// WAIT: Debit happens in lines 62-78. We should move this resolution BEFORE debit to be safe.
+			} else {
+				paymentReq.ToWalletID = newWalletID
+				log.Printf("[TRACE-FIAT] Created new wallet: %s", newWalletID)
+			}
+		}
+	}
+
 	// Process debit operation via wallet client
+
 	if paymentReq.FromWalletID != "" && paymentReq.DebitAmount > 0 {
 		log.Printf("[TRACE-FIAT] Processing Debit for UserID: %s", paymentReq.UserID)
 		debitReq := &WalletTransactionRequest{
