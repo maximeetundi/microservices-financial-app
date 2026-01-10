@@ -272,6 +272,19 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Data:     event,
 			Channels: []string{"push", "email"}, // Pas de SMS
 		}
+
+	case "fiat_exchange.completed":
+		fromCurrency, _ := event["from_currency"].(string)
+		toCurrency, _ := event["to_currency"].(string)
+		amount, _ := event["amount"].(float64)
+		return &Notification{
+			Title:    "Change Fiat effectué",
+			Body:     fmt.Sprintf("Vous avez converti %.2f %s en %s avec succès.", amount, fromCurrency, toCurrency),
+			Type:     "exchange",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
 		
 	// ===== CARD EVENTS =====
 	case "card.created":
