@@ -59,20 +59,22 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 		paymentReq.RequestID, paymentReq.UserID, paymentReq.Type, paymentReq.DebitAmount)
 
 	// Process debit operation via wallet client
-	log.Printf("[TRACE-FIAT] Processing Debit for UserID: %s", paymentReq.UserID)
-	debitReq := &WalletTransactionRequest{
-		UserID:    paymentReq.UserID,
-		WalletID:  paymentReq.FromWalletID,
-		Amount:    paymentReq.DebitAmount,
-		Currency:  paymentReq.Currency,
-		Type:      "debit",
-		Reference: paymentReq.ReferenceID,
-	}
-	err = c.walletClient.ProcessTransaction(debitReq)
-	if err != nil {
-		log.Printf("[Kafka] Debit failed: %v", err)
-		c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
-		return err
+	if paymentReq.FromWalletID != "" && paymentReq.DebitAmount > 0 {
+		log.Printf("[TRACE-FIAT] Processing Debit for UserID: %s", paymentReq.UserID)
+		debitReq := &WalletTransactionRequest{
+			UserID:    paymentReq.UserID,
+			WalletID:  paymentReq.FromWalletID,
+			Amount:    paymentReq.DebitAmount,
+			Currency:  paymentReq.Currency,
+			Type:      "debit",
+			Reference: paymentReq.ReferenceID,
+		}
+		err = c.walletClient.ProcessTransaction(debitReq)
+		if err != nil {
+			log.Printf("[Kafka] Debit failed: %v", err)
+			c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
+			return err
+		}
 	}
 
 	// If there's a credit operation (to wallet)
