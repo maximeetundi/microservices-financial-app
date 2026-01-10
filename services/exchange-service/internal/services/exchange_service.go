@@ -374,6 +374,15 @@ func (s *ExchangeService) GetPortfolio(userID string) (*models.Portfolio, error)
 // Méthodes privées
 
 func (s *ExchangeService) processExchange(exchange *models.Exchange) {
+	log.Printf("[EXCHANGE DEBUG] Starting processExchange for exchange %s", exchange.ID)
+	
+	// Check if mqClient is nil
+	if s.mqClient == nil {
+		log.Printf("[EXCHANGE ERROR] mqClient is nil for exchange %s", exchange.ID)
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		return
+	}
+	
 	// 1. Initiate Debit
 	// Metadata to track step
 	meta := map[string]interface{}{
@@ -393,14 +402,26 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 		MetaData:       meta,
 	}
 
-	eventJSON, _ := json.Marshal(debitReq)
+	log.Printf("[EXCHANGE DEBUG] Created debit request for exchange %s: SourceWallet=%s, Amount=%f, Currency=%s", 
+		exchange.ID, exchange.FromWalletID, exchange.FromAmount, exchange.FromCurrency)
+
+	eventJSON, err := json.Marshal(debitReq)
+	if err != nil {
+		log.Printf("[EXCHANGE ERROR] Failed to marshal debit request for exchange %s: %v", exchange.ID, err)
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		return
+	}
 	
 	// Update status to indicate processing
+	log.Printf("[EXCHANGE DEBUG] Updating status to processing_debit for exchange %s", exchange.ID)
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
 
+	log.Printf("[EXCHANGE DEBUG] Publishing to payment.events for exchange %s", exchange.ID)
 	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
-		log.Printf("Failed to publish debit request for exchange %s: %v", exchange.ID, err)
+		log.Printf("[EXCHANGE ERROR] Failed to publish debit request for exchange %s: %v", exchange.ID, err)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+	} else {
+		log.Printf("[EXCHANGE DEBUG] Successfully published debit request for exchange %s", exchange.ID)
 	}
 }
 
