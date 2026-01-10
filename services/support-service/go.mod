@@ -14,3 +14,5 @@ require (
 	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 	github.com/streadway/amqp v1.1.0
 )
+
+replace github.com/crypto-bank/microservices-financial-app/services/common => ../common
