@@ -427,11 +427,16 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 
 // Helper to continue exchange after debit success
 func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
+	log.Printf("[EXCHANGE DEBUG] CompleteExchangeCredit called for exchange %s", exchangeID)
+	
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
-		log.Printf("Failed to retrieve exchange %s for credit step: %v", exchangeID, err)
+		log.Printf("[EXCHANGE ERROR] Failed to retrieve exchange %s for credit step: %v", exchangeID, err)
 		return
 	}
+	
+	log.Printf("[EXCHANGE DEBUG] Retrieved exchange %s, initiating credit to wallet %s, amount %f %s", 
+		exchangeID, exchange.ToWalletID, exchange.ToAmount, exchange.ToCurrency)
 
 	// 2. Initiate Credit
 	meta := map[string]interface{}{
@@ -461,12 +466,16 @@ func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
 
 	eventJSON, _ := json.Marshal(creditReq)
 
+	log.Printf("[EXCHANGE DEBUG] Updating status to processing_credit for exchange %s", exchangeID)
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
 
+	log.Printf("[EXCHANGE DEBUG] Publishing credit request for exchange %s", exchangeID)
 	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
-		log.Printf("Failed to publish credit request for exchange %s: %v", exchange.ID, err)
+		log.Printf("[EXCHANGE ERROR] Failed to publish credit request for exchange %s: %v", exchange.ID, err)
 		// Mark as failed_partial since debit succeeded but credit request failed
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial") 
+	} else {
+		log.Printf("[EXCHANGE DEBUG] Successfully published credit request for exchange %s", exchangeID)
 	}
 }
 
