@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/streadway/amqp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/handlers"
@@ -53,44 +53,6 @@ func main() {
 		defer db.Close()
 	}
 
-	// Initialize RabbitMQ
-	rabbitConn, err := amqp.Dial(cfg.RabbitMQURL)
-	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ:", err)
-	}
-	defer rabbitConn.Close()
-
-	rabbitChannel, err := rabbitConn.Channel()
-	if err != nil {
-		log.Fatal("Failed to open RabbitMQ channel:", err)
-	}
-	defer rabbitChannel.Close()
-
-	// Declare all exchanges (for receiving events)
-	exchanges := []string{
-		"wallet.events",
-		"transaction.events",
-		"transfer.events",
-		"exchange.events",
-		"card.events",
-		"notification.events",
-	}
-
-	for _, exchange := range exchanges {
-		err = rabbitChannel.ExchangeDeclare(
-			exchange,
-			"topic",
-			true,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			log.Fatalf("Failed to declare exchange %s: %v", exchange, err)
-		}
-	}
-
 	// Initialize repositories first (needed for both API and event consumers)
 	var notificationRepo *repository.NotificationRepository
 	if db != nil {
@@ -98,7 +60,7 @@ func main() {
 	}
 
 	// Initialize notification service (for consuming events) - pass repository for persistence
-	notificationService := services.NewNotificationService(rabbitChannel, cfg, notificationRepo)
+	notificationService := services.NewNotificationService(cfg, notificationRepo)
 
 	// Start consumers
 	if err := notificationService.Start(); err != nil {
