@@ -426,6 +426,7 @@ func (s *FiatExchangeService) GetSupportedFiatPairs() map[string][]string {
 
 // processFiatExchange handles the fiat exchange via Kafka payment events
 func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
+	log.Printf("[TRACE-FIAT] Starting processFiatExchange for Exchange %s (User: %s)", exchange.ID, exchange.UserID)
 	// 1. Initiate Debit via Kafka payment event
 	debitReq := &messaging.PaymentRequestEvent{
 		RequestID:    fmt.Sprintf("TX-FIAT-DEBIT-%s", exchange.ID),
@@ -455,7 +456,7 @@ func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
 
 // CompleteFiatExchangeCredit continues the exchange after debit success
 func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
-	log.Printf("[FIAT DEBUG] Starting CompleteFiatExchangeCredit for ID: %s", exchangeID)
+	log.Printf("[TRACE-FIAT] Starting CompleteFiatExchangeCredit for ID: %s", exchangeID)
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
 		log.Printf("[FIAT ERROR] Failed to retrieve fiat exchange %s for credit step: %v", exchangeID, err)

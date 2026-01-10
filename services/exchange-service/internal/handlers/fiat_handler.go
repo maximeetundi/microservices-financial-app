@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -69,6 +70,8 @@ func (h *FiatHandler) ExecuteFiatExchange(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	log.Printf("[TRACE-FIAT] ExecuteFiatExchange called with: %+v", req)
 
 	exchange, err := h.fiatExchangeService.ConvertFiat(
 		userID.(string),

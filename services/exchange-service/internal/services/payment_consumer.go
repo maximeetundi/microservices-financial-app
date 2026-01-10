@@ -94,10 +94,10 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 	if statusEvent.Status == "completed" || statusEvent.Status == "success" {
 		if isFiat && c.fiatExchangeService != nil {
 			if step == "1_debit" {
-				log.Printf("[Kafka] Step 1 debit success, triggering CompleteFiatExchangeCredit for %s", exchangeID)
+				log.Printf("[TRACE-FIAT] Payment Consumer: Step 1 debit success, calling CompleteFiatExchangeCredit for %s", exchangeID)
 				c.fiatExchangeService.CompleteFiatExchangeCredit(exchangeID)
 			} else if step == "2_credit" {
-				log.Printf("[Kafka] Step 2 credit success, triggering FinalizeFiatExchange for %s", exchangeID)
+				log.Printf("[TRACE-FIAT] Payment Consumer: Step 2 credit success, calling FinalizeFiatExchange for %s", exchangeID)
 				c.fiatExchangeService.FinalizeFiatExchange(exchangeID)
 			}
 		} else {

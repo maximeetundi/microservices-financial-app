@@ -55,10 +55,11 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 		return err
 	}
 
-	log.Printf("[Kafka] Processing payment request: RequestID=%s, Type=%s, Amount=%.2f",
-		paymentReq.RequestID, paymentReq.Type, paymentReq.DebitAmount)
+	log.Printf("[TRACE-FIAT] Payment Consumer received: RequestID=%s, UserID=%s, Type=%s, Amount=%.2f",
+		paymentReq.RequestID, paymentReq.UserID, paymentReq.Type, paymentReq.DebitAmount)
 
 	// Process debit operation via wallet client
+	log.Printf("[TRACE-FIAT] Processing Debit for UserID: %s", paymentReq.UserID)
 	debitReq := &WalletTransactionRequest{
 		UserID:    paymentReq.UserID,
 		WalletID:  paymentReq.FromWalletID,
@@ -76,6 +77,7 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	// If there's a credit operation (to wallet)
 	if paymentReq.ToWalletID != "" && paymentReq.CreditAmount > 0 {
+		log.Printf("[TRACE-FIAT] Processing Credit for UserID: %s, ToWalletID: %s", paymentReq.UserID, paymentReq.ToWalletID)
 		creditReq := &WalletTransactionRequest{
 			UserID:    paymentReq.UserID,
 			WalletID:  paymentReq.ToWalletID,
