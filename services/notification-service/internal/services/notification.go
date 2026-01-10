@@ -491,12 +491,13 @@ func (s *NotificationService) logNotification(userID string, notification *Notif
 		return
 	}
 	
+	dataStr := s.mapToString(notification.Data)
 	err := s.repo.Create(&models.Notification{
 		UserID:    userID,
 		Type:      notification.Type,
 		Title:     notification.Title,
 		Message:   notification.Body,
-		Data:      s.mapToString(notification.Data),
+		Data:      &dataStr,
 		CreatedAt: time.Now(),
 	})
 	

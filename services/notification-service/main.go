@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/handlers"
