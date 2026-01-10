@@ -492,6 +492,16 @@ const swapCurrencies = () => {
 const createDestWallet = async () => {
   creatingWallet.value = true
   try {
+    // First check if wallet already exists
+    const existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+    
+    if (existingWallet) {
+      // Wallet already exists, just select it
+      toWalletId.value = existingWallet.id
+      showNotification('success', `Portefeuille ${toCurrency.value} trouvé et sélectionné !`)
+      return
+    }
+    
     const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
     const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
     
@@ -513,7 +523,15 @@ const createDestWallet = async () => {
     showNotification('success', `Portefeuille ${toCurrency.value} créé avec succès !`)
   } catch (error) {
     console.error('Failed to create wallet:', error)
-    showNotification('error', 'Erreur lors de la création du portefeuille')
+    // Try to find existing wallet after error
+    await fetchWallets()
+    const existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+    if (existingWallet) {
+      toWalletId.value = existingWallet.id
+      showNotification('success', `Portefeuille ${toCurrency.value} trouvé et sélectionné !`)
+    } else {
+      showNotification('error', 'Erreur lors de la création du portefeuille')
+    }
   } finally {
     creatingWallet.value = false
   }
@@ -526,19 +544,39 @@ const executeFiatConversion = async () => {
     
     // Create destination wallet if needed
     if (!destWalletIdToUse || destWalletIdToUse === '__new__' || destWallets.value.length === 0) {
-      const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
-      const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
+      // First check if wallet already exists
+      let existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
       
-      const { data: newWalletResponse } = await walletAPI.createWallet({
-        currency: toCurrency.value,
-        name: walletName,
-        wallet_type: 'fiat'
-      })
-      
-      const newWallet = newWalletResponse.wallet || newWalletResponse
-
-      if (!newWallet?.id) throw new Error('Failed to create destination wallet')
-      destWalletIdToUse = newWallet.id
+      if (existingWallet) {
+        destWalletIdToUse = existingWallet.id
+      } else {
+        // Try to create new wallet
+        try {
+          const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
+          const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
+          
+          const { data: newWalletResponse } = await walletAPI.createWallet({
+            currency: toCurrency.value,
+            name: walletName,
+            wallet_type: 'fiat'
+          })
+          
+          const newWallet = newWalletResponse.wallet || newWalletResponse
+          if (newWallet?.id) {
+            destWalletIdToUse = newWallet.id
+          }
+        } catch (createError) {
+          // If wallet creation failed (likely already exists), refresh and find it
+          console.log('Wallet creation failed, trying to find existing:', createError)
+          await fetchWallets()
+          existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+          if (existingWallet) {
+            destWalletIdToUse = existingWallet.id
+          } else {
+            throw new Error('Cannot find or create destination wallet')
+          }
+        }
+      }
     }
     
     // Execute Fiat Exchange directly (no quote needed, direct conversion)
