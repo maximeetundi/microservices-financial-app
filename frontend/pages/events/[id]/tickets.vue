@@ -75,7 +75,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="ticket in tickets" :key="ticket.id" class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+              <tr v-for="ticket in tickets" :key="ticket.id" @click="viewDetails(ticket)" class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors">
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
@@ -114,6 +114,81 @@
           </table>
         </div>
       </div>
+
+      <!-- Details Modal -->
+      <Teleport to="body">
+        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showDetailsModal = false">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Code: {{ selectedTicket.ticket_code }}</p>
+              </div>
+              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              
+              <!-- Status & Amount -->
+              <div class="flex justify-between items-center p-4 rounded-xl bg-gray-50 dark:bg-slate-800">
+                <div>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Statut</p>
+                  <span :class="getStatusClass(selectedTicket.status)" class="px-2 py-1 rounded-full text-xs font-medium inline-block mt-1">
+                    {{ getStatusLabel(selectedTicket.status) }}
+                  </span>
+                </div>
+                <div class="text-right">
+                   <p class="text-sm text-gray-500 dark:text-gray-400">Prix payé</p>
+                   <p class="text-lg font-bold text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
+                </div>
+              </div>
+
+              <!-- Ticket Info -->
+              <div>
+                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Information du Ticket</h4>
+                <div class="space-y-3">
+                  <div class="flex justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                    <span class="text-gray-600 dark:text-gray-300">Type de ticket</span>
+                    <span class="font-medium text-gray-900 dark:text-white" :style="{ color: selectedTicket.tier_color }">{{ selectedTicket.tier_icon }} {{ selectedTicket.tier_name }}</span>
+                  </div>
+                  <div class="flex justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                    <span class="text-gray-600 dark:text-gray-300">Date d'achat</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(selectedTicket.created_at) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Participant Data (Form Fields) -->
+              <div v-if="selectedTicket.form_data && Object.keys(selectedTicket.form_data).length > 0">
+                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Informations du Participant</h4>
+                <div class="space-y-3 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl">
+                  <div v-for="(value, key) in selectedTicket.form_data" :key="key" class="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 dark:border-gray-700 last:border-0 pb-2 last:pb-0">
+                    <span class="text-sm text-gray-500 dark:text-gray-400 mb-1 sm:mb-0">{{ getLabelForField(key) }}</span>
+                    <span class="font-medium text-gray-900 dark:text-white text-right break-words">{{ value }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Transaction ID -->
+              <div v-if="selectedTicket.transaction_id" class="text-center pt-2">
+                <p class="text-xs text-gray-400 font-mono">Ref: {{ selectedTicket.transaction_id }}</p>
+              </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-slate-800/50 flex justify-end">
+              <button @click="showDetailsModal = false" class="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </div>
   </NuxtLayout>
 </template>
@@ -205,6 +280,20 @@ const getStatusLabel = (status: string) => {
     case 'pending': return 'En attente'
     default: return status
   }
+}
+
+const showDetailsModal = ref(false)
+const selectedTicket = ref<any>(null)
+
+const viewDetails = (ticket: any) => {
+  selectedTicket.value = ticket
+  showDetailsModal.value = true
+}
+
+const getLabelForField = (fieldName: string) => {
+  if (!event.value?.form_fields) return fieldName
+  const field = event.value.form_fields.find((f: any) => f.name === fieldName)
+  return field ? field.label : fieldName
 }
 
 onMounted(() => {
