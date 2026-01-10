@@ -58,9 +58,10 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 
 	var statusEvent models.PaymentStatusEvent
 	if err := json.Unmarshal(dataBytes, &statusEvent); err != nil {
-		log.Printf("[Kafka] Error unmarshalling payment status: %v", err)
+		log.Printf("Failed to unmarshal payment status event: %v", err)
 		return err
 	}
+	log.Printf("[TRACE-FIAT] Decoded StatusEvent: %+v", statusEvent)
 
 	txID := statusEvent.TransactionID
 	var exchangeID, step string

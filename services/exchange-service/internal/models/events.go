@@ -16,7 +16,7 @@ type PaymentRequestEvent struct {
 }
 
 type PaymentStatusEvent struct {
-	TransactionID string    `json:"transaction_id"`
+	TransactionID string    `json:"request_id"` // Matches messaging.PaymentStatusEvent.RequestID
 	Status        string    `json:"status"` // completed, failed
 	TxHash        string    `json:"tx_hash,omitempty"`
 	Timestamp     time.Time `json:"timestamp"`
