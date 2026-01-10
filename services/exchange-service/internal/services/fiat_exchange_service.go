@@ -472,6 +472,7 @@ func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
 		Currency:     exchange.ToCurrency,
 		Type:         "fiat_exchange_credit",
 		ReferenceID:  fmt.Sprintf("FIAT_EXCHANGE_CREDIT_%s", exchange.ID),
+		UserID:       exchange.UserID,
 	}
 
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
