@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/repository"
@@ -20,21 +22,79 @@ import (
 
 // NotificationService handles all notification types
 type NotificationService struct {
-	config  *config.Config
-	repo    *repository.NotificationRepository
+	config      *config.Config
+	repo        *repository.NotificationRepository
+	kafkaClient *messaging.KafkaClient
 }
 
 // NewNotificationService creates a new notification service
-func NewNotificationService(cfg *config.Config, repo *repository.NotificationRepository) *NotificationService {
+func NewNotificationService(cfg *config.Config, repo *repository.NotificationRepository, kafkaClient *messaging.KafkaClient) *NotificationService {
 	return &NotificationService{
-		config:  cfg,
-		repo:    repo,
+		config:      cfg,
+		repo:        repo,
+		kafkaClient: kafkaClient,
 	}
 }
 
 // Start begins consuming from all notification queues
 func (s *NotificationService) Start() error {
-	log.Println("⚠️  Kafka consumer not yet implemented - Notification service running in API-only mode")
+	log.Println("Starting notification consumers...")
+	
+	if s.kafkaClient == nil {
+		log.Println("⚠️ Kafka client is nil, running in API-only mode")
+		return nil
+	}
+
+	topics := []string{
+		messaging.TopicUserEvents,
+		messaging.TopicWalletEvents,
+		messaging.TopicTransferEvents,
+		messaging.TopicExchangeEvents,
+		messaging.TopicPaymentEvents,
+		messaging.TopicCardEvents,
+	}
+
+	for _, topic := range topics {
+		if err := s.kafkaClient.Subscribe(topic, s.handleEvent); err != nil {
+			return fmt.Errorf("failed to subscribe to topic %s: %w", topic, err)
+		}
+	}
+	
+	log.Println("✅ Notification service consumers started")
+	return nil
+}
+
+func (s *NotificationService) handleEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	// Parse event data to map
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		return err
+	}
+	
+	var eventData map[string]interface{}
+	if err := json.Unmarshal(dataBytes, &eventData); err != nil {
+		log.Printf("Failed to unmarshal event data: %v", err)
+		return err
+	}
+	
+	// Create notification object based on event type
+	notification := s.createNotification(event.Type, eventData)
+	if notification == nil {
+		// Event not handled or ignored
+		return nil
+	}
+	
+	// Extract metadata
+	userID, _ := eventData["user_id"].(string)
+	email, _ := eventData["email"].(string)
+	phone, _ := eventData["phone"].(string)
+	
+	// Fallback for user email if in specific admin events (user_email)
+	if email == "" {
+		email, _ = eventData["user_email"].(string)
+	}
+
+	s.sendNotification(userID, email, phone, notification)
 	return nil
 }
 

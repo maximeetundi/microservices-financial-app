@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/database"
@@ -59,8 +62,18 @@ func main() {
 		notificationRepo = repository.NewNotificationRepository(db)
 	}
 
-	// Initialize notification service (for consuming events) - pass repository for persistence
-	notificationService := services.NewNotificationService(cfg, notificationRepo)
+	// Initialize Kafka Client
+	var kafkaClient *messaging.KafkaClient
+	if cfg.KafkaBrokers != "" {
+		brokers := strings.Split(cfg.KafkaBrokers, ",")
+		kafkaClient = messaging.NewKafkaClient(brokers, "notification-service-group")
+		log.Println("✅ Kafka client initialized with brokers:", brokers)
+	} else {
+		log.Println("⚠️ Kafka brokers not configured, skipping Kafka initialization")
+	}
+
+	// Initialize notification service (for consuming events)
+	notificationService := services.NewNotificationService(cfg, notificationRepo, kafkaClient)
 
 	// Start consumers
 	if err := notificationService.Start(); err != nil {
