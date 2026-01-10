@@ -57,18 +57,18 @@ func main() {
 	}
 	defer mainDB.Close()
 
-	// Initialize RabbitMQ
-	mqClient, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	// Initialize Kafka
+	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers, cfg.KafkaGroupID)
 	if err != nil {
-		log.Fatal("Failed to initialize RabbitMQ:", err)
+		log.Fatal("Failed to initialize Kafka:", err)
 	}
-	defer mqClient.Close()
+	defer kafkaClient.Close()
 
 	// Initialize repository
 	repo := repository.NewAdminRepository(adminDB, mainDB)
 
 	// Initialize service
-	adminService := services.NewAdminService(repo, mqClient, cfg)
+	adminService := services.NewAdminService(repo, kafkaClient, cfg)
 
 	// Initialize storage service for presigned URLs
 	storageService, err := services.NewStorageService(
@@ -88,10 +88,10 @@ func main() {
 	kycHandler := handlers.NewKYCHandler(storageService)
 	notifHandler := handlers.NewNotificationHandler(adminDB)
 
-	// Start event consumer for admin notifications
-	eventConsumer := services.NewEventConsumer(mqClient.GetChannel(), adminDB)
+	// Start Kafka event consumer for admin notifications
+	eventConsumer := services.NewEventConsumer(kafkaClient, adminDB)
 	if err := eventConsumer.StartConsuming(); err != nil {
-		log.Printf("Warning: Failed to start event consumer: %v", err)
+		log.Printf("Warning: Failed to start Kafka event consumer: %v", err)
 	}
 
 	// Setup Gin

@@ -16,8 +16,9 @@ type Config struct {
 	// Redis
 	RedisURL    string
 	
-	// RabbitMQ
-	RabbitMQURL string
+	// Kafka
+	KafkaBrokers string
+	KafkaGroupID string
 	
 	// JWT (separate from user JWT)
 	AdminJWTSecret     string
@@ -50,8 +51,9 @@ func Load() *Config {
 		AdminDBURL:  getEnv("ADMIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank_admin?sslmode=disable"),
 		MainDBURL:   getEnv("MAIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
 		
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
+		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "admin-service-group"),
 		
 		AdminJWTSecret:     getEnv("ADMIN_JWT_SECRET", "admin_ultra_secure_jwt_secret_2024"),
 		AdminJWTExpiration: getEnv("ADMIN_JWT_EXPIRATION", "8h"),

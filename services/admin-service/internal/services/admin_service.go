@@ -1,29 +1,29 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/config"
-	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AdminService struct {
-	repo     *repository.AdminRepository
-	mq       *database.RabbitMQClient
-	config   *config.Config
+	repo        *repository.AdminRepository
+	kafkaClient *messaging.KafkaClient
+	config      *config.Config
 }
 
-func NewAdminService(repo *repository.AdminRepository, mq *database.RabbitMQClient, cfg *config.Config) *AdminService {
+func NewAdminService(repo *repository.AdminRepository, kafkaClient *messaging.KafkaClient, cfg *config.Config) *AdminService {
 	return &AdminService{
-		repo:   repo,
-		mq:     mq,
-		config: cfg,
+		repo:        repo,
+		kafkaClient: kafkaClient,
+		config:      cfg,
 	}
 }
 
@@ -212,7 +212,7 @@ func (s *AdminService) GetUserKYCDocuments(userID string) ([]map[string]interfac
 	return s.repo.GetUserKYCDocuments(userID)
 }
 
-// ========== Admin Actions via RabbitMQ ==========
+// ========== Admin Actions via Kafka ==========
 
 func (s *AdminService) BlockUser(userID, reason, adminID string) error {
 	// Get user email for notification
@@ -226,34 +226,31 @@ func (s *AdminService) BlockUser(userID, reason, adminID string) error {
 	// Publish notification to user
 	if user != nil {
 		userNotif := map[string]interface{}{
-			"type":    "user.blocked",
 			"user_id": userID,
 			"email":   user["email"],
 			"phone":   user["phone"],
 			"reason":  reason,
 		}
-		s.publishNotification("auth.events", "user.blocked", userNotif)
+		s.publishEvent("user.blocked", userNotif)
 		
 		// Also publish admin notification
 		adminNotif := map[string]interface{}{
-			"type":       "admin.user_blocked",
 			"user_id":    userID,
 			"user_email": user["email"],
 			"admin_id":   adminID,
 			"reason":     reason,
 		}
-		s.publishNotification("auth.events", "admin.user_blocked", adminNotif)
+		s.publishEvent("admin.user_blocked", adminNotif)
 	}
 	
-	// Also publish to RabbitMQ for other services
+	// Also publish to Kafka for other services
 	cmd := map[string]interface{}{
 		"action":    "block_user",
 		"user_id":   userID,
 		"reason":    reason,
 		"admin_id":  adminID,
-		"timestamp": time.Now(),
 	}
-	return s.publishCommand("admin.commands", "user.block", cmd)
+	return s.publishCommand("user.block", cmd)
 }
 
 func (s *AdminService) UnblockUser(userID, adminID string) error {
@@ -268,31 +265,28 @@ func (s *AdminService) UnblockUser(userID, adminID string) error {
 	// Publish notification to user
 	if user != nil {
 		userNotif := map[string]interface{}{
-			"type":    "user.unblocked",
 			"user_id": userID,
 			"email":   user["email"],
 			"phone":   user["phone"],
 		}
-		s.publishNotification("auth.events", "user.unblocked", userNotif)
+		s.publishEvent("user.unblocked", userNotif)
 		
 		// Also publish admin notification
 		adminNotif := map[string]interface{}{
-			"type":       "admin.user_unblocked",
 			"user_id":    userID,
 			"user_email": user["email"],
 			"admin_id":   adminID,
 		}
-		s.publishNotification("auth.events", "admin.user_unblocked", adminNotif)
+		s.publishEvent("admin.user_unblocked", adminNotif)
 	}
 	
-	// Also publish to RabbitMQ for other services
+	// Also publish to Kafka for other services
 	cmd := map[string]interface{}{
-		"action":    "unblock_user",
-		"user_id":   userID,
-		"admin_id":  adminID,
-		"timestamp": time.Now(),
+		"action":   "unblock_user",
+		"user_id":  userID,
+		"admin_id": adminID,
 	}
-	return s.publishCommand("admin.commands", "user.unblock", cmd)
+	return s.publishCommand("user.unblock", cmd)
 }
 
 func (s *AdminService) ApproveKYC(userID, level, adminID string) error {
@@ -308,15 +302,14 @@ func (s *AdminService) ApproveKYC(userID, level, adminID string) error {
 		return err
 	}
 	
-	// Also publish to RabbitMQ for other services
+	// Also publish to Kafka for other services
 	cmd := map[string]interface{}{
-		"action":    "approve_kyc",
-		"user_id":   userID,
-		"level":     level,
-		"admin_id":  adminID,
-		"timestamp": time.Now(),
+		"action":   "approve_kyc",
+		"user_id":  userID,
+		"level":    level,
+		"admin_id": adminID,
 	}
-	return s.publishCommand("admin.commands", "kyc.approve", cmd)
+	return s.publishCommand("kyc.approve", cmd)
 }
 
 func (s *AdminService) RejectKYC(userID, reason, adminID string) error {
@@ -325,15 +318,14 @@ func (s *AdminService) RejectKYC(userID, reason, adminID string) error {
 		return err
 	}
 	
-	// Also publish to RabbitMQ for other services
+	// Also publish to Kafka for other services
 	cmd := map[string]interface{}{
-		"action":    "reject_kyc",
-		"user_id":   userID,
-		"reason":    reason,
-		"admin_id":  adminID,
-		"timestamp": time.Now(),
+		"action":   "reject_kyc",
+		"user_id":  userID,
+		"reason":   reason,
+		"admin_id": adminID,
 	}
-	return s.publishCommand("admin.commands", "kyc.reject", cmd)
+	return s.publishCommand("kyc.reject", cmd)
 }
 
 func (s *AdminService) BlockTransaction(txID, reason, adminID string) error {
@@ -342,9 +334,8 @@ func (s *AdminService) BlockTransaction(txID, reason, adminID string) error {
 		"transaction_id": txID,
 		"reason":         reason,
 		"admin_id":       adminID,
-		"timestamp":      time.Now(),
 	}
-	return s.publishCommand("admin.commands", "transaction.block", cmd)
+	return s.publishCommand("transaction.block", cmd)
 }
 
 func (s *AdminService) RefundTransaction(txID, reason, adminID string) error {
@@ -353,31 +344,28 @@ func (s *AdminService) RefundTransaction(txID, reason, adminID string) error {
 		"transaction_id": txID,
 		"reason":         reason,
 		"admin_id":       adminID,
-		"timestamp":      time.Now(),
 	}
-	return s.publishCommand("admin.commands", "transaction.refund", cmd)
+	return s.publishCommand("transaction.refund", cmd)
 }
 
 func (s *AdminService) FreezeCard(cardID, reason, adminID string) error {
 	cmd := map[string]interface{}{
-		"action":    "freeze_card",
-		"card_id":   cardID,
-		"reason":    reason,
-		"admin_id":  adminID,
-		"timestamp": time.Now(),
+		"action":   "freeze_card",
+		"card_id":  cardID,
+		"reason":   reason,
+		"admin_id": adminID,
 	}
-	return s.publishCommand("admin.commands", "card.freeze", cmd)
+	return s.publishCommand("card.freeze", cmd)
 }
 
 func (s *AdminService) BlockCard(cardID, reason, adminID string) error {
 	cmd := map[string]interface{}{
-		"action":    "block_card",
-		"card_id":   cardID,
-		"reason":    reason,
-		"admin_id":  adminID,
-		"timestamp": time.Now(),
+		"action":   "block_card",
+		"card_id":  cardID,
+		"reason":   reason,
+		"admin_id": adminID,
 	}
-	return s.publishCommand("admin.commands", "card.block", cmd)
+	return s.publishCommand("card.block", cmd)
 }
 
 func (s *AdminService) FreezeWallet(walletID, reason, adminID string) error {
@@ -386,9 +374,8 @@ func (s *AdminService) FreezeWallet(walletID, reason, adminID string) error {
 		"wallet_id": walletID,
 		"reason":    reason,
 		"admin_id":  adminID,
-		"timestamp": time.Now(),
 	}
-	return s.publishCommand("admin.commands", "wallet.freeze", cmd)
+	return s.publishCommand("wallet.freeze", cmd)
 }
 
 func (s *AdminService) BlockTransfer(transferID, reason, adminID string) error {
@@ -397,25 +384,26 @@ func (s *AdminService) BlockTransfer(transferID, reason, adminID string) error {
 		"transfer_id": transferID,
 		"reason":      reason,
 		"admin_id":    adminID,
-		"timestamp":   time.Now(),
 	}
-	return s.publishCommand("admin.commands", "transfer.block", cmd)
+	return s.publishCommand("transfer.block", cmd)
 }
 
-func (s *AdminService) publishCommand(exchange, routingKey string, cmd map[string]interface{}) error {
-	data, err := json.Marshal(cmd)
-	if err != nil {
-		return err
+func (s *AdminService) publishCommand(eventType string, cmd map[string]interface{}) error {
+	if s.kafkaClient == nil {
+		return nil
 	}
-	return s.mq.Publish(exchange, routingKey, data)
+	
+	envelope := messaging.NewEventEnvelope(eventType, "admin-service", cmd)
+	return s.kafkaClient.Publish(context.Background(), messaging.TopicUserEvents, envelope)
 }
 
-func (s *AdminService) publishNotification(exchange, routingKey string, notif map[string]interface{}) {
-	data, err := json.Marshal(notif)
-	if err != nil {
+func (s *AdminService) publishEvent(eventType string, data map[string]interface{}) {
+	if s.kafkaClient == nil {
 		return
 	}
-	s.mq.Publish(exchange, routingKey, data)
+	
+	envelope := messaging.NewEventEnvelope(eventType, "admin-service", data)
+	s.kafkaClient.Publish(context.Background(), messaging.TopicUserEvents, envelope)
 }
 
 // ========== Audit Logs ==========

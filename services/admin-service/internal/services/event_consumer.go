@@ -1,212 +1,83 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
+	"time"
 
-	"github.com/google/uuid"
-	"github.com/streadway/amqp"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
-// EventConsumer listens for events from other services and creates admin notifications
+// EventConsumer consumes events from Kafka for admin notifications
 type EventConsumer struct {
-	channel *amqp.Channel
-	db      *sql.DB
+	kafkaClient *messaging.KafkaClient
+	db          *sql.DB
 }
 
-// Event represents an incoming event from RabbitMQ
+// Event represents an incoming event from Kafka
 type Event struct {
 	Type      string                 `json:"type"`
-	Timestamp string                 `json:"timestamp"`
 	Data      map[string]interface{} `json:"data"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
-// NewEventConsumer creates a new event consumer
-func NewEventConsumer(channel *amqp.Channel, db *sql.DB) *EventConsumer {
-	return &EventConsumer{channel: channel, db: db}
+func NewEventConsumer(kafkaClient *messaging.KafkaClient, db *sql.DB) *EventConsumer {
+	return &EventConsumer{
+		kafkaClient: kafkaClient,
+		db:          db,
+	}
 }
 
-// StartConsuming starts consuming events from various exchanges
 func (c *EventConsumer) StartConsuming() error {
-	// Declare queue for admin notifications
-	queue, err := c.channel.QueueDeclare(
-		"admin.notifications", // queue name
-		true,                  // durable
-		false,                 // auto-delete
-		false,                 // exclusive
-		false,                 // no-wait
-		nil,                   // arguments
-	)
-	if err != nil {
-		return err
+	// Subscribe to user events
+	if err := c.kafkaClient.Subscribe(messaging.TopicUserEvents, c.handleUserEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to user events: %v", err)
 	}
 
-	// Bind to various events we want to receive
-	bindings := []struct {
-		exchange   string
-		routingKey string
-	}{
-		// KYC events
-		{"user.events", "kyc.submitted"},
-		{"user.events", "kyc.updated"},
-		// PIN events
-		{"user.events", "pin.blocked"},
-		{"user.events", "pin.unlocked"},
-		// Support events
-		{"support.events", "ticket.created"},
-		{"support.events", "ticket.message"},
-		{"support.events", "ticket.escalated"},
-		// Transaction events (for suspicious activity)
-		{"transaction.events", "transaction.flagged"},
-		{"transaction.events", "transaction.large"},
+	// Subscribe to wallet events
+	if err := c.kafkaClient.Subscribe(messaging.TopicWalletEvents, c.handleWalletEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to wallet events: %v", err)
 	}
 
-	for _, b := range bindings {
-		// Ensure exchange exists
-		c.channel.ExchangeDeclare(b.exchange, "topic", true, false, false, false, nil)
-		
-		err := c.channel.QueueBind(queue.Name, b.routingKey, b.exchange, false, nil)
-		if err != nil {
-			log.Printf("Warning: Could not bind to %s/%s: %v", b.exchange, b.routingKey, err)
-		}
+	// Subscribe to transfer events
+	if err := c.kafkaClient.Subscribe(messaging.TopicTransferEvents, c.handleTransferEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to transfer events: %v", err)
 	}
 
-	// Start consuming
-	msgs, err := c.channel.Consume(
-		queue.Name, // queue
-		"",         // consumer
-		true,       // auto-ack
-		false,      // exclusive
-		false,      // no-local
-		false,      // no-wait
-		nil,        // args
-	)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		for msg := range msgs {
-			c.processEvent(msg.RoutingKey, msg.Body)
-		}
-	}()
-
-	log.Println("Admin notification consumer started, listening for events...")
+	log.Println("[Kafka] Admin event consumer started")
 	return nil
 }
 
-// processEvent processes an incoming event and creates a notification
-func (c *EventConsumer) processEvent(routingKey string, body []byte) {
-	var event Event
-	if err := json.Unmarshal(body, &event); err != nil {
-		log.Printf("Failed to parse event: %v", err)
-		return
-	}
-
-	var notifType, title, message string
-	var data map[string]interface{}
-
-	switch routingKey {
-	case "kyc.submitted":
-		notifType = "kyc"
-		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
-		userEmail := getStringFromMap(event.Data, "user_email", "")
-		title = "📋 Nouvelle demande KYC"
-		message = userName + " a soumis des documents KYC pour vérification"
-		if userEmail != "" {
-			message += " (" + userEmail + ")"
-		}
-		data = event.Data
-
-	case "pin.blocked":
-		notifType = "security"
-		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
-		userEmail := getStringFromMap(event.Data, "user_email", "")
-		title = "🔒 PIN bloqué"
-		message = "Le PIN de " + userName + " a été bloqué après trop de tentatives"
-		if userEmail != "" {
-			message += " (" + userEmail + ")"
-		}
-		data = event.Data
-
-	case "ticket.created":
-		notifType = "support"
-		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
-		subject := getStringFromMap(event.Data, "subject", "")
-		title = "💬 Nouveau ticket support"
-		message = userName + " a créé un nouveau ticket"
-		if subject != "" {
-			message += ": " + subject
-		}
-		data = event.Data
-
-	case "ticket.message":
-		notifType = "support"
-		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
-		title = "💬 Nouveau message support"
-		message = userName + " a répondu à un ticket"
-		data = event.Data
-
-	case "transaction.flagged":
-		notifType = "security"
-		amount := getStringFromMap(event.Data, "amount", "")
-		title = "⚠️ Transaction suspecte"
-		message = "Une transaction a été signalée pour vérification"
-		if amount != "" {
-			message += " (montant: " + amount + ")"
-		}
-		data = event.Data
-
-	case "transaction.large":
-		notifType = "transaction"
-		amount := getStringFromMap(event.Data, "amount", "")
-		title = "💰 Transaction importante"
-		message = "Une transaction de montant élevé a été effectuée"
-		if amount != "" {
-			message += ": " + amount
-		}
-		data = event.Data
-
-	case "ticket.escalated":
-		notifType = "support"
-		userName := getStringFromMap(event.Data, "user_name", "Un utilisateur")
-		title = "🚨 Escalade support"
-		message = userName + " demande à parler à un agent humain"
-		data = event.Data
-
-	default:
-		log.Printf("Unknown event type: %s", routingKey)
-		return
-	}
-
-	// Create notification in database
-	c.createNotification(notifType, title, message, data)
+func (c *EventConsumer) handleUserEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Admin received user event: %s", event.Type)
+	return c.storeNotification(event.Type, event.Data)
 }
 
-// createNotification inserts a notification into the database
-func (c *EventConsumer) createNotification(notifType, title, message string, data map[string]interface{}) {
-	dataJSON, _ := json.Marshal(data)
-	id := uuid.New().String()
+func (c *EventConsumer) handleWalletEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Admin received wallet event: %s", event.Type)
+	return c.storeNotification(event.Type, event.Data)
+}
+
+func (c *EventConsumer) handleTransferEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Admin received transfer event: %s", event.Type)
+	return c.storeNotification(event.Type, event.Data)
+}
+
+func (c *EventConsumer) storeNotification(eventType string, data interface{}) error {
+	dataBytes, _ := json.Marshal(data)
+	dataStr := string(dataBytes)
 
 	_, err := c.db.Exec(`
-		INSERT INTO admin_notifications (id, type, title, message, data)
-		VALUES ($1, $2, $3, $4, $5::jsonb)
-	`, id, notifType, title, message, string(dataJSON))
+		INSERT INTO admin_notifications (id, type, title, message, data, is_read, created_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())
+	`, eventType, eventType, eventType, dataStr)
 
 	if err != nil {
-		log.Printf("Failed to create notification: %v", err)
-	} else {
-		log.Printf("Created admin notification: [%s] %s", notifType, title)
+		log.Printf("[Kafka] Failed to store notification: %v", err)
+		return err
 	}
-}
 
-// Helper function to safely get string from map
-func getStringFromMap(m map[string]interface{}, key, defaultValue string) string {
-	if v, ok := m[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return defaultValue
+	return nil
 }

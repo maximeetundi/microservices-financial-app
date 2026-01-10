@@ -11,7 +11,11 @@ require (
 	github.com/minio/minio-go/v7 v7.0.66
 	github.com/prometheus/client_golang v1.18.0
 	github.com/redis/go-redis/v9 v9.3.0
-	github.com/streadway/amqp v1.1.0
+	github.com/segmentio/kafka-go v0.4.47
 	golang.org/x/crypto v0.16.0
+	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 )
 
+replace (
+    github.com/crypto-bank/microservices-financial-app/services/common => ../common
+)

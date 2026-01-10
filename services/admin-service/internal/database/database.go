@@ -3,10 +3,12 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
 
 	_ "github.com/lib/pq"
-	"github.com/streadway/amqp"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
 
@@ -333,61 +335,12 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 }
 
 
-// RabbitMQ Client
-type RabbitMQClient struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-}
-
-func InitializeRabbitMQ(url string) (*RabbitMQClient, error) {
-	conn, err := amqp.Dial(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
-	}
-
-	ch, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to open channel: %w", err)
-	}
-
-	// Declare admin exchange
-	err = ch.ExchangeDeclare("admin.events", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to declare exchange: %w", err)
-	}
-
-	// Declare admin command exchange for sending commands to other services
-	err = ch.ExchangeDeclare("admin.commands", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to declare command exchange: %w", err)
-	}
-
-	return &RabbitMQClient{conn: conn, channel: ch}, nil
-}
-
-func (r *RabbitMQClient) GetChannel() *amqp.Channel {
-	return r.channel
-}
-
-func (r *RabbitMQClient) Close() {
-	if r.channel != nil {
-		r.channel.Close()
-	}
-	if r.conn != nil {
-		r.conn.Close()
-	}
-}
-
-func (r *RabbitMQClient) Publish(exchange, routingKey string, message []byte) error {
-	return r.channel.Publish(
-		exchange,
-		routingKey,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        message,
-		},
-	)
+// InitializeKafka creates a new Kafka client for messaging
+func InitializeKafka(brokers string, groupID string) (*messaging.KafkaClient, error) {
+	brokerList := strings.Split(brokers, ",")
+	
+	client := messaging.NewKafkaClient(brokerList, groupID)
+	
+	log.Printf("[Kafka] Admin-service connected to brokers: %s with group: %s", brokers, groupID)
+	return client, nil
 }
