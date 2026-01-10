@@ -263,6 +263,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { exchangeAPI, walletAPI, fiatAPI } from '~/composables/useApi'
+import { usePin } from '~/composables/usePin'
 
 // Reactive data
 const loading = ref(false)
@@ -272,6 +273,7 @@ const fromAmount = ref(1000)
 const toAmount = ref(0)
 const exchangeRate = ref(null)
 const recentConversions = ref([])
+const { requirePin } = usePin()
 
 const wallets = ref([])
 const loadingWallets = ref(false)
@@ -538,78 +540,80 @@ const createDestWallet = async () => {
 }
 
 const executeFiatConversion = async () => {
-  loading.value = true
-  try {
-    let destWalletIdToUse = toWalletId.value
-    
-    // Create destination wallet if needed
-    if (!destWalletIdToUse || destWalletIdToUse === '__new__' || destWallets.value.length === 0) {
-      // First check if wallet already exists
-      let existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+  await requirePin(async () => {
+    loading.value = true
+    try {
+      let destWalletIdToUse = toWalletId.value
       
-      if (existingWallet) {
-        destWalletIdToUse = existingWallet.id
-      } else {
-        // Try to create new wallet
-        try {
-          const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
-          const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
-          
-          const { data: newWalletResponse } = await walletAPI.createWallet({
-            currency: toCurrency.value,
-            name: walletName,
-            wallet_type: 'fiat'
-          })
-          
-          const newWallet = newWalletResponse.wallet || newWalletResponse
-          if (newWallet?.id) {
-            destWalletIdToUse = newWallet.id
-          }
-        } catch (createError) {
-          // If wallet creation failed (likely already exists), refresh and find it
-          console.log('Wallet creation failed, trying to find existing:', createError)
-          await fetchWallets()
-          existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
-          if (existingWallet) {
-            destWalletIdToUse = existingWallet.id
-          } else {
-            throw new Error('Cannot find or create destination wallet')
+      // Create destination wallet if needed
+      if (!destWalletIdToUse || destWalletIdToUse === '__new__' || destWallets.value.length === 0) {
+        // First check if wallet already exists
+        let existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+        
+        if (existingWallet) {
+          destWalletIdToUse = existingWallet.id
+        } else {
+          // Try to create new wallet
+          try {
+            const currencyInfo = supportedCurrencies.value.find(c => c.code === toCurrency.value)
+            const walletName = currencyInfo ? `${currencyInfo.name} Wallet` : `${toCurrency.value} Wallet`
+            
+            const { data: newWalletResponse } = await walletAPI.createWallet({
+              currency: toCurrency.value,
+              name: walletName,
+              wallet_type: 'fiat'
+            })
+            
+            const newWallet = newWalletResponse.wallet || newWalletResponse
+            if (newWallet?.id) {
+              destWalletIdToUse = newWallet.id
+            }
+          } catch (createError) {
+            // If wallet creation failed (likely already exists), refresh and find it
+            console.log('Wallet creation failed, trying to find existing:', createError)
+            await fetchWallets()
+            existingWallet = wallets.value.find(w => w.currency === toCurrency.value)
+            if (existingWallet) {
+              destWalletIdToUse = existingWallet.id
+            } else {
+              throw new Error('Cannot find or create destination wallet')
+            }
           }
         }
       }
+      
+      // Execute Fiat Exchange directly (no quote needed, direct conversion)
+      const { data: exchangeResponse } = await fiatAPI.executeExchange({
+          from_wallet_id: fromWalletId.value,
+          to_wallet_id: destWalletIdToUse,
+          from_currency: fromCurrency.value,
+          to_currency: toCurrency.value,
+          amount: fromAmount.value
+      })
+      const exchange = exchangeResponse.exchange || exchangeResponse
+
+      // Refresh wallets
+      fetchWallets()
+
+      // Add to recent conversions
+      recentConversions.value.unshift({
+        id: exchange.id || Date.now(),
+        from_amount: exchange.from_amount || fromAmount.value,
+        from_currency: exchange.from_currency || fromCurrency.value,
+        to_amount: exchange.to_amount || toAmount.value,
+        to_currency: exchange.to_currency || toCurrency.value,
+        created_at: new Date().toISOString()
+      })
+
+      showNotification('success', 'Conversion réussie ! Vos fonds ont été convertis.')
+      
+    } catch (error) {
+      console.error('Conversion error:', error)
+      showNotification('error', 'Erreur lors de la conversion: ' + (error.message || 'Erreur inconnue'))
+    } finally {
+      loading.value = false
     }
-    
-    // Execute Fiat Exchange directly (no quote needed, direct conversion)
-    const { data: exchangeResponse } = await fiatAPI.executeExchange({
-        from_wallet_id: fromWalletId.value,
-        to_wallet_id: destWalletIdToUse,
-        from_currency: fromCurrency.value,
-        to_currency: toCurrency.value,
-        amount: fromAmount.value
-    })
-    const exchange = exchangeResponse.exchange || exchangeResponse
-
-    // Refresh wallets
-    fetchWallets()
-
-    // Add to recent conversions
-    recentConversions.value.unshift({
-      id: exchange.id || Date.now(),
-      from_amount: exchange.from_amount || fromAmount.value,
-      from_currency: exchange.from_currency || fromCurrency.value,
-      to_amount: exchange.to_amount || toAmount.value,
-      to_currency: exchange.to_currency || toCurrency.value,
-      created_at: new Date().toISOString()
-    })
-
-    showNotification('success', 'Conversion réussie ! Vos fonds ont été convertis.')
-    
-  } catch (error) {
-    console.error('Conversion error:', error)
-    showNotification('error', 'Erreur lors de la conversion: ' + (error.message || 'Erreur inconnue'))
-  } finally {
-    loading.value = false
-  }
+  })
 }
 
 const formatTime = (timestamp) => {

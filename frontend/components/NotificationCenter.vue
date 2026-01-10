@@ -97,8 +97,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { notificationAPI } from '~/composables/useApi'
+import { useWalletStore } from '~/stores/wallet'
 
 const router = useRouter()
+const walletStore = useWalletStore()
 const isOpen = ref(false)
 const loading = ref(false)
 const notifications = ref([])
@@ -131,6 +133,28 @@ const fetchUnreadCount = async () => {
     const res = await notificationAPI.getUnreadCount()
     let count = res.data?.unread_count || 0
     
+    // Check for new notifications to trigger balance updates
+    if (count > unreadCount.value) {
+       // Fetch latest notifications to identify type
+       try {
+         const latestRes = await notificationAPI.getAll(5, 0)
+         const latestNotifs = latestRes.data?.notifications || []
+         
+         const hasBalanceUpdate = latestNotifs.some(n => 
+           !n.is_read && ['payment', 'wallet', 'transfer', 'transaction', 'deposit'].includes(n.type)
+         )
+         
+         if (hasBalanceUpdate) {
+           console.log('New transaction notification detected, refreshing balance...')
+           walletStore.fetchWallets() 
+           // Also refresh transactions list if we are on that page? 
+           // For now just wallets (balances)
+         }
+       } catch (err) {
+         console.error('Failed to check notification type', err)
+       }
+    }
+
     // If user is on support chat page, auto-mark support notifications as read
     // to avoid notification sounds/badges during active chat
     const currentPath = router.currentRoute.value?.path || ''

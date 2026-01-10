@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/services/notification_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_container.dart';
 
@@ -14,8 +15,13 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final NotificationApiService _apiService = NotificationApiService();
+  
   String _activeFilter = 'all';
-  bool _loading = false;
+  bool _loading = true;
+  List<Map<String, dynamic>> _notifications = [];
+  int _limit = 20;
+  int _offset = 0;
   
   final List<Map<String, String>> _filters = [
     {'id': 'all', 'label': 'Toutes', 'icon': '📋'},
@@ -24,51 +30,38 @@ class _NotificationsPageState extends State<NotificationsPage> {
     {'id': 'card', 'label': 'Cartes', 'icon': '💳'},
   ];
   
-  // Sample notifications
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'id': '1',
-      'type': 'transfer',
-      'title': 'Transfert reçu',
-      'message': 'Vous avez reçu 50 000 XOF de John Doe',
-      'created_at': DateTime.now().subtract(const Duration(minutes: 5)),
-      'is_read': false,
-    },
-    {
-      'id': '2',
-      'type': 'security',
-      'title': 'Nouvelle connexion',
-      'message': 'Connexion détectée depuis Abidjan, Côte d\'Ivoire',
-      'created_at': DateTime.now().subtract(const Duration(hours: 2)),
-      'is_read': false,
-    },
-    {
-      'id': '3',
-      'type': 'card',
-      'title': 'Carte activée',
-      'message': 'Votre carte virtuelle a été activée avec succès',
-      'created_at': DateTime.now().subtract(const Duration(days: 1)),
-      'is_read': true,
-    },
-    {
-      'id': '4',
-      'type': 'transfer',
-      'title': 'Transfert envoyé',
-      'message': 'Votre transfert de 25 000 XOF a été effectué',
-      'created_at': DateTime.now().subtract(const Duration(days: 2)),
-      'is_read': true,
-    },
-  ];
-  
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    setState(() => _loading = true);
+    try {
+      final response = await _apiService.getNotifications(limit: _limit, offset: _offset);
+      final List<dynamic> notifs = response['notifications'] ?? [];
+      setState(() {
+        _notifications = notifs.map((n) => Map<String, dynamic>.from(n)).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      print('Error fetching notifications: $e');
+      setState(() => _loading = false);
+    }
+  }
+
   List<Map<String, dynamic>> get _filteredNotifications {
     if (_activeFilter == 'all') return _notifications;
     return _notifications.where((n) => n['type'] == _activeFilter).toList();
   }
   
-  int get _unreadCount => _notifications.where((n) => !n['is_read']).length;
+  int get _unreadCount => _notifications.where((n) => !(n['is_read'] ?? true)).length;
 
   @override
   Widget build(BuildContext context) {
+    // Check if we are in dark mode (simple check using MediaQuery context brightness)
+    // Adjust as per your ThemeProvider or app state management
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
@@ -80,18 +73,29 @@ class _NotificationsPageState extends State<NotificationsPage> {
           
           // Content
           Expanded(
-            child: _notifications.isEmpty
+            child: _loading 
+              ? Center(child: CircularProgressIndicator(color: const Color(0xFF6366F1)))
+              : _notifications.isEmpty
                 ? _buildEmptyState(isDark)
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // Filter Pills
-                      _buildFilters(isDark),
-                      const SizedBox(height: 16),
-                      
-                      // Notifications List
-                      ..._filteredNotifications.map((n) => _buildNotificationItem(n, isDark)),
-                    ],
+                : RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        // Filter Pills
+                        _buildFilters(isDark),
+                        const SizedBox(height: 16),
+                        
+                        // Notifications List
+                        if (_filteredNotifications.isEmpty)
+                           Padding(
+                             padding: const EdgeInsets.only(top: 40),
+                             child: _buildEmptyState(isDark),
+                           )
+                        else
+                           ..._filteredNotifications.map((n) => _buildNotificationItem(n, isDark)),
+                      ],
+                    ),
                   ),
           ),
         ],
@@ -241,7 +245,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Widget _buildNotificationItem(Map<String, dynamic> notification, bool isDark) {
-    final isUnread = !notification['is_read'];
+    final isUnread = !(notification['is_read'] ?? true);
+    final String id = notification['id']?.toString() ?? '';
     
     return GestureDetector(
       onTap: () => _handleTap(notification),
@@ -272,7 +277,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
               child: Center(
                 child: Text(
-                  _getTypeIcon(notification['type']),
+                  _getTypeIcon(notification['type'] ?? 'default'),
                   style: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -285,7 +290,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    notification['title'],
+                    notification['title'] ?? 'Notification',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -296,7 +301,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    notification['message'],
+                    notification['message'] ?? '',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
@@ -321,7 +326,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               children: [
                 if (isUnread)
                   GestureDetector(
-                    onTap: () => _markAsRead(notification['id']),
+                    onTap: () => _markAsRead(id),
                     child: Container(
                       width: 28,
                       height: 28,
@@ -336,7 +341,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                 const SizedBox(height: 4),
                 GestureDetector(
-                  onTap: () => _deleteNotification(notification['id']),
+                  onTap: () => _deleteNotification(id),
                   child: Container(
                     width: 28,
                     height: 28,
@@ -383,49 +388,91 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 'security': return '🔐';
       case 'wallet': return '👛';
       case 'kyc': return '✅';
+      case 'payment': return '💰';
       default: return '🔔';
     }
   }
 
-  String _formatTime(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}j';
-  }
-
-  void _handleTap(Map<String, dynamic> notification) {
-    if (!notification['is_read']) {
-      _markAsRead(notification['id']);
+  String _formatTime(dynamic date) {
+    if (date == null) return '';
+    try {
+      final DateTime dt = date is DateTime ? date : DateTime.parse(date.toString());
+      final diff = DateTime.now().difference(dt);
+      
+      if (diff.inMinutes < 1) return 'À l\'instant';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} min';
+      if (diff.inHours < 24) return '${diff.inHours}h';
+      return '${diff.inDays}j';
+    } catch (e) {
+      return '';
     }
   }
 
-  void _markAsRead(String id) {
-    setState(() {
-      final notif = _notifications.firstWhere((n) => n['id'] == id);
-      notif['is_read'] = true;
-    });
+  Future<void> _handleTap(Map<String, dynamic> notification) async {
+    final String id = notification['id']?.toString() ?? '';
+    final bool isRead = notification['is_read'] ?? false;
+    
+    if (!isRead) {
+      await _markAsRead(id);
+    }
+    
+    // Optional: Add specific navigation logic here based on type
+    // final type = notification['type'];
+    // if (type == 'transaction') context.push('/transaction/${notification['reference_id']}');
   }
 
-  void _markAllAsRead() {
+  Future<void> _markAsRead(String id) async {
+    if (id.isEmpty) return;
+    
+    // Optimistic UI update
+    setState(() {
+      final index = _notifications.indexWhere((n) => n['id'].toString() == id);
+      if (index != -1) {
+        _notifications[index]['is_read'] = true;
+      }
+    });
+
+    try {
+      await _apiService.markAsRead(id);
+    } catch (e) {
+      // Revert on failure? usually minor enough to ignore or just log
+      print('Failed to mark as read: $e');
+    }
+  }
+
+  Future<void> _markAllAsRead() async {
+    // Optimistic UI update
     setState(() {
       for (var n in _notifications) {
         n['is_read'] = true;
       }
     });
+
+    try {
+      await _apiService.markAllAsRead();
+    } catch (e) {
+      print('Failed to mark all as read: $e');
+    }
   }
 
-  void _deleteNotification(String id) {
+  Future<void> _deleteNotification(String id) async {
+    if (id.isEmpty) return;
+    
+    // Optimistic UI update
     setState(() {
-      _notifications.removeWhere((n) => n['id'] == id);
+      _notifications.removeWhere((n) => n['id'].toString() == id);
     });
+
+    try {
+      await _apiService.deleteNotification(id);
+    } catch (e) {
+      print('Failed to delete notification: $e');
+      // Force refresh on error/mismatch
+      _refresh(); 
+    }
   }
 
-  void _refresh() {
-    setState(() => _loading = true);
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) setState(() => _loading = false);
-    });
+  Future<void> _refresh() async {
+    await _fetchNotifications();
   }
 }
