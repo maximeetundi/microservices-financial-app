@@ -95,15 +95,12 @@ func main() {
 	prefsRepo := repository.NewPreferencesRepository(db)
 
 	// Initialize Kafka for Total Balance updates
-	kafkaClient, err := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
-	if err != nil {
-		log.Printf("Warning: Failed to initialize Kafka: %v", err)
-	} else {
-		defer kafkaClient.Close()
-		balanceConsumer := services.NewKafkaConsumer(kafkaClient, userRepo)
-		if err := balanceConsumer.Start(); err != nil {
-			log.Printf("Warning: Failed to start balance consumer: %v", err)
-		}
+	kafkaClient := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
+	defer kafkaClient.Close()
+	
+	balanceConsumer := services.NewKafkaConsumer(kafkaClient, userRepo)
+	if err := balanceConsumer.Start(); err != nil {
+		log.Printf("Warning: Failed to start balance consumer: %v", err)
 	}
 
 	// Initialize services
