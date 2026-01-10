@@ -11,6 +11,8 @@ require (
 	github.com/minio/minio-go/v7 v7.0.66
 	github.com/prometheus/client_golang v1.18.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	github.com/segmentio/kafka-go v0.4.47
+	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 )
 
 require (
@@ -41,4 +43,8 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.34.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+replace (
+    github.com/crypto-bank/microservices-financial-app/services/common => ../common
 )
