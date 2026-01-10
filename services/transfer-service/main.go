@@ -48,12 +48,12 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize message queue
-	mqClient, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	// Initialize Kafka client
+	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers, cfg.KafkaGroupID)
 	if err != nil {
-		log.Fatal("Failed to initialize RabbitMQ:", err)
+		log.Fatal("Failed to initialize Kafka:", err)
 	}
-	defer mqClient.Close()
+	defer kafkaClient.Close()
 
 	// Initialize repositories
 	transferRepo := repository.NewTransferRepository(db)
@@ -61,13 +61,13 @@ func main() {
 
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg)
-	transferService := services.NewTransferService(transferRepo, walletRepo, mqClient, cfg)
+	transferService := services.NewTransferService(transferRepo, walletRepo, kafkaClient, cfg)
 	mobilemoneyService := services.NewMobileMoneyService(cfg)
 	internationalService := services.NewInternationalTransferService(cfg)
 	complianceService := services.NewComplianceService(cfg)
 	
-	// Start Consumers
-	paymentConsumer := services.NewPaymentRequestConsumer(mqClient, walletClient, walletRepo)
+	// Start Kafka Consumers
+	paymentConsumer := services.NewPaymentRequestConsumer(kafkaClient, walletClient, walletRepo)
 	if err := paymentConsumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start PaymentRequestConsumer: %v", err)
 	}

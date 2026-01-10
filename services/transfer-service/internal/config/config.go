@@ -6,12 +6,13 @@ import (
 )
 
 type Config struct {
-	Environment string
-	Port        string
-	DBUrl       string
-	RabbitMQURL string
+	Environment      string
+	Port             string
+	DBUrl            string
+	KafkaBrokers     string
+	KafkaGroupID     string
 	WalletServiceURL string
-	JWTSecret   string
+	JWTSecret        string
 	
 	// Transfer limits
 	DailyTransferLimits    map[string]float64
@@ -62,12 +63,13 @@ func Load() *Config {
 	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
 
 	return &Config{
-		Environment: getEnv("ENVIRONMENT", "development"),
-		Port:        getEnv("PORT", "8084"),
-		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		Environment:      getEnv("ENVIRONMENT", "development"),
+		Port:             getEnv("PORT", "8084"),
+		DBUrl:            getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		KafkaBrokers:     getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID:     getEnv("KAFKA_GROUP_ID", "transfer-service-group"),
 		WalletServiceURL: getEnv("WALLET_SERVICE_URL", "http://wallet-service:8083"),
-		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
+		JWTSecret:        getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 		
 		// Daily limits by KYC level
 		DailyTransferLimits: map[string]float64{

@@ -4,10 +4,12 @@ go 1.23
 
 require (
 	github.com/gin-gonic/gin v1.9.1
-	github.com/streadway/amqp v1.1.0
+	github.com/google/uuid v1.4.0
+	github.com/segmentio/kafka-go v0.4.47
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.18.0
 	golang.org/x/time v0.5.0
+	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 )
 
 require (
@@ -34,4 +36,8 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+replace (
+    github.com/crypto-bank/microservices-financial-app/services/common => ../common
 )

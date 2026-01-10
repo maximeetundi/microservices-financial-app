@@ -1,186 +1,104 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"time"
 
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database"
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 )
 
+// PaymentRequestConsumer handles payment request events from Kafka
 type PaymentRequestConsumer struct {
-	mqClient     *database.RabbitMQClient
+	kafkaClient  *messaging.KafkaClient
 	walletClient *WalletClient
 	walletRepo   *repository.WalletRepository
 }
 
-func NewPaymentRequestConsumer(mqClient *database.RabbitMQClient, walletClient *WalletClient, walletRepo *repository.WalletRepository) *PaymentRequestConsumer {
+// NewPaymentRequestConsumer creates a new payment request consumer
+func NewPaymentRequestConsumer(kafkaClient *messaging.KafkaClient, walletClient *WalletClient, walletRepo *repository.WalletRepository) *PaymentRequestConsumer {
 	return &PaymentRequestConsumer{
-		mqClient:     mqClient,
+		kafkaClient:  kafkaClient,
 		walletClient: walletClient,
 		walletRepo:   walletRepo,
 	}
 }
 
+// Start begins consuming payment events from Kafka
 func (c *PaymentRequestConsumer) Start() error {
-	log.Println("[TRANSFER DEBUG] Starting PaymentRequestConsumer...")
-	
-	msgs, err := c.mqClient.Consume("payments")
-	if err != nil {
-		log.Printf("[TRANSFER ERROR] Failed to start consuming payments queue: %v", err)
-		return fmt.Errorf("failed to start consuming payments queue: %w", err)
+	// Subscribe to payment events
+	if err := c.kafkaClient.Subscribe(messaging.TopicPaymentEvents, c.handlePaymentEvent); err != nil {
+		return err
 	}
 
-	log.Println("[TRANSFER DEBUG] Successfully connected to payments queue, starting message loop")
-
-	go func() {
-		log.Println("[TRANSFER DEBUG] Message loop goroutine started")
-		for d := range msgs {
-			log.Printf("[TRANSFER DEBUG] Received message: %s", string(d.Body))
-			
-			var req models.PaymentRequestEvent
-			if err := json.Unmarshal(d.Body, &req); err != nil {
-				log.Printf("[TRANSFER ERROR] Error unmarshalling payment request: %v", err)
-				d.Ack(false) // Ack to remove bad message
-				continue
-			}
-
-			log.Printf("[TRANSFER DEBUG] Processing payment request: %s from service: %s, SourceWallet: %s, Amount: %f", 
-				req.TransactionID, req.OriginService, req.SourceWalletID, req.Amount)
-
-			err := c.processPayment(&req)
-			
-			status := "completed"
-			errorMsg := ""
-			if err != nil {
-				log.Printf("[TRANSFER ERROR] Payment processing failed for %s: %v", req.TransactionID, err)
-				status = "failed"
-				errorMsg = err.Error()
-			} else {
-				log.Printf("[TRANSFER DEBUG] Payment processing succeeded for %s", req.TransactionID)
-			}
-
-			// Publish status event
-			statusEvent := models.PaymentStatusEvent{
-				TransactionID: req.TransactionID,
-				Status:        status,
-				Timestamp:     time.Now(),
-				Error:         errorMsg,
-			}
-
-			eventBytes, _ := json.Marshal(statusEvent)
-			
-			// Routing key: payment.status.{completed|failed}
-			routingKey := fmt.Sprintf("payment.status.%s", status)
-			log.Printf("[TRANSFER DEBUG] Publishing status event to payment.events with key %s", routingKey)
-			c.mqClient.PublishToExchange("payment.events", routingKey, eventBytes)
-
-			d.Ack(false)
-		}
-		log.Println("[TRANSFER DEBUG] Message loop ended")
-	}()
-
-	log.Println("[TRANSFER DEBUG] Payment Request Consumer started successfully")
+	log.Println("[Kafka] PaymentRequestConsumer started")
 	return nil
 }
 
-func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent) error {
-	opsPerformed := 0
+// handlePaymentEvent processes payment.request events
+func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Processing payment event: %s", event.Type)
 
-	log.Printf("[TRANSFER DEBUG] processPayment called: TxID=%s, SourceWallet=%s, DestWallet=%s, Amount=%f, Currency=%s, DestUserID=%s",
-		req.TransactionID, req.SourceWalletID, req.DestinationWalletID, req.Amount, req.Currency, req.DestinationUserID)
-
-	// 1. Debit Source Wallet (if provided)
-	if req.SourceWalletID != "" {
-		log.Printf("[TRANSFER DEBUG] Step 1: Debiting source wallet %s for user %s, amount %f %s",
-			req.SourceWalletID, req.UserID, req.Amount, req.Currency)
-		
-		debitReq := &WalletTransactionRequest{
-			UserID:    req.UserID,
-			WalletID:  req.SourceWalletID,
-			Amount:    req.Amount,
-			Type:      "debit",
-			Currency:  req.Currency,
-			Reference: req.Reference,
-		}
-
-		if err := c.walletClient.ProcessTransaction(debitReq); err != nil {
-			log.Printf("[TRANSFER ERROR] Failed to debit source wallet %s: %v", req.SourceWalletID, err)
-			return fmt.Errorf("failed to debit source wallet: %w", err)
-		}
-		log.Printf("[TRANSFER DEBUG] Successfully debited source wallet %s", req.SourceWalletID)
-		opsPerformed++
+	if event.Type != messaging.EventPaymentRequest {
+		return nil
 	}
 
-	// 2. Resolve Destination Wallet if missing
-	if req.DestinationWalletID == "" && req.DestinationUserID != "" {
-		log.Printf("[TRANSFER DEBUG] Step 2: Resolving destination wallet for user %s, currency %s",
-			req.DestinationUserID, req.Currency)
-		
-		walletID, err := c.walletRepo.GetWalletIDByUserAndCurrency(req.DestinationUserID, req.Currency)
-		if err == nil && walletID != "" {
-			req.DestinationWalletID = walletID
-			log.Printf("[TRANSFER DEBUG] Resolved destination wallet: %s", walletID)
-		} else {
-			log.Printf("[TRANSFER ERROR] Destination wallet not found for user %s and currency %s: %v",
-				req.DestinationUserID, req.Currency, err)
-			return fmt.Errorf("destination wallet not found for user %s and currency %s", req.DestinationUserID, req.Currency)
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		return err
+	}
+
+	var paymentReq messaging.PaymentRequestEvent
+	if err := json.Unmarshal(dataBytes, &paymentReq); err != nil {
+		log.Printf("Failed to unmarshal payment request: %v", err)
+		return err
+	}
+
+	log.Printf("[Kafka] Processing payment request: RequestID=%s, Type=%s, Amount=%.2f",
+		paymentReq.RequestID, paymentReq.Type, paymentReq.DebitAmount)
+
+	// Process debit operation via wallet client
+	err = c.walletClient.ProcessTransaction(paymentReq.FromWalletID, paymentReq.DebitAmount, paymentReq.Currency, "debit", paymentReq.ReferenceID)
+	if err != nil {
+		log.Printf("[Kafka] Debit failed: %v", err)
+		c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
+		return err
+	}
+
+	// If there's a credit operation (to wallet)
+	if paymentReq.ToWalletID != "" && paymentReq.CreditAmount > 0 {
+		err = c.walletClient.ProcessTransaction(paymentReq.ToWalletID, paymentReq.CreditAmount, paymentReq.Currency, "credit", paymentReq.ReferenceID)
+		if err != nil {
+			log.Printf("[Kafka] Credit failed: %v", err)
+			// Rollback debit
+			c.walletClient.ProcessTransaction(paymentReq.FromWalletID, paymentReq.DebitAmount, paymentReq.Currency, "credit", paymentReq.ReferenceID+"_rollback")
+			c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
+			return err
 		}
 	}
 
-	// 3. Credit Destination Wallet (if provided or resolved)
-	if req.DestinationWalletID != "" {
-		if req.DestinationUserID == "" {
-			log.Printf("[TRANSFER ERROR] Missing destination user ID for credit, wallet %s", req.DestinationWalletID)
-			return fmt.Errorf("missing destination user id for credit")
-		}
+	log.Printf("[Kafka] Payment request %s processed successfully", paymentReq.RequestID)
+	c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "success", "")
 
-		log.Printf("[TRANSFER DEBUG] Step 3: Crediting destination wallet %s for user %s, amount %f %s",
-			req.DestinationWalletID, req.DestinationUserID, req.Amount, req.Currency)
-
-		creditReq := &WalletTransactionRequest{
-			UserID:    req.DestinationUserID,
-			WalletID:  req.DestinationWalletID,
-			Amount:    req.Amount,
-			Type:      "credit",
-			Currency:  req.Currency,
-			Reference: req.Reference,
-		}
-
-		if err := c.walletClient.ProcessTransaction(creditReq); err != nil {
-			log.Printf("[TRANSFER ERROR] Failed to credit destination wallet %s: %v", req.DestinationWalletID, err)
-			// Compensation logic: credit back the source if it was debited in this same transaction
-			if req.SourceWalletID != "" {
-				log.Printf("[TRANSFER DEBUG] Initiating compensation: refunding source wallet %s", req.SourceWalletID)
-				compReq := &WalletTransactionRequest{
-					UserID:    req.UserID,
-					WalletID:  req.SourceWalletID,
-					Amount:    req.Amount,
-					Type:      "credit",
-					Currency:  req.Currency,
-					Reference: "REFUND_" + req.Reference,
-				}
-				if compErr := c.walletClient.ProcessTransaction(compReq); compErr != nil {
-					log.Printf("[TRANSFER ERROR] Compensation failed for wallet %s: %v", req.SourceWalletID, compErr)
-				} else {
-					log.Printf("[TRANSFER DEBUG] Compensation successful for wallet %s", req.SourceWalletID)
-				}
-			}
-
-			return fmt.Errorf("failed to credit destination wallet: %w", err)
-		}
-		log.Printf("[TRANSFER DEBUG] Successfully credited destination wallet %s", req.DestinationWalletID)
-		opsPerformed++
-	}
-
-	if opsPerformed == 0 {
-		log.Printf("[TRANSFER ERROR] Invalid payment request: neither source nor destination wallet provided")
-		return fmt.Errorf("invalid payment request: neither source nor destination wallet provided")
-	}
-
-	log.Printf("[TRANSFER DEBUG] Payment processing completed successfully: TxID=%s, ops=%d", req.TransactionID, opsPerformed)
 	return nil
+}
+
+// publishPaymentStatus publishes status updates back to Kafka
+func (c *PaymentRequestConsumer) publishPaymentStatus(requestID, referenceID, reqType, status, errMsg string) {
+	statusEvent := messaging.PaymentStatusEvent{
+		RequestID:   requestID,
+		ReferenceID: referenceID,
+		Type:        reqType,
+		Status:      status,
+		Error:       errMsg,
+	}
+
+	eventType := messaging.EventPaymentSuccess
+	if status == "failed" {
+		eventType = messaging.EventPaymentFailed
+	}
+
+	envelope := messaging.NewEventEnvelope(eventType, "transfer-service", statusEvent)
+	c.kafkaClient.Publish(context.Background(), messaging.TopicPaymentEvents, envelope)
 }

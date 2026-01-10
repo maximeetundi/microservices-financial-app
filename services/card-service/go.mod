@@ -8,10 +8,12 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/lib/pq v1.10.9
-	github.com/streadway/amqp v1.1.0
+	github.com/google/uuid v1.4.0
+	github.com/segmentio/kafka-go v0.4.47
 	github.com/prometheus/client_golang v1.18.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/time v0.5.0
+	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 )
 
 require (
@@ -47,4 +49,5 @@ replace (
     github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
     github.com/crypto-bank/microservices-financial-app/services/transfer-service => ../transfer-service
     github.com/crypto-bank/microservices-financial-app/services/wallet-service => ../wallet-service
+    github.com/crypto-bank/microservices-financial-app/services/common => ../common
 )

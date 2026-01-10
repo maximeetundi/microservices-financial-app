@@ -35,22 +35,49 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Message Queue
-  rabbitmq:
-    image: rabbitmq:3-management
+  # Message Queue - Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: secure_password
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     networks:
       - crypto-bank-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    networks:
+      - crypto-bank-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   # Object Storage (for KYC documents, etc.)
@@ -148,14 +175,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
       minio:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=auth-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
@@ -195,12 +223,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=wallet-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
@@ -216,11 +245,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=transfer-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       # Flutterwave (Africa)
       - FLUTTERWAVE_SECRET_KEY=${FLUTTERWAVE_SECRET_KEY:-}
@@ -250,13 +280,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=exchange-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - WALLET_SERVICE_URL=http://wallet-service:8083
     networks:
@@ -273,11 +304,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=card-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
@@ -291,11 +323,12 @@ services:
     ports:
       - "8087:8087"
     depends_on:
-      rabbitmq:
+      kafka:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=notification-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
     networks:
       - crypto-bank-network
@@ -313,7 +346,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -321,7 +354,8 @@ services:
       - ADMIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank_admin?sslmode=disable
       - MAIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=admin-service-group
       - ADMIN_JWT_SECRET=admin_ultra_secure_jwt_secret_2024
       - AUTH_SERVICE_URL=http://auth-service:8081
       - WALLET_SERVICE_URL=http://wallet-service:8083
@@ -350,14 +384,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
+      kafka:
         condition: service_healthy
       minio:
         condition: service_healthy
     environment:
       - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://admin:secure_password@rabbitmq:5672/
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=support-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - ADMIN_JWT_SECRET=admin_ultra_secure_jwt_secret_2024
       - MINIO_ENDPOINT=minio:9000

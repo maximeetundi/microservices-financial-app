@@ -66,12 +66,12 @@ func main() {
 		log.Fatal("Failed to initialize Redis:", err)
 	}
 
-	// Initialize message queue
-	mqClient, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	// Initialize Kafka client
+	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers, cfg.KafkaGroupID)
 	if err != nil {
-		log.Fatal("Failed to initialize RabbitMQ:", err)
+		log.Fatal("Failed to initialize Kafka:", err)
 	}
-	// Note: mqClient is the channel for wallet-service since InitializeRabbitMQ returns *amqp.Channel
+	defer kafkaClient.Close()
 
 	// Initialize repositories
 	walletRepo := repository.NewWalletRepository(db)
@@ -93,13 +93,13 @@ func main() {
 	feeService := services.NewFeeService(feeRepo)
 	cryptoService := services.NewCryptoService(cfg)
 	balanceService := services.NewBalanceService(walletRepo, redisClient)
-	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, mqClient)
-	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, mqClient)
+	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient)
+	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
 	
-	// Start RabbitMQ consumer for inter-service communication
-	consumer := services.NewConsumer(mqClient, walletService)
+	// Start Kafka consumer for inter-service communication
+	consumer := services.NewConsumer(kafkaClient, walletService)
 	if err := consumer.Start(); err != nil {
-		log.Printf("Warning: Failed to start RabbitMQ consumer: %v", err)
+		log.Printf("Warning: Failed to start Kafka consumer: %v", err)
 	}
 	
 	// Initialize handlers

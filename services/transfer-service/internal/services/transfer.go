@@ -1,12 +1,12 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/config"
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 )
@@ -14,20 +14,20 @@ import (
 type TransferService struct {
 	transferRepo *repository.TransferRepository
 	walletRepo   *repository.WalletRepository
-	mqClient     *database.RabbitMQClient
+	kafkaClient  *messaging.KafkaClient
 	config       *config.Config
 }
 
 func NewTransferService(
 	transferRepo *repository.TransferRepository,
 	walletRepo *repository.WalletRepository,
-	mqClient *database.RabbitMQClient,
+	kafkaClient *messaging.KafkaClient,
 	config *config.Config,
 ) *TransferService {
 	return &TransferService{
 		transferRepo: transferRepo,
 		walletRepo:   walletRepo,
-		mqClient:     mqClient,
+		kafkaClient:  kafkaClient,
 		config:       config,
 	}
 }
@@ -117,9 +117,20 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		transfer.Status = "processing"
 	}
 
-	// Publish to queue for async processing (notifications, etc)
-	msg, _ := json.Marshal(transfer)
-	s.mqClient.Publish("transfers", msg)
+	// Publish transfer event to Kafka
+	transferEvent := messaging.TransferCompletedEvent{
+		TransferID:   transfer.ID,
+		FromWalletID: req.FromWalletID,
+		ToWalletID:   "",
+		Amount:       transfer.Amount,
+		Fee:          transfer.Fee,
+		Status:       transfer.Status,
+	}
+	if destinationWalletID != nil {
+		transferEvent.ToWalletID = *destinationWalletID
+	}
+	envelope := messaging.NewEventEnvelope(messaging.EventTransferCompleted, "transfer-service", transferEvent)
+	s.kafkaClient.Publish(context.Background(), messaging.TopicTransferEvents, envelope)
 	
 	// Get sender user ID from wallet
 	senderUserID := fromWallet.UserID
@@ -224,9 +235,9 @@ func generateReferenceID() string {
 	return fmt.Sprintf("REF%d", time.Now().UnixNano())
 }
 
-// publishTransferEvent publishes transfer events to RabbitMQ for notifications
+// publishTransferEvent publishes transfer events to Kafka for notifications
 func (s *TransferService) publishTransferEvent(eventType string, transfer *models.Transfer, senderUserID, recipientUserID string) {
-	if s.mqClient == nil {
+	if s.kafkaClient == nil {
 		return
 	}
 
@@ -238,24 +249,20 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 		}
 	}
 
-	event := map[string]interface{}{
-		"type":         eventType,
+	eventData := map[string]interface{}{
 		"transfer_id":  transfer.ID,
-		"user_id":      senderUserID, // For sender notification
+		"user_id":      senderUserID,
 		"sender":       senderUserID,
-		"sender_name":  senderName, // Human readable name for notifications
+		"sender_name":  senderName,
 		"recipient":    recipientUserID,
 		"amount":       transfer.Amount,
 		"currency":     transfer.Currency,
 		"status":       transfer.Status,
 		"reference":    transfer.Reference,
-		"timestamp":    time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
-
-	// Publish to transfer.events exchange
-	s.mqClient.PublishToExchange("transfer.events", eventType, eventJSON)
+	envelope := messaging.NewEventEnvelope(eventType, "transfer-service", eventData)
+	s.kafkaClient.Publish(context.Background(), messaging.TopicTransferEvents, envelope)
 }
 
 // MobileMoneyService handles mobile money transfers

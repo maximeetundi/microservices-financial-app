@@ -1,283 +1,211 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
-	"github.com/streadway/amqp"
 )
 
-// Consumer handles RabbitMQ message consumption for wallet-service
+// Consumer handles Kafka message consumption for wallet-service
 type Consumer struct {
-	channel       *amqp.Channel
+	kafkaClient   *messaging.KafkaClient
 	walletService *WalletService
 }
 
-// NewConsumer creates a new RabbitMQ consumer
-func NewConsumer(channel *amqp.Channel, walletService *WalletService) *Consumer {
+// NewConsumer creates a new Kafka consumer
+func NewConsumer(kafkaClient *messaging.KafkaClient, walletService *WalletService) *Consumer {
 	return &Consumer{
-		channel:       channel,
+		kafkaClient:   kafkaClient,
 		walletService: walletService,
 	}
 }
 
-// Start begins consuming messages from all subscribed queues
+// Start begins consuming messages from all subscribed topics
 func (c *Consumer) Start() error {
-	// Start consumers for each queue
-	go c.consumeTransferCompleted()
-	go c.consumeExchangeCompleted()
-	go c.consumeCardLoaded()
-	go c.consumeUserRegistered()
+	// Subscribe to transfer events
+	if err := c.kafkaClient.Subscribe(messaging.TopicTransferEvents, c.handleTransferEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to transfer events: %v", err)
+	}
 
-	log.Println("Wallet service consumers started")
+	// Subscribe to exchange events
+	if err := c.kafkaClient.Subscribe(messaging.TopicExchangeEvents, c.handleExchangeEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to exchange events: %v", err)
+	}
+
+	// Subscribe to card events
+	if err := c.kafkaClient.Subscribe(messaging.TopicCardEvents, c.handleCardEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to card events: %v", err)
+	}
+
+	// Subscribe to user events
+	if err := c.kafkaClient.Subscribe(messaging.TopicUserEvents, c.handleUserEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to user events: %v", err)
+	}
+
+	log.Println("[Kafka] Wallet service consumers started")
 	return nil
 }
 
-// consumeTransferCompleted handles transfer.completed events
-func (c *Consumer) consumeTransferCompleted() {
-	msgs, err := c.channel.Consume(
-		"wallet.transfer_completed", // queue
-		"",                          // consumer
-		false,                       // auto-ack
-		false,                       // exclusive
-		false,                       // no-local
-		false,                       // no-wait
-		nil,                         // args
-	)
+// handleTransferEvent processes transfer.completed events
+func (c *Consumer) handleTransferEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Processing transfer event: %s", event.Type)
+
+	if event.Type != messaging.EventTransferCompleted {
+		return nil // Not a transfer completed event
+	}
+
+	// Parse the event data
+	dataBytes, err := json.Marshal(event.Data)
 	if err != nil {
-		log.Printf("Failed to consume transfer_completed: %v", err)
-		return
+		return err
 	}
 
-	for msg := range msgs {
-		c.handleTransferCompleted(msg)
-	}
-}
-
-func (c *Consumer) handleTransferCompleted(msg amqp.Delivery) {
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	var transferEvent messaging.TransferCompletedEvent
+	if err := json.Unmarshal(dataBytes, &transferEvent); err != nil {
 		log.Printf("Failed to unmarshal transfer event: %v", err)
-		msg.Nack(false, true) // Requeue
-		return
+		return err
 	}
-
-	log.Printf("Processing transfer_completed event: %v", event)
-
-	// Extract transfer details
-	fromWalletID, _ := event["from_wallet_id"].(string)
-	toWalletID, _ := event["to_wallet_id"].(string)
-	amount, _ := event["amount"].(float64)
-	fee, _ := event["fee"].(float64)
 
 	// Debit source wallet
-	if fromWalletID != "" {
-		totalDebit := amount + fee
-		err := c.walletService.balanceService.UpdateBalance(fromWalletID, totalDebit, "debit")
+	if transferEvent.FromWalletID != "" {
+		totalDebit := transferEvent.Amount + transferEvent.Fee
+		err := c.walletService.balanceService.UpdateBalance(transferEvent.FromWalletID, totalDebit, "debit")
 		if err != nil {
-			log.Printf("Failed to debit wallet %s: %v", fromWalletID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to debit wallet %s: %v", transferEvent.FromWalletID, err)
+			return err
 		}
 	}
 
 	// Credit destination wallet
-	if toWalletID != "" {
-		err := c.walletService.balanceService.UpdateBalance(toWalletID, amount, "credit")
+	if transferEvent.ToWalletID != "" {
+		err := c.walletService.balanceService.UpdateBalance(transferEvent.ToWalletID, transferEvent.Amount, "credit")
 		if err != nil {
-			log.Printf("Failed to credit wallet %s: %v", toWalletID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to credit wallet %s: %v", transferEvent.ToWalletID, err)
+			return err
 		}
 	}
 
-	msg.Ack(false)
-	log.Printf("Successfully processed transfer_completed event")
+	log.Printf("[Kafka] Successfully processed transfer_completed event")
+	return nil
 }
 
-// consumeExchangeCompleted handles exchange.completed events
-func (c *Consumer) consumeExchangeCompleted() {
-	msgs, err := c.channel.Consume(
-		"wallet.exchange_completed", // queue
-		"",                          // consumer
-		false,                       // auto-ack
-		false,                       // exclusive
-		false,                       // no-local
-		false,                       // no-wait
-		nil,                         // args
-	)
+// handleExchangeEvent processes exchange.completed events
+func (c *Consumer) handleExchangeEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Processing exchange event: %s", event.Type)
+
+	if event.Type != messaging.EventExchangeCompleted {
+		return nil
+	}
+
+	dataBytes, err := json.Marshal(event.Data)
 	if err != nil {
-		log.Printf("Failed to consume exchange_completed: %v", err)
-		return
+		return err
 	}
 
-	for msg := range msgs {
-		c.handleExchangeCompleted(msg)
-	}
-}
-
-func (c *Consumer) handleExchangeCompleted(msg amqp.Delivery) {
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	var exchangeEvent messaging.ExchangeCompletedEvent
+	if err := json.Unmarshal(dataBytes, &exchangeEvent); err != nil {
 		log.Printf("Failed to unmarshal exchange event: %v", err)
-		msg.Nack(false, true)
-		return
+		return err
 	}
-
-	log.Printf("Processing exchange_completed event: %v", event)
-
-	// Extract exchange details
-	fromWalletID, _ := event["from_wallet_id"].(string)
-	toWalletID, _ := event["to_wallet_id"].(string)
-	fromAmount, _ := event["from_amount"].(float64)
-	toAmount, _ := event["to_amount"].(float64)
-	fee, _ := event["fee"].(float64)
 
 	// Debit source wallet (from_amount + fee)
-	if fromWalletID != "" {
-		totalDebit := fromAmount + fee
-		err := c.walletService.balanceService.UpdateBalance(fromWalletID, totalDebit, "debit")
+	if exchangeEvent.FromWalletID != "" {
+		totalDebit := exchangeEvent.FromAmount + exchangeEvent.Fee
+		err := c.walletService.balanceService.UpdateBalance(exchangeEvent.FromWalletID, totalDebit, "debit")
 		if err != nil {
-			log.Printf("Failed to debit wallet %s: %v", fromWalletID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to debit wallet %s: %v", exchangeEvent.FromWalletID, err)
+			return err
 		}
 	}
 
 	// Credit destination wallet with exchanged amount
-	if toWalletID != "" {
-		err := c.walletService.balanceService.UpdateBalance(toWalletID, toAmount, "credit")
+	if exchangeEvent.ToWalletID != "" {
+		err := c.walletService.balanceService.UpdateBalance(exchangeEvent.ToWalletID, exchangeEvent.ToAmount, "credit")
 		if err != nil {
-			log.Printf("Failed to credit wallet %s: %v", toWalletID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to credit wallet %s: %v", exchangeEvent.ToWalletID, err)
+			return err
 		}
 	}
 
-	msg.Ack(false)
-	log.Printf("Successfully processed exchange_completed event")
+	log.Printf("[Kafka] Successfully processed exchange_completed event")
+	return nil
 }
 
-// consumeCardLoaded handles card.loaded events
-func (c *Consumer) consumeCardLoaded() {
-	msgs, err := c.channel.Consume(
-		"wallet.card_loaded", // queue
-		"",                   // consumer
-		false,                // auto-ack
-		false,                // exclusive
-		false,                // no-local
-		false,                // no-wait
-		nil,                  // args
-	)
+// handleCardEvent processes card.loaded events
+func (c *Consumer) handleCardEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Processing card event: %s", event.Type)
+
+	if event.Type != messaging.EventCardLoaded {
+		return nil
+	}
+
+	dataBytes, err := json.Marshal(event.Data)
 	if err != nil {
-		log.Printf("Failed to consume card_loaded: %v", err)
-		return
+		return err
 	}
 
-	for msg := range msgs {
-		c.handleCardLoaded(msg)
-	}
-}
-
-func (c *Consumer) handleCardLoaded(msg amqp.Delivery) {
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	var cardEvent messaging.CardLoadedEvent
+	if err := json.Unmarshal(dataBytes, &cardEvent); err != nil {
 		log.Printf("Failed to unmarshal card loaded event: %v", err)
-		msg.Nack(false, true)
-		return
+		return err
 	}
-
-	log.Printf("Processing card_loaded event: %v", event)
-
-	// Extract card load details
-	sourceWalletID, _ := event["source_wallet_id"].(string)
-	amount, _ := event["amount"].(float64)
-	fee, _ := event["fee"].(float64)
 
 	// Debit the source wallet
-	if sourceWalletID != "" {
-		totalDebit := amount + fee
-		err := c.walletService.balanceService.UpdateBalance(sourceWalletID, totalDebit, "debit")
+	if cardEvent.SourceWalletID != "" {
+		totalDebit := cardEvent.Amount + cardEvent.Fee
+		err := c.walletService.balanceService.UpdateBalance(cardEvent.SourceWalletID, totalDebit, "debit")
 		if err != nil {
-			log.Printf("Failed to debit wallet %s for card load: %v", sourceWalletID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to debit wallet %s for card load: %v", cardEvent.SourceWalletID, err)
+			return err
 		}
 	}
 
-	msg.Ack(false)
-	log.Printf("Successfully processed card_loaded event")
+	log.Printf("[Kafka] Successfully processed card_loaded event")
+	return nil
 }
 
-// consumeUserRegistered handles user.registered events
-func (c *Consumer) consumeUserRegistered() {
-	_, err := c.channel.QueueDeclare(
-		"user.registered", // name
-		true,              // durable
-		false,             // delete when unused
-		false,             // exclusive
-		false,             // no-wait
-		nil,               // arguments
-	)
+// handleUserEvent processes user.registered events
+func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	log.Printf("[Kafka] Processing user event: %s", event.Type)
+
+	if event.Type != messaging.EventUserRegistered {
+		return nil
+	}
+
+	dataBytes, err := json.Marshal(event.Data)
 	if err != nil {
-		log.Printf("Failed to declare user.registered queue: %v", err)
-		return
+		return err
 	}
 
-	msgs, err := c.channel.Consume(
-		"user.registered", // queue
-		"",                // consumer
-		false,             // auto-ack
-		false,             // exclusive
-		false,             // no-local
-		false,             // no-wait
-		nil,               // args
-	)
-	if err != nil {
-		log.Printf("Failed to consume user.registered: %v", err)
-		return
-	}
-
-	for msg := range msgs {
-		c.handleUserRegistered(msg)
-	}
-}
-
-func (c *Consumer) handleUserRegistered(msg amqp.Delivery) {
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	var userEvent messaging.UserRegisteredEvent
+	if err := json.Unmarshal(dataBytes, &userEvent); err != nil {
 		log.Printf("Failed to unmarshal user registered event: %v", err)
-		msg.Nack(false, true)
-		return
+		return err
 	}
 
-	log.Printf("Processing user.registered event: %v", event)
-
-	userID, _ := event["user_id"].(string)
-	currency, _ := event["currency"].(string)
-
-	if userID != "" && currency != "" {
+	if userEvent.UserID != "" && userEvent.Currency != "" {
 		// Create default wallet
 		name := "Main Wallet"
 		desc := "Default wallet created on registration"
-		
+
 		req := &models.CreateWalletRequest{
-			Currency:    currency,
+			Currency:    userEvent.Currency,
 			WalletType:  "fiat",
 			Name:        &name,
 			Description: &desc,
 		}
-		
+
 		// Internal call, no auth token needed
-		_, err := c.walletService.CreateWallet(userID, req)
+		_, err := c.walletService.CreateWallet(userEvent.UserID, req)
 		if err != nil {
-			log.Printf("Failed to create default wallet for user %s: %v", userID, err)
-			msg.Nack(false, true)
-			return
+			log.Printf("Failed to create default wallet for user %s: %v", userEvent.UserID, err)
+			return err
 		}
-		log.Printf("Created default wallet for user %s with currency %s", userID, currency)
+		log.Printf("[Kafka] Created default wallet for user %s with currency %s", userEvent.UserID, userEvent.Currency)
 	}
 
-	msg.Ack(false)
+	return nil
 }

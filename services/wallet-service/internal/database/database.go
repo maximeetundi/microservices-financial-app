@@ -3,10 +3,12 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/streadway/amqp"
 	_ "github.com/lib/pq"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
 func Initialize(dbURL string) (*sql.DB, error) {
@@ -41,75 +43,12 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 	return client, nil
 }
 
-func InitializeRabbitMQ(rabbitMQURL string) (*amqp.Channel, error) {
-	conn, err := amqp.Dial(rabbitMQURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
-	}
-
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, fmt.Errorf("failed to open channel: %w", err)
-	}
-
-	// Declare exchanges - all services use these
-	exchanges := []string{
-		"wallet.events",
-		"transaction.events",
-		"transfer.events",
-		"exchange.events",
-		"card.events",
-		"notification.events",
-	}
-
-	for _, exchange := range exchanges {
-		err = channel.ExchangeDeclare(
-			exchange, // name
-			"topic",  // type
-			true,     // durable
-			false,    // auto-deleted
-			false,    // internal
-			false,    // no-wait
-			nil,      // arguments
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to declare exchange %s: %w", exchange, err)
-		}
-	}
-
-	// Declare queues for consuming events from other services
-	queues := map[string]string{
-		"wallet.transfer_completed": "transfer.events",
-		"wallet.exchange_completed": "exchange.events",
-		"wallet.card_loaded":        "card.events",
-	}
-
-	for queue, exchange := range queues {
-		_, err = channel.QueueDeclare(
-			queue, // name
-			true,  // durable
-			false, // delete when unused
-			false, // exclusive
-			false, // no-wait
-			nil,   // arguments
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to declare queue %s: %w", queue, err)
-		}
-
-		// Bind queue to exchange with routing key
-		routingKey := queue[7:] // Remove "wallet." prefix
-		err = channel.QueueBind(
-			queue,      // queue name
-			routingKey, // routing key
-			exchange,   // exchange
-			false,      // no-wait
-			nil,        // arguments
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to bind queue %s: %w", queue, err)
-		}
-	}
-
-	return channel, nil
+// InitializeKafka creates a new Kafka client for messaging
+func InitializeKafka(brokers string, groupID string) (*messaging.KafkaClient, error) {
+	brokerList := strings.Split(brokers, ",")
+	
+	client := messaging.NewKafkaClient(brokerList, groupID)
+	
+	log.Printf("[Kafka] Wallet-service connected to brokers: %s with group: %s", brokers, groupID)
+	return client, nil
 }

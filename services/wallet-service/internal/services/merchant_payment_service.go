@@ -1,19 +1,19 @@
 package services
 
 import (
+	"bytes"
+	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"image/png"
-	"bytes"
 	"time"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
-	"github.com/streadway/amqp"
 )
 
 // Default expiration time in minutes
@@ -25,7 +25,7 @@ type MerchantPaymentService struct {
 	walletService *WalletService
 	feeService    *FeeService
 	config        *config.Config
-	mqChannel     *amqp.Channel
+	kafkaClient   *messaging.KafkaClient
 	baseURL       string
 }
 
@@ -35,7 +35,7 @@ func NewMerchantPaymentService(
 	walletService *WalletService,
 	feeService *FeeService,
 	cfg *config.Config,
-	mqChannel *amqp.Channel,
+	kafkaClient *messaging.KafkaClient,
 ) *MerchantPaymentService {
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
@@ -47,7 +47,7 @@ func NewMerchantPaymentService(
 		walletService: walletService,
 		feeService:    feeService,
 		config:        cfg,
-		mqChannel:     mqChannel,
+		kafkaClient:   kafkaClient,
 		baseURL:       baseURL,
 	}
 }
@@ -366,57 +366,31 @@ func (s *MerchantPaymentService) generateQRCode(data string) (string, error) {
 }
 
 func (s *MerchantPaymentService) publishPaymentEvent(eventType string, payment *models.PaymentRequest, customerID string, amount float64) {
-	if s.mqChannel == nil {
+	if s.kafkaClient == nil {
 		return
 	}
 
-	// Notification for Customer (payer) - "Vous avez payé..."
-	customerEvent := map[string]interface{}{
-		"type":        "payment.sent",
+	// Notification for Customer (payer)
+	customerEventData := map[string]interface{}{
 		"user_id":     customerID,
 		"payment_id":  payment.ID,
 		"merchant_id": payment.MerchantID,
 		"amount":      amount,
 		"currency":    payment.Currency,
 		"title":       payment.Title,
-		"timestamp":   time.Now(),
 	}
+	customerEnvelope := messaging.NewEventEnvelope("payment.sent", "wallet-service", customerEventData)
+	s.kafkaClient.Publish(context.Background(), messaging.TopicWalletEvents, customerEnvelope)
 
-	customerEventJSON, _ := json.Marshal(customerEvent)
-
-	s.mqChannel.Publish(
-		"wallet.events",
-		"payment.sent",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        customerEventJSON,
-		},
-	)
-
-	// Notification for Merchant (receiver) - "Vous avez reçu un paiement..."
-	merchantEvent := map[string]interface{}{
-		"type":        "payment.received",
+	// Notification for Merchant (receiver)
+	merchantEventData := map[string]interface{}{
 		"user_id":     payment.MerchantID,
 		"payment_id":  payment.ID,
 		"customer_id": customerID,
 		"amount":      amount,
 		"currency":    payment.Currency,
 		"title":       payment.Title,
-		"timestamp":   time.Now(),
 	}
-
-	merchantEventJSON, _ := json.Marshal(merchantEvent)
-
-	s.mqChannel.Publish(
-		"wallet.events",
-		"payment.received",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        merchantEventJSON,
-		},
-	)
+	merchantEnvelope := messaging.NewEventEnvelope("payment.received", "wallet-service", merchantEventData)
+	s.kafkaClient.Publish(context.Background(), messaging.TopicWalletEvents, merchantEnvelope)
 }

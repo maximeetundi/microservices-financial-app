@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"sync"
+	"strings"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/streadway/amqp"
 	_ "github.com/lib/pq"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
 // Initialize PostgreSQL database
@@ -50,161 +50,15 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 	return client, nil
 }
 
-// Initialize RabbitMQ connection
-func InitializeRabbitMQ(rabbitURL string) (*RabbitMQClient, error) {
-	conn, err := amqp.Dial(rabbitURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
-	}
-
-	channel, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to open RabbitMQ channel: %w", err)
-	}
-
-	// Declare exchanges and queues
-	if err := declareExchangesAndQueues(channel); err != nil {
-		return nil, fmt.Errorf("failed to declare exchanges and queues: %w", err)
-	}
-
-	log.Println("RabbitMQ connected and configured successfully")
-	return &RabbitMQClient{conn: conn, channel: channel, url: rabbitURL}, nil
+// InitializeKafka creates a new Kafka client for messaging
+func InitializeKafka(brokers string, groupID string) (*messaging.KafkaClient, error) {
+	brokerList := strings.Split(brokers, ",")
+	
+	client := messaging.NewKafkaClient(brokerList, groupID)
+	
+	log.Printf("[Kafka] Exchange-service connected to brokers: %s with group: %s", brokers, groupID)
+	return client, nil
 }
-
-// Helper methods for RabbitMQ
-
-type RabbitMQClient struct {
-	conn      *amqp.Connection
-	channel   *amqp.Channel
-	url       string
-	mu        sync.Mutex
-}
-
-func (r *RabbitMQClient) Close() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.channel != nil {
-		r.channel.Close()
-	}
-	if r.conn != nil {
-		r.conn.Close()
-	}
-}
-
-// GetChannel returns the underlying amqp.Channel
-func (r *RabbitMQClient) GetChannel() *amqp.Channel {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.channel
-}
-
-// forceReconnect forces a reconnection to RabbitMQ
-func (r *RabbitMQClient) forceReconnect() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	
-	log.Println("[RabbitMQ] Forcing reconnection...")
-	
-	// Close existing connection if any
-	if r.channel != nil {
-		r.channel.Close()
-		r.channel = nil
-	}
-	if r.conn != nil {
-		r.conn.Close()
-		r.conn = nil
-	}
-	
-	// Reconnect
-	conn, err := amqp.Dial(r.url)
-	if err != nil {
-		return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
-	}
-	
-	channel, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to reopen RabbitMQ channel: %w", err)
-	}
-	
-	// Redeclare exchanges and queues
-	if err := declareExchangesAndQueues(channel); err != nil {
-		channel.Close()
-		conn.Close()
-		return fmt.Errorf("failed to redeclare exchanges: %w", err)
-	}
-	
-	r.conn = conn
-	r.channel = channel
-	log.Println("[RabbitMQ] Reconnected successfully!")
-	
-	return nil
-}
-
-func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
-	r.mu.Lock()
-	
-	// Try to publish
-	err := r.channel.Publish(
-		exchange,
-		routingKey,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        message,
-		},
-	)
-	r.mu.Unlock()
-	
-	// If publish failed, try to reconnect and retry once
-	if err != nil {
-		log.Printf("[RabbitMQ] Publish failed: %v, attempting reconnect...", err)
-		
-		if reconnErr := r.forceReconnect(); reconnErr != nil {
-			return fmt.Errorf("publish failed and reconnect failed: %w", reconnErr)
-		}
-		
-		// Retry the publish
-		r.mu.Lock()
-		err = r.channel.Publish(
-			exchange,
-			routingKey,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        message,
-			},
-		)
-		r.mu.Unlock()
-		
-		if err != nil {
-			return fmt.Errorf("publish failed after reconnect: %w", err)
-		}
-		
-		log.Println("[RabbitMQ] Publish succeeded after reconnect")
-	}
-	
-	return nil
-}
-
-func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	
-	return r.channel.Consume(
-		queue, // queue
-		"",    // consumer
-		true,  // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
-	)
-}
-
 
 // Create necessary database tables
 func createTables(db *sql.DB) error {
@@ -285,83 +139,3 @@ func createTables(db *sql.DB) error {
 
 	return nil
 }
-
-// Declare RabbitMQ exchanges and queues
-func declareExchangesAndQueues(ch *amqp.Channel) error {
-	// Declare exchanges
-	exchanges := []string{
-		"exchange.events",
-		"fiat_exchange.events",
-		"trading.events",
-		"rate.updates",
-	}
-
-	for _, exchange := range exchanges {
-		err := ch.ExchangeDeclare(
-			exchange, // name
-			"topic",  // type
-			true,     // durable
-			false,    // auto-deleted
-			false,    // internal
-			false,    // no-wait
-			nil,      // arguments
-		)
-		if err != nil {
-			return fmt.Errorf("failed to declare exchange %s: %w", exchange, err)
-		}
-	}
-
-	// Declare payment.events exchange
-	err := ch.ExchangeDeclare(
-		"payment.events", // name
-		"topic",          // type
-		true,             // durable
-		false,            // auto-deleted
-		false,            // internal
-		false,            // no-wait
-		nil,              // arguments
-	)
-	if err != nil {
-		return fmt.Errorf("failed to declare exchange payment.events: %w", err)
-	}
-
-	// Declare queues
-	queues := []string{
-		"exchange.completed",
-		"fiat_exchange.completed", 
-		"trading.order_filled",
-		"rate.crypto_updated",
-		"rate.fiat_updated",
-		"exchange.payment.updates", // Queue for payment status
-	}
-
-	for _, queue := range queues {
-		_, err := ch.QueueDeclare(
-			queue, // name
-			true,  // durable
-			false, // delete when unused
-			false, // exclusive
-			false, // no-wait
-			nil,   // arguments
-		)
-		if err != nil {
-			return fmt.Errorf("failed to declare queue %s: %w", queue, err)
-		}
-	}
-
-	// Bind exchange.payment.updates to payment.events
-	err = ch.QueueBind(
-		"exchange.payment.updates",
-		"payment.status.#",
-		"payment.events",
-		false,
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to bind queue exchange.payment.updates: %w", err)
-	}
-
-	return nil
-}
-
-

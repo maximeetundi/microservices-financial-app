@@ -6,13 +6,14 @@ import (
 )
 
 type Config struct {
-	Environment string
-	Port        string
-	DBUrl       string
-	RedisURL    string
-	RabbitMQURL string
-	JWTSecret   string
-	BaseURL     string
+	Environment  string
+	Port         string
+	DBUrl        string
+	RedisURL     string
+	KafkaBrokers string
+	KafkaGroupID string
+	JWTSecret    string
+	BaseURL      string
 	
 	// Crypto settings
 	EncryptionKey     string
@@ -34,13 +35,14 @@ func Load() *Config {
 	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
 
 	return &Config{
-		Environment: getEnv("ENVIRONMENT", "development"),
-		Port:        getEnv("PORT", "8083"),
-		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
-		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		BaseURL:     getEnv("BASE_URL", "https://app.zekora.com"),
+		Environment:  getEnv("ENVIRONMENT", "development"),
+		Port:         getEnv("PORT", "8083"),
+		DBUrl:        getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
+		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "wallet-service-group"),
+		JWTSecret:    getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
+		BaseURL:      getEnv("BASE_URL", "https://app.zekora.com"),
 		
 		// Crypto settings
 		EncryptionKey: getEnv("ENCRYPTION_KEY", "32-byte-encryption-key-for-crypto"),

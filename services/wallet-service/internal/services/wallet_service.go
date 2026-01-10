@@ -1,14 +1,15 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
-	"github.com/streadway/amqp"
 )
 
 type WalletService struct {
@@ -17,7 +18,7 @@ type WalletService struct {
 	cryptoService   *CryptoService
 	balanceService  *BalanceService
 	feeService      *FeeService
-	mqChannel       *amqp.Channel
+	kafkaClient     *messaging.KafkaClient
 }
 
 func NewWalletService(
@@ -26,7 +27,7 @@ func NewWalletService(
 	cryptoService *CryptoService,
 	balanceService *BalanceService,
 	feeService *FeeService,
-	mqChannel *amqp.Channel,
+	kafkaClient *messaging.KafkaClient,
 ) *WalletService {
 	return &WalletService{
 		walletRepo:      walletRepo,
@@ -34,7 +35,7 @@ func NewWalletService(
 		cryptoService:   cryptoService,
 		balanceService:  balanceService,
 		feeService:      feeService,
-		mqChannel:       mqChannel,
+		kafkaClient:     kafkaClient,
 	}
 }
 
@@ -511,56 +512,41 @@ func (s *WalletService) monitorTransactionConfirmations(transactionID, txHash, c
 }
 
 func (s *WalletService) publishWalletEvent(eventType string, wallet *models.Wallet) {
-	if s.mqChannel == nil {
+	if s.kafkaClient == nil {
 		return
 	}
 
-	event := map[string]interface{}{
-		"type":      eventType,
+	eventData := map[string]interface{}{
 		"wallet_id": wallet.ID,
 		"user_id":   wallet.UserID,
 		"currency":  wallet.Currency,
-		"timestamp": time.Now(),
+		"balance":   wallet.Balance,
 	}
 
-	eventJSON, _ := json.Marshal(event)
-
-	s.mqChannel.Publish(
-		"wallet.events", // exchange
-		eventType,       // routing key
-		false,           // mandatory
-		false,           // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	envelope := messaging.NewEventEnvelope(eventType, "wallet-service", eventData)
+	
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicWalletEvents, envelope); err != nil {
+		// Log error but don't fail
+		_ = err
+	}
 }
 
 func (s *WalletService) publishTransactionEvent(eventType string, transaction *models.Transaction) {
-	if s.mqChannel == nil {
+	if s.kafkaClient == nil {
 		return
 	}
 
-	event := map[string]interface{}{
-		"type":           eventType,
+	eventData := map[string]interface{}{
 		"transaction_id": transaction.ID,
 		"amount":         transaction.Amount,
 		"currency":       transaction.Currency,
 		"status":         transaction.Status,
-		"timestamp":      time.Now(),
 	}
 
-	eventJSON, _ := json.Marshal(event)
-
-	s.mqChannel.Publish(
-		"transaction.events", // exchange
-		eventType,            // routing key
-		false,                // mandatory
-		false,                // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	envelope := messaging.NewEventEnvelope(eventType, "wallet-service", eventData)
+	
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicTransactionEvents, envelope); err != nil {
+		// Log error but don't fail
+		_ = err
+	}
 }
