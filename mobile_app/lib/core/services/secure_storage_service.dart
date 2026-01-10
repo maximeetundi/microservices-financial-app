@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'dart:convert';
 
 /// Service de stockage sécurisé pour les données sensibles
 class SecureStorageService {
@@ -134,16 +135,41 @@ class SecureStorageService {
     return null;
   }
 
-  // Generic storage methods for external use
-  Future<void> write(String key, String value) async {
-    await _storage.write(key: key, value: value);
+  // User Profile Caching
+  static const String _userProfileKey = 'user_profile_cache';
+
+  Future<void> saveUserProfile(Map<String, dynamic> json) async {
+    await _storage.write(key: _userProfileKey, value: jsonEncode(json));
   }
 
-  Future<String?> read(String key) async {
-    return await _storage.read(key: key);
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final jsonStr = await _storage.read(key: _userProfileKey);
+    if (jsonStr != null) {
+      try {
+        return jsonDecode(jsonStr) as Map<String, dynamic>;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
-  Future<void> delete(String key) async {
-    await _storage.delete(key: key);
+  // Wallet Caching
+  static const String _walletsKey = 'wallets_cache';
+
+  Future<void> saveWallets(List<dynamic> json) async {
+    await _storage.write(key: _walletsKey, value: jsonEncode(json));
+  }
+
+  Future<List<dynamic>?> getWallets() async {
+    final jsonStr = await _storage.read(key: _walletsKey);
+    if (jsonStr != null) {
+      try {
+        return jsonDecode(jsonStr) as List<dynamic>;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 }

@@ -56,8 +56,17 @@ export const useAuthStore = defineStore('auth', {
       if (token && refreshToken) {
         this.accessToken = token
         this.refreshToken = refreshToken
-        // Set authenticated immediately - don't wait for profile
         this.isAuthenticated = true
+
+        // Hydrate user from localStorage first
+        const cachedUser = localStorage.getItem('user')
+        if (cachedUser) {
+          try {
+            this.user = JSON.parse(cachedUser)
+          } catch (e) {
+            console.error('Failed to parse cached user', e)
+          }
+        }
 
         // Sync to cookies for SSR middleware
         if (typeof document !== 'undefined') {
@@ -65,23 +74,19 @@ export const useAuthStore = defineStore('auth', {
           document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Lax`
         }
 
-        // Only fetch profile if we don't already have user data
-        if (!this.user) {
-          try {
-            this.isLoading = true
-            await this.fetchUserProfile()
-          } catch (error: any) {
-            // Profile fetch failed - check if it's a 401 (token expired)
-            if (error.response?.status === 401) {
-              // Token is invalid, let the API interceptor handle refresh
-              console.warn('Profile fetch returned 401, token may need refresh')
-            } else {
-              // Other error - keep auth state, user can retry
-              console.warn('Profile fetch failed, keeping auth state:', error)
-            }
-          } finally {
-            this.isLoading = false
+        // Fetch fresh profile in background
+        try {
+          // Don't set loading=true if we have cached user to avoid UI flicker
+          if (!this.user) this.isLoading = true
+          await this.fetchUserProfile()
+        } catch (error: any) {
+          if (error.response?.status === 401) {
+            console.warn('Profile fetch returned 401, token may need refresh')
+          } else {
+            console.warn('Profile fetch failed, keeping auth state:', error)
           }
+        } finally {
+          this.isLoading = false
         }
       }
     },
@@ -105,6 +110,7 @@ export const useAuthStore = defineStore('auth', {
         // Store in localStorage
         localStorage.setItem('accessToken', access_token)
         localStorage.setItem('refreshToken', refresh_token)
+        localStorage.setItem('user', JSON.stringify(user)) // Persist user
 
         // Also set cookies for SSR/middleware compatibility
         if (typeof document !== 'undefined') {
@@ -165,6 +171,8 @@ export const useAuthStore = defineStore('auth', {
 
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user') // Clear user
+        localStorage.removeItem('wallet_store') // Clear wallet store
 
         // Clear session storage including PIN flags
         if (typeof sessionStorage !== 'undefined') {
@@ -216,6 +224,7 @@ export const useAuthStore = defineStore('auth', {
 
         this.user = response.data
         this.isAuthenticated = true
+        localStorage.setItem('user', JSON.stringify(this.user)) // Persist updated profile
       } catch (error) {
         throw error
       }

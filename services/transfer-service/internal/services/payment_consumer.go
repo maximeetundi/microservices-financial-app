@@ -114,9 +114,15 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	// If there's a credit operation (to wallet)
 	if paymentReq.ToWalletID != "" && paymentReq.CreditAmount > 0 {
-		log.Printf("[TRACE-FIAT] Processing Credit for UserID: %s, ToWalletID: %s", paymentReq.UserID, paymentReq.ToWalletID)
+		// Determine correct UserID for credit (Organizer/Payee)
+		creditUserID := paymentReq.UserID
+		if paymentReq.DestinationUserID != "" {
+			creditUserID = paymentReq.DestinationUserID
+		}
+
+		log.Printf("[TRACE-FIAT] Processing Credit for UserID: %s, ToWalletID: %s", creditUserID, paymentReq.ToWalletID)
 		creditReq := &WalletTransactionRequest{
-			UserID:    paymentReq.UserID,
+			UserID:    creditUserID,
 			WalletID:  paymentReq.ToWalletID,
 			Amount:    paymentReq.CreditAmount,
 			Currency:  paymentReq.Currency,

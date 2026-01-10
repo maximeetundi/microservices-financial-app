@@ -35,6 +35,7 @@ Future<void> init() async {
   sl.registerFactory<WalletBloc>(
     () => WalletBloc(
       apiService: sl<ApiService>(),
+      secureStorage: sl<SecureStorageService>(), // Added dependency
     ),
   );
   

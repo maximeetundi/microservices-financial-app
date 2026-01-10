@@ -397,10 +397,18 @@ class _ModernHomePageState extends State<ModernHomePage>
         children: [
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, state) {
+              if (state is AuthLoadingState || state is AuthInitialState) {
+                return const ShimmerLoading(
+                  width: 200,
+                  height: 34,
+                );
+              }
+              
               String name = 'Utilisateur';
               if (state is AuthenticatedState) {
-                name = state.user.fullName;
+                name = state.user.firstName ?? state.user.fullName;
               }
+              
               return Text(
                 'Bonjour, $name 👋',
                 style: GoogleFonts.inter(

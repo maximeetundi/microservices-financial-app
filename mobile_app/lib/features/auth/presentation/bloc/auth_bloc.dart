@@ -204,8 +204,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = User.fromJson(userData);
       final token = result['access_token'] as String;
       
-      // Save user ID
+      // Save user ID and Profile
       await _secureStorage.saveUserId(user.id);
+      await _secureStorage.saveUserProfile(userData);
       
       emit(AuthenticatedState(user: user, token: token));
     } on DioException catch (e) {
@@ -271,18 +272,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
+      // 1. Try local cache first for immediate display
+      final cachedProfile = await _secureStorage.getUserProfile();
+      if (cachedProfile != null) {
+        try {
+          final user = User.fromJson(cachedProfile);
+          emit(AuthenticatedState(user: user, token: ''));
+        } catch (e) {
+          // Ignore cache error, proceed to network
+        }
+      }
+
       final isAuthenticated = await _apiService.auth.isAuthenticated();
       
       if (isAuthenticated) {
         final profileData = await _apiService.auth.getProfile();
-        final user = User.fromJson(profileData);
         
+        // Cache fresh data
+        await _secureStorage.saveUserProfile(profileData);
+        
+        final user = User.fromJson(profileData);
         emit(AuthenticatedState(user: user, token: ''));
       } else {
         emit(const UnauthenticatedState());
       }
     } catch (e) {
-      emit(const UnauthenticatedState());
+      // If offline and we have cache, keep it.
+      // Only emit Unauthenticated if we don't have a valid state
+      if (state is! AuthenticatedState) {
+        emit(const UnauthenticatedState());
+      }
     }
   }
 

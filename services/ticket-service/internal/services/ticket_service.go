@@ -327,15 +327,16 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 	// Or we pass creatorID as destination user.
 	
 	paymentReq := messaging.PaymentRequestEvent{
-		RequestID:     txID,
-		FromWalletID:  req.WalletID,
+		RequestID:         txID,
+		UserID:            buyerID, // Set buyer as the event initiator/payer
+		FromWalletID:      req.WalletID,
 		DestinationUserID: event.CreatorID, // Set organizer as destination
-		ToWalletID:    "", // Will be resolved by transfer-service using DestinationUserID
-		DebitAmount:   tier.Price,
-		CreditAmount:  tier.Price,
-		Currency:      event.Currency,
-		Type:          "ticket_purchase",
-		ReferenceID:   fmt.Sprintf("TICKET_%s", ticketCode),
+		ToWalletID:        "",              // Will be resolved by transfer-service using DestinationUserID
+		DebitAmount:       tier.Price,
+		CreditAmount:      tier.Price,
+		Currency:          event.Currency,
+		Type:              "ticket_purchase",
+		ReferenceID:       fmt.Sprintf("TICKET_%s", ticketCode),
 	}
 
 	// Publish payment request to Kafka

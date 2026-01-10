@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/services/api_service.dart';
+import '../../../../core/services/secure_storage_service.dart';
 import '../../domain/entities/wallet.dart';
 import '../../domain/entities/transaction.dart' as tx;
 
@@ -165,10 +166,13 @@ class WalletCreatedState extends WalletState {
 // BLoC
 class WalletBloc extends Bloc<WalletEvent, WalletState> {
   final ApiService _apiService;
+  final SecureStorageService _secureStorage; // Add secure storage
 
   WalletBloc({
     required ApiService apiService,
+    required SecureStorageService secureStorage, // Add to constructor
   })  : _apiService = apiService,
+        _secureStorage = secureStorage,
         super(const WalletInitialState()) {
     on<LoadWalletsEvent>(_onLoadWallets);
     on<CreateWalletEvent>(_onCreateWallet);
@@ -185,7 +189,31 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
     emit(const WalletLoadingState());
 
     try {
+      // 1. Try local cache first
+      final cachedWallets = await _secureStorage.getWallets();
+      if (cachedWallets != null) {
+        try {
+          final wallets = cachedWallets.map((w) => Wallet.fromJson(w as Map<String, dynamic>)).toList();
+          if (wallets.isNotEmpty) {
+             final totalValue = wallets.fold<double>(
+              0, 
+              (sum, wallet) => sum + (wallet.balance * wallet.usdRate),
+            );
+            emit(WalletLoadedState(
+              wallets: wallets,
+              totalValue: totalValue,
+              dailyChange: 0,
+              recentTransactions: const [],
+            ));
+          }
+        } catch (_) {}
+      }
+
       final walletsData = await _apiService.wallet.getWallets();
+      
+      // Cache fresh data
+      await _secureStorage.saveWallets(walletsData);
+
       final wallets = walletsData.map((w) => Wallet.fromJson(w)).toList();
       
       final totalValue = wallets.fold<double>(
@@ -212,7 +240,9 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
         recentTransactions: recentTransactions,
       ));
     } catch (e) {
-      emit(WalletErrorState(message: _getErrorMessage(e)));
+      if (state is! WalletLoadedState) {
+         emit(WalletErrorState(message: _getErrorMessage(e)));
+      }
     }
   }
 
