@@ -144,7 +144,20 @@
             <form @submit.prevent="openPinModal">
               <div v-for="field in event?.form_fields" :key="field.name" class="form-group">
                 <label>{{ field.label }} <span v-if="field.required">*</span></label>
+                
+                <!-- Select Field -->
+                <select 
+                  v-if="field.type === 'select'"
+                  v-model="formData[field.name]"
+                  :required="field.required"
+                >
+                  <option value="">Sélectionner...</option>
+                  <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+
+                <!-- Text/Email/Phone Field -->
                 <input 
+                  v-else
                   v-model="formData[field.name]" 
                   :type="field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'"
                   :required="field.required"
@@ -1325,6 +1338,12 @@ onUnmounted(() => {
 
 .form-group input::placeholder {
   color: var(--text-muted);
+}
+
+.form-group select option {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 10px;
 }
 
 .btn-confirm {
