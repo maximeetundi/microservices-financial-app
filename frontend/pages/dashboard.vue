@@ -23,7 +23,8 @@
             <span class="badge badge-success">+5.2%</span>
           </div>
           <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Solde Total</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.totalBalance) }}</p>
+          <div v-if="loading" class="h-8 w-32 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse"></div>
+          <p v-else class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.totalBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-green">
@@ -34,7 +35,8 @@
             <span class="badge badge-success">+12.8%</span>
           </div>
           <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Crypto Portfolio</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.cryptoBalance) }}</p>
+          <div v-if="loading" class="h-8 w-32 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse"></div>
+          <p v-else class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatMoney(stats.cryptoBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-purple">
@@ -46,8 +48,10 @@
             </div>
           </div>
           <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Cartes Actives</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.activeCards }}</p>
-          <p class="text-sm text-gray-400 dark:text-slate-500">Solde: {{ formatMoney(stats.cardsBalance) }}</p>
+          <div v-if="loading" class="h-8 w-16 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse mb-1"></div>
+          <p v-else class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.activeCards }}</p>
+          <div v-if="loading" class="h-4 w-24 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse"></div>
+          <p v-else class="text-sm text-gray-400 dark:text-slate-500">Solde: {{ formatMoney(stats.cardsBalance) }}</p>
         </div>
 
         <div class="stat-card stat-card-orange">
@@ -59,8 +63,10 @@
             </div>
           </div>
           <p class="text-gray-500 dark:text-slate-400 text-sm mb-1">Transferts ce mois</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.monthlyTransfers }}</p>
-          <p class="text-sm text-gray-400 dark:text-slate-500">Volume: {{ formatMoney(stats.monthlyVolume) }}</p>
+          <div v-if="loading" class="h-8 w-16 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse mb-1"></div>
+          <p v-else class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.monthlyTransfers }}</p>
+          <div v-if="loading" class="h-4 w-24 bg-gray-200 dark:bg-slate-700 rounded-md animate-pulse"></div>
+          <p v-else class="text-sm text-gray-400 dark:text-slate-500">Volume: {{ formatMoney(stats.monthlyVolume) }}</p>
         </div>
       </div>
 

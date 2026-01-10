@@ -28,7 +28,8 @@
           <div>
             <p class="text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider text-sm">Valeur Totale</p>
             <div class="flex items-baseline gap-3">
-              <h2 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
+              <div v-if="loading" class="h-14 w-64 bg-gray-200 dark:bg-slate-800 rounded-xl animate-pulse my-1"></div>
+              <h2 v-else class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
                 {{ formatMoney(totalBalance) }}
               </h2>
             </div>
@@ -56,7 +57,23 @@
       </div>
 
       <!-- Wallets Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div v-for="i in 3" :key="i" class="glass-card p-6 h-64 animate-pulse bg-white/50 dark:bg-slate-900/50 border border-gray-200 dark:border-white/5 relative overflow-hidden">
+           <div class="flex items-center justify-between mb-6">
+              <div class="flex items-center gap-4">
+                 <div class="w-12 h-12 rounded-xl bg-gray-200 dark:bg-slate-800"></div>
+                 <div class="space-y-2">
+                    <div class="h-4 w-20 bg-gray-200 dark:bg-slate-800 rounded"></div>
+                    <div class="h-3 w-32 bg-gray-200 dark:bg-slate-800 rounded"></div>
+                 </div>
+              </div>
+           </div>
+           <div class="h-8 w-40 bg-gray-200 dark:bg-slate-800 rounded mb-2"></div>
+           <div class="h-4 w-24 bg-gray-200 dark:bg-slate-800 rounded"></div>
+        </div>
+      </div>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div v-for="wallet in wallets" :key="wallet.id" 
             class="glass-card p-6 cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 relative overflow-hidden group dark:bg-slate-900 border border-gray-200 dark:border-white/10"
             :class="{'ring-2 ring-indigo-500 dark:ring-indigo-400': selectedWallet?.id === wallet.id}"
@@ -362,6 +379,7 @@ const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showTopUpModal = ref(false)
 const creatingWallet = ref(false)
+const loading = ref(true)
 
 // Deposit form
 const depositAmount = ref(5000)
@@ -481,6 +499,7 @@ const submitDeposit = async () => {
 }
 
 const fetchWallets = async () => {
+  loading.value = true
   try {
     const response = await walletAPI.getAll()
     if (response.data?.wallets) {
@@ -517,7 +536,10 @@ const fetchWallets = async () => {
      wallets.value = [
       { id: 1, type: 'fiat', wallet_type: 'fiat', currency: 'USD', name: 'Main USD', balance: 1500.50, balanceUSD: 1500.50, status: 'active', address: 'USD-1234-5678' },
       { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
+      { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
     ]
+  } finally {
+    loading.value = false
   }
 }
 

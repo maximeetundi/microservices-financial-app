@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/loading_widget.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
 import '../bloc/wallet_bloc.dart';
 import '../widgets/deposit_bottom_sheet.dart';
 import '../widgets/wallet_widgets.dart';
@@ -90,7 +91,7 @@ class _WalletPageState extends State<WalletPage> {
                  child: BlocBuilder<WalletBloc, WalletState>(
                     builder: (context, state) {
                       if (state is WalletLoadingState) {
-                        return const LoadingWidget();
+                        return _buildShimmerWalletContent();
                       } else if (state is WalletLoadedState) {
                         return _buildWalletContent(state);
                       } else if (state is WalletErrorState) {
@@ -103,6 +104,105 @@ class _WalletPageState extends State<WalletPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+
+
+  Widget _buildShimmerWalletContent() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? const Color(0xFF1E293B).withOpacity(0.5) : Colors.white.withOpacity(0.5);
+    
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          // Total Portfolio Value Shimmer
+          Container(
+            margin: const EdgeInsets.all(16),
+            height: 180,
+            decoration: BoxDecoration(
+              color: baseColor,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ShimmerLoading(width: 100, height: 16, borderRadius: BorderRadius.circular(4)),
+                const SizedBox(height: 16),
+                ShimmerLoading(width: 200, height: 40, borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                     ShimmerLoading(width: 24, height: 24, borderRadius: BorderRadius.circular(12)),
+                     const SizedBox(width: 8),
+                     ShimmerLoading(width: 80, height: 16, borderRadius: BorderRadius.circular(4)),
+                  ],
+                )
+              ],
+            ),
+          ),
+          
+          // Quick Actions Shimmer
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+             child: Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: List.generate(4, (index) => 
+                 ShimmerLoading(width: 70, height: 70, borderRadius: BorderRadius.circular(16))
+               ),
+             ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Wallets List Shimmer
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: List.generate(3, (index) => 
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: baseColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        ShimmerLoading(width: 48, height: 48, borderRadius: BorderRadius.circular(12)),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ShimmerLoading(width: 60, height: 16, borderRadius: BorderRadius.circular(4)),
+                            const SizedBox(height: 8),
+                            ShimmerLoading(width: 40, height: 12, borderRadius: BorderRadius.circular(4)),
+                          ],
+                        ),
+                        const Spacer(),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ShimmerLoading(width: 80, height: 16, borderRadius: BorderRadius.circular(4)),
+                            const SizedBox(height: 8),
+                            ShimmerLoading(width: 60, height: 12, borderRadius: BorderRadius.circular(4)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
