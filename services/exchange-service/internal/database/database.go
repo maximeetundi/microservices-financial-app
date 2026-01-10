@@ -99,60 +99,54 @@ func (r *RabbitMQClient) GetChannel() *amqp.Channel {
 	return r.channel
 }
 
-// ensureConnection checks if connection is alive and reconnects if needed
-func (r *RabbitMQClient) ensureConnection() error {
+// forceReconnect forces a reconnection to RabbitMQ
+func (r *RabbitMQClient) forceReconnect() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	
-	// Check if channel is closed
-	if r.channel == nil || r.conn == nil || r.conn.IsClosed() {
-		log.Println("[RabbitMQ] Connection is closed, attempting to reconnect...")
-		
-		// Close existing connection if any
-		if r.channel != nil {
-			r.channel.Close()
-		}
-		if r.conn != nil {
-			r.conn.Close()
-		}
-		
-		// Reconnect
-		conn, err := amqp.Dial(r.url)
-		if err != nil {
-			return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
-		}
-		
-		channel, err := conn.Channel()
-		if err != nil {
-			conn.Close()
-			return fmt.Errorf("failed to reopen RabbitMQ channel: %w", err)
-		}
-		
-		// Redeclare exchanges and queues
-		if err := declareExchangesAndQueues(channel); err != nil {
-			channel.Close()
-			conn.Close()
-			return fmt.Errorf("failed to redeclare exchanges: %w", err)
-		}
-		
-		r.conn = conn
-		r.channel = channel
-		log.Println("[RabbitMQ] Reconnected successfully!")
+	log.Println("[RabbitMQ] Forcing reconnection...")
+	
+	// Close existing connection if any
+	if r.channel != nil {
+		r.channel.Close()
+		r.channel = nil
 	}
+	if r.conn != nil {
+		r.conn.Close()
+		r.conn = nil
+	}
+	
+	// Reconnect
+	conn, err := amqp.Dial(r.url)
+	if err != nil {
+		return fmt.Errorf("failed to reconnect to RabbitMQ: %w", err)
+	}
+	
+	channel, err := conn.Channel()
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to reopen RabbitMQ channel: %w", err)
+	}
+	
+	// Redeclare exchanges and queues
+	if err := declareExchangesAndQueues(channel); err != nil {
+		channel.Close()
+		conn.Close()
+		return fmt.Errorf("failed to redeclare exchanges: %w", err)
+	}
+	
+	r.conn = conn
+	r.channel = channel
+	log.Println("[RabbitMQ] Reconnected successfully!")
 	
 	return nil
 }
 
 func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message []byte) error {
-	// Ensure connection is alive
-	if err := r.ensureConnection(); err != nil {
-		return err
-	}
-	
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	
-	return r.channel.Publish(
+	// Try to publish
+	err := r.channel.Publish(
 		exchange,
 		routingKey,
 		false,
@@ -162,6 +156,38 @@ func (r *RabbitMQClient) PublishToExchange(exchange, routingKey string, message 
 			Body:        message,
 		},
 	)
+	r.mu.Unlock()
+	
+	// If publish failed, try to reconnect and retry once
+	if err != nil {
+		log.Printf("[RabbitMQ] Publish failed: %v, attempting reconnect...", err)
+		
+		if reconnErr := r.forceReconnect(); reconnErr != nil {
+			return fmt.Errorf("publish failed and reconnect failed: %w", reconnErr)
+		}
+		
+		// Retry the publish
+		r.mu.Lock()
+		err = r.channel.Publish(
+			exchange,
+			routingKey,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        message,
+			},
+		)
+		r.mu.Unlock()
+		
+		if err != nil {
+			return fmt.Errorf("publish failed after reconnect: %w", err)
+		}
+		
+		log.Println("[RabbitMQ] Publish succeeded after reconnect")
+	}
+	
+	return nil
 }
 
 func (r *RabbitMQClient) Consume(queue string) (<-chan amqp.Delivery, error) {
