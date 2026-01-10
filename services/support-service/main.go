@@ -22,7 +22,6 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
-	// supportChatsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "support_chats_total", Help: "Total support chats"}, []string{"status", "agent_type"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
