@@ -29,16 +29,24 @@ func (c *PaymentStatusConsumer) SetFiatExchangeService(fiatService *FiatExchange
 }
 
 func (c *PaymentStatusConsumer) Start() error {
+	log.Println("[EXC-CONSUMER DEBUG] Starting PaymentStatusConsumer...")
+	
 	msgs, err := c.mqClient.Consume("exchange.payment.updates")
 	if err != nil {
+		log.Printf("[EXC-CONSUMER ERROR] Failed to consume queue: %v", err)
 		return fmt.Errorf("failed to start consuming exchange payment updates queue: %w", err)
 	}
 
+	log.Println("[EXC-CONSUMER DEBUG] Successfully connected to exchange.payment.updates queue")
+
 	go func() {
+		log.Println("[EXC-CONSUMER DEBUG] Message loop started")
 		for d := range msgs {
+			log.Printf("[EXC-CONSUMER DEBUG] Received status event: %s", string(d.Body))
+			
 			var event models.PaymentStatusEvent
 			if err := json.Unmarshal(d.Body, &event); err != nil {
-				log.Printf("Error unmarshalling payment status event: %v", err)
+				log.Printf("[EXC-CONSUMER ERROR] Error unmarshalling payment status event: %v", err)
 				d.Ack(false)
 				continue
 			}
