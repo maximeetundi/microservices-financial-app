@@ -6,20 +6,25 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
 	"github.com/go-redis/redis/v8"
 )
 
 type BalanceService struct {
-	walletRepo  *repository.WalletRepository
-	redisClient *redis.Client
+	walletRepo     *repository.WalletRepository
+	redisClient    *redis.Client
+	exchangeClient *ExchangeClient
+	kafkaClient    *messaging.KafkaClient
 }
 
-func NewBalanceService(walletRepo *repository.WalletRepository, redisClient *redis.Client) *BalanceService {
+func NewBalanceService(walletRepo *repository.WalletRepository, redisClient *redis.Client, exchangeClient *ExchangeClient, kafkaClient *messaging.KafkaClient) *BalanceService {
 	return &BalanceService{
-		walletRepo:  walletRepo,
-		redisClient: redisClient,
+		walletRepo:     walletRepo,
+		redisClient:    redisClient,
+		exchangeClient: exchangeClient,
+		kafkaClient:    kafkaClient,
 	}
 }
 
@@ -87,6 +92,14 @@ func (s *BalanceService) UpdateBalance(walletID string, amount float64, transact
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("balance:%s", walletID)
 	s.redisClient.Del(ctx, cacheKey)
+
+	// Trigger async total balance update
+	// We need UserID. How to get it? WalletRepo GetByID again?
+	// The update above used walletID.
+	wallet, _ := s.walletRepo.GetByID(walletID)
+	if wallet != nil {
+		go s.UpdateTotalBalanceUSDAndPublish(wallet.UserID)
+	}
 
 	return nil
 }
@@ -162,33 +175,48 @@ func (s *BalanceService) ValidateSufficientBalance(walletID string, amount float
 	return nil
 }
 
+// GetTotalBalanceInUSD calculates the total balance in USD across all wallets
 func (s *BalanceService) GetTotalBalanceInUSD(userID string) (float64, error) {
-	// This would require integration with exchange rate service
-	// For now, return a mock value
 	balances, err := s.GetUserBalances(userID)
 	if err != nil {
 		return 0, err
 	}
 
-	// Mock exchange rates
-	exchangeRates := map[string]float64{
-		"USD": 1.0,
-		"EUR": 1.18,
-		"BTC": 45000.0,
-		"ETH": 3000.0,
-		"BSC": 300.0,
-	}
-
 	totalUSD := 0.0
 	for _, balance := range balances {
-		rate := exchangeRates[balance.Currency]
-		if rate == 0 {
-			rate = 1.0 // Default rate
+		// Convert each balance to USD using ExchangeClient
+		// Using ConvertAmount which handles fallback rates or API calls
+		usdAmount, err := s.exchangeClient.ConvertAmount(balance.Total, balance.Currency, "USD")
+		if err != nil {
+			// Log error but continue with other wallets (treat as 0 or use approximation)
+			fmt.Printf("Error converting %s to USD: %v\n", balance.Currency, err)
+			continue
 		}
-		totalUSD += balance.Total * rate
+		totalUSD += usdAmount
 	}
 
 	return totalUSD, nil
+}
+
+// UpdateTotalBalanceUSDAndPublish calculates total USD balance and publishes an event
+func (s *BalanceService) UpdateTotalBalanceUSDAndPublish(userID string) {
+	totalUSD, err := s.GetTotalBalanceInUSD(userID)
+	if err != nil {
+		fmt.Printf("Failed to calculate total USD balance for user %s: %v\n", userID, err)
+		return
+	}
+
+	// Publish event
+	if s.kafkaClient != nil {
+		eventData := map[string]interface{}{
+			"user_id":           userID,
+			"total_balance_usd": totalUSD,
+			"updated_at":        time.Now(),
+		}
+		
+		envelope := messaging.NewEventEnvelope("user.balance_updated", "wallet-service", eventData)
+		s.kafkaClient.Publish(context.Background(), messaging.TopicUserEvents, envelope)
+	}
 }
 
 func (s *BalanceService) GetBalanceHistory(walletID string, days int) ([]map[string]interface{}, error) {

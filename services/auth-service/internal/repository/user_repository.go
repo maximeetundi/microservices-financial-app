@@ -396,9 +396,14 @@ func (r *UserRepository) SetPinTempLock(userID string, attempts int, lockUntil *
 	return err
 }
 
-// SetPinPermanentlyLocked sets or unsets the permanent lock on the PIN
 func (r *UserRepository) SetPinPermanentlyLocked(userID string, locked bool) error {
 	query := `UPDATE users SET pin_permanently_locked = $1, pin_failed_attempts = 0, pin_locked_until = NULL WHERE id = $2`
 	_, err := r.db.Exec(query, locked, userID)
+	return err
+}
+
+func (r *UserRepository) UpdateTotalBalanceUSD(userID string, amount float64) error {
+	query := `UPDATE users SET total_balance_usd = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(query, amount, userID)
 	return err
 }

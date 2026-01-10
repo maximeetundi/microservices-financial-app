@@ -23,6 +23,7 @@ CREATE TABLE users (
     phone_verified BOOLEAN DEFAULT false,
     last_login_at TIMESTAMP,
     failed_attempts INTEGER DEFAULT 0,
+    total_balance_usd DECIMAL(20,8) DEFAULT 0,
     locked_until TIMESTAMP,
     -- PIN fields (5-digit transaction security PIN)
     pin_hash VARCHAR(255),

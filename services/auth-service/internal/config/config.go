@@ -1,8 +1,8 @@
 package config
 
-import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -12,6 +12,7 @@ type Config struct {
 	DBUrl       string
 	RedisURL    string
 	RabbitMQURL string
+	KafkaBrokers []string
 	JWTSecret   string
 	
 	// JWT settings
@@ -74,7 +75,9 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8081"),
 		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		KafkaBrokers: strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
 		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 
 		// JWT settings

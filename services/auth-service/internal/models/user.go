@@ -24,6 +24,7 @@ type User struct {
 	LastLoginAt   *time.Time `json:"last_login_at" db:"last_login_at"`
 	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
+	TotalBalanceUSD float64    `json:"total_balance_usd" db:"total_balance_usd"`
 	
 	// Security fields
 	FailedAttempts int        `json:"-" db:"failed_attempts"`

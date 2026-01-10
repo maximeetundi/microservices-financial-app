@@ -17,6 +17,7 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
 // Prometheus metrics
@@ -92,6 +93,18 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db, redisClient)
 	prefsRepo := repository.NewPreferencesRepository(db)
+
+	// Initialize Kafka for Total Balance updates
+	kafkaClient, err := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Kafka: %v", err)
+	} else {
+		defer kafkaClient.Close()
+		balanceConsumer := services.NewKafkaConsumer(kafkaClient, userRepo)
+		if err := balanceConsumer.Start(); err != nil {
+			log.Printf("Warning: Failed to start balance consumer: %v", err)
+		}
+	}
 
 	// Initialize services
 	auditService := services.NewAuditService(mqChannel)
