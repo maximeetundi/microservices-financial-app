@@ -1,4 +1,4 @@
-module github.com/zekora/common
+module github.com/crypto-bank/microservices-financial-app/services/common
 
 go 1.21
 
