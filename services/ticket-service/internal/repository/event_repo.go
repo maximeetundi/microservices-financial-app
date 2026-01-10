@@ -1,173 +1,107 @@
 package repository
 
 import (
-	"database/sql"
-	"encoding/json"
+	"context"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/models"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type EventRepository struct {
-	db *sql.DB
+	collection *mongo.Collection
 }
 
-func NewEventRepository(db *sql.DB) *EventRepository {
-	return &EventRepository{db: db}
+func NewEventRepository(db *mongo.Database) *EventRepository {
+	return &EventRepository{
+		collection: db.Collection("events"),
+	}
 }
 
 func (r *EventRepository) Create(event *models.Event) error {
-	event.ID = uuid.New().String()
+	if event.ID == "" {
+		event.ID = uuid.New().String()
+	}
 	event.CreatedAt = time.Now()
 	event.UpdatedAt = time.Now()
 
-	formFieldsJSON, _ := json.Marshal(event.FormFields)
-
-	query := `
-		INSERT INTO events (id, creator_id, title, description, location, cover_image, 
-			start_date, end_date, sale_start_date, sale_end_date, form_fields, 
-			qr_code, event_code, status, currency, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-	`
-
-	_, err := r.db.Exec(query,
-		event.ID, event.CreatorID, event.Title, event.Description, event.Location,
-		event.CoverImage, event.StartDate, event.EndDate, event.SaleStartDate,
-		event.SaleEndDate, formFieldsJSON, event.QRCode, event.EventCode,
-		event.Status, event.Currency, event.CreatedAt, event.UpdatedAt,
-	)
-
+	_, err := r.collection.InsertOne(context.Background(), event)
 	return err
 }
 
 func (r *EventRepository) GetByID(id string) (*models.Event, error) {
-	query := `
-		SELECT id, creator_id, title, description, location, cover_image,
-			start_date, end_date, sale_start_date, sale_end_date, form_fields,
-			qr_code, event_code, status, currency, created_at, updated_at
-		FROM events WHERE id = $1
-	`
-
-	event := &models.Event{}
-	var formFieldsJSON []byte
-
-	err := r.db.QueryRow(query, id).Scan(
-		&event.ID, &event.CreatorID, &event.Title, &event.Description,
-		&event.Location, &event.CoverImage, &event.StartDate, &event.EndDate,
-		&event.SaleStartDate, &event.SaleEndDate, &formFieldsJSON,
-		&event.QRCode, &event.EventCode, &event.Status, &event.Currency,
-		&event.CreatedAt, &event.UpdatedAt,
-	)
+	var event models.Event
+	filter := bson.M{"_id": id}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&event)
 	if err != nil {
 		return nil, err
 	}
-
-	json.Unmarshal(formFieldsJSON, &event.FormFields)
-	return event, nil
+	return &event, nil
 }
 
 func (r *EventRepository) GetByCode(code string) (*models.Event, error) {
-	query := `
-		SELECT id, creator_id, title, description, location, cover_image,
-			start_date, end_date, sale_start_date, sale_end_date, form_fields,
-			qr_code, event_code, status, currency, created_at, updated_at
-		FROM events WHERE event_code = $1
-	`
-
-	event := &models.Event{}
-	var formFieldsJSON []byte
-
-	err := r.db.QueryRow(query, code).Scan(
-		&event.ID, &event.CreatorID, &event.Title, &event.Description,
-		&event.Location, &event.CoverImage, &event.StartDate, &event.EndDate,
-		&event.SaleStartDate, &event.SaleEndDate, &formFieldsJSON,
-		&event.QRCode, &event.EventCode, &event.Status, &event.Currency,
-		&event.CreatedAt, &event.UpdatedAt,
-	)
+	var event models.Event
+	filter := bson.M{"event_code": code}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&event)
 	if err != nil {
 		return nil, err
 	}
-
-	json.Unmarshal(formFieldsJSON, &event.FormFields)
-	return event, nil
+	return &event, nil
 }
 
 func (r *EventRepository) GetByCreator(creatorID string, limit, offset int) ([]*models.Event, error) {
-	query := `
-		SELECT id, creator_id, title, description, location, cover_image,
-			start_date, end_date, sale_start_date, sale_end_date, form_fields,
-			qr_code, event_code, status, currency, created_at, updated_at
-		FROM events 
-		WHERE creator_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+	var events []*models.Event
+	filter := bson.M{"creator_id": creatorID}
+	
+	opts := options.Find().
+		SetSort(bson.M{"created_at": -1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
 
-	rows, err := r.db.Query(query, creatorID, limit, offset)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var events []*models.Event
-	for rows.Next() {
-		event := &models.Event{}
-		var formFieldsJSON []byte
-
-		err := rows.Scan(
-			&event.ID, &event.CreatorID, &event.Title, &event.Description,
-			&event.Location, &event.CoverImage, &event.StartDate, &event.EndDate,
-			&event.SaleStartDate, &event.SaleEndDate, &formFieldsJSON,
-			&event.QRCode, &event.EventCode, &event.Status, &event.Currency,
-			&event.CreatedAt, &event.UpdatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var event models.Event
+		if err := cursor.Decode(&event); err != nil {
 			return nil, err
 		}
-
-		json.Unmarshal(formFieldsJSON, &event.FormFields)
-		events = append(events, event)
+		events = append(events, &event)
 	}
 
 	return events, nil
 }
 
 func (r *EventRepository) GetActive(limit, offset int) ([]*models.Event, error) {
-	query := `
-		SELECT id, creator_id, title, description, location, cover_image,
-			start_date, end_date, sale_start_date, sale_end_date, form_fields,
-			qr_code, event_code, status, currency, created_at, updated_at
-		FROM events 
-		WHERE status = 'active' AND sale_end_date > NOW()
-		ORDER BY start_date ASC
-		LIMIT $1 OFFSET $2
-	`
+	var events []*models.Event
+	filter := bson.M{
+		"status": "active",
+		"sale_end_date": bson.M{"$gt": time.Now()},
+	}
 
-	rows, err := r.db.Query(query, limit, offset)
+	opts := options.Find().
+		SetSort(bson.M{"start_date": 1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var events []*models.Event
-	for rows.Next() {
-		event := &models.Event{}
-		var formFieldsJSON []byte
-
-		err := rows.Scan(
-			&event.ID, &event.CreatorID, &event.Title, &event.Description,
-			&event.Location, &event.CoverImage, &event.StartDate, &event.EndDate,
-			&event.SaleStartDate, &event.SaleEndDate, &formFieldsJSON,
-			&event.QRCode, &event.EventCode, &event.Status, &event.Currency,
-			&event.CreatedAt, &event.UpdatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var event models.Event
+		if err := cursor.Decode(&event); err != nil {
 			return nil, err
 		}
-
-		json.Unmarshal(formFieldsJSON, &event.FormFields)
-		events = append(events, event)
+		events = append(events, &event)
 	}
 
 	return events, nil
@@ -175,32 +109,27 @@ func (r *EventRepository) GetActive(limit, offset int) ([]*models.Event, error) 
 
 func (r *EventRepository) Update(event *models.Event) error {
 	event.UpdatedAt = time.Now()
-	formFieldsJSON, _ := json.Marshal(event.FormFields)
+	filter := bson.M{"_id": event.ID}
+	update := bson.M{"$set": event}
 
-	query := `
-		UPDATE events SET
-			title = $2, description = $3, location = $4, cover_image = $5,
-			start_date = $6, end_date = $7, sale_start_date = $8, sale_end_date = $9,
-			form_fields = $10, status = $11, updated_at = $12
-		WHERE id = $1
-	`
-
-	_, err := r.db.Exec(query,
-		event.ID, event.Title, event.Description, event.Location, event.CoverImage,
-		event.StartDate, event.EndDate, event.SaleStartDate, event.SaleEndDate,
-		formFieldsJSON, event.Status, event.UpdatedAt,
-	)
-
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *EventRepository) UpdateStatus(id, status string) error {
-	query := `UPDATE events SET status = $2, updated_at = NOW() WHERE id = $1`
-	_, err := r.db.Exec(query, id, status)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"status":     status,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *EventRepository) Delete(id string) error {
-	_, err := r.db.Exec("DELETE FROM events WHERE id = $1", id)
+	filter := bson.M{"_id": id}
+	_, err := r.collection.DeleteOne(context.Background(), filter)
 	return err
 }

@@ -4,54 +4,54 @@ import "time"
 
 // Event represents an event created by an organizer
 type Event struct {
-	ID             string       `json:"id" db:"id"`
-	CreatorID      string       `json:"creator_id" db:"creator_id"`
-	Title          string       `json:"title" db:"title"`
-	Description    string       `json:"description" db:"description"`
-	Location       string       `json:"location" db:"location"`
-	CoverImage     string       `json:"cover_image" db:"cover_image"`
-	StartDate      time.Time    `json:"start_date" db:"start_date"`
-	EndDate        time.Time    `json:"end_date" db:"end_date"`
-	SaleStartDate  time.Time    `json:"sale_start_date" db:"sale_start_date"`
-	SaleEndDate    time.Time    `json:"sale_end_date" db:"sale_end_date"`
-	FormFields     []FormField  `json:"form_fields"`
-	TicketTiers    []TicketTier `json:"ticket_tiers"`
-	QRCode         string       `json:"qr_code" db:"qr_code"`
-	EventCode      string       `json:"event_code" db:"event_code"`
-	Status         string       `json:"status" db:"status"` // draft, active, ended, cancelled
-	Currency       string       `json:"currency" db:"currency"`
-	CreatedAt      time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time    `json:"updated_at" db:"updated_at"`
-	
-	// Computed fields
-	TotalSold      int          `json:"total_sold,omitempty"`
-	TotalRevenue   float64      `json:"total_revenue,omitempty"`
-	CreatorName    string       `json:"creator_name,omitempty"`
+	ID            string       `json:"id" bson:"_id,omitempty"`
+	CreatorID     string       `json:"creator_id" bson:"creator_id"`
+	Title         string       `json:"title" bson:"title"`
+	Description   string       `json:"description" bson:"description"`
+	Location      string       `json:"location" bson:"location"`
+	CoverImage    string       `json:"cover_image" bson:"cover_image"`
+	StartDate     time.Time    `json:"start_date" bson:"start_date"`
+	EndDate       time.Time    `json:"end_date" bson:"end_date"`
+	SaleStartDate time.Time    `json:"sale_start_date" bson:"sale_start_date"`
+	SaleEndDate   time.Time    `json:"sale_end_date" bson:"sale_end_date"`
+	FormFields    []FormField  `json:"form_fields" bson:"form_fields"`
+	TicketTiers   []TicketTier `json:"ticket_tiers" bson:"-"` // Loaded separately
+	QRCode        string       `json:"qr_code" bson:"qr_code"`
+	EventCode     string       `json:"event_code" bson:"event_code"`
+	Status        string       `json:"status" bson:"status"` // draft, active, ended, cancelled
+	Currency      string       `json:"currency" bson:"currency"`
+	CreatedAt     time.Time    `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time    `json:"updated_at" bson:"updated_at"`
+
+	// Computed fields (not stored)
+	TotalSold    int     `json:"total_sold,omitempty" bson:"-"`
+	TotalRevenue float64 `json:"total_revenue,omitempty" bson:"-"`
+	CreatorName  string  `json:"creator_name,omitempty" bson:"-"`
 }
 
 // FormField represents a custom form field for ticket purchase
 type FormField struct {
-	Name     string   `json:"name"`
-	Label    string   `json:"label"`
-	Type     string   `json:"type"` // text, email, phone, select, checkbox, number, date
-	Required bool     `json:"required"`
-	Options  []string `json:"options,omitempty"` // for select type
+	Name     string   `json:"name" bson:"name"`
+	Label    string   `json:"label" bson:"label"`
+	Type     string   `json:"type" bson:"type"` // text, email, phone, select, checkbox, number, date
+	Required bool     `json:"required" bson:"required"`
+	Options  []string `json:"options,omitempty" bson:"options,omitempty"` // for select type
 }
 
 // TicketTier represents a pricing tier for an event
 type TicketTier struct {
-	ID          string   `json:"id" db:"id"`
-	EventID     string   `json:"event_id" db:"event_id"`
-	Name        string   `json:"name" db:"name"`
-	Icon        string   `json:"icon" db:"icon"` // emoji or icon name from predefined list
-	Price       float64  `json:"price" db:"price"`
-	Quantity    int      `json:"quantity" db:"quantity"` // -1 for unlimited
-	Sold        int      `json:"sold" db:"sold"`
-	Description string   `json:"description" db:"description"`
-	Benefits    []string `json:"benefits"`
-	Color       string   `json:"color" db:"color"` // hex color for UI
-	SortOrder   int      `json:"sort_order" db:"sort_order"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID          string    `json:"id" bson:"_id,omitempty"`
+	EventID     string    `json:"event_id" bson:"event_id"`
+	Name        string    `json:"name" bson:"name"`
+	Icon        string    `json:"icon" bson:"icon"` // emoji or icon name from predefined list
+	Price       float64   `json:"price" bson:"price"`
+	Quantity    int       `json:"quantity" bson:"quantity"` // -1 for unlimited
+	Sold        int       `json:"sold" bson:"sold"`
+	Description string    `json:"description" bson:"description"`
+	Benefits    []string  `json:"benefits" bson:"benefits"`
+	Color       string    `json:"color" bson:"color"` // hex color for UI
+	SortOrder   int       `json:"sort_order" bson:"sort_order"`
+	CreatedAt   time.Time `json:"created_at" bson:"created_at"`
 }
 
 // Predefined icons for ticket tiers

@@ -45,6 +45,7 @@ func main() {
 	if err := database.Connect(); err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
+	defer database.Close()
 
 	// Initialize schema
 	if err := database.InitSchema(); err != nil {
@@ -52,9 +53,9 @@ func main() {
 	}
 
 	// Initialize repositories
-	eventRepo := repository.NewEventRepository(database.DB)
-	tierRepo := repository.NewTierRepository(database.DB)
-	ticketRepo := repository.NewTicketRepository(database.DB)
+	eventRepo := repository.NewEventRepository(database.Database)
+	tierRepo := repository.NewTierRepository(database.Database)
+	ticketRepo := repository.NewTicketRepository(database.Database)
 
 	// Initialize Kafka
 	kafkaBrokers := os.Getenv("KAFKA_BROKERS")

@@ -26,8 +26,8 @@ const (
 type MessageType string
 
 const (
-	MessageTypeUser  MessageType = "user"
-	MessageTypeAgent MessageType = "agent"
+	MessageTypeUser   MessageType = "user"
+	MessageTypeAgent  MessageType = "agent"
 	MessageTypeSystem MessageType = "system"
 )
 
@@ -43,69 +43,69 @@ const (
 
 // Agent represents a support agent (AI or human)
 type Agent struct {
-	ID          string    `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Email       string    `json:"email,omitempty" db:"email"`
-	Type        AgentType `json:"type" db:"type"`
-	Avatar      string    `json:"avatar,omitempty" db:"avatar"`
-	IsAvailable bool      `json:"is_available" db:"is_available"`
-	MaxChats    int       `json:"max_chats" db:"max_chats"`
-	ActiveChats int       `json:"active_chats" db:"active_chats"`
-	Skills      []string  `json:"skills,omitempty"`
-	Rating      float64   `json:"rating" db:"rating"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID          string    `json:"id" bson:"_id,omitempty"`
+	Name        string    `json:"name" bson:"name"`
+	Email       string    `json:"email,omitempty" bson:"email"`
+	Type        AgentType `json:"type" bson:"type"`
+	Avatar      string    `json:"avatar,omitempty" bson:"avatar"`
+	IsAvailable bool      `json:"is_available" bson:"is_available"`
+	MaxChats    int       `json:"max_chats" bson:"max_chats"`
+	ActiveChats int       `json:"active_chats" bson:"active_chats"`
+	Skills      []string  `json:"skills,omitempty" bson:"skills"`
+	Rating      float64   `json:"rating" bson:"rating"`
+	CreatedAt   time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" bson:"updated_at"`
 }
 
 // Conversation represents a support conversation
 type Conversation struct {
-	ID             string             `json:"id" db:"id"`
-	UserID         string             `json:"user_id" db:"user_id"`
-	UserName       string             `json:"user_name" db:"user_name"`
-	UserEmail      string             `json:"user_email,omitempty" db:"user_email"`
-	AgentID        *string            `json:"agent_id,omitempty" db:"agent_id"`
-	AgentType      AgentType          `json:"agent_type" db:"agent_type"`
-	Subject        string             `json:"subject" db:"subject"`
-	Category       string             `json:"category" db:"category"`
-	Status         ConversationStatus `json:"status" db:"status"`
-	Priority       Priority           `json:"priority" db:"priority"`
-	LastMessage    *string            `json:"last_message,omitempty" db:"last_message"`
-	LastMessageAt  *time.Time         `json:"last_message_at,omitempty" db:"last_message_at"`
-	UnreadCount    int                `json:"unread_count" db:"unread_count"`
-	MessageCount   int                `json:"message_count" db:"message_count"`
-	Rating         *int               `json:"rating,omitempty" db:"rating"`
-	Feedback       *string            `json:"feedback,omitempty" db:"feedback"`
-	ResolvedAt     *time.Time         `json:"resolved_at,omitempty" db:"resolved_at"`
-	CreatedAt      time.Time          `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at" db:"updated_at"`
-	
-	// Relations (not stored in DB)
-	Agent    *Agent    `json:"agent,omitempty"`
-	Messages []Message `json:"messages,omitempty"`
+	ID             string             `json:"id" bson:"_id,omitempty"`
+	UserID         string             `json:"user_id" bson:"user_id"`
+	UserName       string             `json:"user_name" bson:"user_name"`
+	UserEmail      string             `json:"user_email,omitempty" bson:"user_email"`
+	AgentID        *string            `json:"agent_id,omitempty" bson:"agent_id,omitempty"`
+	AgentType      AgentType          `json:"agent_type" bson:"agent_type"`
+	Subject        string             `json:"subject" bson:"subject"`
+	Category       string             `json:"category" bson:"category"`
+	Status         ConversationStatus `json:"status" bson:"status"`
+	Priority       Priority           `json:"priority" bson:"priority"`
+	LastMessage    *string            `json:"last_message,omitempty" bson:"last_message,omitempty"`
+	LastMessageAt  *time.Time         `json:"last_message_at,omitempty" bson:"last_message_at,omitempty"`
+	UnreadCount    int                `json:"unread_count" bson:"unread_count"`
+	MessageCount   int                `json:"message_count" bson:"message_count"`
+	Rating         *int               `json:"rating,omitempty" bson:"rating,omitempty"`
+	Feedback       *string            `json:"feedback,omitempty" bson:"feedback,omitempty"`
+	ResolvedAt     *time.Time         `json:"resolved_at,omitempty" bson:"resolved_at,omitempty"`
+	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at" bson:"updated_at"`
+
+	// Relations (not stored in DB, populated if needed)
+	Agent    *Agent    `json:"agent,omitempty" bson:"-"`
+	Messages []Message `json:"messages,omitempty" bson:"-"` // Or maybe store truncated list?
 }
 
 // Message represents a single message in a conversation
 type Message struct {
-	ID             string      `json:"id" db:"id"`
-	ConversationID string      `json:"conversation_id" db:"conversation_id"`
-	SenderID       string      `json:"sender_id" db:"sender_id"`
-	SenderName     string      `json:"sender_name" db:"sender_name"`
-	SenderType     MessageType `json:"sender_type" db:"sender_type"`
-	Content        string      `json:"content" db:"content"`
-	ContentType    string      `json:"content_type" db:"content_type"` // text, image, file
-	Attachments    []string    `json:"attachments" db:"attachments"`
-	IsRead         bool        `json:"is_read" db:"is_read"`
-	ReadAt         *time.Time  `json:"read_at,omitempty" db:"read_at"`
-	CreatedAt      time.Time   `json:"created_at" db:"created_at"`
+	ID             string      `json:"id" bson:"_id,omitempty"`
+	ConversationID string      `json:"conversation_id" bson:"conversation_id"`
+	SenderID       string      `json:"sender_id" bson:"sender_id"`
+	SenderName     string      `json:"sender_name" bson:"sender_name"`
+	SenderType     MessageType `json:"sender_type" bson:"sender_type"`
+	Content        string      `json:"content" bson:"content"`
+	ContentType    string      `json:"content_type" bson:"content_type"` // text, image, file
+	Attachments    []string    `json:"attachments" bson:"attachments"`
+	IsRead         bool        `json:"is_read" bson:"is_read"`
+	ReadAt         *time.Time  `json:"read_at,omitempty" bson:"read_at,omitempty"`
+	CreatedAt      time.Time   `json:"created_at" bson:"created_at"`
 }
 
 // QuickReply represents a pre-defined quick reply option
 type QuickReply struct {
-	ID       string `json:"id" db:"id"`
-	Label    string `json:"label" db:"label"`
-	Response string `json:"response" db:"response"`
-	Category string `json:"category" db:"category"`
-	IsActive bool   `json:"is_active" db:"is_active"`
+	ID       string `json:"id" bson:"_id,omitempty"`
+	Label    string `json:"label" bson:"label"`
+	Response string `json:"response" bson:"response"`
+	Category string `json:"category" bson:"category"`
+	IsActive bool   `json:"is_active" bson:"is_active"`
 }
 
 // SupportStats represents support statistics

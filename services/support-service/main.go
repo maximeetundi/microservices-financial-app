@@ -22,7 +22,7 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
-	supportChatsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "support_chats_total", Help: "Total support chats"}, []string{"status", "agent_type"})
+	// supportChatsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "support_chats_total", Help: "Total support chats"}, []string{"status", "agent_type"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
@@ -41,24 +41,20 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize database
-	db, err := database.Initialize(cfg.DBUrl)
-	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+	// Initialize MongoDB
+	if err := database.Connect(); err != nil {
+		log.Fatal("Failed to connect to database:", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	// Run migration to add missing 'attachments' column if needed (Fix for VPS deployment issue)
-	if _, err := db.Exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments TEXT[];"); err != nil {
-		log.Printf("Warning: Failed to run auto-migration for attachments: %v", err)
-	} else {
-		log.Printf("Verified database schema: 'attachments' column present or added.")
+	if err := database.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize schema: %v", err)
 	}
 
 	// Initialize repositories
-	convRepo := repository.NewConversationRepository(db)
-	msgRepo := repository.NewMessageRepository(db)
-	agentRepo := repository.NewAgentRepository(db)
+	convRepo := repository.NewConversationRepository(database.Database)
+	msgRepo := repository.NewMessageRepository(database.Database)
+	agentRepo := repository.NewAgentRepository(database.Database)
 
 	// Initialize event publisher for admin notifications
 	var eventPublisher *services.EventPublisher
@@ -107,7 +103,7 @@ func main() {
 	}))
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "support-service"}) })
+	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "support-service", "database": "mongodb"}) })
 
 	// API routes
 	api := router.Group("/api/v1")

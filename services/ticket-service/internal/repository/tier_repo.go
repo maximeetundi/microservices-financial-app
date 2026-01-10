@@ -1,132 +1,107 @@
 package repository
 
 import (
-	"database/sql"
-	"encoding/json"
+	"context"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/models"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type TierRepository struct {
-	db *sql.DB
+	collection *mongo.Collection
 }
 
-func NewTierRepository(db *sql.DB) *TierRepository {
-	return &TierRepository{db: db}
+func NewTierRepository(db *mongo.Database) *TierRepository {
+	return &TierRepository{
+		collection: db.Collection("ticket_tiers"),
+	}
 }
 
 func (r *TierRepository) Create(tier *models.TicketTier) error {
-	tier.ID = uuid.New().String()
+	if tier.ID == "" {
+		tier.ID = uuid.New().String()
+	}
 	tier.CreatedAt = time.Now()
 
-	benefitsJSON, _ := json.Marshal(tier.Benefits)
-
-	query := `
-		INSERT INTO ticket_tiers (id, event_id, name, icon, price, quantity, sold, 
-			description, benefits, color, sort_order, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-	`
-
-	_, err := r.db.Exec(query,
-		tier.ID, tier.EventID, tier.Name, tier.Icon, tier.Price,
-		tier.Quantity, tier.Sold, tier.Description, benefitsJSON,
-		tier.Color, tier.SortOrder, tier.CreatedAt,
-	)
-
+	_, err := r.collection.InsertOne(context.Background(), tier)
 	return err
 }
 
 func (r *TierRepository) GetByEventID(eventID string) ([]*models.TicketTier, error) {
-	query := `
-		SELECT id, event_id, name, icon, price, quantity, sold, 
-			description, benefits, color, sort_order, created_at
-		FROM ticket_tiers 
-		WHERE event_id = $1
-		ORDER BY sort_order ASC, price ASC
-	`
+	var tiers []*models.TicketTier
+	filter := bson.M{"event_id": eventID}
+	
+	opts := options.Find().SetSort(bson.D{
+		{Key: "sort_order", Value: 1},
+		{Key: "price", Value: 1},
+	})
 
-	rows, err := r.db.Query(query, eventID)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var tiers []*models.TicketTier
-	for rows.Next() {
-		tier := &models.TicketTier{}
-		var benefitsJSON []byte
-
-		err := rows.Scan(
-			&tier.ID, &tier.EventID, &tier.Name, &tier.Icon, &tier.Price,
-			&tier.Quantity, &tier.Sold, &tier.Description, &benefitsJSON,
-			&tier.Color, &tier.SortOrder, &tier.CreatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var tier models.TicketTier
+		if err := cursor.Decode(&tier); err != nil {
 			return nil, err
 		}
-
-		json.Unmarshal(benefitsJSON, &tier.Benefits)
-		tiers = append(tiers, tier)
+		tiers = append(tiers, &tier)
 	}
 
 	return tiers, nil
 }
 
 func (r *TierRepository) GetByID(id string) (*models.TicketTier, error) {
-	query := `
-		SELECT id, event_id, name, icon, price, quantity, sold, 
-			description, benefits, color, sort_order, created_at
-		FROM ticket_tiers WHERE id = $1
-	`
-
-	tier := &models.TicketTier{}
-	var benefitsJSON []byte
-
-	err := r.db.QueryRow(query, id).Scan(
-		&tier.ID, &tier.EventID, &tier.Name, &tier.Icon, &tier.Price,
-		&tier.Quantity, &tier.Sold, &tier.Description, &benefitsJSON,
-		&tier.Color, &tier.SortOrder, &tier.CreatedAt,
-	)
+	var tier models.TicketTier
+	filter := bson.M{"_id": id}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&tier)
 	if err != nil {
 		return nil, err
 	}
-
-	json.Unmarshal(benefitsJSON, &tier.Benefits)
-	return tier, nil
+	return &tier, nil
 }
 
 func (r *TierRepository) IncrementSold(tierID string) error {
-	query := `UPDATE ticket_tiers SET sold = sold + 1 WHERE id = $1`
-	_, err := r.db.Exec(query, tierID)
+	filter := bson.M{"_id": tierID}
+	update := bson.M{"$inc": bson.M{"sold": 1}}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *TierRepository) DecrementSold(tierID string) error {
-	query := `UPDATE ticket_tiers SET sold = sold - 1 WHERE id = $1 AND sold > 0`
-	_, err := r.db.Exec(query, tierID)
+	filter := bson.M{"_id": tierID, "sold": bson.M{"$gt": 0}}
+	update := bson.M{"$inc": bson.M{"sold": -1}}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *TierRepository) DeleteByEventID(eventID string) error {
-	_, err := r.db.Exec("DELETE FROM ticket_tiers WHERE event_id = $1", eventID)
+	filter := bson.M{"event_id": eventID}
+	_, err := r.collection.DeleteMany(context.Background(), filter)
 	return err
 }
 
 func (r *TierRepository) CheckAvailability(tierID string) (bool, error) {
-	query := `SELECT quantity, sold FROM ticket_tiers WHERE id = $1`
+	var tier models.TicketTier
+	filter := bson.M{"_id": tierID}
 	
-	var quantity, sold int
-	err := r.db.QueryRow(query, tierID).Scan(&quantity, &sold)
+	// Only fetch needed fields
+	opts := options.FindOne().SetProjection(bson.M{"quantity": 1, "sold": 1})
+	
+	err := r.collection.FindOne(context.Background(), filter, opts).Decode(&tier)
 	if err != nil {
 		return false, err
 	}
 
-	// -1 means unlimited
-	if quantity == -1 {
+	if tier.Quantity == -1 {
 		return true, nil
 	}
 
-	return sold < quantity, nil
+	return tier.Sold < tier.Quantity, nil
 }

@@ -1,308 +1,273 @@
 package repository
 
 import (
-	"database/sql"
-	"encoding/json"
+	"context"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/models"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type TicketRepository struct {
-	db *sql.DB
+	collection *mongo.Collection
+	eventColl  *mongo.Collection
+	tierColl   *mongo.Collection
 }
 
-func NewTicketRepository(db *sql.DB) *TicketRepository {
-	return &TicketRepository{db: db}
+func NewTicketRepository(db *mongo.Database) *TicketRepository {
+	return &TicketRepository{
+		collection: db.Collection("tickets"),
+		eventColl:  db.Collection("events"),
+		tierColl:   db.Collection("ticket_tiers"),
+	}
 }
 
 func (r *TicketRepository) Create(ticket *models.Ticket) error {
-	ticket.ID = uuid.New().String()
+	if ticket.ID == "" {
+		ticket.ID = uuid.New().String()
+	}
 	ticket.CreatedAt = time.Now()
 
-	formDataJSON, _ := json.Marshal(ticket.FormData)
-
-	query := `
-		INSERT INTO tickets (id, event_id, buyer_id, tier_id, tier_name, tier_icon,
-			price, currency, form_data, qr_code, ticket_code, status, 
-			transaction_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	`
-
-	_, err := r.db.Exec(query,
-		ticket.ID, ticket.EventID, ticket.BuyerID, ticket.TierID,
-		ticket.TierName, ticket.TierIcon, ticket.Price, ticket.Currency,
-		formDataJSON, ticket.QRCode, ticket.TicketCode, ticket.Status,
-		ticket.TransactionID, ticket.CreatedAt,
-	)
-
+	_, err := r.collection.InsertOne(context.Background(), ticket)
 	return err
 }
 
 func (r *TicketRepository) GetByID(id string) (*models.Ticket, error) {
-	query := `
-		SELECT t.id, t.event_id, t.buyer_id, t.tier_id, t.tier_name, t.tier_icon,
-			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
-			t.transaction_id, t.used_at, t.created_at,
-			e.title, e.start_date, e.location
-		FROM tickets t
-		JOIN events e ON t.event_id = e.id
-		WHERE t.id = $1
-	`
-
-	ticket := &models.Ticket{}
-	var formDataJSON []byte
-	var usedAt sql.NullTime
-	var eventDate sql.NullTime
-
-	err := r.db.QueryRow(query, id).Scan(
-		&ticket.ID, &ticket.EventID, &ticket.BuyerID, &ticket.TierID,
-		&ticket.TierName, &ticket.TierIcon, &ticket.Price, &ticket.Currency,
-		&formDataJSON, &ticket.QRCode, &ticket.TicketCode, &ticket.Status,
-		&ticket.TransactionID, &usedAt, &ticket.CreatedAt,
-		&ticket.EventTitle, &eventDate, &ticket.EventLocation,
-	)
+	var ticket models.Ticket
+	filter := bson.M{"_id": id}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&ticket)
 	if err != nil {
 		return nil, err
 	}
-
-	json.Unmarshal(formDataJSON, &ticket.FormData)
-	if usedAt.Valid {
-		ticket.UsedAt = &usedAt.Time
-	}
-	if eventDate.Valid {
-		ticket.EventDate = &eventDate.Time
-	}
-
-	return ticket, nil
+	
+	// Populate Event details
+	r.populateEventDetails(&ticket)
+	return &ticket, nil
 }
 
 func (r *TicketRepository) GetByCode(code string) (*models.Ticket, error) {
-	query := `
-		SELECT t.id, t.event_id, t.buyer_id, t.tier_id, t.tier_name, t.tier_icon,
-			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
-			t.transaction_id, t.used_at, t.created_at,
-			e.title, e.start_date, e.location
-		FROM tickets t
-		JOIN events e ON t.event_id = e.id
-		WHERE t.ticket_code = $1
-	`
-
-	ticket := &models.Ticket{}
-	var formDataJSON []byte
-	var usedAt sql.NullTime
-	var eventDate sql.NullTime
-
-	err := r.db.QueryRow(query, code).Scan(
-		&ticket.ID, &ticket.EventID, &ticket.BuyerID, &ticket.TierID,
-		&ticket.TierName, &ticket.TierIcon, &ticket.Price, &ticket.Currency,
-		&formDataJSON, &ticket.QRCode, &ticket.TicketCode, &ticket.Status,
-		&ticket.TransactionID, &usedAt, &ticket.CreatedAt,
-		&ticket.EventTitle, &eventDate, &ticket.EventLocation,
-	)
+	var ticket models.Ticket
+	filter := bson.M{"ticket_code": code}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&ticket)
 	if err != nil {
 		return nil, err
 	}
 
-	json.Unmarshal(formDataJSON, &ticket.FormData)
-	if usedAt.Valid {
-		ticket.UsedAt = &usedAt.Time
-	}
-	if eventDate.Valid {
-		ticket.EventDate = &eventDate.Time
-	}
+	r.populateEventDetails(&ticket)
+	return &ticket, nil
+}
 
-	return ticket, nil
+func (r *TicketRepository) populateEventDetails(ticket *models.Ticket) {
+	var event models.Event
+	err := r.eventColl.FindOne(context.Background(), bson.M{"_id": ticket.EventID}).Decode(&event)
+	if err == nil {
+		ticket.EventTitle = event.Title
+		ticket.EventDate = &event.StartDate
+		ticket.EventLocation = event.Location
+	}
 }
 
 func (r *TicketRepository) GetByBuyer(buyerID string, limit, offset int) ([]*models.Ticket, error) {
-	query := `
-		SELECT t.id, t.event_id, t.buyer_id, t.tier_id, t.tier_name, t.tier_icon,
-			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
-			t.transaction_id, t.used_at, t.created_at,
-			e.title, e.start_date, e.location
-		FROM tickets t
-		JOIN events e ON t.event_id = e.id
-		WHERE t.buyer_id = $1 AND t.status = 'paid'
-		ORDER BY t.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+	var tickets []*models.Ticket
+	filter := bson.M{"buyer_id": buyerID, "status": "paid"}
+	
+	opts := options.Find().
+		SetSort(bson.M{"created_at": -1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
 
-	rows, err := r.db.Query(query, buyerID, limit, offset)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var tickets []*models.Ticket
-	for rows.Next() {
-		ticket := &models.Ticket{}
-		var formDataJSON []byte
-		var usedAt sql.NullTime
-		var eventDate sql.NullTime
-
-		err := rows.Scan(
-			&ticket.ID, &ticket.EventID, &ticket.BuyerID, &ticket.TierID,
-			&ticket.TierName, &ticket.TierIcon, &ticket.Price, &ticket.Currency,
-			&formDataJSON, &ticket.QRCode, &ticket.TicketCode, &ticket.Status,
-			&ticket.TransactionID, &usedAt, &ticket.CreatedAt,
-			&ticket.EventTitle, &eventDate, &ticket.EventLocation,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var ticket models.Ticket
+		if err := cursor.Decode(&ticket); err != nil {
 			return nil, err
 		}
-
-		json.Unmarshal(formDataJSON, &ticket.FormData)
-		if usedAt.Valid {
-			ticket.UsedAt = &usedAt.Time
-		}
-		if eventDate.Valid {
-			ticket.EventDate = &eventDate.Time
-		}
-		tickets = append(tickets, ticket)
+		// Optimization: Could use aggregation $lookup, but doing separate queries for now for simplicity
+		// or maybe not populate event details for list view if not strictly needed, 
+		// but frontend likely expects it.
+		r.populateEventDetails(&ticket)
+		tickets = append(tickets, &ticket)
 	}
 
 	return tickets, nil
 }
 
 func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*models.Ticket, error) {
-	query := `
-		SELECT t.id, t.event_id, t.buyer_id, t.tier_id, t.tier_name, t.tier_icon,
-			COALESCE(tt.color, '#6366f1') as tier_color,
-			t.price, t.currency, t.form_data, t.qr_code, t.ticket_code, t.status,
-			t.transaction_id, t.used_at, t.created_at
-		FROM tickets t
-		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
-		WHERE t.event_id = $1
-		ORDER BY t.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+	var tickets []*models.Ticket
+	filter := bson.M{"event_id": eventID}
+	
+	opts := options.Find().
+		SetSort(bson.M{"created_at": -1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
 
-	rows, err := r.db.Query(query, eventID, limit, offset)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var tickets []*models.Ticket
-	for rows.Next() {
-		ticket := &models.Ticket{}
-		var formDataJSON []byte
-		var usedAt sql.NullTime
-
-		err := rows.Scan(
-			&ticket.ID, &ticket.EventID, &ticket.BuyerID, &ticket.TierID,
-			&ticket.TierName, &ticket.TierIcon, &ticket.TierColor,
-			&ticket.Price, &ticket.Currency,
-			&formDataJSON, &ticket.QRCode, &ticket.TicketCode, &ticket.Status,
-			&ticket.TransactionID, &usedAt, &ticket.CreatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var ticket models.Ticket
+		if err := cursor.Decode(&ticket); err != nil {
 			return nil, err
 		}
-
-		json.Unmarshal(formDataJSON, &ticket.FormData)
-		if usedAt.Valid {
-			ticket.UsedAt = &usedAt.Time
-		}
-		tickets = append(tickets, ticket)
+		tickets = append(tickets, &ticket)
 	}
 
 	return tickets, nil
 }
 
 func (r *TicketRepository) UpdateStatus(id, status string) error {
-	query := `UPDATE tickets SET status = $2 WHERE id = $1`
-	_, err := r.db.Exec(query, id, status)
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"status": status}}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *TicketRepository) UpdateTransactionID(id, transactionID string) error {
-	query := `UPDATE tickets SET transaction_id = $2 WHERE id = $1`
-	_, err := r.db.Exec(query, id, transactionID)
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"transaction_id": transactionID}}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *TicketRepository) UpdateStatusByTransactionID(transactionID, status string) error {
-	query := `UPDATE tickets SET status = $1 WHERE transaction_id = $2`
-	result, err := r.db.Exec(query, status, transactionID)
-	if err != nil {
-		return err
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rows == 0 {
-		return sql.ErrNoRows
-	}
-	return nil
+	filter := bson.M{"transaction_id": transactionID}
+	update := bson.M{"$set": bson.M{"status": status}}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
+	return err
 }
 
 func (r *TicketRepository) Delete(id string) error {
-	query := `DELETE FROM tickets WHERE id = $1`
-	_, err := r.db.Exec(query, id)
+	filter := bson.M{"_id": id}
+	_, err := r.collection.DeleteOne(context.Background(), filter)
 	return err
 }
 
 func (r *TicketRepository) MarkAsUsed(id string) error {
-	now := time.Now()
-	query := `UPDATE tickets SET status = 'used', used_at = $2 WHERE id = $1`
-	_, err := r.db.Exec(query, id, now)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"status":  "used",
+			"used_at": time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *TicketRepository) GetEventStats(eventID string) (*models.TicketStats, error) {
-	// Get overall stats
-	statsQuery := `
-		SELECT 
-			COUNT(*) as total,
-			COUNT(*) FILTER (WHERE status = 'paid' OR status = 'used') as sold,
-			COUNT(*) FILTER (WHERE status = 'used') as used,
-			COALESCE(SUM(price) FILTER (WHERE status = 'paid' OR status = 'used'), 0) as revenue
-		FROM tickets WHERE event_id = $1
-	`
+	stats := &models.TicketStats{}
 
-	var stats models.TicketStats
-	err := r.db.QueryRow(statsQuery, eventID).Scan(
-		&stats.TotalTickets, &stats.SoldTickets, &stats.UsedTickets, &stats.TotalRevenue,
+	// Aggregation for overall stats
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"event_id": eventID}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":           nil,
+			"total_tickets": bson.M{"$sum": 1},
+			"sold_tickets": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$in": bson.A{"$status", bson.A{"paid", "used"}}},
+						1,
+						0,
+					},
+				},
+			},
+			"used_tickets": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$eq": bson.A{"$status", "used"}},
+						1,
+						0,
+					},
+				},
+			},
+			"total_revenue": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$in": bson.A{"$status", bson.A{"paid", "used"}}},
+						"$price",
+						0,
+					},
+				},
+			},
+		}}},
+	}
+
+	cursor, err := r.collection.Aggregate(context.Background(), pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	if cursor.Next(context.Background()) {
+		var result struct {
+			TotalTickets int     `bson:"total_tickets"`
+			SoldTickets  int     `bson:"sold_tickets"`
+			UsedTickets  int     `bson:"used_tickets"`
+			TotalRevenue float64 `bson:"total_revenue"`
+		}
+		if err := cursor.Decode(&result); err == nil {
+			stats.TotalTickets = result.TotalTickets
+			stats.SoldTickets = result.SoldTickets
+			stats.UsedTickets = result.UsedTickets
+			stats.TotalRevenue = result.TotalRevenue
+		}
+	}
+
+	// Get tier breakdown
+	// We need to fetch tiers from Tiers collection and map sold/revenue
+	tiersCursor, err := r.tierColl.Find(context.Background(), 
+		bson.M{"event_id": eventID},
+		options.Find().SetSort(bson.M{"sort_order": 1}),
 	)
 	if err != nil {
 		return nil, err
 	}
+	defer tiersCursor.Close(context.Background())
 
-	// Get tier breakdown
-	tierQuery := `
-		SELECT 
-			tt.id, tt.name, tt.icon, tt.price, tt.quantity, tt.sold,
-			COUNT(t.id) FILTER (WHERE t.status = 'used') as used,
-			COALESCE(SUM(t.price) FILTER (WHERE t.status IN ('paid', 'used')), 0) as revenue
-		FROM ticket_tiers tt
-		LEFT JOIN tickets t ON t.tier_id = tt.id
-		WHERE tt.event_id = $1
-		GROUP BY tt.id, tt.name, tt.icon, tt.price, tt.quantity, tt.sold
-		ORDER BY tt.sort_order ASC
-	`
-
-	rows, err := r.db.Query(tierQuery, eventID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tierStats models.TierStats
-		err := rows.Scan(
-			&tierStats.TierID, &tierStats.TierName, &tierStats.TierIcon,
-			&tierStats.Price, &tierStats.Quantity, &tierStats.Sold,
-			&tierStats.Used, &tierStats.Revenue,
-		)
-		if err != nil {
-			return nil, err
+	for tiersCursor.Next(context.Background()) {
+		var tier models.TicketTier
+		if err := tiersCursor.Decode(&tier); err != nil {
+			continue
 		}
+		
+		// Ensure we use the actual sold/revenue from tickets collection logic if needed, 
+		// but tier object also has 'sold' field maintained.
+		// For consistency, let's trust the tier.Sold field for count, but calculate revenue ourselves 
+		// or just use tier.Price * tier.Sold
+		
+		tierStats := models.TierStats{
+			TierID:   tier.ID,
+			TierName: tier.Name,
+			TierIcon: tier.Icon,
+			Price:    tier.Price,
+			Quantity: tier.Quantity,
+			Sold:     tier.Sold,
+			Used:     0, // Need to query ticket collection for this specific tier used count?
+			Revenue:  float64(tier.Sold) * tier.Price,
+		}
+		
+		// Optional: querying used count for this tier
+		usedCount, _ := r.collection.CountDocuments(context.Background(), bson.M{
+			"event_id": eventID,
+			"tier_id": tier.ID,
+			"status": "used",
+		})
+		tierStats.Used = int(usedCount)
+
 		stats.TierBreakdown = append(stats.TierBreakdown, tierStats)
 	}
 
-	return &stats, nil
+	return stats, nil
 }

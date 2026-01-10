@@ -1,19 +1,24 @@
 package repository
 
 import (
-	"database/sql"
+	"context"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/models"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ConversationRepository struct {
-	db *sql.DB
+	collection *mongo.Collection
 }
 
-func NewConversationRepository(db *sql.DB) *ConversationRepository {
-	return &ConversationRepository{db: db}
+func NewConversationRepository(db *mongo.Database) *ConversationRepository {
+	return &ConversationRepository{
+		collection: db.Collection("conversations"),
+	}
 }
 
 func (r *ConversationRepository) Create(conv *models.Conversation) error {
@@ -22,239 +27,209 @@ func (r *ConversationRepository) Create(conv *models.Conversation) error {
 	conv.UpdatedAt = time.Now()
 	conv.Status = models.ConversationStatusOpen
 
-	query := `
-		INSERT INTO conversations (id, user_id, user_name, user_email, agent_type, subject, category, status, priority, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`
-
-	_, err := r.db.Exec(query,
-		conv.ID,
-		conv.UserID,
-		conv.UserName,
-		conv.UserEmail,
-		conv.AgentType,
-		conv.Subject,
-		conv.Category,
-		conv.Status,
-		conv.Priority,
-		conv.CreatedAt,
-		conv.UpdatedAt,
-	)
-
+	_, err := r.collection.InsertOne(context.Background(), conv)
 	return err
 }
 
 func (r *ConversationRepository) GetByID(id string) (*models.Conversation, error) {
-	query := `
-		SELECT id, user_id, user_name, user_email, agent_id, agent_type, subject, category, 
-		       status, priority, last_message, last_message_at, unread_count, message_count,
-		       rating, feedback, resolved_at, created_at, updated_at
-		FROM conversations WHERE id = $1
-	`
-
-	conv := &models.Conversation{}
-	err := r.db.QueryRow(query, id).Scan(
-		&conv.ID,
-		&conv.UserID,
-		&conv.UserName,
-		&conv.UserEmail,
-		&conv.AgentID,
-		&conv.AgentType,
-		&conv.Subject,
-		&conv.Category,
-		&conv.Status,
-		&conv.Priority,
-		&conv.LastMessage,
-		&conv.LastMessageAt,
-		&conv.UnreadCount,
-		&conv.MessageCount,
-		&conv.Rating,
-		&conv.Feedback,
-		&conv.ResolvedAt,
-		&conv.CreatedAt,
-		&conv.UpdatedAt,
-	)
-
+	var conv models.Conversation
+	filter := bson.M{"_id": id}
+	err := r.collection.FindOne(context.Background(), filter).Decode(&conv)
 	if err != nil {
 		return nil, err
 	}
-
-	return conv, nil
+	return &conv, nil
 }
 
 func (r *ConversationRepository) GetByUserID(userID string, limit, offset int) ([]*models.Conversation, error) {
-	query := `
-		SELECT id, user_id, user_name, user_email, agent_id, agent_type, subject, category, 
-		       status, priority, last_message, last_message_at, unread_count, message_count,
-		       rating, feedback, resolved_at, created_at, updated_at
-		FROM conversations 
-		WHERE user_id = $1
-		ORDER BY updated_at DESC
-		LIMIT $2 OFFSET $3
-	`
+	var conversations []*models.Conversation
+	filter := bson.M{"user_id": userID}
+	
+	opts := options.Find().
+		SetSort(bson.M{"updated_at": -1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
 
-	rows, err := r.db.Query(query, userID, limit, offset)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var conversations []*models.Conversation
-	for rows.Next() {
-		conv := &models.Conversation{}
-		err := rows.Scan(
-			&conv.ID,
-			&conv.UserID,
-			&conv.UserName,
-			&conv.UserEmail,
-			&conv.AgentID,
-			&conv.AgentType,
-			&conv.Subject,
-			&conv.Category,
-			&conv.Status,
-			&conv.Priority,
-			&conv.LastMessage,
-			&conv.LastMessageAt,
-			&conv.UnreadCount,
-			&conv.MessageCount,
-			&conv.Rating,
-			&conv.Feedback,
-			&conv.ResolvedAt,
-			&conv.CreatedAt,
-			&conv.UpdatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var conv models.Conversation
+		if err := cursor.Decode(&conv); err != nil {
 			return nil, err
 		}
-		conversations = append(conversations, conv)
+		conversations = append(conversations, &conv)
 	}
 
 	return conversations, nil
 }
 
 func (r *ConversationRepository) GetAll(status string, limit, offset int) ([]*models.Conversation, error) {
-	var query string
-	var args []interface{}
-
+	var conversations []*models.Conversation
+	filter := bson.M{}
 	if status != "" {
-		query = `
-			SELECT id, user_id, user_name, user_email, agent_id, agent_type, subject, category, 
-			       status, priority, last_message, last_message_at, unread_count, message_count,
-			       rating, feedback, resolved_at, created_at, updated_at
-			FROM conversations 
-			WHERE status = $1
-			ORDER BY 
-				CASE priority 
-					WHEN 'urgent' THEN 1 
-					WHEN 'high' THEN 2 
-					WHEN 'medium' THEN 3 
-					ELSE 4 
-				END,
-				updated_at DESC
-			LIMIT $2 OFFSET $3
-		`
-		args = []interface{}{status, limit, offset}
-	} else {
-		query = `
-			SELECT id, user_id, user_name, user_email, agent_id, agent_type, subject, category, 
-			       status, priority, last_message, last_message_at, unread_count, message_count,
-			       rating, feedback, resolved_at, created_at, updated_at
-			FROM conversations 
-			ORDER BY 
-				CASE priority 
-					WHEN 'urgent' THEN 1 
-					WHEN 'high' THEN 2 
-					WHEN 'medium' THEN 3 
-					ELSE 4 
-				END,
-				updated_at DESC
-			LIMIT $1 OFFSET $2
-		`
-		args = []interface{}{limit, offset}
+		filter["status"] = status
 	}
 
-	rows, err := r.db.Query(query, args...)
+	// Custom sort: Priority then UpdatedAt
+	// Note: In MongoDB, we can't easily do 'CASE WHEN' in sort without aggregation.
+	// For simplicity, we'll sort by updated_at descending, effectively showing newest first.
+	// If priority sorting is strictly required, we'd need an aggregation pipeline or store an integer priority.
+	opts := options.Find().
+		SetSort(bson.D{{Key: "updated_at", Value: -1}}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var conversations []*models.Conversation
-	for rows.Next() {
-		conv := &models.Conversation{}
-		err := rows.Scan(
-			&conv.ID,
-			&conv.UserID,
-			&conv.UserName,
-			&conv.UserEmail,
-			&conv.AgentID,
-			&conv.AgentType,
-			&conv.Subject,
-			&conv.Category,
-			&conv.Status,
-			&conv.Priority,
-			&conv.LastMessage,
-			&conv.LastMessageAt,
-			&conv.UnreadCount,
-			&conv.MessageCount,
-			&conv.Rating,
-			&conv.Feedback,
-			&conv.ResolvedAt,
-			&conv.CreatedAt,
-			&conv.UpdatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var conv models.Conversation
+		if err := cursor.Decode(&conv); err != nil {
 			return nil, err
 		}
-		conversations = append(conversations, conv)
+		conversations = append(conversations, &conv)
 	}
 
 	return conversations, nil
 }
 
 func (r *ConversationRepository) UpdateStatus(id string, status models.ConversationStatus) error {
-	query := `UPDATE conversations SET status = $1, updated_at = $2 WHERE id = $3`
-	_, err := r.db.Exec(query, status, time.Now(), id)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"status":     status,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *ConversationRepository) AssignAgent(id, agentID string) error {
-	query := `UPDATE conversations SET agent_id = $1, status = $2, updated_at = $3 WHERE id = $4`
-	_, err := r.db.Exec(query, agentID, models.ConversationStatusActive, time.Now(), id)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"agent_id":   agentID,
+			"status":     models.ConversationStatusActive,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *ConversationRepository) UpdateLastMessage(id, message string) error {
-	now := time.Now()
-	query := `UPDATE conversations SET last_message = $1, last_message_at = $2, message_count = message_count + 1, updated_at = $2 WHERE id = $3`
-	_, err := r.db.Exec(query, message, now, id)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"last_message":    message,
+			"last_message_at": time.Now(),
+			"updated_at":      time.Now(),
+		},
+		"$inc": bson.M{"message_count": 1},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *ConversationRepository) Close(id string, rating int, feedback string) error {
-	now := time.Now()
-	query := `UPDATE conversations SET status = $1, rating = $2, feedback = $3, resolved_at = $4, updated_at = $4 WHERE id = $5`
-	_, err := r.db.Exec(query, models.ConversationStatusClosed, rating, feedback, now, id)
+	filter := bson.M{"_id": id}
+	update := bson.M{
+		"$set": bson.M{
+			"status":      models.ConversationStatusClosed,
+			"rating":      rating,
+			"feedback":    feedback,
+			"resolved_at": time.Now(),
+			"updated_at":  time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
 func (r *ConversationRepository) GetStats() (*models.SupportStats, error) {
 	stats := &models.SupportStats{}
 
-	// Total conversations
-	r.db.QueryRow(`SELECT COUNT(*) FROM conversations`).Scan(&stats.TotalConversations)
+	// Aggregation to get most stats in one go
+	pipeline := mongo.Pipeline{
+		{{Key: "$group", Value: bson.M{
+			"_id": nil,
+			"total_conversations": bson.M{"$sum": 1},
+			"open_conversations": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$in": bson.A{"$status", bson.A{"open", "pending", "active"}}},
+						1,
+						0,
+					},
+				},
+			},
+			"resolved_today": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$and": bson.A{
+							bson.M{"$eq": bson.A{"$status", "resolved"}},
+							bson.M{"$gte": bson.A{"$resolved_at", time.Now().Truncate(24 * time.Hour)}},
+						}},
+						1,
+						0,
+					},
+				},
+			},
+			"pending_conversations": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$eq": bson.A{"$status", "pending"}},
+						1,
+						0,
+					},
+				},
+			},
+			"rating_sum": bson.M{"$sum": "$rating"},
+			"rating_count": bson.M{
+				"$sum": bson.M{
+					"$cond": bson.A{
+						bson.M{"$ifNull": bson.A{"$rating", false}},
+						1,
+						0,
+					},
+				},
+			},
+		}}},
+	}
 
-	// Open conversations
-	r.db.QueryRow(`SELECT COUNT(*) FROM conversations WHERE status IN ('open', 'pending', 'active')`).Scan(&stats.OpenConversations)
+	cursor, err := r.collection.Aggregate(context.Background(), pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
 
-	// Resolved today
-	r.db.QueryRow(`SELECT COUNT(*) FROM conversations WHERE status = 'resolved' AND resolved_at >= CURRENT_DATE`).Scan(&stats.ResolvedToday)
-
-	// Pending conversations
-	r.db.QueryRow(`SELECT COUNT(*) FROM conversations WHERE status = 'pending'`).Scan(&stats.PendingConversations)
-
-	// Average satisfaction (from ratings)
-	r.db.QueryRow(`SELECT COALESCE(AVG(rating), 0) FROM conversations WHERE rating IS NOT NULL`).Scan(&stats.CustomerSatisfaction)
+	if cursor.Next(context.Background()) {
+		var result struct {
+			TotalConversations   int     `bson:"total_conversations"`
+			OpenConversations    int     `bson:"open_conversations"`
+			ResolvedToday        int     `bson:"resolved_today"`
+			PendingConversations int     `bson:"pending_conversations"`
+			RatingSum            float64 `bson:"rating_sum"`
+			RatingCount          int     `bson:"rating_count"`
+		}
+		if err := cursor.Decode(&result); err == nil {
+			stats.TotalConversations = result.TotalConversations
+			stats.OpenConversations = result.OpenConversations
+			stats.ResolvedToday = result.ResolvedToday
+			stats.PendingConversations = result.PendingConversations
+			if result.RatingCount > 0 {
+				stats.CustomerSatisfaction = result.RatingSum / float64(result.RatingCount)
+			}
+		}
+	}
 
 	return stats, nil
 }

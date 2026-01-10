@@ -1,101 +1,88 @@
 package repository
 
 import (
-	"database/sql"
+	"context"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/models"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MessageRepository struct {
-	db *sql.DB
+	collection *mongo.Collection
 }
 
-func NewMessageRepository(db *sql.DB) *MessageRepository {
-	return &MessageRepository{db: db}
+func NewMessageRepository(db *mongo.Database) *MessageRepository {
+	return &MessageRepository{
+		collection: db.Collection("messages"),
+	}
 }
 
 func (r *MessageRepository) Create(msg *models.Message) error {
-	msg.ID = uuid.New().String()
+	if msg.ID == "" {
+		msg.ID = uuid.New().String()
+	}
 	msg.CreatedAt = time.Now()
 
-	query := `
-		INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_type, content, content_type, attachments, is_read, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	`
-
-	_, err := r.db.Exec(query,
-		msg.ID,
-		msg.ConversationID,
-		msg.SenderID,
-		msg.SenderName,
-		msg.SenderType,
-		msg.Content,
-		msg.ContentType,
-		pq.Array(msg.Attachments),
-		msg.IsRead,
-		msg.CreatedAt,
-	)
-
+	_, err := r.collection.InsertOne(context.Background(), msg)
 	return err
 }
 
 func (r *MessageRepository) GetByConversationID(conversationID string, limit, offset int) ([]*models.Message, error) {
-	query := `
-		SELECT id, conversation_id, sender_id, sender_name, sender_type, content, content_type, attachments, is_read, read_at, created_at
-		FROM messages 
-		WHERE conversation_id = $1
-		ORDER BY created_at ASC
-		LIMIT $2 OFFSET $3
-	`
+	var messages []*models.Message
+	filter := bson.M{"conversation_id": conversationID}
+	
+	opts := options.Find().
+		SetSort(bson.M{"created_at": 1}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
 
-	rows, err := r.db.Query(query, conversationID, limit, offset)
+	cursor, err := r.collection.Find(context.Background(), filter, opts)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	var messages []*models.Message
-	for rows.Next() {
-		msg := &models.Message{}
-		err := rows.Scan(
-			&msg.ID,
-			&msg.ConversationID,
-			&msg.SenderID,
-			&msg.SenderName,
-			&msg.SenderType,
-			&msg.Content,
-			&msg.ContentType,
-			pq.Array(&msg.Attachments),
-			&msg.IsRead,
-			&msg.ReadAt,
-			&msg.CreatedAt,
-		)
-		if err != nil {
+	for cursor.Next(context.Background()) {
+		var msg models.Message
+		if err := cursor.Decode(&msg); err != nil {
 			return nil, err
 		}
-		// Ensure attachments is never nil (for proper JSON serialization)
+		// Ensure attachments slice is initialized
 		if msg.Attachments == nil {
 			msg.Attachments = []string{}
 		}
-		messages = append(messages, msg)
+		messages = append(messages, &msg)
 	}
 
 	return messages, nil
 }
 
 func (r *MessageRepository) MarkAsRead(conversationID, userID string) error {
-	now := time.Now()
-	query := `UPDATE messages SET is_read = true, read_at = $1 WHERE conversation_id = $2 AND sender_id != $3 AND is_read = false`
-	_, err := r.db.Exec(query, now, conversationID, userID)
+	filter := bson.M{
+		"conversation_id": conversationID,
+		"sender_id":       bson.M{"$ne": userID},
+		"is_read":         false,
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"is_read": true,
+			"read_at": time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateMany(context.Background(), filter, update)
 	return err
 }
 
 func (r *MessageRepository) GetUnreadCount(conversationID, userID string) (int, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM messages WHERE conversation_id = $1 AND sender_id != $2 AND is_read = false`
-	err := r.db.QueryRow(query, conversationID, userID).Scan(&count)
-	return count, err
+	filter := bson.M{
+		"conversation_id": conversationID,
+		"sender_id":       bson.M{"$ne": userID},
+		"is_read":         false,
+	}
+	count, err := r.collection.CountDocuments(context.Background(), filter)
+	return int(count), err
 }

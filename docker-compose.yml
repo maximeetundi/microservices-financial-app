@@ -380,7 +380,7 @@ services:
     ports:
       - "8089:8089"
     depends_on:
-      postgres:
+      mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -389,7 +389,8 @@ services:
       minio:
         condition: service_healthy
     environment:
-      - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/support_service?authSource=admin
+      - MONGODB_DATABASE=support_service
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKERS=kafka:9092
       - KAFKA_GROUP_ID=support-service-group
@@ -413,17 +414,13 @@ services:
     ports:
       - "8090:8090"
     depends_on:
-      postgres:
+      mongodb:
         condition: service_healthy
       minio:
         condition: service_healthy
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=secure_password
-      - DB_NAME=crypto_bank
-      - DB_SSL_MODE=disable
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/ticket_service?authSource=admin
+      - MONGODB_DATABASE=ticket_service
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - PORT=8090
       - MINIO_ENDPOINT=minio:9000
