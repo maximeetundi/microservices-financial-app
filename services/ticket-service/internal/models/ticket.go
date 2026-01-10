@@ -25,6 +25,7 @@ type Ticket struct {
 	EventTitle    string     `json:"event_title,omitempty" bson:"-"`
 	EventDate     *time.Time `json:"event_date,omitempty" bson:"-"`
 	EventLocation string     `json:"event_location,omitempty" bson:"-"`
+	EventCreatorID string    `json:"event_creator_id,omitempty" bson:"-"`
 	BuyerName     string     `json:"buyer_name,omitempty" bson:"-"`
 	BuyerEmail    string     `json:"buyer_email,omitempty" bson:"-"`
 }

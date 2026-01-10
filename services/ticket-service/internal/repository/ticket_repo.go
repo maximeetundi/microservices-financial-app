@@ -67,6 +67,7 @@ func (r *TicketRepository) populateEventDetails(ticket *models.Ticket) {
 		ticket.EventTitle = event.Title
 		ticket.EventDate = &event.StartDate
 		ticket.EventLocation = event.Location
+		ticket.EventCreatorID = event.CreatorID
 	}
 }
 
