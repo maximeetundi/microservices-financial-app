@@ -157,7 +157,7 @@ func (k *KafkaClient) Subscribe(topic string, handler EventHandler) error {
 		MinBytes:       10e3, // 10KB
 		MaxBytes:       10e6, // 10MB
 		MaxWait:        500 * time.Millisecond,
-		StartOffset:    kafka.LastOffset,
+		StartOffset:    kafka.FirstOffset,
 		CommitInterval: time.Second,
 	})
 	k.readers[topic] = reader
