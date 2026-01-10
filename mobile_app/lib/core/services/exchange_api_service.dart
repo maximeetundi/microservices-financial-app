@@ -25,7 +25,7 @@ class ExchangeApiService {
     throw Exception('Failed to get exchange rate');
   }
   
-  /// Exécuter un échange
+  /// Exécuter un échange (utilise le flow quote -> execute)
   Future<Map<String, dynamic>> executeExchange({
     required String fromWalletId,
     required String toWalletId,
@@ -33,16 +33,28 @@ class ExchangeApiService {
     required String fromCurrency,
     required String toCurrency,
   }) async {
+    // Step 1: Get a quote
+    final quoteResult = await getQuote(
+      fromCurrency: fromCurrency,
+      toCurrency: toCurrency,
+      fromAmount: amount,
+    );
+    
+    final quoteId = quoteResult['quote']?['id'];
+    if (quoteId == null) {
+      throw Exception('Failed to get quote');
+    }
+    
+    // Step 2: Execute the quote
     final response = await _client.post(
       ApiEndpoints.executeExchange,
       data: {
+        'quote_id': quoteId,
         'from_wallet_id': fromWalletId,
         'to_wallet_id': toWalletId,
-        'amount': amount,
-        'from_currency': fromCurrency,
-        'to_currency': toCurrency,
       },
     );
+    
     if (response.statusCode == 200) {
       return response.data;
     }

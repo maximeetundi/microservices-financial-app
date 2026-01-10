@@ -217,12 +217,52 @@
         </div>
       </div>
     </div>
+
+    <!-- Notification Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="notification.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="notification.show = false"></div>
+          <div class="relative w-full max-w-md transform transition-all">
+            <div class="glass-card p-6 text-center">
+              <!-- Icon -->
+              <div class="mb-4">
+                <div v-if="notification.type === 'success'" class="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+                <div v-else class="w-16 h-16 mx-auto rounded-full bg-error/20 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </div>
+              </div>
+              <!-- Title -->
+              <h3 class="text-xl font-bold text-base mb-2">
+                {{ notification.type === 'success' ? 'Succès!' : 'Erreur' }}
+              </h3>
+              <!-- Message -->
+              <p class="text-muted mb-6">{{ notification.message }}</p>
+              <!-- Button -->
+              <button
+                @click="notification.show = false"
+                :class="notification.type === 'success' ? 'bg-success hover:bg-success/80' : 'bg-error hover:bg-error/80'"
+                class="w-full py-3 px-6 rounded-xl text-white font-medium transition-colors"
+              >
+                Compris
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </NuxtLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { exchangeAPI, walletAPI } from '~/composables/useApi'
+import { exchangeAPI, walletAPI, fiatAPI } from '~/composables/useApi'
 
 // Reactive data
 const loading = ref(false)
@@ -238,6 +278,17 @@ const loadingWallets = ref(false)
 const creatingWallet = ref(false)
 const fromWalletId = ref('')
 const toWalletId = ref('')
+
+// Notification modal state
+const notification = ref({
+  show: false,
+  type: 'success', // 'success' or 'error'
+  message: ''
+})
+
+const showNotification = (type, message) => {
+  notification.value = { show: true, type, message }
+}
 
 // Supported currencies - ALL WORLD CURRENCIES
 const supportedCurrencies = ref([
@@ -459,10 +510,10 @@ const createDestWallet = async () => {
       toWalletId.value = newWallet.id
     }
     
-    alert(`Portefeuille ${toCurrency.value} créé avec succès !`)
+    showNotification('success', `Portefeuille ${toCurrency.value} créé avec succès !`)
   } catch (error) {
     console.error('Failed to create wallet:', error)
-    alert('Erreur lors de la création du portefeuille')
+    showNotification('error', 'Erreur lors de la création du portefeuille')
   } finally {
     creatingWallet.value = false
   }
@@ -490,18 +541,14 @@ const executeFiatConversion = async () => {
       destWalletIdToUse = newWallet.id
     }
     
-    // 1. Get Quote
-    const { data: quoteResponse } = await exchangeAPI.getQuote(fromCurrency.value, toCurrency.value, fromAmount.value)
-    const quote = quoteResponse.quote
-    
-    if (!quote || !quote.id) throw new Error('Failed to get quote')
-
-    // 2. Execute Exchange
-    const { data: exchangeResponse } = await exchangeAPI.executeExchange(
-        quote.id,
-        fromWalletId.value,
-        destWalletIdToUse
-    )
+    // Execute Fiat Exchange directly (no quote needed, direct conversion)
+    const { data: exchangeResponse } = await fiatAPI.executeExchange({
+        from_wallet_id: fromWalletId.value,
+        to_wallet_id: destWalletIdToUse,
+        from_currency: fromCurrency.value,
+        to_currency: toCurrency.value,
+        amount: fromAmount.value
+    })
     const exchange = exchangeResponse.exchange || exchangeResponse
 
     // Refresh wallets
@@ -517,11 +564,11 @@ const executeFiatConversion = async () => {
       created_at: new Date().toISOString()
     })
 
-    alert('Conversion réussie !')
+    showNotification('success', 'Conversion réussie ! Vos fonds ont été convertis.')
     
   } catch (error) {
     console.error('Conversion error:', error)
-    alert('Erreur lors de la conversion: ' + (error.message || 'Unknown error'))
+    showNotification('error', 'Erreur lors de la conversion: ' + (error.message || 'Erreur inconnue'))
   } finally {
     loading.value = false
   }
@@ -588,5 +635,19 @@ definePageMeta({
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(156, 163, 175, 0.5); 
   border-radius: 2px;
+}
+
+/* Modal animations */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: all 0.3s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+.modal-fade-enter-from .glass-card,
+.modal-fade-leave-to .glass-card {
+  transform: scale(0.9);
 }
 </style>

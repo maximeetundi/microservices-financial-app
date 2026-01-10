@@ -14,6 +14,7 @@ import '../widgets/currency_selector.dart';
 import '../widgets/exchange_rate_card.dart';
 import '../widgets/exchange_history_list.dart';
 import '../widgets/quick_exchange_amounts.dart';
+import '../../../../core/services/api_service.dart';
 
 class ExchangePage extends StatefulWidget {
   const ExchangePage({Key? key}) : super(key: key);
@@ -32,6 +33,9 @@ class _ExchangePageState extends State<ExchangePage>
   String _fromCurrency = 'BTC';
   String _toCurrency = 'USD';
   bool _isSwapping = false;
+  
+  // Wallets for exchange
+  List<Map<String, dynamic>> _wallets = [];
 
   @override
   void initState() {
@@ -47,6 +51,26 @@ class _ExchangePageState extends State<ExchangePage>
         toCurrency: _toCurrency,
       ),
     );
+    _loadWallets();
+  }
+  
+  Future<void> _loadWallets() async {
+    try {
+      final walletData = await ApiService().wallets.getWallets();
+      setState(() {
+        _wallets = List<Map<String, dynamic>>.from(walletData);
+      });
+    } catch (e) {
+      debugPrint('Error loading wallets: $e');
+    }
+  }
+  
+  String? _getWalletId(String currency) {
+    final wallet = _wallets.firstWhere(
+      (w) => w['currency'] == currency,
+      orElse: () => {},
+    );
+    return wallet['id']?.toString();
   }
 
   @override
@@ -628,11 +652,20 @@ class _ExchangePageState extends State<ExchangePage>
           ),
           ElevatedButton(
             onPressed: () {
+              final fromWalletId = _getWalletId(_fromCurrency);
+              final toWalletId = _getWalletId(_toCurrency);
+              
+              if (fromWalletId == null || toWalletId == null) {
+                Navigator.pop(context);
+                _showErrorSnackBar('Portefeuille non trouvé pour $_fromCurrency ou $_toCurrency');
+                return;
+              }
+              
               Navigator.pop(context);
               context.read<ExchangeBloc>().add(
                 ExecuteExchangeEvent(
-                  fromWalletId: 'wallet-1', // TODO: Get from state
-                  toWalletId: 'wallet-2', // TODO: Get from state
+                  fromWalletId: fromWalletId,
+                  toWalletId: toWalletId,
                   fromCurrency: _fromCurrency,
                   toCurrency: _toCurrency,
                   amount: amount,

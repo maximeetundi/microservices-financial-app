@@ -344,6 +344,39 @@ export const exchangeAPI = {
     getTradingPortfolio: () => api.get('/exchange-service/api/v1/trading/portfolio'),
 }
 
+// ========== Fiat Exchange (Fiat-to-Fiat) ==========
+export const fiatAPI = {
+    // Get quote for fiat-to-fiat conversion
+    getQuote: (fromCurrency: string, toCurrency: string, amount: number) =>
+        api.post('/exchange-service/api/v1/fiat/quote', {
+            from_currency: fromCurrency,
+            to_currency: toCurrency,
+            amount: amount
+        }),
+
+    // Execute fiat-to-fiat exchange (using quote is optional, direct exchange supported)
+    executeExchange: (data: {
+        from_wallet_id: string,
+        to_wallet_id: string,
+        from_currency: string,
+        to_currency: string,
+        amount: number
+    }) => api.post('/exchange-service/api/v1/fiat/exchange', data),
+
+    // Get fiat rates
+    getRates: (base = 'USD') => api.get(`/exchange-service/api/v1/fiat/rates?base=${base}`),
+
+    // Get specific fiat rate
+    getRate: (from: string, to: string) => api.get(`/exchange-service/api/v1/fiat/rates/${from}/${to}`),
+
+    // Get supported currencies
+    getCurrencies: () => api.get('/exchange-service/api/v1/fiat/currencies'),
+
+    // Fiat converter (quick calculation)
+    convert: (from: string, to: string, amount: number) =>
+        api.get(`/exchange-service/api/v1/fiat/convert?from=${from}&to=${to}&amount=${amount}`),
+}
+
 // ========== Dashboard ==========
 export const dashboardAPI = {
     getSummary: () => api.get('/wallet-service/api/v1/dashboard/summary'),
@@ -592,6 +625,7 @@ export const useApi = () => {
         transferApi: transferAPI,
         cardApi: cardAPI,
         exchangeApi: exchangeAPI,
+        fiatApi: fiatAPI,
         dashboardApi: dashboardAPI,
         merchantApi: merchantAPI,
         paymentApi: paymentAPI,
