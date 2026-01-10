@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/ticket_api_service.dart';
 import 'purchase_ticket_screen.dart';
 import 'ticket_scanner_screen.dart';
+import 'sold_tickets_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final String eventId;
@@ -480,6 +481,23 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
+              onPressed: () => _openSoldTickets(event),
+              icon: const Icon(Icons.confirmation_number_outlined),
+              label: const Text('📊 Voir les tickets vendus'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10b981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
               onPressed: () => _openTicketScanner(event),
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('📷 Scanner les tickets'),
@@ -498,6 +516,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
+        ],
+      ),
+    );
+  }
+
   void _openTicketScanner(Map<String, dynamic> event) {
     Navigator.push(
       context,
@@ -505,6 +528,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         builder: (context) => TicketScannerScreen(
           eventId: widget.eventId,
           eventTitle: event['title'] ?? 'Événement',
+        ),
+      ),
+    );
+  }
+
+  void _openSoldTickets(Map<String, dynamic> event) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SoldTicketsScreen(
+          eventId: widget.eventId,
+          eventTitle: event['title'] ?? 'Événement',
+          currency: event['currency'] ?? 'XOF',
         ),
       ),
     );

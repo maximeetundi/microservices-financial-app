@@ -36,36 +36,36 @@
       <div v-else>
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div class="glass-card p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total vendu</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ tickets.length }}</p>
+          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total vendu</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ tickets.length }}</p>
           </div>
-          <div class="glass-card p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Revenus</p>
-            <p class="text-2xl font-bold text-emerald-600">{{ formatAmount(totalRevenue) }} {{ event?.currency }}</p>
+          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Revenus</p>
+            <p class="text-3xl font-bold text-emerald-600 mt-1">{{ formatAmount(totalRevenue) }} <span class="text-sm font-normal text-gray-500">{{ event?.currency }}</span></p>
           </div>
-          <div class="glass-card p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Utilisés</p>
-            <p class="text-2xl font-bold text-indigo-600">{{ usedCount }}</p>
+          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Utilisés</p>
+            <p class="text-3xl font-bold text-indigo-600 mt-1">{{ usedCount }}</p>
           </div>
-          <div class="glass-card p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">En attente</p>
-            <p class="text-2xl font-bold text-amber-600">{{ pendingCount }}</p>
+          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">En attente</p>
+            <p class="text-3xl font-bold text-amber-600 mt-1">{{ pendingCount }}</p>
           </div>
         </div>
 
         <!-- Empty State -->
-        <div v-if="tickets.length === 0" class="glass-card p-16 text-center">
+        <div v-if="tickets.length === 0" class="glass-card p-16 text-center bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 shadow-sm">
           <div class="text-6xl mb-4">🎫</div>
           <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Aucun ticket vendu</h3>
           <p class="text-gray-500 dark:text-gray-400">Les tickets vendus apparaîtront ici.</p>
         </div>
 
         <!-- Tickets Table -->
-        <div v-else class="glass-card overflow-hidden">
+        <div v-else class="glass-card overflow-hidden bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
           <table class="table-premium w-full">
             <thead>
-              <tr class="bg-gray-50 dark:bg-slate-800/50">
+              <tr class="bg-gray-50/80 dark:bg-slate-800/80 border-b border-gray-100 dark:border-gray-700">
                 <th class="text-left px-6 py-4">Acheteur</th>
                 <th class="text-left px-6 py-4">Type</th>
                 <th class="text-left px-6 py-4">Code</th>
