@@ -1,15 +1,19 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /app/admin-service
+WORKDIR /app
 
 # Install git for go mod
 RUN apk add --no-cache git
 
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
 # Copy go mod files
-COPY ./admin-service/go.mod ./admin-service/go.sum* ./
+COPY ./admin-service/go.mod ./admin-service/go.sum* ./admin-service/
 
 # Download dependencies
+WORKDIR /app/admin-service
 RUN go mod download || true
 
 # Copy service source code

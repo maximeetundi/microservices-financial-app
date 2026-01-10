@@ -1,15 +1,19 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /app/notification-service
+WORKDIR /app
 
 # Install git for go mod
 RUN apk add --no-cache git
 
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
 # Copy go mod files
-COPY ./notification-service/go.mod ./notification-service/go.sum* ./
+COPY ./notification-service/go.mod ./notification-service/go.sum* ./notification-service/
 
 # Download dependencies
+WORKDIR /app/notification-service
 RUN go mod download || true
 
 # Copy service source code
@@ -32,7 +36,7 @@ WORKDIR /root/
 COPY --from=builder /app/notification-service/main .
 
 # Expose port
-EXPOSE 8086
+EXPOSE 8087
 
 # Command to run
 CMD ["./main"]

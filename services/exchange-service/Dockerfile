@@ -1,15 +1,19 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /app/exchange-service
+WORKDIR /app
 
 # Install git for go mod
 RUN apk add --no-cache git
 
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
 # Copy go mod files
-COPY ./exchange-service/go.mod ./exchange-service/go.sum* ./
+COPY ./exchange-service/go.mod ./exchange-service/go.sum* ./exchange-service/
 
 # Download dependencies
+WORKDIR /app/exchange-service
 RUN go mod download || true
 
 # Copy service source code
@@ -32,7 +36,7 @@ WORKDIR /root/
 COPY --from=builder /app/exchange-service/main .
 
 # Expose port
-EXPOSE 8084
+EXPOSE 8085
 
 # Command to run
 CMD ["./main"]
