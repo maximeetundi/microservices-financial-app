@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -41,15 +43,23 @@ func (c *WalletClient) ProcessTransaction(req *WalletTransactionRequest) error {
 		return fmt.Errorf("failed to marshal struct: %w", err)
 	}
 
+	log.Printf("[WALLET-CLIENT DEBUG] Sending %s request to %s: UserID=%s, WalletID=%s, Amount=%f, Currency=%s",
+		req.Type, url, req.UserID, req.WalletID, req.Amount, req.Currency)
+
 	resp, err := c.httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Printf("[WALLET-CLIENT ERROR] HTTP request failed: %v", err)
 		return fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("wallet service returned status: %d", resp.StatusCode)
+		// Read response body for error details
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[WALLET-CLIENT ERROR] Wallet service returned status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("wallet service returned status: %d - %s", resp.StatusCode, string(body))
 	}
 
+	log.Printf("[WALLET-CLIENT DEBUG] Transaction successful: %s %s", req.Type, req.WalletID)
 	return nil
 }

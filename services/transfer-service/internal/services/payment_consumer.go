@@ -90,8 +90,14 @@ func (c *PaymentRequestConsumer) Start() error {
 func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent) error {
 	opsPerformed := 0
 
+	log.Printf("[TRANSFER DEBUG] processPayment called: TxID=%s, SourceWallet=%s, DestWallet=%s, Amount=%f, Currency=%s, DestUserID=%s",
+		req.TransactionID, req.SourceWalletID, req.DestinationWalletID, req.Amount, req.Currency, req.DestinationUserID)
+
 	// 1. Debit Source Wallet (if provided)
 	if req.SourceWalletID != "" {
+		log.Printf("[TRANSFER DEBUG] Step 1: Debiting source wallet %s for user %s, amount %f %s",
+			req.SourceWalletID, req.UserID, req.Amount, req.Currency)
+		
 		debitReq := &WalletTransactionRequest{
 			UserID:    req.UserID,
 			WalletID:  req.SourceWalletID,
@@ -102,18 +108,25 @@ func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent)
 		}
 
 		if err := c.walletClient.ProcessTransaction(debitReq); err != nil {
+			log.Printf("[TRANSFER ERROR] Failed to debit source wallet %s: %v", req.SourceWalletID, err)
 			return fmt.Errorf("failed to debit source wallet: %w", err)
 		}
+		log.Printf("[TRANSFER DEBUG] Successfully debited source wallet %s", req.SourceWalletID)
 		opsPerformed++
 	}
 
 	// 2. Resolve Destination Wallet if missing
 	if req.DestinationWalletID == "" && req.DestinationUserID != "" {
+		log.Printf("[TRANSFER DEBUG] Step 2: Resolving destination wallet for user %s, currency %s",
+			req.DestinationUserID, req.Currency)
+		
 		walletID, err := c.walletRepo.GetWalletIDByUserAndCurrency(req.DestinationUserID, req.Currency)
 		if err == nil && walletID != "" {
 			req.DestinationWalletID = walletID
+			log.Printf("[TRANSFER DEBUG] Resolved destination wallet: %s", walletID)
 		} else {
-			// If wallet not found, fail.
+			log.Printf("[TRANSFER ERROR] Destination wallet not found for user %s and currency %s: %v",
+				req.DestinationUserID, req.Currency, err)
 			return fmt.Errorf("destination wallet not found for user %s and currency %s", req.DestinationUserID, req.Currency)
 		}
 	}
@@ -121,8 +134,12 @@ func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent)
 	// 3. Credit Destination Wallet (if provided or resolved)
 	if req.DestinationWalletID != "" {
 		if req.DestinationUserID == "" {
+			log.Printf("[TRANSFER ERROR] Missing destination user ID for credit, wallet %s", req.DestinationWalletID)
 			return fmt.Errorf("missing destination user id for credit")
 		}
+
+		log.Printf("[TRANSFER DEBUG] Step 3: Crediting destination wallet %s for user %s, amount %f %s",
+			req.DestinationWalletID, req.DestinationUserID, req.Amount, req.Currency)
 
 		creditReq := &WalletTransactionRequest{
 			UserID:    req.DestinationUserID,
@@ -134,8 +151,10 @@ func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent)
 		}
 
 		if err := c.walletClient.ProcessTransaction(creditReq); err != nil {
+			log.Printf("[TRANSFER ERROR] Failed to credit destination wallet %s: %v", req.DestinationWalletID, err)
 			// Compensation logic: credit back the source if it was debited in this same transaction
 			if req.SourceWalletID != "" {
+				log.Printf("[TRANSFER DEBUG] Initiating compensation: refunding source wallet %s", req.SourceWalletID)
 				compReq := &WalletTransactionRequest{
 					UserID:    req.UserID,
 					WalletID:  req.SourceWalletID,
@@ -144,17 +163,24 @@ func (c *PaymentRequestConsumer) processPayment(req *models.PaymentRequestEvent)
 					Currency:  req.Currency,
 					Reference: "REFUND_" + req.Reference,
 				}
-				_ = c.walletClient.ProcessTransaction(compReq)
+				if compErr := c.walletClient.ProcessTransaction(compReq); compErr != nil {
+					log.Printf("[TRANSFER ERROR] Compensation failed for wallet %s: %v", req.SourceWalletID, compErr)
+				} else {
+					log.Printf("[TRANSFER DEBUG] Compensation successful for wallet %s", req.SourceWalletID)
+				}
 			}
 
 			return fmt.Errorf("failed to credit destination wallet: %w", err)
 		}
+		log.Printf("[TRANSFER DEBUG] Successfully credited destination wallet %s", req.DestinationWalletID)
 		opsPerformed++
 	}
 
 	if opsPerformed == 0 {
+		log.Printf("[TRANSFER ERROR] Invalid payment request: neither source nor destination wallet provided")
 		return fmt.Errorf("invalid payment request: neither source nor destination wallet provided")
 	}
 
+	log.Printf("[TRANSFER DEBUG] Payment processing completed successfully: TxID=%s, ops=%d", req.TransactionID, opsPerformed)
 	return nil
 }

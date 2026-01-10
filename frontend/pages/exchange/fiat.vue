@@ -142,7 +142,7 @@
              <div class="flex justify-between items-center text-sm mt-2">
              <span class="text-muted">Variation 24h</span>
              <span :class="exchangeRate.change_24h >= 0 ? 'text-success' : 'text-error'" class="font-bold">
-                {{ (exchangeRate.change_24h || 0) >= 0 ? '+' : '' }}{{ ((exchangeRate.change_24h || 0) * 100).toFixed(2) }}%
+                {{ (exchangeRate.change_24h || 0) >= 0 ? '+' : '' }}{{ ((exchangeRate.change_24h || 0)).toFixed(2) }}%
               </span>
            </div>
         </div>
