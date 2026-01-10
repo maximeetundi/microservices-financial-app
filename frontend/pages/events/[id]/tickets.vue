@@ -124,8 +124,9 @@ definePageMeta({
   middleware: 'auth'
 })
 
+import { ticketAPI } from '~/composables/useApi'
+
 const route = useRoute()
-const { ticketApi } = useApi()
 
 const eventId = computed(() => route.params.id as string)
 
@@ -143,8 +144,8 @@ const loadData = async () => {
   error.value = ''
   try {
     const [eventRes, ticketsRes] = await Promise.all([
-      ticketApi.getEvent(eventId.value),
-      ticketApi.getEventTickets(eventId.value, 100, 0)
+      ticketAPI.getEvent(eventId.value),
+      ticketAPI.getEventTickets(eventId.value, 100, 0)
     ])
     event.value = eventRes.data?.event || eventRes.data
     tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
