@@ -60,6 +60,7 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	// Process debit operation via wallet client
 	debitReq := &WalletTransactionRequest{
+		UserID:    paymentReq.UserID,
 		WalletID:  paymentReq.FromWalletID,
 		Amount:    paymentReq.DebitAmount,
 		Currency:  paymentReq.Currency,
@@ -76,6 +77,7 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 	// If there's a credit operation (to wallet)
 	if paymentReq.ToWalletID != "" && paymentReq.CreditAmount > 0 {
 		creditReq := &WalletTransactionRequest{
+			UserID:    paymentReq.UserID,
 			WalletID:  paymentReq.ToWalletID,
 			Amount:    paymentReq.CreditAmount,
 			Currency:  paymentReq.Currency,
@@ -87,6 +89,7 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 			log.Printf("[Kafka] Credit failed: %v", err)
 			// Rollback debit
 			rollbackReq := &WalletTransactionRequest{
+				UserID:    paymentReq.UserID,
 				WalletID:  paymentReq.FromWalletID,
 				Amount:    paymentReq.DebitAmount,
 				Currency:  paymentReq.Currency,

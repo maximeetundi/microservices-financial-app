@@ -434,6 +434,7 @@ func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
 		Currency:     exchange.FromCurrency,
 		Type:         "fiat_exchange_debit",
 		ReferenceID:  fmt.Sprintf("FIAT_EXCHANGE_DEBIT_%s", exchange.ID),
+		UserID:       exchange.UserID,
 	}
 
 	// Update status to indicate processing
