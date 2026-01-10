@@ -85,7 +85,7 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 				
 				// Publish notification
 				envelope := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", notifEvent)
-				if err := c.kafkaClient.Publish(messaging.TopicNotificationEvents, envelope); err != nil {
+				if err := c.kafkaClient.Publish(ctx, messaging.TopicNotificationEvents, envelope); err != nil {
 					log.Printf("[Kafka] Failed to publish notification event: %v", err)
 				} else {
 					log.Printf("[Kafka] Published notification for organizer %s", ticket.EventCreatorID)
