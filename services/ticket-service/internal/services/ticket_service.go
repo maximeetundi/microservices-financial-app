@@ -1,14 +1,14 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/database"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/ticket-service/internal/repository"
 	"github.com/skip2/go-qrcode"
@@ -19,21 +19,21 @@ type TicketService struct {
 	tierRepo     *repository.TierRepository
 	ticketRepo   *repository.TicketRepository
 	walletClient *WalletClient
-	mqClient     *database.RabbitMQClient
+	kafkaClient  *messaging.KafkaClient
 }
 
 func NewTicketService(
 	eventRepo *repository.EventRepository,
 	tierRepo *repository.TierRepository,
 	ticketRepo *repository.TicketRepository,
-	mqClient *database.RabbitMQClient,
+	kafkaClient *messaging.KafkaClient,
 ) *TicketService {
 	return &TicketService{
 		eventRepo:    eventRepo,
 		tierRepo:     tierRepo,
 		ticketRepo:   ticketRepo,
 		walletClient: NewWalletClient(),
-		mqClient:     mqClient,
+		kafkaClient:  kafkaClient,
 	}
 }
 
@@ -326,28 +326,20 @@ func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicke
 	// Assuming creatorID has a default wallet. 
 	// Or we pass creatorID as destination user.
 	
-	paymentReq := models.PaymentRequestEvent{
-		TransactionID:       txID,
-		SourceWalletID:      req.WalletID,
-		UserID:              buyerID,
-		Amount:              tier.Price,
-		Currency:            event.Currency,
-		Reference:           fmt.Sprintf("TICKET_%s", ticketCode),
-		OriginService:       "ticket-service",
-		DestinationUserID:   event.CreatorID,
-		// DestinationWalletID: ??? We don't know the exact wallet ID of the organizer here.
-		// Transfer Service PaymentConsumer needs to handle resolution if WalletID is missing but UserID is present?
-		// My previous implementation of PaymentConsumer required DestinationWalletID.
-		// I should update PaymentConsumer to resolve wallet if only UserID is provided.
-		// But for now, let's leave DestinationWalletID empty and rely on TransferService to handle it or fail.
-		// UPDATE: I will need to update TransferService logic to fetch wallet if ID is missing.
-		// Or I can fetch it here via walletClient? No, trying to decouple.
-		// Let's assume Transfer Service can handle it.
+	paymentReq := messaging.PaymentRequestEvent{
+		RequestID:     txID,
+		FromWalletID:  req.WalletID,
+		ToWalletID:    "", // Resolved by transfer-service based on DestinationUserID
+		DebitAmount:   tier.Price,
+		CreditAmount:  tier.Price,
+		Currency:      event.Currency,
+		Type:          "ticket_purchase",
+		ReferenceID:   fmt.Sprintf("TICKET_%s", ticketCode),
 	}
 
-	// Marshal and publish
-	reqBytes, _ := json.Marshal(paymentReq)
-	if err := s.mqClient.PublishToExchange("payment.events", "payment.request", reqBytes); err != nil {
+	// Publish payment request to Kafka
+	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "ticket-service", paymentReq)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicPaymentEvents, envelope); err != nil {
 		// Failed to publish payment request
 		s.ticketRepo.Delete(ticket.ID)
 		return nil, fmt.Errorf("failed to initiate payment: %w", err)

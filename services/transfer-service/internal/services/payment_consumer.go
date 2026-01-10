@@ -59,7 +59,14 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 		paymentReq.RequestID, paymentReq.Type, paymentReq.DebitAmount)
 
 	// Process debit operation via wallet client
-	err = c.walletClient.ProcessTransaction(paymentReq.FromWalletID, paymentReq.DebitAmount, paymentReq.Currency, "debit", paymentReq.ReferenceID)
+	debitReq := &WalletTransactionRequest{
+		WalletID:  paymentReq.FromWalletID,
+		Amount:    paymentReq.DebitAmount,
+		Currency:  paymentReq.Currency,
+		Type:      "debit",
+		Reference: paymentReq.ReferenceID,
+	}
+	err = c.walletClient.ProcessTransaction(debitReq)
 	if err != nil {
 		log.Printf("[Kafka] Debit failed: %v", err)
 		c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
@@ -68,11 +75,25 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	// If there's a credit operation (to wallet)
 	if paymentReq.ToWalletID != "" && paymentReq.CreditAmount > 0 {
-		err = c.walletClient.ProcessTransaction(paymentReq.ToWalletID, paymentReq.CreditAmount, paymentReq.Currency, "credit", paymentReq.ReferenceID)
+		creditReq := &WalletTransactionRequest{
+			WalletID:  paymentReq.ToWalletID,
+			Amount:    paymentReq.CreditAmount,
+			Currency:  paymentReq.Currency,
+			Type:      "credit",
+			Reference: paymentReq.ReferenceID,
+		}
+		err = c.walletClient.ProcessTransaction(creditReq)
 		if err != nil {
 			log.Printf("[Kafka] Credit failed: %v", err)
 			// Rollback debit
-			c.walletClient.ProcessTransaction(paymentReq.FromWalletID, paymentReq.DebitAmount, paymentReq.Currency, "credit", paymentReq.ReferenceID+"_rollback")
+			rollbackReq := &WalletTransactionRequest{
+				WalletID:  paymentReq.FromWalletID,
+				Amount:    paymentReq.DebitAmount,
+				Currency:  paymentReq.Currency,
+				Type:      "credit",
+				Reference: paymentReq.ReferenceID + "_rollback",
+			}
+			c.walletClient.ProcessTransaction(rollbackReq)
 			c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", err.Error())
 			return err
 		}

@@ -56,26 +56,30 @@ func main() {
 	tierRepo := repository.NewTierRepository(database.DB)
 	ticketRepo := repository.NewTicketRepository(database.DB)
 
-	// Initialize RabbitMQ
-	rabbitmqURL := os.Getenv("RABBITMQ_URL")
-	if rabbitmqURL == "" {
-		rabbitmqURL = "amqp://guest:guest@rabbitmq:5672/"
+	// Initialize Kafka
+	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
+	if kafkaBrokers == "" {
+		kafkaBrokers = "kafka:9092"
 	}
-	mqClient, err := database.InitializeRabbitMQ(rabbitmqURL)
+	kafkaGroupID := os.Getenv("KAFKA_GROUP_ID")
+	if kafkaGroupID == "" {
+		kafkaGroupID = "ticket-service-group"
+	}
+	kafkaClient, err := database.InitializeKafka(kafkaBrokers, kafkaGroupID)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize RabbitMQ: %v", err)
+		log.Printf("Warning: Failed to initialize Kafka: %v", err)
 	} else {
-		defer mqClient.Close()
+		defer kafkaClient.Close()
 		
 		// Start Payment Status Consumer
-		paymentConsumer := services.NewPaymentStatusConsumer(mqClient, ticketRepo)
+		paymentConsumer := services.NewPaymentStatusConsumer(kafkaClient, ticketRepo)
 		if err := paymentConsumer.Start(); err != nil {
 			log.Printf("Warning: Failed to start PaymentStatusConsumer: %v", err)
 		}
 	}
 
 	// Initialize service
-	ticketService := services.NewTicketService(eventRepo, tierRepo, ticketRepo, mqClient)
+	ticketService := services.NewTicketService(eventRepo, tierRepo, ticketRepo, kafkaClient)
 
 	// Initialize MinIO storage
 	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
