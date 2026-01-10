@@ -83,7 +83,7 @@ func main() {
 	feeService := services.NewFeeService(feeRepo)
 	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, feeService, mqClient, walletClient, cfg)
 	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
-	fiatExchangeService := services.NewFiatExchangeService(exchangeRepo, rateService, feeService, mqClient.GetChannel(), cfg)
+	fiatExchangeService := services.NewFiatExchangeService(exchangeRepo, rateService, feeService, mqClient, cfg)
 	
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
-	"github.com/streadway/amqp"
 )
 
 type FiatExchangeService struct {
@@ -18,16 +18,16 @@ type FiatExchangeService struct {
 	rateService  *RateService
 	feeService   *FeeService
 	config       *config.Config
-	mqChannel    *amqp.Channel
+	mqClient     *database.RabbitMQClient
 }
 
-func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, feeService *FeeService, mqChannel *amqp.Channel, cfg *config.Config) *FiatExchangeService {
+func NewFiatExchangeService(exchangeRepo *repository.ExchangeRepository, rateService *RateService, feeService *FeeService, mqClient *database.RabbitMQClient, cfg *config.Config) *FiatExchangeService {
 	return &FiatExchangeService{
 		exchangeRepo: exchangeRepo,
 		rateService:  rateService,
 		feeService:   feeService,
 		config:       cfg,
-		mqChannel:    mqChannel,
+		mqClient:     mqClient,
 	}
 }
 
@@ -451,22 +451,15 @@ func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
 	// Update status to indicate processing
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_debit")
 
-	if s.mqChannel != nil {
-		if err := s.mqChannel.Publish(
-			"payment.events", // exchange
-			"payment.request", // routing key
-			false,            // mandatory
-			false,            // immediate
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        eventJSON,
-			},
-		); err != nil {
+	if s.mqClient != nil {
+		if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
 			log.Printf("Failed to publish debit request for fiat exchange %s: %v", exchange.ID, err)
 			s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		} else {
+			log.Printf("[FIAT EXCHANGE] Successfully published debit request for %s", exchange.ID)
 		}
 	} else {
-		log.Printf("Warning: No MQ channel for fiat exchange %s, marking as failed", exchange.ID)
+		log.Printf("Warning: No MQ client for fiat exchange %s, marking as failed", exchange.ID)
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
 	}
 }
@@ -503,19 +496,12 @@ func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
 
 	s.exchangeRepo.UpdateStatus(exchange.ID, "processing_credit")
 
-	if s.mqChannel != nil {
-		if err := s.mqChannel.Publish(
-			"payment.events",
-			"payment.request",
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        eventJSON,
-			},
-		); err != nil {
+	if s.mqClient != nil {
+		if err := s.mqClient.PublishToExchange("payment.events", "payment.request", eventJSON); err != nil {
 			log.Printf("Failed to publish credit request for fiat exchange %s: %v", exchange.ID, err)
 			s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial")
+		} else {
+			log.Printf("[FIAT EXCHANGE] Successfully published credit request for %s", exchange.ID)
 		}
 	}
 }
@@ -541,7 +527,7 @@ func (s *FiatExchangeService) FailFiatExchange(exchangeID, reason string) {
 }
 
 func (s *FiatExchangeService) publishFiatExchangeEvent(eventType string, exchange *models.Exchange) {
-	if s.mqChannel == nil {
+	if s.mqClient == nil {
 		return
 	}
 
@@ -560,15 +546,5 @@ func (s *FiatExchangeService) publishFiatExchangeEvent(eventType string, exchang
 	}
 
 	eventJSON, _ := json.Marshal(event)
-
-	s.mqChannel.Publish(
-		"fiat_exchange.events", // exchange
-		eventType,              // routing key
-		false,                  // mandatory
-		false,                  // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	s.mqClient.PublishToExchange("fiat_exchange.events", eventType, eventJSON)
 }
