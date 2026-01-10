@@ -455,11 +455,13 @@ func (s *FiatExchangeService) processFiatExchange(exchange *models.Exchange) {
 
 // CompleteFiatExchangeCredit continues the exchange after debit success
 func (s *FiatExchangeService) CompleteFiatExchangeCredit(exchangeID string) {
+	log.Printf("[FIAT DEBUG] Starting CompleteFiatExchangeCredit for ID: %s", exchangeID)
 	exchange, err := s.exchangeRepo.GetByID(exchangeID)
 	if err != nil {
-		log.Printf("Failed to retrieve fiat exchange %s for credit step: %v", exchangeID, err)
+		log.Printf("[FIAT ERROR] Failed to retrieve fiat exchange %s for credit step: %v", exchangeID, err)
 		return
 	}
+	log.Printf("[FIAT DEBUG] Retrieved exchange: %+v", exchange)
 
 	// 2. Initiate Credit via Kafka
 	creditReq := &messaging.PaymentRequestEvent{
