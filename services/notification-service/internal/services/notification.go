@@ -16,20 +16,17 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/notification-service/internal/repository"
-	"github.com/streadway/amqp"
 )
 
 // NotificationService handles all notification types
 type NotificationService struct {
-	channel *amqp.Channel
 	config  *config.Config
 	repo    *repository.NotificationRepository
 }
 
 // NewNotificationService creates a new notification service
-func NewNotificationService(channel *amqp.Channel, cfg *config.Config, repo *repository.NotificationRepository) *NotificationService {
+func NewNotificationService(cfg *config.Config, repo *repository.NotificationRepository) *NotificationService {
 	return &NotificationService{
-		channel: channel,
 		config:  cfg,
 		repo:    repo,
 	}
@@ -37,104 +34,8 @@ func NewNotificationService(channel *amqp.Channel, cfg *config.Config, repo *rep
 
 // Start begins consuming from all notification queues
 func (s *NotificationService) Start() error {
-	// Declare exchanges if they don't exist
-	exchanges := []string{
-		"wallet.events",
-		"transaction.events",
-		"transfer.events",
-		"exchange.events",
-		"card.events",
-		"auth.events",
-	}
-	
-	for _, exchange := range exchanges {
-		err := s.channel.ExchangeDeclare(exchange, "topic", true, false, false, false, nil)
-		if err != nil {
-			log.Printf("Warning: failed to declare exchange %s: %v", exchange, err)
-		}
-	}
-	
-	// Subscribe to all event exchanges
-	queues := map[string][]string{
-		"notification.wallet":      {"wallet.events", "#"},
-		"notification.transaction": {"transaction.events", "#"},
-		"notification.transfer":    {"transfer.events", "#"},
-		"notification.exchange":    {"exchange.events", "#"},
-		"notification.card":        {"card.events", "#"},
-		"notification.auth":        {"auth.events", "#"},
-	}
-
-	for queue, binding := range queues {
-		// Declare queue
-		_, err := s.channel.QueueDeclare(queue, true, false, false, false, nil)
-		if err != nil {
-			log.Printf("Warning: failed to declare queue %s: %v", queue, err)
-			continue
-		}
-
-		// Bind to exchange
-		err = s.channel.QueueBind(queue, binding[1], binding[0], false, nil)
-		if err != nil {
-			log.Printf("Warning: failed to bind queue %s: %v", queue, err)
-			continue
-		}
-
-		// Start consumer
-		go s.consume(queue)
-	}
-
-	log.Println("✅ Notification service consumers started")
+	log.Println("⚠️  Kafka consumer not yet implemented - Notification service running in API-only mode")
 	return nil
-}
-
-func (s *NotificationService) consume(queue string) {
-	msgs, err := s.channel.Consume(
-		queue,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Printf("Failed to consume from %s: %v", queue, err)
-		return
-	}
-
-	for msg := range msgs {
-		s.handleMessage(queue, msg)
-	}
-}
-
-func (s *NotificationService) handleMessage(queue string, msg amqp.Delivery) {
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
-		log.Printf("Failed to unmarshal message: %v", err)
-		msg.Nack(false, true)
-		return
-	}
-
-	eventType, _ := event["type"].(string)
-	userID, _ := event["user_id"].(string)
-	email, _ := event["email"].(string)
-	phone, _ := event["phone"].(string)
-
-	log.Printf("📬 Processing event: %s for user: %s", eventType, userID)
-
-	// Determine notification based on event type
-	notification := s.createNotification(eventType, event)
-	if notification == nil {
-		msg.Ack(false)
-		return
-	}
-
-	// Send notifications via different channels
-	if userID != "" || email != "" || phone != "" {
-		s.sendNotification(userID, email, phone, notification)
-	}
-
-	msg.Ack(false)
 }
 
 // NotificationPriority defines urgency levels
@@ -585,6 +486,33 @@ func (s *NotificationService) sendNotification(userID, email, phone string, noti
 	s.logNotification(userID, notification)
 }
 
+func (s *NotificationService) logNotification(userID string, notification *Notification) {
+	if s.repo == nil {
+		return
+	}
+	
+	err := s.repo.Create(&models.Notification{
+		UserID:    userID,
+		Type:      notification.Type,
+		Title:     notification.Title,
+		Message:   notification.Body,
+		Data:      s.mapToString(notification.Data),
+		CreatedAt: time.Now(),
+	})
+	
+	if err != nil {
+		log.Printf("Failed to log notification to DB: %v", err)
+	}
+}
+
+func (s *NotificationService) mapToString(m map[string]interface{}) string {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
 // ===== EMAIL IMPLEMENTATION =====
 
 func (s *NotificationService) sendEmail(toEmail string, notification *Notification) {
@@ -811,39 +739,6 @@ func (s *NotificationService) sendPush(userID string, notification *Notification
 		log.Printf("[PUSH] FCM error: status %d", resp.StatusCode)
 		return
 	}
-
-	log.Printf("[PUSH] ✅ Sent to user %s: %s", userID, notification.Title)
-}
-
-func (s *NotificationService) logNotification(userID string, notification *Notification) {
-	// Save notification to database for user notification center
-	if s.repo != nil && userID != "" {
-		// Convert data to JSON string
-		var dataStr *string
-		if notification.Data != nil {
-			dataBytes, err := json.Marshal(notification.Data)
-			if err == nil {
-				str := string(dataBytes)
-				dataStr = &str
-			}
-		}
-
-		dbNotification := &models.Notification{
-			UserID:  userID,
-			Type:    notification.Type,
-			Title:   notification.Title,
-			Message: notification.Body,
-			Data:    dataStr,
-		}
-
-		if err := s.repo.Create(dbNotification); err != nil {
-			log.Printf("[LOG] ❌ Failed to save notification: %v", err)
-		} else {
-			log.Printf("[LOG] ✅ Notification saved: user=%s, type=%s, title=%s", 
-				userID, notification.Type, notification.Title)
-		}
-	} else {
-		log.Printf("[LOG] 📝 Notification logged (no DB): user=%s, type=%s, priority=%s, title=%s", 
-			userID, notification.Type, notification.Priority, notification.Title)
-	}
+	
+	log.Printf("[PUSH] ✅ Sent to user %s", userID)
 }
