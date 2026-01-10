@@ -251,6 +251,16 @@ export const walletAPI = {
         api.post(`/wallet-service/api/v1/wallets/${id}/deposit`, { amount, method }),
     withdraw: (id: string, amount: number, destination: string) =>
         api.post(`/wallet-service/api/v1/wallets/${id}/withdraw`, { amount, destination }),
+
+    // Crypto wallet methods
+    generateCryptoWallet: (currency: string) =>
+        api.post('/wallet-service/api/v1/crypto/generate', { currency, wallet_type: 'crypto', name: `${currency} Wallet` }),
+    getCryptoAddress: (walletId: string) =>
+        api.get(`/wallet-service/api/v1/crypto/${walletId}/address`),
+    sendCrypto: (walletId: string, data: { to_address: string, amount: number, note?: string }) =>
+        api.post(`/wallet-service/api/v1/crypto/${walletId}/send`, data),
+    estimateCryptoFee: (walletId: string, amount: number) =>
+        api.post(`/wallet-service/api/v1/crypto/${walletId}/estimate-fee`, { amount }),
 }
 
 // ========== Transfers ==========

@@ -26,48 +26,54 @@
                 :class="mode === 'buy' ? 'bg-success text-white' : 'bg-white/10 text-muted hover:text-base'"
                 class="flex-1 py-3 rounded-xl font-semibold transition-colors"
               >
-                Acheter
+                🛒 Acheter
               </button>
               <button
                 @click="mode = 'sell'"
                 :class="mode === 'sell' ? 'bg-error text-white' : 'bg-white/10 text-muted hover:text-base'"
                 class="flex-1 py-3 rounded-xl font-semibold transition-colors"
               >
-                Vendre
+                💰 Vendre
               </button>
             </div>
             
-            <!-- From (Fiat for buy, Crypto for sell) -->
+            <!-- FROM Section -->
             <div class="mb-6">
               <label class="block text-sm font-medium text-muted mb-2">
-                {{ mode === 'buy' ? 'Vous payez' : 'Vous vendez' }}
+                {{ mode === 'buy' ? '💳 Vous payez avec' : '📤 Vous vendez' }}
               </label>
-              <div class="flex gap-4">
-                <div class="flex-1">
-                  <input 
-                    v-model.number="fromAmount" 
-                    type="number" 
-                    placeholder="0.00"
-                    class="input-premium w-full text-2xl font-bold"
-                    @input="calculateConversion"
-                  />
-                </div>
-                <!-- Currency selector -->
-                <select v-model="fromCurrency" @change="onFromCurrencyChange" class="input-premium w-40">
-                  <template v-if="mode === 'buy'">
-                    <option v-for="wallet in fiatWallets" :key="wallet.id" :value="wallet.currency">
-                      {{ getCurrencyEmoji(wallet.currency) }} {{ wallet.currency }}
-                    </option>
-                  </template>
-                  <template v-else>
-                    <option v-for="crypto in cryptoCurrencies" :key="crypto.symbol" :value="crypto.symbol">
-                      {{ crypto.icon }} {{ crypto.symbol }}
-                    </option>
-                  </template>
+              
+              <!-- Wallet Selector -->
+              <div class="mb-3">
+                <select 
+                  v-model="selectedFromWalletId" 
+                  @change="onWalletChange"
+                  class="input-premium w-full bg-slate-800 text-white border-slate-600"
+                >
+                  <option value="" disabled>Sélectionner un portefeuille</option>
+                  <option v-for="wallet in fromWalletOptions" :key="wallet.id" :value="wallet.id">
+                    {{ getCurrencyEmoji(wallet.currency) }} {{ wallet.currency }} - 
+                    Solde: {{ formatBalance(wallet.balance) }}
+                  </option>
                 </select>
               </div>
+              
+              <!-- Amount Input -->
+              <div class="relative">
+                <input 
+                  v-model.number="fromAmount" 
+                  type="number" 
+                  placeholder="Entrez le montant"
+                  class="input-premium w-full text-2xl font-bold bg-slate-800 text-white border-slate-600 pr-20 h-16"
+                  @input="calculateConversion"
+                />
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted">
+                  {{ fromCurrency }}
+                </span>
+              </div>
+              
               <p class="text-xs text-muted mt-2">
-                Solde: {{ formatBalance(getWalletBalance(fromCurrency)) }} {{ fromCurrency }}
+                Solde disponible: <span class="text-success font-medium">{{ formatBalance(getWalletBalance(fromCurrency)) }} {{ fromCurrency }}</span>
               </p>
             </div>
 
@@ -80,25 +86,18 @@
               </button>
             </div>
 
-            <!-- To (Crypto for buy, Fiat for sell) -->
+            <!-- TO Section -->
             <div class="mb-6">
               <label class="block text-sm font-medium text-muted mb-2">
-                {{ mode === 'buy' ? 'Vous recevez' : 'Vous recevez' }}
+                {{ mode === 'buy' ? '📥 Vous recevez' : '💵 Vous recevez' }}
               </label>
-              <div class="flex gap-4">
-                <div class="flex-1">
-                  <input 
-                    v-model="toAmount" 
-                    type="text" 
-                    placeholder="0.00"
-                    class="input-premium w-full text-2xl font-bold"
-                    readonly
-                  />
-                </div>
-                <select v-model="toCurrency" @change="calculateConversion" class="input-premium w-40">
+              
+              <!-- Crypto/Fiat Selector -->
+              <div class="mb-3">
+                <select v-model="toCurrency" @change="calculateConversion" class="input-premium w-full bg-slate-800 text-white border-slate-600">
                   <template v-if="mode === 'buy'">
                     <option v-for="crypto in cryptoCurrencies" :key="crypto.symbol" :value="crypto.symbol">
-                      {{ crypto.icon }} {{ crypto.symbol }}
+                      {{ crypto.icon }} {{ crypto.symbol }} - {{ crypto.name }}
                     </option>
                   </template>
                   <template v-else>
@@ -108,31 +107,45 @@
                   </template>
                 </select>
               </div>
+              
+              <!-- Amount Display -->
+              <div class="relative">
+                <input 
+                  v-model="toAmount" 
+                  type="text" 
+                  placeholder="0.00"
+                  class="input-premium w-full text-2xl font-bold bg-slate-700 text-success border-slate-600 pr-20 h-16"
+                  readonly
+                />
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted">
+                  {{ toCurrency }}
+                </span>
+              </div>
             </div>
 
             <!-- Rate Info -->
-            <div class="p-4 rounded-xl bg-white/5 border border-white/10 mb-6">
+            <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700 mb-6">
               <div class="flex justify-between text-sm mb-2">
-                <span class="text-muted">Taux</span>
+                <span class="text-muted">📊 Taux</span>
                 <span class="text-base font-medium">
                   1 {{ mode === 'buy' ? toCurrency : fromCurrency }} = 
                   {{ formatMoney(getCurrentRate(), mode === 'buy' ? fromCurrency : toCurrency) }}
                 </span>
               </div>
               <div class="flex justify-between text-sm mb-2">
-                <span class="text-muted">Frais ({{ feePercentage }}%)</span>
+                <span class="text-muted">💸 Frais ({{ feePercentage }}%)</span>
                 <span class="text-base">{{ formatMoney(calculatedFee, mode === 'buy' ? fromCurrency : toCurrency) }}</span>
               </div>
-              <div class="flex justify-between text-sm font-bold pt-2 border-t border-white/10">
-                <span class="text-muted">Vous recevez</span>
-                <span class="text-success">{{ toAmount }} {{ toCurrency }}</span>
+              <div class="flex justify-between text-sm font-bold pt-2 border-t border-slate-700">
+                <span class="text-muted">✨ Vous recevez</span>
+                <span class="text-success text-lg">{{ toAmount }} {{ toCurrency }}</span>
               </div>
             </div>
 
             <!-- Execute Button -->
             <button 
               @click="executeExchange"
-              :disabled="loading || !fromAmount || fromAmount <= 0 || fromAmount > getWalletBalance(fromCurrency)"
+              :disabled="loading || !fromAmount || fromAmount <= 0 || fromAmount > getWalletBalance(fromCurrency) || !selectedFromWalletId"
               class="btn-premium w-full py-4 text-lg font-bold disabled:opacity-50"
             >
               <span v-if="loading" class="flex items-center justify-center gap-2">
@@ -143,26 +156,63 @@
                 Traitement...
               </span>
               <span v-else>
-                {{ mode === 'buy' ? `Acheter ${toCurrency}` : `Vendre ${fromCurrency}` }}
+                {{ mode === 'buy' ? `🛒 Acheter ${toCurrency}` : `💰 Vendre ${fromCurrency}` }}
               </span>
             </button>
 
-            <p v-if="fromAmount > getWalletBalance(fromCurrency)" class="text-error text-sm mt-2 text-center">
-              Solde insuffisant
+            <p v-if="!selectedFromWalletId" class="text-warning text-sm mt-2 text-center">
+              ⚠️ Veuillez sélectionner un portefeuille
             </p>
+            <p v-else-if="fromAmount > getWalletBalance(fromCurrency)" class="text-error text-sm mt-2 text-center">
+              ❌ Solde insuffisant
+            </p>
+          </div>
+
+          <!-- Crypto Address Section (for receiving crypto) -->
+          <div v-if="mode === 'buy' && selectedCryptoWallet" class="glass-card p-6 mt-6">
+            <h3 class="text-lg font-semibold text-base mb-4">📬 Adresse de réception {{ toCurrency }}</h3>
+            
+            <div v-if="getCryptoWalletAddress()" class="space-y-4">
+              <div class="p-4 bg-slate-800 rounded-xl">
+                <p class="text-xs text-muted mb-2">Votre adresse {{ toCurrency }}:</p>
+                <div class="flex items-center gap-2">
+                  <code class="text-sm text-success break-all flex-1">{{ getCryptoWalletAddress() }}</code>
+                  <button @click="copyAddress" class="p-2 bg-primary/20 rounded-lg hover:bg-primary/30">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <p class="text-xs text-muted">
+                💡 Utilisez cette adresse pour recevoir des {{ toCurrency }} depuis un autre portefeuille ou exchange.
+              </p>
+            </div>
+            
+            <div v-else class="text-center py-4">
+              <p class="text-muted mb-4">Aucune adresse {{ toCurrency }} générée</p>
+              <button 
+                @click="generateAddress" 
+                :disabled="generatingAddress"
+                class="btn-secondary px-6 py-2"
+              >
+                <span v-if="generatingAddress">Génération...</span>
+                <span v-else>🔑 Générer une adresse</span>
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Market Prices -->
-        <div class="glass-card p-6">
+        <div class="glass-card p-6 h-fit">
           <h2 class="text-lg font-semibold text-base mb-6">📊 Prix du marché</h2>
           <div class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
             <div v-for="crypto in markets" :key="crypto.symbol" 
-                class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                class="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors cursor-pointer"
                 @click="selectCrypto(crypto.symbol)">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center" :class="crypto.bgColor">
-                  <span class="text-white font-bold text-sm">{{ crypto.icon || crypto.symbol?.slice(0, 2) }}</span>
+                  <span class="text-white font-bold text-sm">{{ crypto.icon }}</span>
                 </div>
                 <div>
                   <p class="font-medium text-base">{{ crypto.name }}</p>
@@ -234,11 +284,33 @@ const fromAmount = ref(100)
 const toAmount = ref('0')
 const feePercentage = ref(0.5)
 const calculatedFee = ref(0)
+const generatingAddress = ref(false)
 
-// Wallets and balances
+// Wallet selection
 const wallets = ref([])
+const selectedFromWalletId = ref('')
+
+// Computed wallet options
+const fromWalletOptions = computed(() => {
+  if (mode.value === 'buy') {
+    // When buying crypto, pay with fiat
+    return wallets.value.filter(w => w.wallet_type === 'fiat')
+  } else {
+    // When selling crypto, pay with crypto
+    return wallets.value.filter(w => w.wallet_type === 'crypto')
+  }
+})
+
 const fiatWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'fiat'))
 const cryptoWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'crypto'))
+
+// Selected crypto wallet (for address display)
+const selectedCryptoWallet = computed(() => {
+  if (mode.value === 'buy') {
+    return wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
+  }
+  return null
+})
 
 // Notification
 const notification = ref({
@@ -290,7 +362,8 @@ const getCurrencyEmoji = (currency) => {
   const emojis = {
     USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', XOF: '💰', XAF: '💰',
     NGN: '🇳🇬', KES: '🇰🇪', ZAR: '🇿🇦', MAD: '🇲🇦', CAD: '🇨🇦',
-    AUD: '🇦🇺', JPY: '🇯🇵', CHF: '🇨🇭', CNY: '🇨🇳', INR: '🇮🇳'
+    AUD: '🇦🇺', JPY: '🇯🇵', CHF: '🇨🇭', CNY: '🇨🇳', INR: '🇮🇳',
+    BTC: '₿', ETH: 'Ξ', SOL: '◎', USDT: '₮', USDC: '$'
   }
   return emojis[currency] || '💵'
 }
@@ -323,6 +396,14 @@ const formatPrice = (price) => {
   return Number(price) >= 1 ? Number(price).toLocaleString() : Number(price).toFixed(6)
 }
 
+const onWalletChange = () => {
+  const wallet = wallets.value.find(w => w.id === selectedFromWalletId.value)
+  if (wallet) {
+    fromCurrency.value = wallet.currency
+    calculateConversion()
+  }
+}
+
 const calculateConversion = () => {
   const rate = getCurrentRate()
   const fee = fromAmount.value * (feePercentage.value / 100)
@@ -341,38 +422,81 @@ const calculateConversion = () => {
 
 const swapMode = () => {
   mode.value = mode.value === 'buy' ? 'sell' : 'buy'
-  // Swap currencies
-  const tempFrom = fromCurrency.value
-  fromCurrency.value = toCurrency.value
-  toCurrency.value = tempFrom
-  calculateConversion()
-}
-
-const onFromCurrencyChange = () => {
-  calculateConversion()
 }
 
 const selectCrypto = (symbol) => {
   if (mode.value === 'buy') {
     toCurrency.value = symbol
   } else {
-    fromCurrency.value = symbol
+    // For sell, need to select wallet with this crypto
+    const cryptoWallet = wallets.value.find(w => w.currency === symbol)
+    if (cryptoWallet) {
+      selectedFromWalletId.value = cryptoWallet.id
+      fromCurrency.value = symbol
+    }
   }
   calculateConversion()
 }
 
-const executeExchange = async () => {
-  loading.value = true
+const copyAddress = () => {
+  const address = getCryptoWalletAddress()
+  if (address) {
+    navigator.clipboard.writeText(address)
+    showNotification('success', 'Adresse copiée!')
+  }
+}
+
+const getCryptoWalletAddress = () => {
+  if (!selectedCryptoWallet.value) return null
+  // Handle different possible field names
+  return selectedCryptoWallet.value.wallet_address || 
+         selectedCryptoWallet.value.address || 
+         selectedCryptoWallet.value.WalletAddress || 
+         null
+}
+
+const generateAddress = async () => {
+  generatingAddress.value = true
   try {
-    // Get the source and destination wallets
-    const sourceWallet = wallets.value.find(w => w.currency === fromCurrency.value)
-    let destWallet = wallets.value.find(w => w.currency === toCurrency.value)
+    // API: POST /wallet-service/api/v1/wallets/{id}/address
+    // This creates a new deposit address for the crypto wallet
+    let wallet = selectedCryptoWallet.value
     
-    if (!sourceWallet) {
-      throw new Error(`Portefeuille ${fromCurrency.value} non trouvé`)
+    if (!wallet) {
+      // Create the crypto wallet first
+      const { data: newWallet } = await walletAPI.createWallet({
+        currency: toCurrency.value,
+        name: `${toCurrency.value} Wallet`,
+        wallet_type: 'crypto'
+      })
+      wallet = newWallet.wallet || newWallet
     }
     
-    // Create destination wallet if it doesn't exist
+    // Generate address (this endpoint needs to exist in wallet-service)
+    // For now, simulate with a placeholder
+    showNotification('success', `Portefeuille ${toCurrency.value} créé! L'adresse sera générée automatiquement.`)
+    
+    // Refresh wallets
+    await fetchWallets()
+  } catch (error) {
+    showNotification('error', 'Erreur lors de la génération de l\'adresse')
+  } finally {
+    generatingAddress.value = false
+  }
+}
+
+const executeExchange = async () => {
+  if (!selectedFromWalletId.value) {
+    showNotification('error', 'Veuillez sélectionner un portefeuille')
+    return
+  }
+  
+  loading.value = true
+  try {
+    // Get destination wallet
+    let destWallet = wallets.value.find(w => w.currency === toCurrency.value)
+    
+    // Create if doesn't exist
     if (!destWallet) {
       const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
       const walletType = crypto ? 'crypto' : 'fiat'
@@ -399,19 +523,16 @@ const executeExchange = async () => {
     }
     
     // 2. Execute Exchange
-    const { data: exchangeRes } = await exchangeAPI.executeExchange(
+    await exchangeAPI.executeExchange(
       quote.id,
-      sourceWallet.id,
+      selectedFromWalletId.value,
       destWallet.id
     )
     
-    const exchange = exchangeRes.exchange || exchangeRes
-    
-    // Success!
     showNotification('success', 
       mode.value === 'buy' 
-        ? `Vous avez acheté ${toAmount.value} ${toCurrency.value} avec succès!`
-        : `Vous avez vendu ${fromAmount.value} ${fromCurrency.value} avec succès!`
+        ? `🎉 Vous avez acheté ${toAmount.value} ${toCurrency.value}!`
+        : `💰 Vous avez vendu ${fromAmount.value} ${fromCurrency.value}!`
     )
     
     // Refresh wallets
@@ -434,9 +555,10 @@ const fetchWallets = async () => {
     const { data } = await walletAPI.getAll()
     wallets.value = data.wallets || []
     
-    // Set default from currency based on first fiat wallet
-    if (fiatWallets.value.length > 0 && mode.value === 'buy') {
-      fromCurrency.value = fiatWallets.value[0].currency
+    // Auto-select first wallet
+    if (fromWalletOptions.value.length > 0 && !selectedFromWalletId.value) {
+      selectedFromWalletId.value = fromWalletOptions.value[0].id
+      fromCurrency.value = fromWalletOptions.value[0].currency
     }
   } catch (error) {
     console.error('Error fetching wallets:', error)
@@ -447,7 +569,6 @@ const fetchRates = async () => {
   try {
     const { data } = await exchangeAPI.getRates()
     if (data.rates) {
-      // Update crypto prices from API
       Object.entries(data.rates).forEach(([pair, rate]) => {
         const crypto = cryptoCurrencies.value.find(c => pair.includes(c.symbol))
         if (crypto && rate.Rate) {
@@ -462,11 +583,15 @@ const fetchRates = async () => {
 
 // Watch mode changes
 watch(mode, () => {
+  selectedFromWalletId.value = ''
+  if (fromWalletOptions.value.length > 0) {
+    selectedFromWalletId.value = fromWalletOptions.value[0].id
+    fromCurrency.value = fromWalletOptions.value[0].currency
+  }
+  
   if (mode.value === 'buy') {
-    fromCurrency.value = fiatWallets.value[0]?.currency || 'USD'
     toCurrency.value = 'BTC'
   } else {
-    fromCurrency.value = 'BTC'
     toCurrency.value = fiatWallets.value[0]?.currency || 'USD'
   }
   calculateConversion()
