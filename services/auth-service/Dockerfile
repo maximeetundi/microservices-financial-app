@@ -1,10 +1,16 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-WORKDIR /app/auth-service
+WORKDIR /app
 
 # Install git for go mod
 RUN apk add --no-cache git
+
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
+# Create service directory
+WORKDIR /app/auth-service
 
 # Copy go mod files
 COPY ./auth-service/go.mod ./auth-service/go.sum* ./

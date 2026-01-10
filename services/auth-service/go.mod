@@ -53,6 +53,7 @@ replace (
     github.com/crypto-bank/microservices-financial-app/services/api-gateway => ../api-gateway
     github.com/crypto-bank/microservices-financial-app/services/card-service => ../card-service
     github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
+    github.com/crypto-bank/microservices-financial-app/services/common => ../common
     github.com/crypto-bank/microservices-financial-app/services/transfer-service => ../transfer-service
     github.com/crypto-bank/microservices-financial-app/services/wallet-service => ../wallet-service
 )
