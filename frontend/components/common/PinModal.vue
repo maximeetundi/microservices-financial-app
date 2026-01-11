@@ -210,7 +210,6 @@ const verifyPin = async () => {
   error.value = ''
   
   try {
-  try {
     let payloadPin = pin
     
     // Encrypt if key is available

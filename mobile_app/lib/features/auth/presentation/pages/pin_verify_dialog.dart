@@ -114,7 +114,7 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProv
 
   Future<void> _authenticateWithBiometric() async {
     try {
-      final authenticated = await _biometricService.authenticate(
+      final authenticated = await _biometricService.authenticateWithBiometrics(
         reason: 'Authentifiez-vous pour continuer',
       );
       
