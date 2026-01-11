@@ -160,7 +160,7 @@ const shuffleKeys = () => {
 }
 
 // Reset state when modal opens
-watch(() => props.isOpen, (newVal) => {
+watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
     pinDigits.value = ['', '', '', '', '']
     error.value = ''
