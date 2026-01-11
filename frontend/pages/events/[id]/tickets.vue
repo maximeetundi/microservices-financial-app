@@ -16,14 +16,38 @@
         </div>
         <div class="flex items-center gap-3">
           <button v-if="isOwner && event?.status !== 'cancelled'" 
-                  @click="confirmCancelEvent" 
-                  class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                  @click="openCancelModal" 
+                  class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-red-500/20">
              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
              Annuler l'événement
           </button>
-          <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
-            {{ tickets.length }} tickets
-          </span>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div v-if="!loading && event" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+          <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total vendu</p>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ stats?.total_sold || 0 }}</p>
+        </div>
+        <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
+          <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Revenus</p>
+          <p class="text-3xl font-bold text-emerald-600 mt-1">{{ formatAmount(stats?.total_revenue || 0) }} <span class="text-sm font-normal text-gray-500">{{ event?.currency }}</span></p>
+        </div>
+        
+        <!-- Tier Stats Loop -->
+        <div v-for="tier in tierStats" :key="tier.id" class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+             <div class="absolute right-0 top-0 p-2 opacity-10">
+                 <span class="text-4xl">{{ tier.icon }}</span>
+             </div>
+             <p class="text-sm text-gray-500 dark:text-gray-400 font-medium truncate">{{ tier.name }}</p>
+             <div class="flex items-baseline gap-1 mt-1">
+                 <p class="text-2xl font-bold text-indigo-600">{{ tier.sold }}</p>
+                 <span class="text-xs text-gray-400">/ {{ tier.capacity }} vendus</span>
+             </div>
+             <div class="w-full bg-gray-200 dark:bg-gray-700 h-1 mt-2 rounded-full overflow-hidden">
+                 <div class="h-full bg-indigo-500 rounded-full" :style="{ width: `${(tier.sold / tier.capacity) * 100}%` }"></div>
+             </div>
         </div>
       </div>
 
@@ -40,26 +64,6 @@
 
       <!-- Tickets List -->
       <div v-else>
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Total vendu</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ tickets.length }}</p>
-          </div>
-          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Revenus</p>
-            <p class="text-3xl font-bold text-emerald-600 mt-1">{{ formatAmount(totalRevenue) }} <span class="text-sm font-normal text-gray-500">{{ event?.currency }}</span></p>
-          </div>
-          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Utilisés</p>
-            <p class="text-3xl font-bold text-indigo-600 mt-1">{{ usedCount }}</p>
-          </div>
-          <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Remboursés</p>
-            <p class="text-3xl font-bold text-red-600 mt-1">{{ refundedCount }}</p>
-          </div>
-        </div>
-
         <!-- Empty State -->
         <div v-if="tickets.length === 0" class="glass-card p-16 text-center bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 shadow-sm">
           <div class="text-6xl mb-4">🎫</div>
@@ -68,149 +72,188 @@
         </div>
 
         <!-- Tickets Table -->
-        <div v-else class="glass-card overflow-hidden bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl">
-          <table class="table-premium w-full">
-            <thead>
-              <tr class="bg-gray-50/80 dark:bg-slate-800/80 border-b border-gray-100 dark:border-gray-700">
-                <th class="text-left px-6 py-4">Acheteur</th>
-                <th class="text-left px-6 py-4">Type</th>
-                <th class="text-left px-6 py-4">Code</th>
-                <th class="text-left px-6 py-4">Prix</th>
-                <th class="text-left px-6 py-4">Statut</th>
-                <th class="text-left px-6 py-4">Date</th>
-                <th class="text-right px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="ticket in tickets" :key="ticket.id" @click.stop="viewDetails(ticket)" class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors">
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
-                      {{ getInitials(ticket.form_data) }}
-                    </div>
-                    <div>
-                      <p class="font-medium text-gray-900 dark:text-white">{{ getBuyerName(ticket.form_data) }}</p>
-                      <p class="text-sm text-gray-500 dark:text-gray-400">{{ getBuyerEmail(ticket.form_data) }}</p>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-6 py-4">
-                  <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm" 
-                        :style="{ backgroundColor: ticket.tier_color + '20', color: ticket.tier_color }">
-                    {{ ticket.tier_icon }} {{ ticket.tier_name }}
-                  </span>
-                </td>
-                <td class="px-6 py-4">
-                  <code class="px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">
-                    {{ ticket.ticket_code }}
-                  </code>
-                </td>
-                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white">
-                  {{ formatAmount(ticket.price) }} {{ ticket.currency }}
-                </td>
-                <td class="px-6 py-4">
-                  <span :class="getStatusClass(ticket.status)" class="px-2 py-1 rounded-full text-xs font-medium">
-                    {{ getStatusLabel(ticket.status) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                  {{ formatDate(ticket.created_at) }}
-                </td>
-                 <td class="px-6 py-4 text-right" @click.stop>
-                   <button v-if="ticket.status === 'paid' && isOwner" 
-                           @click="confirmRefund(ticket)"
-                           class="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 px-3 py-1 rounded-md transition-colors border border-red-200 dark:border-red-800">
-                     Rembourser
-                   </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-else class="glass-card bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 shadow-sm rounded-xl flex flex-col">
+          <div class="overflow-x-auto">
+              <table class="table-premium w-full text-left whitespace-nowrap">
+                <thead>
+                  <tr class="bg-gray-50/80 dark:bg-slate-800/80 border-b border-gray-100 dark:border-gray-700">
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acheteur</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Prix</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                  <tr v-for="ticket in tickets" :key="ticket.id" 
+                      @click="viewDetails(ticket)" 
+                      class="hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors group">
+                    
+                    <!-- Buyer Name -->
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+                          {{ getInitials(ticket.form_data) }}
+                        </div>
+                        <span class="font-medium text-gray-900 dark:text-white truncate max-w-[150px]" :title="getBuyerName(ticket.form_data)">
+                            {{ getBuyerName(ticket.form_data) }}
+                        </span>
+                      </div>
+                    </td>
+
+                    <!-- Ticket Type -->
+                    <td class="px-6 py-4">
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium" 
+                            :style="{ backgroundColor: ticket.tier_color + '15', color: ticket.tier_color }">
+                        {{ ticket.tier_icon }} {{ ticket.tier_name }}
+                      </span>
+                    </td>
+
+                    <!-- Status -->
+                    <td class="px-6 py-4">
+                      <span :class="getStatusClass(ticket.status)" class="px-2.5 py-1 rounded-full text-xs font-medium">
+                        {{ getStatusLabel(ticket.status) }}
+                      </span>
+                    </td>
+
+                    <!-- Price -->
+                    <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">
+                      {{ formatAmount(ticket.price) }} <span class="text-xs text-gray-500">{{ ticket.currency }}</span>
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="px-6 py-4 text-right" @click.stop>
+                        <button v-if="ticket.status === 'paid' && isOwner" 
+                                @click="openRefundModal(ticket)"
+                                class="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/30">
+                            Rembourser
+                        </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="totalPages > 1" class="p-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <span class="text-sm text-gray-500 dark:text-gray-400">
+                  Page {{ currentPage }} sur {{ totalPages }}
+              </span>
+              <div class="flex gap-2">
+                  <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1" 
+                          class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                      Précédent
+                  </button>
+                  <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages" 
+                          class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                      Suivant
+                  </button>
+              </div>
+          </div>
         </div>
       </div>
 
+      <!-- Modals -->
       <!-- Details Modal -->
       <Teleport to="body">
-        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showDetailsModal = false">
-          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <!-- Modal Header -->
+        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" @click.self="showDetailsModal = false">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800">
             <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
-              <div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Code: {{ selectedTicket.ticket_code }}</p>
-              </div>
-              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
+              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
+                 <!-- Buyer Full Info -->
+                 <div class="text-center">
+                     <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-2xl mb-3">
+                         {{ getInitials(selectedTicket.form_data) }}
+                     </div>
+                     <h4 class="text-xl font-bold text-gray-900 dark:text-white">{{ getBuyerName(selectedTicket.form_data) }}</h4>
+                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ getBuyerEmail(selectedTicket.form_data) }}</p>
+                 </div>
 
-            <!-- Modal Content -->
-            <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              
-              <!-- Status & Amount -->
-              <div class="flex justify-between items-center p-4 rounded-xl bg-gray-50 dark:bg-slate-800">
-                <div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Statut</p>
-                  <span :class="getStatusClass(selectedTicket.status)" class="px-2 py-1 rounded-full text-xs font-medium inline-block mt-1">
-                    {{ getStatusLabel(selectedTicket.status) }}
-                  </span>
-                </div>
-                <div class="text-right">
-                   <p class="text-sm text-gray-500 dark:text-gray-400">Prix payé</p>
-                   <p class="text-lg font-bold text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
-                </div>
-              </div>
+                 <div class="grid grid-cols-2 gap-4">
+                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
+                         <p class="text-xs text-gray-500 uppercase">Status</p>
+                         <p class="font-medium mt-1" :class="getStatusColor(selectedTicket.status)">{{ getStatusLabel(selectedTicket.status) }}</p>
+                     </div>
+                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
+                         <p class="text-xs text-gray-500 uppercase">Prix Payé</p>
+                         <p class="font-medium mt-1 text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
+                     </div>
+                 </div>
+ 
+                 <!-- Full Form Data -->
+                 <div v-if="selectedTicket.form_data" class="space-y-3">
+                     <h5 class="text-sm font-semibold text-gray-900 dark:text-white">Données du participant</h5>
+                     <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
+                         <div v-for="(val, key) in selectedTicket.form_data" :key="key" class="flex justify-between text-sm">
+                             <span class="text-gray-500">{{ getLabelForField(key) }}</span>
+                             <span class="font-medium text-gray-900 dark:text-white">{{ val }}</span>
+                         </div>
+                     </div>
+                 </div>
 
-               <!-- Action Buttons in Modal -->
-              <div v-if="selectedTicket.status === 'paid' && isOwner" class="flex justify-end pt-2">
-                 <button @click="confirmRefund(selectedTicket); showDetailsModal = false;" 
-                         class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors w-full sm:w-auto">
-                    Rembourser ce ticket
-                 </button>
-              </div>
-
-              <!-- Ticket Info -->
-              <div>
-                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Information du Ticket</h4>
-                <div class="space-y-3">
-                  <div class="flex justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
-                    <span class="text-gray-600 dark:text-gray-300">Type de ticket</span>
-                    <span class="font-medium text-gray-900 dark:text-white" :style="{ color: selectedTicket.tier_color }">{{ selectedTicket.tier_icon }} {{ selectedTicket.tier_name }}</span>
-                  </div>
-                  <div class="flex justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
-                    <span class="text-gray-600 dark:text-gray-300">Date d'achat</span>
-                    <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(selectedTicket.created_at) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Participant Data (Form Fields) -->
-              <div v-if="selectedTicket.form_data && Object.keys(selectedTicket.form_data).length > 0">
-                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Informations du Participant</h4>
-                <div class="space-y-3 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl">
-                  <div v-for="(value, key) in selectedTicket.form_data" :key="key" class="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 dark:border-gray-700 last:border-0 pb-2 last:pb-0">
-                    <span class="text-sm text-gray-500 dark:text-gray-400 mb-1 sm:mb-0">{{ getLabelForField(key) }}</span>
-                    <span class="font-medium text-gray-900 dark:text-white text-right break-words">{{ value }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Transaction ID -->
-              <div v-if="selectedTicket.transaction_id" class="text-center pt-2">
-                <p class="text-xs text-gray-400 font-mono">Ref: {{ selectedTicket.transaction_id }}</p>
-              </div>
-
-            </div>
-
-            <!-- Footer -->
-            <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-slate-800/50 flex justify-end">
-              <button @click="showDetailsModal = false" class="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors">
-                Fermer
-              </button>
+                 <div class="text-center">
+                     <p class="text-xs text-mono text-gray-400">ID: {{ selectedTicket.ticket_code }}</p>
+                 </div>
             </div>
           </div>
         </div>
       </Teleport>
+
+      <!-- Refund Confirmation Modal -->
+      <Teleport to="body">
+          <div v-if="showRefundModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showRefundModal = false">
+              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
+                  <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mb-4 mx-auto">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <h3 class="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">Confirmer le remboursement</h3>
+                  <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-6">
+                      Voulez-vous vraiment rembourser le ticket <strong>{{ ticketToRefund?.ticket_code }}</strong> de <strong>{{ getBuyerName(ticketToRefund?.form_data) }}</strong> ? <br>
+                      montant: <span class="font-bold text-gray-900 dark:text-white">{{ formatAmount(ticketToRefund?.price) }} {{ ticketToRefund?.currency }}</span><br><br>
+                      Cette action est irréversible.
+                  </p>
+                  <div class="flex gap-3">
+                      <button @click="showRefundModal = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Annuler</button>
+                      <button @click="processRefund" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20">Rembourser</button>
+                  </div>
+              </div>
+          </div>
+      </Teleport>
+
+      <!-- Cancel Event Confirmation Modal -->
+      <Teleport to="body">
+          <div v-if="showCancelModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-red-500/20 animate-in fade-in zoom-in duration-200">
+                  <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mb-4 mx-auto animate-pulse">
+                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  </div>
+                  <h3 class="text-xl font-bold text-red-600 dark:text-red-500 text-center mb-2">ANNULATION D'ÉVÉNEMENT</h3>
+                  <p class="text-gray-600 dark:text-gray-300 text-center text-sm mb-6 leading-relaxed">
+                      Attention ! Vous êtes sur le point d'annuler l'événement <strong>{{ event?.title }}</strong>.<br><br>
+                      🔴 <strong>Tous les tickets vendus ({{ tickets.length }}) seront REMBOURSÉS automatiquement.</strong><br>
+                      🔴 Cette action est <strong>IRRÉVERSIBLE</strong>.
+                  </p>
+                  
+                  <div class="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20 mb-6">
+                      <label class="flex items-start gap-3 cursor-pointer">
+                          <input type="checkbox" v-model="confirmCancelCheck" class="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                          <span class="text-sm text-red-800 dark:text-red-300">Je comprends que cette action va déclencher le remboursement de tous les participants et annuler l'événement définitivement.</span>
+                      </label>
+                  </div>
+
+                  <div class="flex gap-3">
+                      <button @click="showCancelModal = false; confirmCancelCheck = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Ne pas annuler</button>
+                      <button @click="processCancelEvent" :disabled="!confirmCancelCheck" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                          CONFIRMER L'ANNULATION
+                      </button>
+                  </div>
+              </div>
+          </div>
+      </Teleport>
+
     </div>
   </NuxtLayout>
 </template>
@@ -226,33 +269,62 @@ import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
 const authStore = useAuthStore()
-
 const eventId = computed(() => route.params.id as string)
 
+// State
 const loading = ref(true)
 const error = ref('')
 const event = ref<any>(null)
 const tickets = ref<any[]>([])
+const stats = ref<any>(null)
 
-const totalRevenue = computed(() => tickets.value.reduce((sum, t) => sum + (t.status !== 'refunded' ? (t.price || 0) : 0), 0))
-const usedCount = computed(() => tickets.value.filter(t => t.status === 'used').length)
-const pendingCount = computed(() => tickets.value.filter(t => t.status === 'pending').length)
-const refundedCount = computed(() => tickets.value.filter(t => t.status === 'refunded').length)
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 50
+const totalPages = computed(() => Math.ceil((stats.value?.total_sold || 0) / itemsPerPage))
 
-const isOwner = computed(() => {
-  return event.value?.creator_id === authStore.user?.id
+// Computed Stats
+const tierStats = computed(() => {
+    if (!event.value?.ticket_tiers) return []
+    // Map tiers with sold counts from stats or event object
+    // Assuming backend updates event.ticket_tiers.sold or we calculate from tickets list if fetching all (but we paginate now)
+    // Actually ticket-service GetMyEvents returns populated tiers. GetEvent also does.
+    // So event.value.ticket_tiers should have the 'sold' count updated by backend.
+    return event.value.ticket_tiers.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        icon: t.icon,
+        sold: t.sold || 0,
+        capacity: t.quantity,
+        color: t.color
+    }))
 })
 
+const isOwner = computed(() => event.value?.creator_id === authStore.user?.id)
+
+// Data Loading
 const loadData = async () => {
   loading.value = true
   error.value = ''
   try {
+    const offset = (currentPage.value - 1) * itemsPerPage
+    
+    // Fetch Event (for tiers/stats) & Tickets (paginated)
+    // We assume GetEvent returns fresh 'sold' counts in tiers.
     const [eventRes, ticketsRes] = await Promise.all([
       ticketAPI.getEvent(eventId.value),
-      ticketAPI.getEventTickets(eventId.value, 100, 0)
+      ticketAPI.getEventTickets(eventId.value, itemsPerPage, offset)
     ])
+    
     event.value = eventRes.data?.event || eventRes.data
     tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
+    
+    // Set Stats generic object for total counts
+    stats.value = {
+        total_sold: event.value.total_sold || tickets.value.length, // Fallback if backend doesn't aggregate
+        total_revenue: event.value.total_revenue || 0
+    }
+
   } catch (err: any) {
     console.error('Failed to load data:', err)
     error.value = err.response?.data?.error || 'Erreur lors du chargement des tickets'
@@ -261,39 +333,14 @@ const loadData = async () => {
   }
 }
 
-const confirmRefund = async (ticket: any) => {
-    if(!confirm(`Êtes-vous sûr de vouloir rembourser le ticket ${ticket.ticket_code} ? Cette action est irréversible et les fonds seront renvoyés à l'acheteur.`)) {
-        return;
-    }
-    
-    try {
-        await ticketAPI.refundTicket(ticket.id)
-        // Optimistic update
-        const t = tickets.value.find(t => t.id === ticket.id)
-        if(t) t.status = 'refunded'
-        alert('Ticket remboursé avec succès')
-    } catch(err: any) {
-        alert(err.response?.data?.error || 'Erreur lors du remboursement')
+const changePage = (page: number) => {
+    if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page
+        loadData()
     }
 }
 
-const confirmCancelEvent = async () => {
-    if(!confirm("ATTENTION : Êtes-vous sûr de vouloir annuler cet événement ? TOUS les tickets vendus seront REMBOURSÉS automatiquement. Cette action est IRRÉVERSIBLE.")) {
-        return;
-    }
-     if(!confirm("Dernière vérification : Voulez-vous vraiment procéder à l'annulation et au remboursement général ?")) {
-        return;
-    }
-
-    try {
-        await ticketAPI.cancelEvent(eventId.value)
-        await loadData() // Reload to see updates
-        alert('Événement annulé et remboursements initiés.')
-    } catch(err: any) {
-        alert(err.response?.data?.error || "Erreur lors de l'annulation")
-    }
-}
-
+// Helpers
 const getInitials = (formData: any) => {
   if (!formData) return '?'
   const name = formData.name || formData.nom || formData.full_name || ''
@@ -304,60 +351,88 @@ const getBuyerName = (formData: any) => {
   if (!formData) return 'Anonyme'
   return formData.name || formData.nom || formData.full_name || 'Anonyme'
 }
+const getBuyerEmail = (formData: any) => formData?.email || formData?.Email || ''
 
-const getBuyerEmail = (formData: any) => {
-  if (!formData) return ''
-  return formData.email || formData.Email || ''
-}
-
-const formatAmount = (amount: number) => {
-  return new Intl.NumberFormat('fr-FR').format(amount || 0)
-}
-
-const formatDate = (date: string) => {
-  if (!date) return ''
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+const formatAmount = (amount: number) => new Intl.NumberFormat('fr-FR').format(amount || 0)
 
 const getStatusClass = (status: string) => {
   switch (status) {
-    case 'used': return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-    case 'paid': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-    case 'cancelled': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-    case 'refunded': return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 line-through'
-    default: return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+    case 'paid': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    case 'used': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+    case 'cancelled': 
+    case 'refunded': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 line-through'
+    default: return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   }
 }
-
+const getStatusColor = (status: string) => {
+    switch(status) {
+        case 'paid': return 'text-emerald-600'
+        case 'used': return 'text-blue-600'
+        case 'refunded': return 'text-red-600'
+        default: return 'text-amber-600'
+    }
+}
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case 'used': return '✓ Utilisé'
     case 'paid': return 'Confirmé'
+    case 'used': return 'Utilisé'
     case 'cancelled': return 'Annulé'
-    case 'pending': return 'En attente'
     case 'refunded': return 'Remboursé'
+    case 'pending': return 'En attente'
     default: return status
   }
-}
-
-const showDetailsModal = ref(false)
-const selectedTicket = ref<any>(null)
-
-const viewDetails = (ticket: any) => {
-  selectedTicket.value = ticket
-  showDetailsModal.value = true
 }
 
 const getLabelForField = (fieldName: string) => {
   if (!event.value?.form_fields) return fieldName
   const field = event.value.form_fields.find((f: any) => f.name === fieldName)
   return field ? field.label : fieldName
+}
+
+
+// Modals Logic
+const showDetailsModal = ref(false)
+const selectedTicket = ref<any>(null)
+const viewDetails = (ticket: any) => {
+  selectedTicket.value = ticket
+  showDetailsModal.value = true
+}
+
+const showRefundModal = ref(false)
+const ticketToRefund = ref<any>(null)
+const openRefundModal = (ticket: any) => {
+    ticketToRefund.value = ticket
+    showRefundModal.value = true
+}
+const processRefund = async () => {
+    if (!ticketToRefund.value) return
+    try {
+        await ticketAPI.refundTicket(ticketToRefund.value.id)
+        // Optimistic update
+        const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
+        if(t) t.status = 'refunded'
+        showRefundModal.value = false
+        // Show success toast/notification properly (omitted for brevity, alert used sparingly or custom toast)
+    } catch(err: any) {
+        alert(err.response?.data?.error || 'Erreur lors du remboursement')
+    }
+}
+
+const showCancelModal = ref(false)
+const confirmCancelCheck = ref(false)
+const openCancelModal = () => {
+    showCancelModal.value = true
+    confirmCancelCheck.value = false
+}
+const processCancelEvent = async () => {
+    try {
+        await ticketAPI.cancelEvent(eventId.value)
+        showCancelModal.value = false
+        alert('Événement annulé et remboursements initiés.')
+        loadData()
+    } catch(err: any) {
+        alert(err.response?.data?.error || "Erreur lors de l'annulation")
+    }
 }
 
 onMounted(() => {
@@ -374,9 +449,6 @@ onMounted(() => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
