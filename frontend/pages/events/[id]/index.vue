@@ -121,6 +121,16 @@
               <button v-if="event.status === 'draft'" @click="publishEvent" class="btn-publish">
                 🚀 Publier l'événement
               </button>
+              
+              <div class="actions-row">
+                <NuxtLink :to="`/events/${event.id}/edit`" class="btn-edit">
+                  ✏️ Modifier
+                </NuxtLink>
+                <button @click="confirmDelete" class="btn-delete">
+                  🗑️ Supprimer
+                </button>
+              </div>
+
               <button @click="showScannerModal = true" class="btn-scan">
                 📷 Scanner les tickets
               </button>
@@ -500,6 +510,17 @@ const publishEvent = async () => {
     loadEvent()
   } catch (e) {
     alert(e.response?.data?.error || 'Erreur lors de la publication')
+  }
+}
+
+const confirmDelete = async () => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.')) {
+    try {
+      await ticketAPI.deleteEvent(eventId)
+      router.push('/events')
+    } catch (e) {
+      alert(e.response?.data?.error || 'Erreur lors de la suppression')
+    }
   }
 }
 
@@ -1239,6 +1260,47 @@ onUnmounted(() => {
   color: var(--text-primary);
   text-decoration: none;
   font-weight: 600;
+}
+
+.actions-row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-edit, .btn-delete {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.btn-edit {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-edit:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: #6366f1;
+}
+
+.btn-delete {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 /* Modal Styles */

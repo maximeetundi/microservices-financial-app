@@ -3,6 +3,7 @@ import '../../core/services/ticket_api_service.dart';
 import 'purchase_ticket_screen.dart';
 import 'ticket_scanner_screen.dart';
 import 'sold_tickets_screen.dart';
+import 'edit_event_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final String eventId;
@@ -37,6 +38,59 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       debugPrint('Error loading event: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editEvent(Map<String, dynamic> event) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditEventScreen(event: event),
+      ),
+    );
+
+    if (result == true) {
+      _loadEvent();
+    }
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> event) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer l\'événement ?'),
+        content: const Text('Cette action est irréversible. Êtes-vous sûr ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _loading = true);
+      try {
+        await _ticketApi.deleteEvent(widget.eventId);
+        if (mounted) {
+          Navigator.pop(context); // Go back to list
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Événement supprimé'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 
@@ -78,12 +132,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             icon: const Icon(Icons.arrow_back),
           ),
           actions: widget.isOwner
-              ? [
                   IconButton(
-                    onPressed: () {
-                      // TODO: Edit event
-                    },
+                    onPressed: () => _editEvent(event),
                     icon: const Icon(Icons.edit),
+                    tooltip: 'Modifier',
+                  ),
+                  IconButton(
+                    onPressed: () => _confirmDelete(event),
+                    icon: const Icon(Icons.delete, color: Colors.white),
+                    tooltip: 'Supprimer',
                   ),
                 ]
               : null,
