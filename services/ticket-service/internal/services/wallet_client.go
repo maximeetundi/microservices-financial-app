@@ -100,3 +100,30 @@ func (c *WalletClient) CreditPayment(userID, walletID string, amount float64, cu
 
 	return nil
 }
+
+// GetUserWallets fetches all wallets for a user (used for refunds)
+func (c *WalletClient) GetUserWallets(userID string) ([]map[string]interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/internal/wallets?user_id=%s", c.baseURL, userID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("wallet service unavailable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch wallets: status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Wallets []map[string]interface{} `json:"wallets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Wallets, nil
+}

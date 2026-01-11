@@ -606,7 +606,7 @@ class _EditEventScreenState extends State<EditEventScreen> {
               ),
               DropdownButton<String>(
                 value: type,
-                items: ['text', 'email', 'phone', 'number', 'select'].map((t) =>
+                items: ['text', 'email', 'phone', 'number', 'select', 'checkbox'].map((t) =>
                   DropdownMenuItem(value: t, child: Text(t)),
                 ).toList(),
                 onChanged: (v) => type = v!,

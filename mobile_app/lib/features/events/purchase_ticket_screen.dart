@@ -344,58 +344,94 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        ...fields.map((field) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: TextFormField(
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: field['label'] ?? '',
-              labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-              filled: true,
-              fillColor: const Color(0xFF1e293b),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.red, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ...fields.map((field) => _buildField(field)),
+      ],
+    );
+  }
+
+  Widget _buildField(Map<String, dynamic> field) {
+    if (field['type'] == 'checkbox') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1e293b),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF475569), width: 1.5),
+          ),
+          child: CheckboxListTile(
+            title: Text(
+              field['label'] ?? '',
+              style: TextStyle(color: Colors.white.withOpacity(0.9)),
             ),
-            keyboardType: field['type'] == 'email'
-                ? TextInputType.emailAddress
-                : field['type'] == 'phone'
-                    ? TextInputType.phone
-                    : field['type'] == 'number'
-                        ? TextInputType.number
-                        : TextInputType.text,
-            validator: (value) {
-              if (field['required'] == true && (value == null || value.isEmpty)) {
-                return 'Ce champ est requis';
-              }
-              if (field['type'] == 'email' && value != null && value.isNotEmpty) {
-                if (!value.contains('@')) {
-                  return 'Email invalide';
-                }
-              }
-              return null;
-            },
-            onChanged: (value) {
+            value: _formData[field['name']] == 'true',
+            onChanged: (bool? value) {
               setState(() {
-                _formData[field['name'] ?? ''] = value;
+                _formData[field['name'] ?? ''] = (value ?? false).toString();
               });
             },
+            activeColor: const Color(0xFF6366f1),
+            checkColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            controlAffinity: ListTileControlAffinity.leading,
           ),
-        )),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: field['label'] ?? '',
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+          filled: true,
+          fillColor: const Color(0xFF1e293b),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+        keyboardType: field['type'] == 'email'
+            ? TextInputType.emailAddress
+            : field['type'] == 'phone'
+                ? TextInputType.phone
+                : field['type'] == 'number'
+                    ? TextInputType.number
+                    : TextInputType.text,
+        validator: (value) {
+          if (field['required'] == true && (value == null || value.isEmpty)) {
+            return 'Ce champ est requis';
+          }
+          if (field['type'] == 'email' && value != null && value.isNotEmpty) {
+            if (!value.contains('@')) {
+              return 'Email invalide';
+            }
+          }
+          return null;
+        },
+        onChanged: (value) {
+          setState(() {
+            _formData[field['name'] ?? ''] = value;
+          });
+        },
+      ),
+    );
       ],
     );
   }

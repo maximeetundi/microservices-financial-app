@@ -93,6 +93,13 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
                         ],
                       ),
                     ),
+                      ),
+                    ),
+                    IconButton(
+                        onPressed: _confirmCancelEvent,
+                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                        tooltip: 'Annuler l\'événement',
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
@@ -129,6 +136,93 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
     );
   }
 
+  Future<void> _confirmCancelEvent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1e293b),
+        title: const Text('Annuler l\'événement ?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'ATTENTION : Cette action est IRRÉVERSIBLE. Tous les tickets vendus seront REMBOURSÉS automatiquement et l\'événement sera annulé.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Retour', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmer l\'annulation', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _cancelEvent();
+    }
+  }
+
+  Future<void> _cancelEvent() async {
+    setState(() => _loading = true);
+    try {
+      await _ticketApi.cancelEvent(widget.eventId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Événement annulé et remboursements initiés')),
+        );
+        _loadTickets(); // Reload to see status changes
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${e.toString()}')),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _showTicketDetails(dynamic ticket) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TicketDetailsSheet(
+        ticket: ticket,
+        currency: widget.currency,
+        onRefund: () => _refundTicket(ticket['id']),
+      ),
+    );
+  }
+
+  Future<void> _refundTicket(String ticketId) async {
+    // Close sheet first? Or keep open and show loading?
+    // Let's close sheet to assume fresh state or show loading dialog.
+    Navigator.pop(context); // Close details sheet
+
+    setState(() => _loading = true);
+    try {
+      await _ticketApi.refundTicket(ticketId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ticket remboursé avec succès')),
+        );
+        _loadTickets();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${e.toString()}')),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  // ... (rest of the class)
+  
   Widget _buildError() {
     return Center(
       child: Column(
@@ -310,6 +404,10 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
         color = Colors.red;
         label = 'Annulé';
         break;
+      case 'refunded':
+        color = Colors.grey;
+        label = 'Remboursé';
+        break;
       default:
         color = Colors.amber;
         label = status;
@@ -334,8 +432,33 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _TicketDetailsSheet(ticket: ticket, currency: widget.currency),
+      builder: (context) => _TicketDetailsSheet(
+        ticket: ticket, 
+        currency: widget.currency,
+        onRefund: () => _refundTicket(ticket['id']),
+      ),
     );
+  }
+
+  Future<void> _refundTicket(String ticketId) async {
+    Navigator.pop(context); // Close details sheet
+    setState(() => _loading = true);
+    try {
+      await _ticketApi.refundTicket(ticketId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ticket remboursé avec succès')),
+        );
+        _loadTickets();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${e.toString()}')),
+        );
+        setState(() => _loading = false);
+      }
+    }
   }
 
   Color _hexToColor(String hex) {
@@ -360,12 +483,14 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
 class _TicketDetailsSheet extends StatelessWidget {
   final dynamic ticket;
   final String currency;
+  final VoidCallback onRefund;
 
-  const _TicketDetailsSheet({required this.ticket, required this.currency});
+  const _TicketDetailsSheet({required this.ticket, required this.currency, required this.onRefund});
 
   @override
   Widget build(BuildContext context) {
     final formData = ticket['form_data'] as Map<String, dynamic>? ?? {};
+    final status = ticket['status'] ?? 'pending';
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
@@ -430,10 +555,53 @@ class _TicketDetailsSheet extends StatelessWidget {
                         const Divider(color: Colors.white10),
                         _buildDetailRow('Date', _formatDate(ticket['created_at'])),
                          const Divider(color: Colors.white10),
-                        _buildDetailRow('Statut', ticket['status'] ?? ''),
+                        _buildDetailRow('Statut', status),
                       ],
                     ),
                   ),
+
+                  // Refund Button
+                  if (status == 'paid') ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // Confirmation dialog
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                               backgroundColor: const Color(0xFF1e293b),
+                               title: const Text('Rembourser le ticket ?', style: TextStyle(color: Colors.white)),
+                               content: const Text('Cette action est irréversible.', style: TextStyle(color: Colors.white70)),
+                               actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Annuler', style: TextStyle(color: Colors.white)),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context); // Close dialog
+                                      onRefund(); // Call refund
+                                    },
+                                    child: const Text('Rembourser', style: TextStyle(color: Colors.red)),
+                                  ),
+                               ],
+                            )
+                          );
+                        },
+                        icon: const Icon(Icons.refresh_outlined, color: Colors.red),
+                        label: const Text('Rembourser ce ticket', style: TextStyle(color: Colors.red)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.withOpacity(0.1),
+                          foregroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.red.withOpacity(0.3)),
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
                   const Text(
@@ -490,6 +658,7 @@ class _TicketDetailsSheet extends StatelessWidget {
     );
   }
 
+  // ... (rest of _TicketDetailsSheet methods)
   Widget _buildDetailRow(String label, String value, {bool isMono = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),

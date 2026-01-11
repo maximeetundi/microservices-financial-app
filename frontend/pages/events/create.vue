@@ -106,6 +106,7 @@
                   <option value="phone">Téléphone</option>
                   <option value="number">Nombre</option>
                   <option value="select">Liste déroulante</option>
+                  <option value="checkbox">Case à cocher</option>
                 </select>
                 <label class="field-required">
                   <input type="checkbox" v-model="field.required" /> Obligatoire

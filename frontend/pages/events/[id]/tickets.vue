@@ -14,7 +14,13 @@
             <p class="text-gray-500 dark:text-gray-400">{{ event?.title || 'Chargement...' }}</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
+          <button v-if="isOwner && event?.status !== 'cancelled'" 
+                  @click="confirmCancelEvent" 
+                  class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+             Annuler l'événement
+          </button>
           <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
             {{ tickets.length }} tickets
           </span>
@@ -49,8 +55,8 @@
             <p class="text-3xl font-bold text-indigo-600 mt-1">{{ usedCount }}</p>
           </div>
           <div class="glass-card p-4 bg-white dark:bg-slate-800/50 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">En attente</p>
-            <p class="text-3xl font-bold text-amber-600 mt-1">{{ pendingCount }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Remboursés</p>
+            <p class="text-3xl font-bold text-red-600 mt-1">{{ refundedCount }}</p>
           </div>
         </div>
 
@@ -72,10 +78,11 @@
                 <th class="text-left px-6 py-4">Prix</th>
                 <th class="text-left px-6 py-4">Statut</th>
                 <th class="text-left px-6 py-4">Date</th>
+                <th class="text-right px-6 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="ticket in tickets" :key="ticket.id" @click="viewDetails(ticket)" class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors">
+              <tr v-for="ticket in tickets" :key="ticket.id" @click.stop="viewDetails(ticket)" class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors">
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
@@ -109,6 +116,13 @@
                 <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                   {{ formatDate(ticket.created_at) }}
                 </td>
+                 <td class="px-6 py-4 text-right" @click.stop>
+                   <button v-if="ticket.status === 'paid' && isOwner" 
+                           @click="confirmRefund(ticket)"
+                           class="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 px-3 py-1 rounded-md transition-colors border border-red-200 dark:border-red-800">
+                     Rembourser
+                   </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -117,7 +131,7 @@
 
       <!-- Details Modal -->
       <Teleport to="body">
-        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showDetailsModal = false">
+        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showDetailsModal = false">
           <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <!-- Modal Header -->
             <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
@@ -145,6 +159,14 @@
                    <p class="text-sm text-gray-500 dark:text-gray-400">Prix payé</p>
                    <p class="text-lg font-bold text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
                 </div>
+              </div>
+
+               <!-- Action Buttons in Modal -->
+              <div v-if="selectedTicket.status === 'paid' && isOwner" class="flex justify-end pt-2">
+                 <button @click="confirmRefund(selectedTicket); showDetailsModal = false;" 
+                         class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 transition-colors w-full sm:w-auto">
+                    Rembourser ce ticket
+                 </button>
               </div>
 
               <!-- Ticket Info -->
@@ -200,8 +222,10 @@ definePageMeta({
 })
 
 import { ticketAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 
 const eventId = computed(() => route.params.id as string)
 
@@ -210,9 +234,14 @@ const error = ref('')
 const event = ref<any>(null)
 const tickets = ref<any[]>([])
 
-const totalRevenue = computed(() => tickets.value.reduce((sum, t) => sum + (t.price || 0), 0))
+const totalRevenue = computed(() => tickets.value.reduce((sum, t) => sum + (t.status !== 'refunded' ? (t.price || 0) : 0), 0))
 const usedCount = computed(() => tickets.value.filter(t => t.status === 'used').length)
 const pendingCount = computed(() => tickets.value.filter(t => t.status === 'pending').length)
+const refundedCount = computed(() => tickets.value.filter(t => t.status === 'refunded').length)
+
+const isOwner = computed(() => {
+  return event.value?.creator_id === authStore.user?.id
+})
 
 const loadData = async () => {
   loading.value = true
@@ -230,6 +259,39 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const confirmRefund = async (ticket: any) => {
+    if(!confirm(`Êtes-vous sûr de vouloir rembourser le ticket ${ticket.ticket_code} ? Cette action est irréversible et les fonds seront renvoyés à l'acheteur.`)) {
+        return;
+    }
+    
+    try {
+        await ticketAPI.refundTicket(ticket.id)
+        // Optimistic update
+        const t = tickets.value.find(t => t.id === ticket.id)
+        if(t) t.status = 'refunded'
+        alert('Ticket remboursé avec succès')
+    } catch(err: any) {
+        alert(err.response?.data?.error || 'Erreur lors du remboursement')
+    }
+}
+
+const confirmCancelEvent = async () => {
+    if(!confirm("ATTENTION : Êtes-vous sûr de vouloir annuler cet événement ? TOUS les tickets vendus seront REMBOURSÉS automatiquement. Cette action est IRRÉVERSIBLE.")) {
+        return;
+    }
+     if(!confirm("Dernière vérification : Voulez-vous vraiment procéder à l'annulation et au remboursement général ?")) {
+        return;
+    }
+
+    try {
+        await ticketAPI.cancelEvent(eventId.value)
+        await loadData() // Reload to see updates
+        alert('Événement annulé et remboursements initiés.')
+    } catch(err: any) {
+        alert(err.response?.data?.error || "Erreur lors de l'annulation")
+    }
 }
 
 const getInitials = (formData: any) => {
@@ -268,6 +330,7 @@ const getStatusClass = (status: string) => {
     case 'used': return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
     case 'paid': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
     case 'cancelled': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+    case 'refunded': return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 line-through'
     default: return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
   }
 }
@@ -278,6 +341,7 @@ const getStatusLabel = (status: string) => {
     case 'paid': return 'Confirmé'
     case 'cancelled': return 'Annulé'
     case 'pending': return 'En attente'
+    case 'refunded': return 'Remboursé'
     default: return status
   }
 }
@@ -315,3 +379,4 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 </style>
+

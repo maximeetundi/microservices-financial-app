@@ -161,6 +161,10 @@ func main() {
 			// Ticket verification (organizer)
 			protected.POST("/tickets/verify", handler.VerifyTicket)
 			protected.POST("/tickets/:id/use", handler.UseTicket)
+			protected.POST("/tickets/:id/refund", handler.RefundTicket)
+			
+			// Event actions
+			protected.POST("/events/:id/cancel", handler.CancelEvent)
 		}
 	}
 

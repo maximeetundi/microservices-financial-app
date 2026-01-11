@@ -575,7 +575,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
               ),
               DropdownButton<String>(
                 value: type,
-                items: ['text', 'email', 'phone', 'number'].map((t) =>
+                items: ['text', 'email', 'phone', 'number', 'select', 'checkbox'].map((t) =>
                   DropdownMenuItem(value: t, child: Text(t)),
                 ).toList(),
                 onChanged: (v) => type = v!,

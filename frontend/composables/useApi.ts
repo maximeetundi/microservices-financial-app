@@ -604,6 +604,10 @@ export const ticketAPI = {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
     },
+
+    // Refund and Cancellation
+    refundTicket: (id: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`),
+    cancelEvent: (id: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`),
 }
 
 // === CONTACTS API ===

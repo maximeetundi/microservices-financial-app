@@ -199,6 +199,22 @@ class TicketApiService {
     ];
   }
 
+  /// Refund a ticket
+  Future<void> refundTicket(String id) async {
+    final response = await _client.post('/ticket-service/api/v1/tickets/$id/refund');
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to refund ticket');
+    }
+  }
+
+  /// Cancel event and refund all tickets
+  Future<void> cancelEvent(String id) async {
+    final response = await _client.post('/ticket-service/api/v1/events/$id/cancel');
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to cancel event');
+    }
+  }
+
   /// Upload an image for event cover
   Future<String> uploadImage(dynamic file) async {
     final response = await _client.uploadFile(

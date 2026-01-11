@@ -165,6 +165,17 @@
                   <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
 
+                <div v-else-if="field.type === 'checkbox'" class="checkbox-field">
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      v-model="formData[field.name]"
+                      :required="field.required"
+                    />
+                    {{ field.label }}
+                  </label>
+                </div>
+
                 <!-- Text/Email/Phone Field -->
                 <input 
                   v-else
@@ -1406,6 +1417,32 @@ onUnmounted(() => {
   background: var(--surface);
   color: var(--text-primary);
   padding: 10px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #6366f1;
+  cursor: pointer;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 .btn-confirm {

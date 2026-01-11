@@ -303,6 +303,42 @@ func (h *TicketHandler) UseTicket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket marked as used"})
 }
 
+// RefundTicket refunds a ticket
+func (h *TicketHandler) RefundTicket(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	ticketID := c.Param("id")
+
+	if err := h.service.RefundTicket(ticketID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ticket refunded successfully"})
+}
+
+// CancelEvent cancels an event and refunds all tickets
+func (h *TicketHandler) CancelEvent(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	eventID := c.Param("id")
+
+	if err := h.service.CancelAndRefundEvent(eventID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Event cancelled and refunds initiated"})
+}
+
 // GetAvailableIcons returns available icons for ticket tiers
 func (h *TicketHandler) GetAvailableIcons(c *gin.Context) {
 	icons := h.service.GetAvailableIcons()

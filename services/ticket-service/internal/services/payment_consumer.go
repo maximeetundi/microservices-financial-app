@@ -65,30 +65,51 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 	} else {
 		log.Printf("[Kafka] Updated ticket status for TX %s to %s", statusEvent.RequestID, newStatus)
 
-		// If payment successful, notify the organizer
+
+		// If payment successful, notify the organizer and the buyer
 		if newStatus == "paid" {
 			ticket, err := c.ticketRepo.GetByTransactionID(statusEvent.RequestID)
-			if err == nil && ticket != nil && ticket.EventCreatorID != "" {
-				// Create notification event
-				notifEvent := messaging.NotificationEvent{
-					UserID:  ticket.EventCreatorID,
-					Type:    "ticket_sold",
-					Title:   "Nouveau ticket vendu ! 🎫",
-					Message: "Un ticket a été acheté pour votre événement " + ticket.EventTitle,
-					Data: map[string]interface{}{
-						"ticket_id": ticket.ID,
-						"event_id":  ticket.EventID,
-						"amount":    ticket.Price,
-						"currency":  ticket.Currency,
-					},
+			if err == nil && ticket != nil {
+				// 1. Notify Organizer
+				if ticket.EventCreatorID != "" {
+					notifEvent := messaging.NotificationEvent{
+						UserID:  ticket.EventCreatorID,
+						Type:    "ticket_sold",
+						Title:   "Nouveau ticket vendu ! 🎫",
+						Message: "Un ticket a été acheté pour votre événement " + ticket.EventTitle,
+						Data: map[string]interface{}{
+							"ticket_id": ticket.ID,
+							"event_id":  ticket.EventID,
+							"amount":    ticket.Price,
+							"currency":  ticket.Currency,
+						},
+					}
+					
+					envelope := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", notifEvent)
+					if err := c.kafkaClient.Publish(ctx, messaging.TopicNotificationEvents, envelope); err != nil {
+						log.Printf("[Kafka] Failed to publish organizer notification: %v", err)
+					}
 				}
-				
-				// Publish notification
-				envelope := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", notifEvent)
-				if err := c.kafkaClient.Publish(ctx, messaging.TopicNotificationEvents, envelope); err != nil {
-					log.Printf("[Kafka] Failed to publish notification event: %v", err)
-				} else {
-					log.Printf("[Kafka] Published notification for organizer %s", ticket.EventCreatorID)
+
+				// 2. Notify Buyer
+				if ticket.BuyerID != "" {
+					buyerNotifEvent := messaging.NotificationEvent{
+						UserID:  ticket.BuyerID,
+						Type:    "ticket_purchased",
+						Title:   "Ticket acheté ! 🎟️",
+						Message: "Votre ticket pour " + ticket.EventTitle + " est maintenant disponible.",
+						Data: map[string]interface{}{
+							"ticket_id": ticket.ID,
+							"event_id":  ticket.EventID,
+							"amount":    ticket.Price,
+							"currency":  ticket.Currency,
+						},
+					}
+					
+					buyerEnvelope := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", buyerNotifEvent)
+					if err := c.kafkaClient.Publish(ctx, messaging.TopicNotificationEvents, buyerEnvelope); err != nil {
+						log.Printf("[Kafka] Failed to publish buyer notification: %v", err)
+					}
 				}
 			}
 		}
