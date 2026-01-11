@@ -202,9 +202,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue' // Added computed
 import { useRouter, useRoute } from 'vue-router'
 import { ticketAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth' // Added import
 
 definePageMeta({
   layout: false,
@@ -213,6 +214,7 @@ definePageMeta({
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore() // Added authStore
 const eventId = route.params.id
 
 const loading = ref(true)
@@ -251,6 +253,13 @@ const loadEvent = async () => {
   try {
     const res = await ticketAPI.getEvent(eventId)
     const event = res.data?.event || res.data
+    
+    // Security check: Only owner can edit
+    if (event.creator_id !== authStore.user?.id) {
+      alert('Vous n\'êtes pas autorisé à modifier cet événement')
+      router.push(`/events/${eventId}`)
+      return
+    }
     
     form.title = event.title
     form.description = event.description
