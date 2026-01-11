@@ -92,6 +92,7 @@ const error = ref('')
 const verifying = ref(false)
 const result = ref<any>(null)
 const publicKey = ref<CryptoKey | null>(null)
+const shuffledKeys = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
 
 // Crypto Helpers
 const str2ab = (str: string) => {
