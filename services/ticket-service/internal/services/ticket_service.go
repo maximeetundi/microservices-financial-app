@@ -366,8 +366,8 @@ func (s *TicketService) GetTicket(ticketID string) (*models.Ticket, error) {
 	return s.ticketRepo.GetByID(ticketID)
 }
 
-func (s *TicketService) GetEventTickets(eventID string, limit, offset int) ([]*models.Ticket, error) {
-	return s.ticketRepo.GetByEvent(eventID, limit, offset)
+func (s *TicketService) GetEventTickets(eventID string, search string, limit, offset int) ([]*models.Ticket, error) {
+	return s.ticketRepo.GetByEvent(eventID, search, limit, offset)
 }
 
 // === Ticket Verification ===

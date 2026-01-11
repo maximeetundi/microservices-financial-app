@@ -112,9 +112,26 @@ func (r *TicketRepository) GetByTransactionID(transactionID string) (*models.Tic
 	return &ticket, nil
 }
 
-func (r *TicketRepository) GetByEvent(eventID string, limit, offset int) ([]*models.Ticket, error) {
+func (r *TicketRepository) GetByEvent(eventID string, search string, limit, offset int) ([]*models.Ticket, error) {
 	var tickets []*models.Ticket
 	filter := bson.M{"event_id": eventID}
+
+	if search != "" {
+		// Case insensitive search across common fields
+		regex := bson.M{"$regex": search, "$options": "i"}
+		filter["$or"] = bson.A{
+			bson.M{"ticket_code": regex},
+			bson.M{"form_data.name": regex},
+			bson.M{"form_data.nom": regex},
+			bson.M{"form_data.full_name": regex},
+			bson.M{"form_data.phone": regex},
+			bson.M{"form_data.telephone": regex},
+			bson.M{"form_data.mobile": regex},
+			bson.M{"form_data.tel": regex},
+			bson.M{"form_data.email": regex},
+			bson.M{"form_data.Email": regex},
+		}
+	}
 	
 	opts := options.Find().
 		SetSort(bson.M{"created_at": -1}).

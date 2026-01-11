@@ -185,10 +185,11 @@ func (h *TicketHandler) GetEventStats(c *gin.Context) {
 // GetEventTickets returns sold tickets for an event
 func (h *TicketHandler) GetEventTickets(c *gin.Context) {
 	eventID := c.Param("id")
+	search := c.Query("search")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	tickets, err := h.service.GetEventTickets(eventID, limit, offset)
+	tickets, err := h.service.GetEventTickets(eventID, search, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

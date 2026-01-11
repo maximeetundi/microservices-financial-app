@@ -100,7 +100,7 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                  <tr v-for="ticket in filteredTickets" :key="ticket.id" 
+                  <tr v-for="ticket in tickets" :key="ticket.id" 
                       @click="viewDetails(ticket)" 
                       class="hover:bg-gray-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors group bg-white dark:bg-transparent">
                     
@@ -172,55 +172,8 @@
         </div>
       </div>
 
-      <!-- Modals (Unchanged) -->
-      <!-- Details Modal -->
-      <Teleport to="body">
-        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" @click.self="showDetailsModal = false">
-          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800">
-            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
-              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
-              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-            </div>
-            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
-                 <!-- Buyer Full Info -->
-                 <div class="text-center">
-                     <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-2xl mb-3">
-                         {{ getInitials(selectedTicket.form_data) }}
-                     </div>
-                     <h4 class="text-xl font-bold text-gray-900 dark:text-white">{{ getBuyerName(selectedTicket.form_data) }}</h4>
-                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ getBuyerContact(selectedTicket.form_data) }}</p>
-                 </div>
-
-                 <div class="grid grid-cols-2 gap-4">
-                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
-                         <p class="text-xs text-gray-500 uppercase">Status</p>
-                         <p class="font-medium mt-1" :class="getStatusColor(selectedTicket.status)">{{ getStatusLabel(selectedTicket.status) }}</p>
-                     </div>
-                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
-                         <p class="text-xs text-gray-500 uppercase">Prix Payé</p>
-                         <p class="font-medium mt-1 text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
-                     </div>
-                 </div>
- 
-                 <!-- Full Form Data -->
-                 <div v-if="selectedTicket.form_data" class="space-y-3">
-                     <h5 class="text-sm font-semibold text-gray-900 dark:text-white">Données du participant</h5>
-                     <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
-                         <div v-for="(val, key) in selectedTicket.form_data" :key="key" class="flex justify-between text-sm">
-                             <span class="text-gray-500">{{ getLabelForField(key) }}</span>
-                             <span class="font-medium text-gray-900 dark:text-white">{{ val }}</span>
-                         </div>
-                     </div>
-                 </div>
-
-                 <div class="text-center">
-                     <p class="text-xs text-mono text-gray-400">ID: {{ selectedTicket.ticket_code }}</p>
-                 </div>
-            </div>
-          </div>
-        </div>
-      </Teleport>
-
+      <!-- Modals -->
+      
       <!-- Refund Confirmation Modal -->
       <Teleport to="body">
           <div v-if="showRefundModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showRefundModal = false">
@@ -236,8 +189,33 @@
                   </p>
                   <div class="flex gap-3">
                       <button @click="showRefundModal = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Annuler</button>
-                      <button @click="processRefund" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20">Rembourser</button>
+                      <button @click="openPinForRefund" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20">Continuer</button>
                   </div>
+              </div>
+          </div>
+      </Teleport>
+
+      <!-- PIN Verification Modal -->
+      <Teleport to="body">
+          <div v-if="showPinModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showPinModal = false">
+              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-xs shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
+                  <h3 class="text-lg font-bold text-gray-900 dark:text-white text-center mb-4">Sécurité</h3>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 text-center mb-4">Entrez votre code PIN pour confirmer le remboursement.</p>
+                  
+                  <div class="mb-4">
+                      <input v-model="pinCode" type="password" maxlength="5" placeholder="• • • • •" 
+                             class="w-full text-center text-2xl tracking-widest py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                             :disabled="verifyingPin"
+                             @keyup.enter="confirmRefund"
+                      >
+                  </div>
+
+                  <button @click="confirmRefund" :disabled="verifyingPin || pinCode.length < 5" 
+                          class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg v-if="verifyingPin" class="animate-spin h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      {{ verifyingPin ? 'Vérification...' : 'Confirmer' }}
+                  </button>
+                  <button @click="showPinModal = false" class="w-full mt-2 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Annuler</button>
               </div>
           </div>
       </Teleport>
@@ -642,7 +620,6 @@ const loadData = async () => {
     const offset = (currentPage.value - 1) * itemsPerPage
     
     // Fetch Event (for tiers/stats) & Tickets (paginated)
-    // We assume GetEvent returns fresh 'sold' counts in tiers.
     const [eventRes, ticketsRes] = await Promise.all([
       ticketAPI.getEvent(eventId.value),
       ticketAPI.getEventTickets(eventId.value, itemsPerPage, offset)
@@ -653,7 +630,7 @@ const loadData = async () => {
     
     // Set Stats generic object for total counts
     stats.value = {
-        total_sold: event.value.total_sold || tickets.value.length, // Fallback if backend doesn't aggregate
+        total_sold: event.value.total_sold || tickets.value.length, 
         total_revenue: event.value.total_revenue || 0
     }
 
@@ -665,10 +642,40 @@ const loadData = async () => {
   }
 }
 
+// Search with Debounce
+let searchTimeout: any
+const handleSearch = () => {
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1
+        // Trigger loadData passing search query
+        // We'll modify loadData to read searchQuery
+        loadDataWithSearch()
+    }, 500)
+}
+
+const loadDataWithSearch = async () => {
+  loading.value = true
+  try {
+    const offset = (currentPage.value - 1) * itemsPerPage
+    const searchRes = await api.get(`/ticket-service/api/v1/events/${eventId.value}/tickets?limit=${itemsPerPage}&offset=${offset}&search=${encodeURIComponent(searchQuery.value)}`)
+    tickets.value = searchRes.data?.tickets || []
+    
+    // Refresh stats if needed? Or keep event stats global?
+    // Let's keep existing event stats but update tickets list.
+  } catch (err) {
+      console.error(err)
+  } finally {
+      loading.value = false
+  }
+}
+
+watch(searchQuery, handleSearch)
+
 const changePage = (page: number) => {
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page
-        loadData()
+        searchQuery.value ? loadDataWithSearch() : loadData()
     }
 }
 
@@ -730,21 +737,55 @@ const viewDetails = (ticket: any) => {
   showDetailsModal.value = true
 }
 
+// PIN & Refund Logic
 const showRefundModal = ref(false)
+const showPinModal = ref(false)
+const pinCode = ref('')
+const verifyingPin = ref(false)
 const ticketToRefund = ref<any>(null)
+
 const openRefundModal = (ticket: any) => {
     ticketToRefund.value = ticket
     showRefundModal.value = true
 }
-const processRefund = async () => {
+
+const openPinForRefund = () => {
+    showRefundModal.value = false // Close warning
+    showPinModal.value = true     // Open PIN
+    pinCode.value = ''
+}
+
+import { userAPI, api } from '~/composables/useApi' // Ensure api is imported
+
+const confirmRefund = async () => {
+    if (!pinCode.value || pinCode.value.length < 5) {
+        alert("Veuillez entrer un code PIN valide (5 chiffres).")
+        return
+    }
+    
+    verifyingPin.value = true
+    try {
+        // Verify PIN
+        await userAPI.verifyPin({ pin: pinCode.value })
+        
+        // If success, proceed to refund
+        await executeRefund()
+        showPinModal.value = false
+    } catch (err: any) {
+        alert(err.response?.data?.error || "Code PIN incorrect.")
+    } finally {
+        verifyingPin.value = false
+    }
+}
+
+const executeRefund = async () => {
     if (!ticketToRefund.value) return
     try {
         await ticketAPI.refundTicket(ticketToRefund.value.id)
         // Optimistic update
         const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
         if(t) t.status = 'refunded'
-        showRefundModal.value = false
-        // Show success toast/notification properly (omitted for brevity, alert used sparingly or custom toast)
+        alert("Remboursement effectué avec succès.")
     } catch(err: any) {
         alert(err.response?.data?.error || 'Erreur lors du remboursement')
     }
