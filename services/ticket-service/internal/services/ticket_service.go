@@ -537,7 +537,7 @@ func (s *TicketService) CancelAndRefundEvent(eventID, organizerID string) error 
 	// Find all paid tickets
 	// Note: Pagination might be an issue for huge events, but acceptable for MVP.
 	// We'll fetch in batches if needed, but for now fetch all (limit 1000?)
-	tickets, err := s.ticketRepo.GetByEvent(eventID, 10000, 0)
+	tickets, err := s.ticketRepo.GetByEvent(eventID, "", 10000, 0)
 	if err != nil {
 		return err
 	}
