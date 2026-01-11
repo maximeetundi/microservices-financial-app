@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '../../../../core/services/pin_service.dart';
 import '../../../../core/services/biometric_service.dart';
-import '../widgets/pin_input_widget.dart';
 
 /// Dialog for verifying PIN before sensitive actions
+/// Styled to match the Web "Premium Dark" design with Randomized Keypad
 class PinVerifyDialog extends StatefulWidget {
   final String? title;
   final String? subtitle;
@@ -27,10 +28,10 @@ class PinVerifyDialog extends StatefulWidget {
     String? subtitle,
     bool allowBiometric = true,
   }) async {
-    final result = await showModalBottomSheet<bool>(
+    final result = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.9), // Dark overlay like Web
       builder: (context) => PinVerifyDialog(
         title: title,
         subtitle: subtitle,
@@ -44,7 +45,7 @@ class PinVerifyDialog extends StatefulWidget {
   State<PinVerifyDialog> createState() => _PinVerifyDialogState();
 }
 
-class _PinVerifyDialogState extends State<PinVerifyDialog> {
+class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProviderStateMixin {
   final PinService _pinService = PinService();
   final BiometricService _biometricService = BiometricService();
   
@@ -53,11 +54,47 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> {
   int? _attemptsLeft;
   bool _isLocked = false;
   bool _biometricAvailable = false;
+  
+  // PIN State
+  String _currentPin = '';
+  final int _pinLength = 5;
+  late List<int> _shuffledKeys;
+
+  // Animation for error shake
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+
+  // Premium Dark Theme Colors
+  static const Color _backgroundColor = Color(0xFF1A1A2E);
+  static const Color _primaryColor = Color(0xFF6366F1); // Indigo
+  static const Color _errorColor = Color(0xFFEF4444);
+  static const Color _textColor = Colors.white;
+  static const Color _subtitleColor = Color(0xFF9CA3AF);
 
   @override
   void initState() {
     super.initState();
+    _shuffleKeys();
     _checkBiometric();
+    
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _shakeAnimation = Tween<double>(begin: 0, end: 10)
+        .chain(CurveTween(curve: Curves.elasticIn))
+        .animate(_shakeController);
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  void _shuffleKeys() {
+    _shuffledKeys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    _shuffledKeys.shuffle();
   }
 
   Future<void> _checkBiometric() async {
@@ -86,9 +123,38 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
-      // Biometric failed, user can still use PIN
       debugPrint('Biometric authentication failed: $e');
     }
+  }
+
+  void _onKeyPressed(int key) {
+    if (_currentPin.length < _pinLength && !_isLoading && !_isLocked) {
+      setState(() {
+        _currentPin += key.toString();
+        _errorMessage = null;
+      });
+
+      if (_currentPin.length == _pinLength) {
+        // Auto-verify
+        _verifyPin(_currentPin);
+      }
+    }
+  }
+
+  void _onBackspace() {
+    if (_currentPin.isNotEmpty && !_isLoading && !_isLocked) {
+      setState(() {
+        _currentPin = _currentPin.substring(0, _currentPin.length - 1);
+        _errorMessage = null;
+      });
+    }
+  }
+
+  void _onClear() {
+    setState(() {
+      _currentPin = '';
+      _errorMessage = null;
+    });
   }
 
   Future<void> _verifyPin(String pin) async {
@@ -109,174 +175,260 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> {
         Navigator.of(context).pop(true);
       }
     } else {
+      // Enhanced Security: Clear PIN and RESHUFFLE keys on error
       setState(() {
         _errorMessage = result.message ?? 'PIN incorrect';
         _attemptsLeft = result.attemptsLeft;
         _isLocked = result.isLocked;
+        _currentPin = '';
+        _shuffleKeys(); // Reshuffle to prevent pattern guessing
       });
+      _shakeController.forward(from: 0);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: _backgroundColor,
+        colorScheme: const ColorScheme.dark(
+          primary: _primaryColor,
+          surface: _backgroundColor,
+          onSurface: _textColor,
+          error: _errorColor,
+        ),
       ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outline.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2),
+      child: AnimatedBuilder(
+        animation: _shakeController,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(_shakeAnimation.value * sin(_shakeController.value * 3 * pi), 0),
+            child: child,
+          );
+        },
+        child: Dialog(
+          backgroundColor: _backgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 24,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                const Text(
+                  '🔐',
+                  style: TextStyle(fontSize: 40),
                 ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.lock_outline,
-                  size: 32,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Title
-              Text(
-                widget.title ?? 'Vérification PIN',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Subtitle
-              Text(
-                widget.subtitle ?? 'Entrez votre code PIN pour continuer',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Error/Lock message
-              if (_isLocked)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                
+                const SizedBox(height: 12),
+                
+                // Title
+                Text(
+                  widget.title ?? 'Vérification requise',
+                  style: const TextStyle(
+                    color: _textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Row(
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 4),
+                
+                // Subtitle with security badge
+                Text(
+                  widget.subtitle ?? 'Entrez votre PIN',
+                  style: const TextStyle(
+                    color: _subtitleColor,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _primaryColor.withOpacity(0.2)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.timer, color: Colors.amber),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'PIN temporairement bloqué. Réessayez dans quelques minutes.',
-                          style: TextStyle(color: Colors.amber),
-                        ),
+                      Icon(Icons.shield_outlined, size: 12, color: _primaryColor),
+                      SizedBox(width: 4),
+                      Text(
+                        'Clavier sécurisé aléatoire',
+                        style: TextStyle(color: _primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
-                )
-              else if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // PIN Display (Dots)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_pinLength, (index) {
+                    final isFilled = index < _currentPin.length;
+                    return Container(
+                      width: 45,
+                      height: 55,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: isFilled ? _primaryColor.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                        border: Border.all(
+                          color: isFilled ? _primaryColor : _primaryColor.withOpacity(0.3),
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: isFilled
+                          ? const Icon(Icons.circle, size: 12, color: Colors.white)
+                          : null,
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Error Message
+                if (_errorMessage != null || _isLocked) ...[
+                  Text(
+                    _isLocked ? 'PIN bloqué. Attendez...' : _errorMessage!,
+                    style: TextStyle(
+                      color: _isLocked ? Colors.amber : _errorColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: theme.colorScheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _errorMessage!,
-                              style: TextStyle(color: theme.colorScheme.error),
+                  const SizedBox(height: 12),
+                ],
+                
+                // Randomized Keypad Grid
+                if (!_isLocked)
+                  Container(
+                    width: 280,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.3,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        // Layout:
+                        // 0 1 2
+                        // 3 4 5
+                        // 6 7 8
+                        // 9(C) 10(Digit) 11(Back)
+                        
+                        if (index == 9) {
+                          // Clear Button
+                          return _buildKeypadButton(
+                            child: const Text('C', style: TextStyle(color: _errorColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                            onPressed: _onClear,
+                            color: _errorColor.withOpacity(0.1),
+                          );
+                        } else if (index == 11) {
+                          // Backspace Button
+                          return _buildKeypadButton(
+                            child: const Icon(Icons.backspace_outlined, size: 20),
+                            onPressed: _onBackspace,
+                          );
+                        } else {
+                          // Digit Button
+                          // 0..8 map to _shuffledKeys[0..8]
+                          // 10 maps to _shuffledKeys[9]
+                          final keyIndex = index < 9 ? index : 9;
+                          final digit = _shuffledKeys[keyIndex];
+                          
+                          return _buildKeypadButton(
+                            child: Text(
+                              digit.toString(),
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                             ),
-                            if (_attemptsLeft != null)
-                              Text(
-                                '$_attemptsLeft tentative(s) restante(s)',
-                                style: TextStyle(
-                                  color: theme.colorScheme.error,
-                                  fontSize: 12,
-                                ),
-                              ),
-                          ],
-                        ),
+                            onPressed: () => _onKeyPressed(digit),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+
+                const SizedBox(height: 20),
+
+                // Unlock Button (Visual only, since auto-submit)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (_isLoading || _isLocked || _currentPin.length < 5) ? null : () => _verifyPin(_currentPin),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
+                      elevation: 0,
+                    ),
+                    child: _isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Déverrouiller', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              
-              // PIN Input
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                )
-              else if (!_isLocked)
-                PinInputWidget(
-                  onCompleted: _verifyPin,
-                  autofocus: !_biometricAvailable,
-                  enabled: !_isLocked,
+
+                if (_biometricAvailable && !_isLocked)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TextButton.icon(
+                      onPressed: _authenticateWithBiometric,
+                      icon: const Icon(Icons.fingerprint, color: _subtitleColor, size: 20),
+                      label: const Text('Empreinte', style: TextStyle(color: _subtitleColor)),
+                    ),
+                  ),
+
+                TextButton(
+                  onPressed: () {
+                    widget.onCancelled?.call();
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Retour', style: TextStyle(color: _subtitleColor)),
                 ),
-              
-              const SizedBox(height: 24),
-              
-              // Biometric button
-              if (_biometricAvailable && !_isLocked)
-                TextButton.icon(
-                  onPressed: _authenticateWithBiometric,
-                  icon: const Icon(Icons.fingerprint),
-                  label: const Text('Utiliser l\'empreinte digitale'),
-                ),
-              
-              // Cancel button
-              TextButton(
-                onPressed: () {
-                  widget.onCancelled?.call();
-                  Navigator.of(context).pop(false);
-                },
-                child: const Text('Annuler'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildKeypadButton({required Widget child, required VoidCallback onPressed, Color? color}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color ?? Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          alignment: Alignment.center,
+          child: child,
+        ),
+      ),
+    );
+  }
 }
+

@@ -244,29 +244,12 @@
       </Teleport>
 
       <!-- PIN Verification Modal -->
-      <Teleport to="body">
-          <div v-if="showPinModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showPinModal = false">
-              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-xs shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
-                  <h3 class="text-lg font-bold text-gray-900 dark:text-white text-center mb-4">Sécurité</h3>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 text-center mb-4">Entrez votre code PIN pour confirmer le remboursement.</p>
-                  
-                  <div class="mb-4">
-                      <input v-model="pinCode" type="password" maxlength="5" placeholder="• • • • •" 
-                             class="w-full text-center text-2xl tracking-widest py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                             :disabled="verifyingPin"
-                             @keyup.enter="confirmRefund"
-                      >
-                  </div>
-
-                  <button @click="confirmRefund" :disabled="verifyingPin || pinCode.length < 5" 
-                          class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
-                      <svg v-if="verifyingPin" class="animate-spin h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      {{ verifyingPin ? 'Vérification...' : 'Confirmer' }}
-                  </button>
-                  <button @click="showPinModal = false" class="w-full mt-2 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Annuler</button>
-              </div>
-          </div>
-      </Teleport>
+      <PinModal 
+        v-model:isOpen="showPinModal"
+        title="Sécurité"
+        description="Entrez votre code PIN pour confirmer le remboursement."
+        @success="onPinVerified"
+      />
 
       <!-- Cancel Event Confirmation Modal -->
       <Teleport to="body">
@@ -291,8 +274,8 @@
 
                   <div class="flex gap-3">
                       <button @click="showCancelModal = false; confirmCancelCheck = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Ne pas annuler</button>
-                      <button @click="processCancelEvent" :disabled="!confirmCancelCheck" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                          CONFIRMER L'ANNULATION
+                      <button @click="openPinForCancel" :disabled="!confirmCancelCheck" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                          CONTINUER VERS PIN
                       </button>
                   </div>
               </div>
@@ -311,6 +294,7 @@ definePageMeta({
 
 import api, { ticketAPI, userAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
+import PinModal from '~/components/common/PinModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -481,30 +465,26 @@ const openRefundModal = (ticket: any) => {
     showRefundModal.value = true
 }
 
+const pinAction = ref<'refund' | 'cancel_event' | null>(null)
+
 const openPinForRefund = () => {
-    showRefundModal.value = false // Close warning
-    showPinModal.value = true     // Open PIN
-    pinCode.value = ''
+    showRefundModal.value = false
+    pinAction.value = 'refund'
+    showPinModal.value = true
 }
 
-const confirmRefund = async () => {
-    if (!pinCode.value || pinCode.value.length < 5) {
-        alert("Veuillez entrer un code PIN valide (5 chiffres).")
-        return
-    }
-    
-    verifyingPin.value = true
-    try {
-        // Verify PIN
-        await userAPI.verifyPin({ pin: pinCode.value })
-        
-        // If success, proceed to refund
+const openPinForCancel = () => {
+    showCancelModal.value = false
+    pinAction.value = 'cancel_event'
+    showPinModal.value = true
+}
+
+const onPinVerified = async () => {
+    showPinModal.value = false
+    if (pinAction.value === 'refund') {
         await executeRefund()
-        showPinModal.value = false
-    } catch (err: any) {
-        alert(err.response?.data?.error || "Code PIN incorrect.")
-    } finally {
-        verifyingPin.value = false
+    } else if (pinAction.value === 'cancel_event') {
+        await processCancelEvent()
     }
 }
 

@@ -272,9 +272,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { exchangeAPI, walletAPI } from '~/composables/useApi'
+import { usePin } from '~/composables/usePin'
 
 // Mode: buy or sell
 const mode = ref('buy')
+const { requirePin } = usePin()
 
 // Reactive data
 const loading = ref(false)
@@ -490,64 +492,66 @@ const executeExchange = async () => {
     showNotification('error', 'Veuillez sélectionner un portefeuille')
     return
   }
-  
-  loading.value = true
-  try {
-    // Get destination wallet
-    let destWallet = wallets.value.find(w => w.currency === toCurrency.value)
-    
-    // Create if doesn't exist
-    if (!destWallet) {
-      const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
-      const walletType = crypto ? 'crypto' : 'fiat'
-      const walletName = crypto ? `${crypto.name} Wallet` : `${toCurrency.value} Wallet`
+
+  await requirePin(async () => {
+    loading.value = true
+    try {
+      // Get destination wallet
+      let destWallet = wallets.value.find(w => w.currency === toCurrency.value)
       
-      const { data: newWalletRes } = await walletAPI.createWallet({
-        currency: toCurrency.value,
-        name: walletName,
-        wallet_type: walletType
-      })
-      destWallet = newWalletRes.wallet || newWalletRes
+      // Create if doesn't exist
+      if (!destWallet) {
+        const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
+        const walletType = crypto ? 'crypto' : 'fiat'
+        const walletName = crypto ? `${crypto.name} Wallet` : `${toCurrency.value} Wallet`
+        
+        const { data: newWalletRes } = await walletAPI.createWallet({
+          currency: toCurrency.value,
+          name: walletName,
+          wallet_type: walletType
+        })
+        destWallet = newWalletRes.wallet || newWalletRes
+      }
+      
+      // 1. Get Quote
+      const { data: quoteRes } = await exchangeAPI.getQuote(
+        fromCurrency.value, 
+        toCurrency.value, 
+        fromAmount.value
+      )
+      const quote = quoteRes.quote
+      
+      if (!quote?.id) {
+        throw new Error('Échec de la création du devis')
+      }
+      
+      // 2. Execute Exchange
+      await exchangeAPI.executeExchange(
+        quote.id,
+        selectedFromWalletId.value,
+        destWallet.id
+      )
+      
+      showNotification('success', 
+        mode.value === 'buy' 
+          ? `🎉 Vous avez acheté ${toAmount.value} ${toCurrency.value}!`
+          : `💰 Vous avez vendu ${fromAmount.value} ${fromCurrency.value}!`
+      )
+      
+      // Refresh wallets
+      await fetchWallets()
+      
+      // Reset form
+      fromAmount.value = 0
+      toAmount.value = '0'
+      
+    } catch (error) {
+      console.error('Exchange error:', error)
+      showNotification('error', error.response?.data?.error || error.message || 'Erreur lors de l\'échange')
+    } finally {
+      loading.value = false
     }
-    
-    // 1. Get Quote
-    const { data: quoteRes } = await exchangeAPI.getQuote(
-      fromCurrency.value, 
-      toCurrency.value, 
-      fromAmount.value
-    )
-    const quote = quoteRes.quote
-    
-    if (!quote?.id) {
-      throw new Error('Échec de la création du devis')
-    }
-    
-    // 2. Execute Exchange
-    await exchangeAPI.executeExchange(
-      quote.id,
-      selectedFromWalletId.value,
-      destWallet.id
-    )
-    
-    showNotification('success', 
-      mode.value === 'buy' 
-        ? `🎉 Vous avez acheté ${toAmount.value} ${toCurrency.value}!`
-        : `💰 Vous avez vendu ${fromAmount.value} ${fromCurrency.value}!`
-    )
-    
-    // Refresh wallets
-    await fetchWallets()
-    
-    // Reset form
-    fromAmount.value = 0
-    toAmount.value = '0'
-    
-  } catch (error) {
-    console.error('Exchange error:', error)
-    showNotification('error', error.response?.data?.error || error.message || 'Erreur lors de l\'échange')
-  } finally {
-    loading.value = false
-  }
+  })
 }
 
 const fetchWallets = async () => {

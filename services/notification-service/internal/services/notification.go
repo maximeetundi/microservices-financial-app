@@ -531,6 +531,32 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Channels: []string{"push"},
 		}
 
+	// ===== PAYMENT STATUS EVENTS =====
+	case "payment.request":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		title, _ := event["title"].(string) 
+		return &Notification{
+			Title:    "Demande de paiement",
+			Body:     fmt.Sprintf("Nouvelle demande de paiement: %s (%.2f %s)", title, amount, currency),
+			Type:     "payment",
+			Priority: PriorityNormal,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+
+	case "payment.status.success":
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		return &Notification{
+			Title:    "Paiement validé",
+			Body:     fmt.Sprintf("Votre paiement de %.2f %s a été validé avec succès.", amount, currency),
+			Type:     "payment",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+
 	default:
 		log.Printf("Unknown event type: %s", eventType)
 		return nil

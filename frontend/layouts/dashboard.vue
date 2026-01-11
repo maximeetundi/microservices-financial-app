@@ -177,7 +177,11 @@
     <!-- Global Modals -->
     <GlobalModal />
     <PinSetupModal />
-    <PinVerifyModal />
+    <PinModal 
+      v-model:isOpen="pinState.showVerifyModal"
+      @success="onPinSuccess"
+      @close="onPinClose"
+    />
   </div>
 </template>
 
@@ -186,10 +190,19 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { computed } from 'vue'
 import { usePin } from '~/composables/usePin'
+import PinModal from '~/components/common/PinModal.vue'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
-const { checkPinStatus, hasPin, showPinSetup, state: pinState } = usePin()
+const { checkPinStatus, hasPin, showPinSetup, state: pinState, executePendingAction, closeModals } = usePin()
+
+const onPinSuccess = () => {
+    executePendingAction()
+}
+
+const onPinClose = () => {
+    closeModals()
+}
 
 // Check PIN status on mount (only once per session)
 onMounted(async () => {
