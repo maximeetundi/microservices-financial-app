@@ -175,6 +175,55 @@
       <!-- Modals -->
       
       <!-- Refund Confirmation Modal -->
+      <!-- Details Modal -->
+      <Teleport to="body">
+        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" @click.self="showDetailsModal = false">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800">
+            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
+              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
+                 <!-- Buyer Full Info -->
+                 <div class="text-center">
+                     <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-2xl mb-3">
+                         {{ getInitials(selectedTicket.form_data) }}
+                     </div>
+                     <h4 class="text-xl font-bold text-gray-900 dark:text-white">{{ getBuyerName(selectedTicket.form_data) }}</h4>
+                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ getBuyerEmail(selectedTicket.form_data) }}</p>
+                 </div>
+
+                 <div class="grid grid-cols-2 gap-4">
+                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
+                         <p class="text-xs text-gray-500 uppercase">Status</p>
+                         <p class="font-medium mt-1" :class="getStatusColor(selectedTicket.status)">{{ getStatusLabel(selectedTicket.status) }}</p>
+                     </div>
+                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
+                         <p class="text-xs text-gray-500 uppercase">Prix Payé</p>
+                         <p class="font-medium mt-1 text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
+                     </div>
+                 </div>
+ 
+                 <!-- Full Form Data -->
+                 <div v-if="selectedTicket.form_data" class="space-y-3">
+                     <h5 class="text-sm font-semibold text-gray-900 dark:text-white">Données du participant</h5>
+                     <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
+                         <div v-for="(val, key) in selectedTicket.form_data" :key="key" class="flex justify-between text-sm">
+                             <span class="text-gray-500">{{ getLabelForField(key) }}</span>
+                             <span class="font-medium text-gray-900 dark:text-white">{{ val }}</span>
+                         </div>
+                     </div>
+                 </div>
+
+                 <div class="text-center">
+                     <p class="text-xs text-mono text-gray-400">ID: {{ selectedTicket.ticket_code }}</p>
+                 </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Refund Confirmation Modal -->
       <Teleport to="body">
           <div v-if="showRefundModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showRefundModal = false">
               <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
@@ -261,7 +310,7 @@ definePageMeta({
   middleware: 'auth'
 })
 
-import { ticketAPI } from '~/composables/useApi'
+import { ticketAPI, userAPI, api } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
@@ -356,6 +405,7 @@ const getBuyerName = (formData: any) => {
   if (!formData) return 'Anonyme'
   return formData.name || formData.nom || formData.full_name || 'Anonyme'
 }
+const getBuyerEmail = (formData: any) => formData?.email || formData?.Email || ''
 
 const getBuyerContact = (formData: any) => {
     if (!formData) return ''
@@ -411,20 +461,51 @@ const viewDetails = (ticket: any) => {
 }
 
 const showRefundModal = ref(false)
+const showPinModal = ref(false)
+const pinCode = ref('')
+const verifyingPin = ref(false)
 const ticketToRefund = ref<any>(null)
+
 const openRefundModal = (ticket: any) => {
     ticketToRefund.value = ticket
     showRefundModal.value = true
 }
-const processRefund = async () => {
+
+const openPinForRefund = () => {
+    showRefundModal.value = false // Close warning
+    showPinModal.value = true     // Open PIN
+    pinCode.value = ''
+}
+
+const confirmRefund = async () => {
+    if (!pinCode.value || pinCode.value.length < 5) {
+        alert("Veuillez entrer un code PIN valide (5 chiffres).")
+        return
+    }
+    
+    verifyingPin.value = true
+    try {
+        // Verify PIN
+        await userAPI.verifyPin({ pin: pinCode.value })
+        
+        // If success, proceed to refund
+        await executeRefund()
+        showPinModal.value = false
+    } catch (err: any) {
+        alert(err.response?.data?.error || "Code PIN incorrect.")
+    } finally {
+        verifyingPin.value = false
+    }
+}
+
+const executeRefund = async () => {
     if (!ticketToRefund.value) return
     try {
         await ticketAPI.refundTicket(ticketToRefund.value.id)
         // Optimistic update
         const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
         if(t) t.status = 'refunded'
-        showRefundModal.value = false
-        // Show success toast/notification properly (omitted for brevity, alert used sparingly or custom toast)
+        alert("Remboursement effectué avec succès.")
     } catch(err: any) {
         alert(err.response?.data?.error || 'Erreur lors du remboursement')
     }
@@ -577,71 +658,6 @@ definePageMeta({
 import { ticketAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 
-const route = useRoute()
-const authStore = useAuthStore()
-const eventId = computed(() => route.params.id as string)
-
-// State
-const loading = ref(true)
-const error = ref('')
-const event = ref<any>(null)
-const tickets = ref<any[]>([])
-const stats = ref<any>(null)
-
-// Pagination
-const currentPage = ref(1)
-const itemsPerPage = 50
-const totalPages = computed(() => Math.ceil((stats.value?.total_sold || 0) / itemsPerPage))
-
-// Computed Stats
-const tierStats = computed(() => {
-    if (!event.value?.ticket_tiers) return []
-    // Map tiers with sold counts from stats or event object
-    // Assuming backend updates event.ticket_tiers.sold or we calculate from tickets list if fetching all (but we paginate now)
-    // Actually ticket-service GetMyEvents returns populated tiers. GetEvent also does.
-    // So event.value.ticket_tiers should have the 'sold' count updated by backend.
-    return event.value.ticket_tiers.map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        icon: t.icon,
-        sold: t.sold || 0,
-        capacity: t.quantity,
-        color: t.color
-    }))
-})
-
-const isOwner = computed(() => event.value?.creator_id === authStore.user?.id)
-
-// Data Loading
-const loadData = async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    const offset = (currentPage.value - 1) * itemsPerPage
-    
-    // Fetch Event (for tiers/stats) & Tickets (paginated)
-    const [eventRes, ticketsRes] = await Promise.all([
-      ticketAPI.getEvent(eventId.value),
-      ticketAPI.getEventTickets(eventId.value, itemsPerPage, offset)
-    ])
-    
-    event.value = eventRes.data?.event || eventRes.data
-    tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
-    
-    // Set Stats generic object for total counts
-    stats.value = {
-        total_sold: event.value.total_sold || tickets.value.length, 
-        total_revenue: event.value.total_revenue || 0
-    }
-
-  } catch (err: any) {
-    console.error('Failed to load data:', err)
-    error.value = err.response?.data?.error || 'Erreur lors du chargement des tickets'
-  } finally {
-    loading.value = false
-  }
-}
-
 // Search with Debounce
 let searchTimeout: any
 const handleSearch = () => {
@@ -672,82 +688,13 @@ const loadDataWithSearch = async () => {
 
 watch(searchQuery, handleSearch)
 
-const changePage = (page: number) => {
-    if (page >= 1 && page <= totalPages.value) {
-        currentPage.value = page
-        searchQuery.value ? loadDataWithSearch() : loadData()
-    }
-}
-
 // Helpers
-const getInitials = (formData: any) => {
-  if (!formData) return '?'
-  const name = formData.name || formData.nom || formData.full_name || ''
-  return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
-}
-
-const getBuyerName = (formData: any) => {
-  if (!formData) return 'Anonyme'
-  return formData.name || formData.nom || formData.full_name || 'Anonyme'
-}
 const getBuyerEmail = (formData: any) => formData?.email || formData?.Email || ''
 
-const formatAmount = (amount: number) => new Intl.NumberFormat('fr-FR').format(amount || 0)
-
-const getStatusClass = (status: string) => {
-  switch (status) {
-    case 'paid': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    case 'used': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-    case 'cancelled': 
-    case 'refunded': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 line-through'
-    default: return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-  }
-}
-const getStatusColor = (status: string) => {
-    switch(status) {
-        case 'paid': return 'text-emerald-600'
-        case 'used': return 'text-blue-600'
-        case 'refunded': return 'text-red-600'
-        default: return 'text-amber-600'
-    }
-}
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'paid': return 'Confirmé'
-    case 'used': return 'Utilisé'
-    case 'cancelled': return 'Annulé'
-    case 'refunded': return 'Remboursé'
-    case 'pending': return 'En attente'
-    default: return status
-  }
-}
-
-const getLabelForField = (fieldName: string) => {
-  if (!event.value?.form_fields) return fieldName
-  const field = event.value.form_fields.find((f: any) => f.name === fieldName)
-  return field ? field.label : fieldName
-}
-
-
-// Modals Logic
-const showDetailsModal = ref(false)
-const selectedTicket = ref<any>(null)
-const viewDetails = (ticket: any) => {
-  selectedTicket.value = ticket
-  showDetailsModal.value = true
-}
-
 // PIN & Refund Logic
-const showRefundModal = ref(false)
 const showPinModal = ref(false)
 const pinCode = ref('')
 const verifyingPin = ref(false)
-const ticketToRefund = ref<any>(null)
-
-const openRefundModal = (ticket: any) => {
-    ticketToRefund.value = ticket
-    showRefundModal.value = true
-}
 
 const openPinForRefund = () => {
     showRefundModal.value = false // Close warning
@@ -790,38 +737,5 @@ const executeRefund = async () => {
         alert(err.response?.data?.error || 'Erreur lors du remboursement')
     }
 }
-
-const showCancelModal = ref(false)
-const confirmCancelCheck = ref(false)
-const openCancelModal = () => {
-    showCancelModal.value = true
-    confirmCancelCheck.value = false
-}
-const processCancelEvent = async () => {
-    try {
-        await ticketAPI.cancelEvent(eventId.value)
-        showCancelModal.value = false
-        alert('Événement annulé et remboursements initiés.')
-        loadData()
-    } catch(err: any) {
-        alert(err.response?.data?.error || "Erreur lors de l'annulation")
-    }
-}
-
-onMounted(() => {
-  loadData()
-})
 </script>
-
-<style scoped>
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-</style>
-
+```

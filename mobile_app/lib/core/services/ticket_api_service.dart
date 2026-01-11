@@ -86,10 +86,15 @@ class TicketApiService {
   }
 
   /// Get sold tickets for event
-  Future<List<dynamic>> getEventTickets(String id, {int limit = 50, int offset = 0}) async {
+  Future<List<dynamic>> getEventTickets(String id, {int limit = 50, int offset = 0, String? search}) async {
+    final Map<String, dynamic> params = {'limit': limit, 'offset': offset};
+    if (search != null && search.isNotEmpty) {
+      params['search'] = search;
+    }
+    
     final response = await _client.get(
       '/ticket-service/api/v1/events/$id/tickets',
-      queryParameters: {'limit': limit, 'offset': offset},
+      queryParameters: params,
     );
     if (response.statusCode == 200) {
       return response.data['tickets'] ?? [];

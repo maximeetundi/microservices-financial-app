@@ -155,6 +155,17 @@ class AuthApiService {
     }
   }
 
+  /// Vérifier le PIN
+  Future<void> verifyPin(String pin) async {
+    final response = await _client.post(
+      '${ApiEndpoints.users}/pin/verify',
+      data: {'pin': pin},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Pin incorrect');
+    }
+  }
+
   /// Rechercher un utilisateur (Email ou Téléphone)
   Future<Map<String, dynamic>> lookupUser({String? email, String? phone}) async {
     final Map<String, dynamic> queryParams = {};

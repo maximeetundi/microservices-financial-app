@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/ticket_api_service.dart';
+import '../../core/services/auth_api_service.dart';
+import 'dart:async';
 
 class SoldTicketsScreen extends StatefulWidget {
   final String eventId;
@@ -19,14 +21,39 @@ class SoldTicketsScreen extends StatefulWidget {
 
 class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
   final TicketApiService _ticketApi = TicketApiService();
+  final AuthApiService _authApi = AuthApiService();
   List<dynamic> _tickets = [];
   bool _loading = true;
   String? _error;
+  
+  // Search
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadTickets();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = query;
+          _loadTickets();
+        });
+      }
+    });
   }
 
   Future<void> _loadTickets() async {
@@ -35,7 +62,11 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
       _error = null;
     });
     try {
-      final tickets = await _ticketApi.getEventTickets(widget.eventId, limit: 100);
+      final tickets = await _ticketApi.getEventTickets(
+        widget.eventId, 
+        limit: 100, 
+        search: _searchQuery.isNotEmpty ? _searchQuery : null
+      );
       setState(() {
         _tickets = tickets;
         _loading = false;
@@ -65,54 +96,60 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
               // Header
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Row(
+                child: Column(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Tickets Vendus',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            widget.eventTitle,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                      ),
-                    ),
-                    IconButton(
-                        onPressed: _confirmCancelEvent,
-                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                        tooltip: 'Annuler l\'événement',
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6366f1).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF6366f1).withOpacity(0.5)),
-                      ),
-                      child: Text(
-                        '${_tickets.length}',
-                        style: const TextStyle(
-                          color: Color(0xFF6366f1),
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
                         ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Tickets Vendus',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                widget.eventTitle,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                            onPressed: _confirmCancelEvent,
+                            icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                            tooltip: 'Annuler l\'événement',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Search Bar
+                    TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                         hintText: 'Rechercher (Nom, Tel, Code)...',
+                         hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                         prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
+                         filled: true,
+                         fillColor: Colors.white.withOpacity(0.1),
+                         border: OutlineInputBorder(
+                           borderRadius: BorderRadius.circular(12),
+                           borderSide: BorderSide.none,
+                         ),
+                         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                       ),
                     ),
                   ],
@@ -136,6 +173,7 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
     );
   }
 
+  // ... (Cancel Event logic remains same, omitted for brevity if unmodified, but including to keep context)
   Future<void> _confirmCancelEvent() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -172,7 +210,7 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Événement annulé et remboursements initiés')),
         );
-        _loadTickets(); // Reload to see status changes
+        _loadTickets(); 
       }
     } catch (e) {
       if (mounted) {
@@ -192,19 +230,106 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
       builder: (context) => _TicketDetailsSheet(
         ticket: ticket,
         currency: widget.currency,
-        onRefund: () => _refundTicket(ticket['id']),
+        onRefund: () => _initiateRefund(ticket),
       ),
     );
   }
 
-  Future<void> _refundTicket(String ticketId) async {
-    // Close sheet first? Or keep open and show loading?
-    // Let's close sheet to assume fresh state or show loading dialog.
+  Future<void> _initiateRefund(dynamic ticket) async {
     Navigator.pop(context); // Close details sheet
+    
+    // 1. Confirm refund intent
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1e293b),
+        title: const Text('Confirmer le remboursement', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Voulez-vous rembourser le ticket ${ticket['ticket_code']} ?\n\nCette action est irréversible.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continuer', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
 
+    if (confirmed != true) return;
+
+    // 2. Request PIN
+    final pin = await _showPinDialog();
+    if (pin == null) return;
+
+    // 3. Verify PIN & Refund
+    _processRefund(ticket['id'], pin);
+  }
+
+  Future<String?> _showPinDialog() {
+    String pin = '';
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1e293b),
+        title: const Text('Code PIN de sécurité', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Entrez votre code PIN pour valider le remboursement.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 5,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
+              onChanged: (val) => pin = val,
+              decoration: InputDecoration(
+                counterText: '',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, pin),
+             style: ElevatedButton.styleFrom(
+               backgroundColor: const Color(0xFF6366f1),
+               foregroundColor: Colors.white,
+             ),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processRefund(String ticketId, String pin) async {
     setState(() => _loading = true);
     try {
+      // Step 1: Verify PIN
+      await _authApi.verifyPin(pin);
+      
+      // Step 2: Refund Ticket
       await _ticketApi.refundTicket(ticketId);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ticket remboursé avec succès')),
@@ -221,8 +346,6 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
     }
   }
 
-  // ... (rest of the class)
-  
   Widget _buildError() {
     return Center(
       child: Column(
@@ -248,20 +371,15 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🎫', style: TextStyle(fontSize: 64)),
+           const Text('🎫', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
           Text(
-            'Aucun ticket vendu',
+            'Aucun ticket trouvé',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Les tickets vendus apparaîtront ici',
-            style: TextStyle(color: Colors.white.withOpacity(0.5)),
           ),
         ],
       ),
@@ -427,40 +545,6 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
     );
   }
 
-  void _showTicketDetails(dynamic ticket) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _TicketDetailsSheet(
-        ticket: ticket, 
-        currency: widget.currency,
-        onRefund: () => _refundTicket(ticket['id']),
-      ),
-    );
-  }
-
-  Future<void> _refundTicket(String ticketId) async {
-    Navigator.pop(context); // Close details sheet
-    setState(() => _loading = true);
-    try {
-      await _ticketApi.refundTicket(ticketId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ticket remboursé avec succès')),
-        );
-        _loadTickets();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${e.toString()}')),
-        );
-        setState(() => _loading = false);
-      }
-    }
-  }
-
   Color _hexToColor(String hex) {
     try {
       hex = hex.replaceFirst('#', '');
@@ -566,30 +650,7 @@ class _TicketDetailsSheet extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Confirmation dialog
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                               backgroundColor: const Color(0xFF1e293b),
-                               title: const Text('Rembourser le ticket ?', style: TextStyle(color: Colors.white)),
-                               content: const Text('Cette action est irréversible.', style: TextStyle(color: Colors.white70)),
-                               actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Annuler', style: TextStyle(color: Colors.white)),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context); // Close dialog
-                                      onRefund(); // Call refund
-                                    },
-                                    child: const Text('Rembourser', style: TextStyle(color: Colors.red)),
-                                  ),
-                               ],
-                            )
-                          );
-                        },
+                        onPressed: onRefund,
                         icon: const Icon(Icons.refresh_outlined, color: Colors.red),
                         label: const Text('Rembourser ce ticket', style: TextStyle(color: Colors.red)),
                         style: ElevatedButton.styleFrom(
@@ -658,7 +719,6 @@ class _TicketDetailsSheet extends StatelessWidget {
     );
   }
 
-  // ... (rest of _TicketDetailsSheet methods)
   Widget _buildDetailRow(String label, String value, {bool isMono = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
