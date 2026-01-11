@@ -174,7 +174,6 @@
 
       <!-- Modals -->
       
-      <!-- Refund Confirmation Modal -->
       <!-- Details Modal -->
       <Teleport to="body">
         <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" @click.self="showDetailsModal = false">
@@ -345,20 +344,6 @@ const tierStats = computed(() => {
 
 const isOwner = computed(() => event.value?.creator_id === authStore.user?.id)
 
-// Search Filtering (Client-side on fetch batch for now)
-const filteredTickets = computed(() => {
-    if (!searchQuery.value) return tickets.value
-    const q = searchQuery.value.toLowerCase()
-    return tickets.value.filter(t => {
-        const formData = t.form_data || {}
-        const name = (formData.name || formData.nom || formData.full_name || '').toLowerCase()
-        const email = (formData.email || formData.Email || '').toLowerCase()
-        const phone = (formData.phone || formData.telephone || formData.mobile || '').toLowerCase()
-        const code = (t.ticket_code || '').toLowerCase()
-        return name.includes(q) || email.includes(q) || phone.includes(q) || code.includes(q)
-    })
-})
-
 // Data Loading
 const loadData = async () => {
   loading.value = true
@@ -366,6 +351,7 @@ const loadData = async () => {
   try {
     const offset = (currentPage.value - 1) * itemsPerPage
     
+    // Fetch Event (for tiers/stats) & Tickets (paginated)
     const [eventRes, ticketsRes] = await Promise.all([
       ticketAPI.getEvent(eventId.value),
       ticketAPI.getEventTickets(eventId.value, itemsPerPage, offset)
@@ -374,9 +360,10 @@ const loadData = async () => {
     event.value = eventRes.data?.event || eventRes.data
     tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
     
+    // Set Stats generic object for total counts
     stats.value = {
-        total_sold: event.value.total_sold || tickets.value.length,
-        total_revenue: event.value.total_revenue || tickets.value.reduce((sum, t) => sum + (['paid', 'used'].includes(t.status) ? (t.price || 0) : 0), 0)
+        total_sold: event.value.total_sold || tickets.value.length, 
+        total_revenue: event.value.total_revenue || 0
     }
 
   } catch (err: any) {
@@ -387,12 +374,35 @@ const loadData = async () => {
   }
 }
 
-const changePage = (page: number) => {
-    if (page >= 1 && page <= totalPages.value) {
-        currentPage.value = page
-        loadData()
-    }
+// Search with Debounce
+let searchTimeout: any
+const handleSearch = () => {
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        currentPage.value = 1
+        // Trigger loadData passing search query
+        // We'll modify loadData to read searchQuery
+        loadDataWithSearch()
+    }, 500)
 }
+
+const loadDataWithSearch = async () => {
+  loading.value = true
+  try {
+    const offset = (currentPage.value - 1) * itemsPerPage
+    const searchRes = await api.get(`/ticket-service/api/v1/events/${eventId.value}/tickets?limit=${itemsPerPage}&offset=${offset}&search=${encodeURIComponent(searchQuery.value)}`)
+    tickets.value = searchRes.data?.tickets || []
+    
+    // Refresh stats if needed? Or keep event stats global?
+    // Let's keep existing event stats but update tickets list.
+  } catch (err) {
+      console.error(err)
+  } finally {
+      loading.value = false
+  }
+}
+
+watch(searchQuery, handleSearch)
 
 // Helpers
 const getInitials = (formData: any) => {
@@ -451,7 +461,6 @@ const getLabelForField = (fieldName: string) => {
   return field ? field.label : fieldName
 }
 
-
 // Modals Logic
 const showDetailsModal = ref(false)
 const selectedTicket = ref<any>(null)
@@ -460,6 +469,7 @@ const viewDetails = (ticket: any) => {
   showDetailsModal.value = true
 }
 
+// PIN & Refund Logic
 const showRefundModal = ref(false)
 const showPinModal = ref(false)
 const pinCode = ref('')
@@ -544,198 +554,3 @@ onMounted(() => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-      <!-- Modals -->
-      <!-- Details Modal -->
-      <Teleport to="body">
-        <div v-if="showDetailsModal && selectedTicket" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" @click.self="showDetailsModal = false">
-          <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800">
-            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
-              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Détails du Ticket</h3>
-              <button @click="showDetailsModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-            </div>
-            <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-6">
-                 <!-- Buyer Full Info -->
-                 <div class="text-center">
-                     <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-2xl mb-3">
-                         {{ getInitials(selectedTicket.form_data) }}
-                     </div>
-                     <h4 class="text-xl font-bold text-gray-900 dark:text-white">{{ getBuyerName(selectedTicket.form_data) }}</h4>
-                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ getBuyerEmail(selectedTicket.form_data) }}</p>
-                 </div>
-
-                 <div class="grid grid-cols-2 gap-4">
-                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
-                         <p class="text-xs text-gray-500 uppercase">Status</p>
-                         <p class="font-medium mt-1" :class="getStatusColor(selectedTicket.status)">{{ getStatusLabel(selectedTicket.status) }}</p>
-                     </div>
-                     <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
-                         <p class="text-xs text-gray-500 uppercase">Prix Payé</p>
-                         <p class="font-medium mt-1 text-gray-900 dark:text-white">{{ formatAmount(selectedTicket.price) }} {{ selectedTicket.currency }}</p>
-                     </div>
-                 </div>
- 
-                 <!-- Full Form Data -->
-                 <div v-if="selectedTicket.form_data" class="space-y-3">
-                     <h5 class="text-sm font-semibold text-gray-900 dark:text-white">Données du participant</h5>
-                     <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2">
-                         <div v-for="(val, key) in selectedTicket.form_data" :key="key" class="flex justify-between text-sm">
-                             <span class="text-gray-500">{{ getLabelForField(key) }}</span>
-                             <span class="font-medium text-gray-900 dark:text-white">{{ val }}</span>
-                         </div>
-                     </div>
-                 </div>
-
-                 <div class="text-center">
-                     <p class="text-xs text-mono text-gray-400">ID: {{ selectedTicket.ticket_code }}</p>
-                 </div>
-            </div>
-          </div>
-        </div>
-      </Teleport>
-
-      <!-- Refund Confirmation Modal -->
-      <Teleport to="body">
-          <div v-if="showRefundModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showRefundModal = false">
-              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
-                  <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mb-4 mx-auto">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  </div>
-                  <h3 class="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">Confirmer le remboursement</h3>
-                  <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-6">
-                      Voulez-vous vraiment rembourser le ticket <strong>{{ ticketToRefund?.ticket_code }}</strong> de <strong>{{ getBuyerName(ticketToRefund?.form_data) }}</strong> ? <br>
-                      montant: <span class="font-bold text-gray-900 dark:text-white">{{ formatAmount(ticketToRefund?.price) }} {{ ticketToRefund?.currency }}</span><br><br>
-                      Cette action est irréversible.
-                  </p>
-                  <div class="flex gap-3">
-                      <button @click="showRefundModal = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Annuler</button>
-                      <button @click="processRefund" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20">Rembourser</button>
-                  </div>
-              </div>
-          </div>
-      </Teleport>
-
-      <!-- Cancel Event Confirmation Modal -->
-      <Teleport to="body">
-          <div v-if="showCancelModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-red-500/20 animate-in fade-in zoom-in duration-200">
-                  <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mb-4 mx-auto animate-pulse">
-                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                  </div>
-                  <h3 class="text-xl font-bold text-red-600 dark:text-red-500 text-center mb-2">ANNULATION D'ÉVÉNEMENT</h3>
-                  <p class="text-gray-600 dark:text-gray-300 text-center text-sm mb-6 leading-relaxed">
-                      Attention ! Vous êtes sur le point d'annuler l'événement <strong>{{ event?.title }}</strong>.<br><br>
-                      🔴 <strong>Tous les tickets vendus ({{ tickets.length }}) seront REMBOURSÉS automatiquement.</strong><br>
-                      🔴 Cette action est <strong>IRRÉVERSIBLE</strong>.
-                  </p>
-                  
-                  <div class="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20 mb-6">
-                      <label class="flex items-start gap-3 cursor-pointer">
-                          <input type="checkbox" v-model="confirmCancelCheck" class="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
-                          <span class="text-sm text-red-800 dark:text-red-300">Je comprends que cette action va déclencher le remboursement de tous les participants et annuler l'événement définitivement.</span>
-                      </label>
-                  </div>
-
-                  <div class="flex gap-3">
-                      <button @click="showCancelModal = false; confirmCancelCheck = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Ne pas annuler</button>
-                      <button @click="processCancelEvent" :disabled="!confirmCancelCheck" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                          CONFIRMER L'ANNULATION
-                      </button>
-                  </div>
-              </div>
-          </div>
-      </Teleport>
-
-    </div>
-  </NuxtLayout>
-</template>
-
-<script setup lang="ts">
-definePageMeta({
-  layout: false,
-  middleware: 'auth'
-})
-
-import { ticketAPI } from '~/composables/useApi'
-import { useAuthStore } from '~/stores/auth'
-
-// Search with Debounce
-let searchTimeout: any
-const handleSearch = () => {
-    clearTimeout(searchTimeout)
-    searchTimeout = setTimeout(() => {
-        currentPage.value = 1
-        // Trigger loadData passing search query
-        // We'll modify loadData to read searchQuery
-        loadDataWithSearch()
-    }, 500)
-}
-
-const loadDataWithSearch = async () => {
-  loading.value = true
-  try {
-    const offset = (currentPage.value - 1) * itemsPerPage
-    const searchRes = await api.get(`/ticket-service/api/v1/events/${eventId.value}/tickets?limit=${itemsPerPage}&offset=${offset}&search=${encodeURIComponent(searchQuery.value)}`)
-    tickets.value = searchRes.data?.tickets || []
-    
-    // Refresh stats if needed? Or keep event stats global?
-    // Let's keep existing event stats but update tickets list.
-  } catch (err) {
-      console.error(err)
-  } finally {
-      loading.value = false
-  }
-}
-
-watch(searchQuery, handleSearch)
-
-// Helpers
-const getBuyerEmail = (formData: any) => formData?.email || formData?.Email || ''
-
-// PIN & Refund Logic
-const showPinModal = ref(false)
-const pinCode = ref('')
-const verifyingPin = ref(false)
-
-const openPinForRefund = () => {
-    showRefundModal.value = false // Close warning
-    showPinModal.value = true     // Open PIN
-    pinCode.value = ''
-}
-
-import { userAPI, api } from '~/composables/useApi' // Ensure api is imported
-
-const confirmRefund = async () => {
-    if (!pinCode.value || pinCode.value.length < 5) {
-        alert("Veuillez entrer un code PIN valide (5 chiffres).")
-        return
-    }
-    
-    verifyingPin.value = true
-    try {
-        // Verify PIN
-        await userAPI.verifyPin({ pin: pinCode.value })
-        
-        // If success, proceed to refund
-        await executeRefund()
-        showPinModal.value = false
-    } catch (err: any) {
-        alert(err.response?.data?.error || "Code PIN incorrect.")
-    } finally {
-        verifyingPin.value = false
-    }
-}
-
-const executeRefund = async () => {
-    if (!ticketToRefund.value) return
-    try {
-        await ticketAPI.refundTicket(ticketToRefund.value.id)
-        // Optimistic update
-        const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
-        if(t) t.status = 'refunded'
-        alert("Remboursement effectué avec succès.")
-    } catch(err: any) {
-        alert(err.response?.data?.error || 'Erreur lors du remboursement')
-    }
-}
-</script>
-
