@@ -121,3 +121,27 @@ func (c *WalletClient) CreateUserWallet(userID, currency string) (string, error)
 	}
 	return "", fmt.Errorf("wallet id not found in response")
 }
+
+// GetWallet fetches a specific wallet by ID
+func (c *WalletClient) GetWallet(walletID string) (map[string]interface{}, error) {
+	url := fmt.Sprintf("%s/api/v1/wallets/%s", c.baseURL, walletID)
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get wallet: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("wallet service returned status: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Wallet map[string]interface{} `json:"wallet"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Wallet, nil
+}

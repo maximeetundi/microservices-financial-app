@@ -19,7 +19,7 @@ type WalletClient struct {
 func NewWalletClient() *WalletClient {
 	walletURL := os.Getenv("WALLET_SERVICE_URL")
 	if walletURL == "" {
-		walletURL = "http://wallet-service:8082"
+		walletURL = "http://wallet-service:8083"
 	}
 	return &WalletClient{
 		baseURL:    walletURL,

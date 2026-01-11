@@ -11,17 +11,19 @@ import (
 
 // PaymentRequestConsumer handles payment request events from Kafka
 type PaymentRequestConsumer struct {
-	kafkaClient  *messaging.KafkaClient
-	walletClient *WalletClient
-	walletRepo   *repository.WalletRepository
+	kafkaClient    *messaging.KafkaClient
+	walletClient   *WalletClient
+	exchangeClient *ExchangeClient
+	walletRepo     *repository.WalletRepository
 }
 
 // NewPaymentRequestConsumer creates a new payment request consumer
-func NewPaymentRequestConsumer(kafkaClient *messaging.KafkaClient, walletClient *WalletClient, walletRepo *repository.WalletRepository) *PaymentRequestConsumer {
+func NewPaymentRequestConsumer(kafkaClient *messaging.KafkaClient, walletClient *WalletClient, exchangeClient *ExchangeClient, walletRepo *repository.WalletRepository) *PaymentRequestConsumer {
 	return &PaymentRequestConsumer{
-		kafkaClient:  kafkaClient,
-		walletClient: walletClient,
-		walletRepo:   walletRepo,
+		kafkaClient:    kafkaClient,
+		walletClient:   walletClient,
+		exchangeClient: exchangeClient,
+		walletRepo:     walletRepo,
 	}
 }
 
@@ -96,11 +98,45 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	if paymentReq.FromWalletID != "" && paymentReq.DebitAmount > 0 {
 		log.Printf("[TRACE-FIAT] Processing Debit for UserID: %s", paymentReq.UserID)
+		
+		debitCurrency := paymentReq.Currency
+		debitAmount := paymentReq.DebitAmount
+
+		// Auto-Conversion Check
+		payerWallet, err := c.walletClient.GetWallet(paymentReq.FromWalletID)
+		if err == nil {
+			if walletCurrency, ok := payerWallet["currency"].(string); ok && walletCurrency != "" {
+				if walletCurrency != paymentReq.Currency {
+					log.Printf("[TRACE-FIAT] Currency Mismatch detected. Wallet: %s, Request: %s. Initiating Auto-Conversion.", walletCurrency, paymentReq.Currency)
+					
+					// Fetch Rate
+					rate, err := c.exchangeClient.GetRate(walletCurrency, paymentReq.Currency)
+					if err != nil {
+						log.Printf("[Kafka] Auto-Conversion Failed: Could not get rate: %v", err)
+						c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", "Auto-conversion failed: "+err.Error())
+						return err
+					}
+
+					// Calculate Debited Amount
+					// Rate is From -> To (e.g. USD -> XOF = 650)
+					// We need 'DebitAmount' in ToCurrency (XOF).
+					// So AmountInFrom = AmountInTo / Rate
+					debitAmount = paymentReq.DebitAmount / rate
+					debitCurrency = walletCurrency
+					
+					log.Printf("[TRACE-FIAT] Auto-Conversion: Rate %s->%s = %f. Debiting %f %s instead of %f %s.", 
+						walletCurrency, paymentReq.Currency, rate, debitAmount, debitCurrency, paymentReq.DebitAmount, paymentReq.Currency)
+				}
+			}
+		} else {
+			log.Printf("[TRACE-FIAT] Warning: Could not fetch payer wallet details: %v. Proceeding with default currency.", err)
+		}
+
 		debitReq := &WalletTransactionRequest{
 			UserID:    paymentReq.UserID,
 			WalletID:  paymentReq.FromWalletID,
-			Amount:    paymentReq.DebitAmount,
-			Currency:  paymentReq.Currency,
+			Amount:    debitAmount,
+			Currency:  debitCurrency,
 			Type:      "debit",
 			Reference: paymentReq.ReferenceID,
 		}
