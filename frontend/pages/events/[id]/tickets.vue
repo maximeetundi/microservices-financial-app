@@ -309,7 +309,7 @@ definePageMeta({
   middleware: 'auth'
 })
 
-import { ticketAPI, userAPI, api } from '~/composables/useApi'
+import api, { ticketAPI, userAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
