@@ -6,6 +6,12 @@ import (
 	"time"
 	"fmt"
 	"log"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/pem"
 
 	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
@@ -18,16 +24,49 @@ type AuthHandler struct {
 	smsService   *services.SMSService
 	totpService  *services.TOTPService
 	auditService *services.AuditService
+	privateKey   *rsa.PrivateKey
+	publicKeyPEM string
 }
 
 func NewAuthHandler(authService *services.AuthService, emailService *services.EmailService, smsService *services.SMSService, totpService *services.TOTPService, auditService *services.AuditService) *AuthHandler {
-	return &AuthHandler{
+	h := &AuthHandler{
 		authService:  authService,
 		emailService: emailService,
 		smsService:   smsService,
 		totpService:  totpService,
 		auditService: auditService,
 	}
+	h.initKeys()
+	return h
+}
+
+func (h *AuthHandler) initKeys() {
+	// Generate RSA Key Pair 2048-bit
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Printf("Failed to generate RSA keys: %v", err)
+		return
+	}
+	h.privateKey = key
+
+	// Marshal Public Key to PEM
+	pubASN1, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		log.Printf("Failed to marshal public key: %v", err)
+		return
+	}
+	h.publicKeyPEM = string(pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubASN1,
+	}))
+}
+
+func (h *AuthHandler) GetPublicKey(c *gin.Context) {
+	if h.publicKeyPEM == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Keys not initialized"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"public_key": h.publicKeyPEM})
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -628,7 +667,33 @@ func (h *AuthHandler) VerifyPin(c *gin.Context) {
 		return
 	}
 
-	response, err := h.authService.VerifyPin(userID.(string), req.Pin)
+	pinToVerify := req.Pin
+
+	// Decrypt if length suggests encryption (RSA 2048 output base64 is lengthy)
+	if len(req.Pin) > 20 {
+		if h.privateKey == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Encryption service unavailable"})
+			return
+		}
+
+		// Decode Base64
+		encryptedBytes, err := base64.StdEncoding.DecodeString(req.Pin)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid PIN format"})
+			return
+		}
+
+		// Decrypt OAEP
+		decryptedBytes, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, h.privateKey, encryptedBytes, nil)
+		if err != nil {
+			log.Printf("Decryption failed: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Secure transmission failed"})
+			return
+		}
+		pinToVerify = string(decryptedBytes)
+	}
+
+	response, err := h.authService.VerifyPin(userID.(string), pinToVerify)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify PIN"})
 		return

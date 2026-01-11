@@ -154,7 +154,7 @@ type SetPinRequest struct {
 
 // VerifyPinRequest for verifying the PIN before sensitive actions
 type VerifyPinRequest struct {
-	Pin string `json:"pin" binding:"required,len=5"`
+	Pin string `json:"pin" binding:"required"`
 }
 
 // VerifyPinResponse returned after PIN verification

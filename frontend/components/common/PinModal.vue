@@ -10,17 +10,17 @@
         </p>
         
         <!-- Display Only Inputs -->
-        <div class="pin-input-container flex gap-3 justify-center mb-6">
+        <div class="pin-input-container flex gap-2 sm:gap-3 justify-center mb-6">
           <div
             v-for="(digit, i) in 5"
             :key="i"
-            class="w-12 h-14 border-2 rounded-xl text-2xl flex items-center justify-center transition-all duration-200"
+            class="w-10 sm:w-12 h-12 sm:h-14 border-2 rounded-xl text-2xl flex items-center justify-center transition-all duration-200"
             :class="[
-                digit ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-white/5 border-indigo-500/30 text-transparent',
-                currentLength === i ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#1a1a2e]' : ''
+                digit ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-500',
+                currentLength === i ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#1a1a2e] border-indigo-500' : ''
             ]"
           >
-            {{ digit ? '•' : '' }}
+            <span class="transition-opacity duration-200" :class="digit ? 'opacity-100' : 'opacity-0'">•</span>
           </div>
         </div>
 
@@ -90,7 +90,62 @@ const emit = defineEmits(['update:isOpen', 'success', 'close'])
 const pinDigits = ref(['', '', '', '', ''])
 const error = ref('')
 const verifying = ref(false)
-const shuffledKeys = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+const result = ref<any>(null)
+const publicKey = ref<CryptoKey | null>(null)
+
+// Crypto Helpers
+const str2ab = (str: string) => {
+  const buf = new ArrayBuffer(str.length)
+  const bufView = new Uint8Array(buf)
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i)
+  }
+  return buf
+}
+
+const importKey = async (pem: string) => {
+    try {
+        const pemHeader = "-----BEGIN PUBLIC KEY-----"
+        const pemFooter = "-----END PUBLIC KEY-----"
+        // Cleanup PEM
+        let pemContents = pem.trim()
+        if (pemContents.startsWith(pemHeader)) {
+            pemContents = pemContents.substring(pemHeader.length, pemContents.length - pemFooter.length).trim()
+        }
+        
+        const binaryDerString = window.atob(pemContents.replace(/\s/g, ''))
+        const binaryDer = str2ab(binaryDerString)
+        
+        return await window.crypto.subtle.importKey(
+            "spki",
+            binaryDer,
+            { name: "RSA-OAEP", hash: "SHA-256" },
+            true,
+            ["encrypt"]
+        )
+    } catch (e) {
+        console.error("Key import failed:", e)
+        return null
+    }
+}
+
+const encryptPin = async (pin: string, key: CryptoKey) => {
+    const enc = new TextEncoder()
+    const encoded = enc.encode(pin)
+    const encrypted = await window.crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        key,
+        encoded
+    )
+    
+    // ArrayBuffer to Base64
+    let binary = ''
+    const bytes = new Uint8Array(encrypted)
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i])
+    }
+    return window.btoa(binary)
+}
 
 const currentLength = computed(() => pinDigits.value.filter(d => d !== '').length)
 
@@ -110,6 +165,16 @@ watch(() => props.isOpen, (newVal) => {
     pinDigits.value = ['', '', '', '', '']
     error.value = ''
     shuffleKeys() // Randomize layout on every open
+    // Fetch Public Key
+    try {
+        const res = await userAPI.authApi.getPublicKey()
+        const pem = res.data.public_key
+        if (pem) {
+            publicKey.value = await importKey(pem)
+        }
+    } catch (e) {
+        console.warn('Failed to fetch encryption key, falling back to plain (insecure) transmission', e)
+    }
   }
 })
 
@@ -145,7 +210,20 @@ const verifyPin = async () => {
   error.value = ''
   
   try {
-    const res = await userAPI.verifyPin({ pin })
+  try {
+    let payloadPin = pin
+    
+    // Encrypt if key is available
+    if (publicKey.value) {
+        try {
+            payloadPin = await encryptPin(pin, publicKey.value)
+        } catch (e) {
+            console.error("Encryption failed:", e)
+            throw new Error("Erreur de chiffrement")
+        }
+    }
+
+    const res = await userAPI.verifyPin({ pin: payloadPin })
     if (res.data?.valid === true || res.status === 200) { 
        emit('success', pin)
        emit('update:isOpen', false)

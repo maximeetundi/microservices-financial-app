@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import 'secure_storage_service.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 
 /// Service for managing 5-digit transaction PIN
 class PinService {
@@ -11,9 +12,45 @@ class PinService {
   PinService._internal();
 
   final ApiClient _client = ApiClient();
+  final ApiClient _client = ApiClient();
   final SecureStorageService _storage = SecureStorageService();
 
   static const String _pinSetKey = 'pin_set';
+  
+  // Cache for RSA Public Key
+  String? _publicKeyPem;
+
+  /// Fetch Public Key for Encryption
+  Future<String?> _getPublicKey() async {
+    if (_publicKeyPem != null) return _publicKeyPem;
+    try {
+      final response = await _client.get(ApiEndpoints.publicKey);
+      if (response.statusCode == 200) {
+        _publicKeyPem = response.data['public_key'];
+        return _publicKeyPem;
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch public key: $e');
+    }
+    return null;
+  }
+
+  /// Encrypt PIN using RSA-OAEP
+  Future<String> _encryptPin(String pin) async {
+    final pem = await _getPublicKey();
+    if (pem == null) return pin; // Fallback to plain text if key fetch fails
+    
+    try {
+       final parser = enc.RSAKeyParser();
+       final publicKey = parser.parse(pem);
+       final encrypter = enc.Encrypter(enc.RSA(publicKey: publicKey as dynamic, encoding: enc.RSAEncoding.OAEP, digest: enc.RSADigest.SHA256));
+       final encrypted = encrypter.encrypt(pin);
+       return encrypted.base64;
+    } catch (e) {
+       debugPrint('Encryption failed: $e');
+       return pin;
+    }
+  }
 
   /// Check if user has set their PIN
   Future<bool> checkPinStatus() async {
@@ -70,9 +107,12 @@ class PinService {
   /// Verify the PIN
   Future<PinVerifyResult> verifyPin(String pin) async {
     try {
+      // Encrypt PIN before sending
+      final encryptedPin = await _encryptPin(pin);
+      
       final response = await _client.post(
         ApiEndpoints.verifyPin,
-        data: {'pin': pin},
+        data: {'pin': encryptedPin},
       );
 
       if (response.statusCode == 200) {

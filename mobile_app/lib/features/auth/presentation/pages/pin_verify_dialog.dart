@@ -276,21 +276,27 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProv
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_pinLength, (index) {
                     final isFilled = index < _currentPin.length;
+                    final isFocused = index == _currentPin.length;
                     return Container(
-                      width: 45,
-                      height: 55,
+                      width: 42,
+                      height: 52,
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         color: isFilled ? _primaryColor.withOpacity(0.1) : Colors.white.withOpacity(0.05),
                         border: Border.all(
-                          color: isFilled ? _primaryColor : _primaryColor.withOpacity(0.3),
-                          width: 2,
+                          color: isFilled || isFocused 
+                              ? _primaryColor 
+                              : Colors.white.withOpacity(0.1),
+                          width: isFocused ? 2 : 1.5,
                         ),
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: isFocused ? [
+                          BoxShadow(color: _primaryColor.withOpacity(0.3), blurRadius: 8, spreadRadius: 1)
+                        ] : null,
                       ),
                       alignment: Alignment.center,
                       child: isFilled
-                          ? const Icon(Icons.circle, size: 12, color: Colors.white)
+                          ? const Icon(Icons.circle, size: 10, color: Colors.white)
                           : null,
                     );
                   }),

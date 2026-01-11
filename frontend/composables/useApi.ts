@@ -182,6 +182,7 @@ export const authAPI = {
     forgotPassword: (email: string) => api.post('/auth-service/api/v1/auth/forgot-password', { email }),
     resetPassword: (token: string, password: string) =>
         api.post('/auth-service/api/v1/auth/reset-password', { token, new_password: password }),
+    getPublicKey: () => api.get('/auth-service/api/v1/auth/public-key'),
 }
 
 // ========== User ==========

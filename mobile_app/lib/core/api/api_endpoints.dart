@@ -20,6 +20,7 @@ class ApiEndpoints {
   static const String resetPassword = '$auth/reset-password';
   static const String enable2FA = '$auth/2fa/enable';
   static const String verify2FA = '$auth/2fa/verify';
+  static const String publicKey = '$auth/public-key';
   
   // User Endpoints
   static const String profile = '$users/profile';

@@ -16,32 +16,15 @@
         </div>
       </div>
 
-      <!-- PIN Verification Required -->
+      <!-- PIN Verification Required (Locked State) -->
       <div v-else-if="!isUnlocked" class="pin-overlay">
         <div class="pin-modal">
           <div class="pin-icon">🔐</div>
-          <h2>Vérification requise</h2>
-          <p>Entrez votre PIN de sécurité pour accéder à vos informations personnelles</p>
+          <h2>Profil Sécurisé</h2>
+          <p>L'accès à vos informations personnelles est protégé.</p>
           
-          <div class="pin-input-container">
-            <input
-              v-for="(_, i) in 5"
-              :key="i"
-              :ref="el => pinInputs[i] = el"
-              type="password"
-              maxlength="1"
-              inputmode="numeric"
-              class="pin-input"
-              :value="pinDigits[i]"
-              @input="handlePinInput($event, i)"
-              @keydown="handlePinKeydown($event, i)"
-            >
-          </div>
-
-          <p v-if="pinError" class="pin-error">{{ pinError }}</p>
-          
-          <button @click="verifyPin" :disabled="pinDigits.join('').length < 5 || verifyingPin" class="verify-btn">
-            {{ verifyingPin ? 'Vérification...' : '🔓 Déverrouiller' }}
+          <button @click="triggerUnlock" class="verify-btn">
+            🔓 Déverrouiller mon profil
           </button>
 
           <NuxtLink to="/settings" class="back-link">← Retour aux paramètres</NuxtLink>
@@ -210,14 +193,12 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { userAPI } from '~/composables/useApi'
+import { usePin } from '~/composables/usePin'
 
+const { requirePin } = usePin()
 const isUnlocked = ref(false)
 const needsPinSetup = ref(false)
 const loading = ref(true)
-const pinDigits = ref(['', '', '', '', ''])
-const pinInputs = ref([])
-const pinError = ref('')
-const verifyingPin = ref(false)
 
 const profile = ref({
   first_name: '',
@@ -246,45 +227,12 @@ const userInitials = computed(() => {
   return (first + last).toUpperCase() || '?'
 })
 
-const handlePinInput = (e, index) => {
-  const value = e.target.value.replace(/\D/g, '')
-  pinDigits.value[index] = value
-  pinError.value = ''
-  
-  if (value && index < 4) {
-    nextTick(() => pinInputs.value[index + 1]?.focus())
-  }
-}
-
-const handlePinKeydown = (e, index) => {
-  if (e.key === 'Backspace' && !pinDigits.value[index] && index > 0) {
-    nextTick(() => pinInputs.value[index - 1]?.focus())
-  }
-}
-
-const verifyPin = async () => {
-  const pin = pinDigits.value.join('')
-  if (pin.length !== 5) return
-  
-  verifyingPin.value = true
-  pinError.value = ''
-  
-  try {
-    const res = await userAPI.verifyPin({ pin })
-    if (res.data?.valid) {
-      isUnlocked.value = true
-      loadProfile()
-    } else {
-      pinError.value = res.data?.message || 'PIN incorrect'
-      pinDigits.value = ['', '', '', '', '']
-      nextTick(() => pinInputs.value[0]?.focus())
-    }
-  } catch (e) {
-    pinError.value = 'Erreur de vérification'
-    console.error('PIN verification error:', e)
-  } finally {
-    verifyingPin.value = false
-  }
+const triggerUnlock = async () => {
+    // This will open the Global PIN Modal (with Randomized Keypad)
+    await requirePin(async () => {
+        isUnlocked.value = true
+        await loadProfile()
+    })
 }
 
 const loadProfile = async () => {
@@ -338,9 +286,9 @@ onMounted(async () => {
       // No PIN configured, force user to set it up
       needsPinSetup.value = true
     } else {
-      // PIN required, focus first input
       needsPinSetup.value = false
-      nextTick(() => pinInputs.value[0]?.focus())
+      // Auto-trigger unlock (prompt for PIN immediately)
+      triggerUnlock()
     }
   } catch (e) {
     // If error checking PIN status, require PIN setup to be safe
@@ -383,33 +331,9 @@ definePageMeta({
   @apply text-sm mb-6 text-gray-400;
 }
 
-.pin-input-container {
-  @apply flex gap-3 justify-center mb-4;
-}
-
-.pin-input {
-  @apply w-12 h-14 border-2 rounded-xl text-2xl text-center outline-none transition-all;
-  border-color: rgba(99, 102, 241, 0.3);
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-}
-
-.pin-input:focus {
-  @apply border-indigo-500;
-  background: rgba(99, 102, 241, 0.1);
-}
-
-.pin-error {
-  @apply text-red-500 text-sm mb-4;
-}
-
 .verify-btn {
   @apply w-full p-4 rounded-xl border-none text-base font-semibold cursor-pointer mb-4 text-white hover:opacity-90 transition-opacity;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
-}
-
-.verify-btn:disabled {
-  @apply opacity-50 cursor-not-allowed;
 }
 
 .setup-btn {

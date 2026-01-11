@@ -184,6 +184,7 @@ func main() {
 			auth.POST("/reset-password", authHandler.ResetPassword)
 			auth.POST("/verify-email", authHandler.VerifyEmail)
 			auth.POST("/verify-phone", authHandler.VerifyPhone)
+			auth.GET("/public-key", authHandler.GetPublicKey)
 		}
 		
 		// 2FA routes (moved to /auth/2fa for consistency or kept at root? Frontend calls: /auth-service/api/v1/users/2fa/... wait. useApi says userAPI.setup2FA -> /auth-service/api/v1/users/2fa/setup. So 2FA IS under users in frontend. Backend has /enable-2fa at root. I should move 2FA to /users/2fa to match frontend userAPI if needed, but user didn't complain about 2FA yet. Focus on LOGIN).
