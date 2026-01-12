@@ -52,89 +52,14 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
       'icon': '🎫',
       'price': 5000,
       'quantity': -1,
+      'max_per_user': 0,
       'display_remaining': false,
       'description': 'Accès standard',
       'color': '#6366f1'
     },
   ];
 
-  // ... (lines 60-394)
 
-          return GestureDetector(
-            onTap: () => _showEditTierDialog(idx),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _hexToColor(tier['color']).withOpacity(0.5)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _selectIcon(idx),
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(tier['icon'], style: const TextStyle(fontSize: 28)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                             Text(
-                              tier['name'],
-                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                             Text(
-                              '${tier['price']} $_selectedCurrency • ${tier['quantity'] == -1 ? 'Illimité' : '${tier['quantity']} tickets'}',
-                              style: const TextStyle(color: Colors.white70, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _selectColor(idx),
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: _hexToColor(tier['color']),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(() => _tiers.removeAt(idx)),
-                        icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-        OutlinedButton.icon(
-          onPressed: _addTier,
-          icon: const Icon(Icons.add),
-          label: const Text('Ajouter un niveau'),
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
-        ),
-      ],
-    );
-  }
 
   void _addTier() {
     setState(() => _tiers.add({
@@ -142,6 +67,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
       'icon': '🎟️',
       'price': 10000,
       'quantity': -1,
+      'max_per_user': 0,
       'display_remaining': false,
       'description': '',
       'color': '#8b5cf6',
@@ -155,6 +81,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
     final nameController = TextEditingController(text: tier['name']);
     final priceController = TextEditingController(text: tier['price'].toString());
     final quantityController = TextEditingController(text: tier['quantity'] == -1 ? '100' : tier['quantity'].toString());
+    final maxPerUserController = TextEditingController(text: tier['max_per_user'] == 0 ? '' : tier['max_per_user'].toString());
     final descController = TextEditingController(text: tier['description']);
     
     bool isUnlimited = tier['quantity'] == -1;
@@ -192,9 +119,13 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
                   ),
                   const SizedBox(height: 16),
                   
+                  // Max Per User (New field)
+                  _buildDialogTextField('Max tickets par personne (0 = illimité)', maxPerUserController, isNumber: true),
+                  const SizedBox(height: 16),
+
                   // Unlimited Switch
                   SwitchListTile(
-                    title: const Text('Quantité Illimitée', style: TextStyle(color: Colors.white)),
+                    title: const Text('Quantité totale Illimitée', style: TextStyle(color: Colors.white)),
                     value: isUnlimited,
                     activeColor: const Color(0xFF6366f1),
                     contentPadding: EdgeInsets.zero,
@@ -205,7 +136,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
 
                   // Quantity Input (if not unlimited)
                   if (!isUnlimited)
-                    _buildDialogTextField('Quantité', quantityController, isNumber: true),
+                    _buildDialogTextField('Quantité totale', quantityController, isNumber: true),
 
                   // Display Remaining Switch
                   SwitchListTile(
@@ -231,6 +162,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
                           _tiers[index]['name'] = nameController.text;
                           _tiers[index]['price'] = int.tryParse(priceController.text) ?? 0;
                           _tiers[index]['quantity'] = isUnlimited ? -1 : (int.tryParse(quantityController.text) ?? 100);
+                          _tiers[index]['max_per_user'] = int.tryParse(maxPerUserController.text) ?? 0;
                           _tiers[index]['display_remaining'] = displayRemaining;
                           _tiers[index]['description'] = descController.text;
                         });
@@ -251,6 +183,8 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
       },
     );
   }
+
+
 
   Widget _buildDialogTextField(String label, TextEditingController controller, {bool isNumber = false, int maxLines = 1}) {
     return TextFormField(

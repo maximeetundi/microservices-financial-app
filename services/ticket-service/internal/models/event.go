@@ -40,12 +40,13 @@ type FormField struct {
 
 // TicketTier represents a pricing tier for an event
 type TicketTier struct {
-	ID          string    `json:"id" bson:"_id,omitempty"`
-	EventID     string    `json:"event_id" bson:"event_id"`
-	Name        string    `json:"name" bson:"name"`
-	Icon        string    `json:"icon" bson:"icon"` // emoji or icon name from predefined list
-	Price       float64   `json:"price" bson:"price"`
+	ID               string    `json:"id" bson:"_id,omitempty"`
+	EventID          string    `json:"event_id" bson:"event_id"`
+	Name             string    `json:"name" bson:"name"`
+	Icon             string    `json:"icon" bson:"icon"` // emoji or icon name from predefined list
+	Price            float64   `json:"price" bson:"price"`
 	Quantity         int       `json:"quantity" bson:"quantity"` // -1 for unlimited
+	MaxPerUser       int       `json:"max_per_user" bson:"max_per_user"` // 0 for unlimited
 	DisplayRemaining bool      `json:"display_remaining" bson:"display_remaining"`
 	Sold             int       `json:"sold" bson:"sold"`
 	Description      string    `json:"description" bson:"description"`

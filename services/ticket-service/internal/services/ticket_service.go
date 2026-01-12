@@ -299,6 +299,17 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		return nil, fmt.Errorf("no tickets available for this tier")
 	}
 
+	// Check per-user limit
+	if tier.MaxPerUser > 0 {
+		count, err := s.ticketRepo.CountUserTicketsForTier(userID, req.TierID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check ticket limit: %w", err)
+		}
+		if int(count) >= tier.MaxPerUser {
+			return nil, fmt.Errorf("you have reached the maximum number of tickets (%d) allowed for this tier", tier.MaxPerUser)
+		}
+	}
+
 	// Capture Payment Wallet Details (for Refund Routing)
 	var paymentWalletID, paymentCurrency string
 	buyerWallets, err := s.walletClient.GetUserWallets(userID)

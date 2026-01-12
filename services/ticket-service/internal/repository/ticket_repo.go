@@ -299,4 +299,11 @@ func (r *TicketRepository) GetEventStats(eventID string) (*models.TicketStats, e
 	}
 
 	return stats, nil
+func (r *TicketRepository) CountUserTicketsForTier(userID, tierID string) (int64, error) {
+	filter := bson.M{
+		"buyer_id": userID,
+		"tier_id":  tierID,
+		"status":   bson.M{"$in": bson.A{"paid", "used"}},
+	}
+	return r.collection.CountDocuments(context.Background(), filter)
 }

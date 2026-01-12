@@ -166,11 +166,16 @@
                         v-model.number="tier.quantity" 
                         type="number" 
                         min="1" 
-                        placeholder="Nombre de tickets"
+                        placeholder="Total"
                         required 
                       />
                     </div>
                   </div>
+                </div>
+                
+                <div class="form-group">
+                  <label>Max. tickets par personne (0 = illimité)</label>
+                  <input v-model.number="tier.max_per_user" type="number" min="0" placeholder="Ex: 5" />
                 </div>
                 <!-- Display Remaining Toggle -->
                 <div class="form-group checkbox-group">
@@ -260,7 +265,7 @@ const form = reactive({
     { name: 'phone', label: 'Téléphone', type: 'phone', required: false },
   ],
   ticket_tiers: [
-    { name: 'Standard', icon: '🎫', price: 5000, quantity: -1, display_remaining: false, description: 'Accès standard', color: '#6366f1' },
+    { name: 'Standard', icon: '🎫', price: 5000, quantity: -1, max_per_user: 0, display_remaining: false, description: 'Accès standard', color: '#6366f1' },
   ]
 })
 
@@ -319,6 +324,7 @@ const addTier = () => {
     icon: '🎟️',
     price: 0,
     quantity: -1,
+    max_per_user: 0,
     display_remaining: false,
     description: '',
     color: '#8b5cf6'

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -35,8 +36,17 @@ void main() async {
   // Configure notification tap handler
   PushNotificationService().onNotificationTap = (payload) {
     if (payload != null) {
-      // Navigate based on notification type
-      AppRouter.router.go('/notifications');
+      try {
+        final data = jsonDecode(payload);
+        if (data['route'] != null) {
+          AppRouter.router.push(data['route']);
+        } else {
+          AppRouter.router.go('/notifications');
+        }
+      } catch (e) {
+        debugPrint('Error parsing notification payload: $e');
+        AppRouter.router.go('/notifications');
+      }
     }
   };
   

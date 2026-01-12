@@ -133,7 +133,7 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Achat réussi !',
+              'Paiement réussi !',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -142,7 +142,7 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Votre ticket ${widget.tier['name']} a été acheté',
+              'Votre ticket ${widget.tier['name']} a été payé avec succès',
               style: const TextStyle(color: Colors.white70),
               textAlign: TextAlign.center,
             ),

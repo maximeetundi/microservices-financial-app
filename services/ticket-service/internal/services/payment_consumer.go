@@ -96,13 +96,14 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 					buyerNotifEvent := messaging.NotificationEvent{
 						UserID:  ticket.BuyerID,
 						Type:    "ticket_purchased",
-						Title:   "Ticket acheté ! 🎟️",
-						Message: "Votre ticket pour " + ticket.EventTitle + " est maintenant disponible.",
+						Title:   "Paiement réussi ✅",
+						Message: "Votre ticket " + ticket.TierName + " pour " + ticket.EventTitle + " a été payé avec succès.",
 						Data: map[string]interface{}{
 							"ticket_id": ticket.ID,
 							"event_id":  ticket.EventID,
 							"amount":    ticket.Price,
 							"currency":  ticket.Currency,
+							"route":     "/my-tickets", // Hint for mobile navigation
 						},
 					}
 					
