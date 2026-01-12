@@ -603,9 +603,49 @@ func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
 		return fmt.Errorf("failed to initiate refund: %w", err)
 	}
 
-	// Update ticket status to refunded (optimistic, or wait for confirmation? Optimistic is better UX for this action)
-	// But ideally we should wait for success. However, existing flow updates on event.
-	// For now, let's update to 'refunded' immediately. Using 'refund_pending' would be safer but adds complexity.
+	// Decrement sold count
+	if err := s.tierRepo.DecrementSold(ticket.TierID); err != nil {
+		fmt.Printf("Warning: Failed to decrement sold count for tier %s: %v\n", ticket.TierID, err)
+	}
+
+	// 1. Notify Buyer
+	buyerMsg := fmt.Sprintf("Votre ticket %s pour %s a été remboursé.", ticket.TierName, ticket.EventTitle)
+	buyerNotif := messaging.NotificationEvent{
+		UserID:  ticket.BuyerID,
+		Type:    "ticket_refunded",
+		Title:   "Ticket Remboursé 💸",
+		Message: buyerMsg,
+		Data: map[string]interface{}{
+			"ticket_id": ticket.ID,
+			"event_id":  ticket.EventID,
+			"amount":    ticket.Price,
+			"currency":  ticket.Currency,
+		},
+	}
+	buyerEnv := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", buyerNotif)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, buyerEnv); err != nil {
+		fmt.Printf("Warning: Failed to notify buyer of refund: %v\n", err)
+	}
+
+	// 2. Notify Organizer (Confirmation)
+	orgMsg := fmt.Sprintf("Le remboursement du ticket %s (%s) a été initié.", ticket.TicketCode, ticket.TierName)
+	orgNotif := messaging.NotificationEvent{
+		UserID:  organizerID,
+		Type:    "refund_initiated",
+		Title:   "Remboursement effectué",
+		Message: orgMsg,
+		Data: map[string]interface{}{
+			"ticket_id": ticket.ID,
+			"event_id":  ticket.EventID,
+			"amount":    ticket.Price,
+		},
+	}
+	orgEnv := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", orgNotif)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, orgEnv); err != nil {
+		fmt.Printf("Warning: Failed to notify organizer of refund: %v\n", err)
+	}
+
+	// Update ticket status to refunded
 	return s.ticketRepo.UpdateStatus(ticketID, models.TicketStatusRefunded)
 }
 

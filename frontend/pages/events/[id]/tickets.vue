@@ -243,6 +243,24 @@
           </div>
       </Teleport>
 
+      <!-- Refund Success Modal -->
+      <Teleport to="body">
+          <div v-if="showRefundSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showRefundSuccessModal = false">
+              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300">
+                  <div class="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center mb-4 mx-auto animate-bounce">
+                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <h3 class="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">Remboursement Réussi !</h3>
+                  <p class="text-gray-500 dark:text-gray-400 text-center text-sm mb-6">
+                      Le ticket a été remboursé avec succès. Le participant sera notifié.
+                  </p>
+                  <button @click="showRefundSuccessModal = false" class="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-lg shadow-emerald-600/20">
+                      Fermer
+                  </button>
+              </div>
+          </div>
+      </Teleport>
+
       <!-- PIN Verification Modal -->
       <PinModal 
         v-model:isOpen="showPinModal"
@@ -489,18 +507,33 @@ const onPinVerified = async () => {
     }
 }
 
+// ... (existing refs)
+const showRefundSuccessModal = ref(false)
+
+// ... (existing functions)
+
 const executeRefund = async () => {
     if (!ticketToRefund.value) return
     try {
         await ticketAPI.refundTicket(ticketToRefund.value.id)
+        
         // Optimistic update
         const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
         if(t) t.status = 'refunded'
-        alert("Remboursement effectué avec succès.")
+        
+        // Show Success Modal instead of Alert
+        showRefundModal.value = false
+        showRefundSuccessModal.value = true
+        
+        // Refresh data properly
+        loadData() 
     } catch(err: any) {
+        showRefundModal.value = false
         alert(err.response?.data?.error || 'Erreur lors du remboursement')
     }
 }
+
+// ... (rest of logic)
 
 const showCancelModal = ref(false)
 const confirmCancelCheck = ref(false)

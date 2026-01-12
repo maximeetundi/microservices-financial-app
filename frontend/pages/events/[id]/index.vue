@@ -545,6 +545,7 @@ const executePurchase = async (pin) => {
     })
     
     purchasedTicket.value = res.data?.ticket
+    purchaseSuccess.value = true
   } catch (e) {
     console.error("DEBUG PURCHASE ERROR:", e)
     const errMsg = e.response?.data?.error || e.message || 'Erreur lors du paiement.'
