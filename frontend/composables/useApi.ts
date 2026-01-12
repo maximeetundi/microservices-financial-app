@@ -611,6 +611,21 @@ export const ticketAPI = {
     cancelEvent: (id: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`),
 }
 
+// ========== Donations ==========
+export const donationAPI = {
+    // Campaigns
+    createCampaign: (data: any) => api.post('/donation-service/api/v1/campaigns', data),
+    getCampaigns: (limit = 20, offset = 0) => api.get(`/donation-service/api/v1/campaigns?limit=${limit}&offset=${offset}`),
+    getMyCampaigns: (creatorID: string) => api.get(`/donation-service/api/v1/campaigns?creator_id=${creatorID}`),
+    getCampaign: (id: string) => api.get(`/donation-service/api/v1/campaigns/${id}`),
+    updateCampaign: (id: string, data: any) => api.put(`/donation-service/api/v1/campaigns/${id}`, data),
+
+    // Donations
+    initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),
+    getDonations: (campaignID: string, limit = 20, offset = 0) =>
+        api.get(`/donation-service/api/v1/donations?campaign_id=${campaignID}&limit=${limit}&offset=${offset}`),
+}
+
 // === CONTACTS API ===
 export const contactsAPI = {
     // Get all user's synced contacts
@@ -650,6 +665,7 @@ export const useApi = () => {
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,
         contactsApi: contactsAPI,
+        donationApi: donationAPI,
     }
 }
 

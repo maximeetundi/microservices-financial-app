@@ -77,6 +77,11 @@
           <span>Événements</span>
         </NuxtLink>
 
+        <NuxtLink to="/donations" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">🤲</span>
+          <span>Dons & Solidarité</span>
+        </NuxtLink>
+
         <div class="pt-4 pb-2">
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
         </div>
