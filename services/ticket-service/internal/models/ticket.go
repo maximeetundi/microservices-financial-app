@@ -13,7 +13,7 @@ type Ticket struct {
 	TierColor     string            `json:"tier_color" bson:"tier_color"`
 	Price         float64           `json:"price" bson:"price"`
 	Currency      string            `json:"currency" bson:"currency"`
-	FormData      map[string]string `json:"form_data" bson:"form_data"`
+	FormData      map[string]interface{} `json:"form_data" bson:"form_data"`
 	QRCode        string            `json:"qr_code" bson:"qr_code"`
 	TicketCode    string            `json:"ticket_code" bson:"ticket_code"`
 	Status        string            `json:"status" bson:"status"` // pending, paid, used, cancelled, refunded
@@ -43,7 +43,7 @@ const (
 type PurchaseTicketRequest struct {
 	EventID  string            `json:"event_id" binding:"required"`
 	TierID   string            `json:"tier_id" binding:"required"`
-	FormData map[string]string `json:"form_data" binding:"required"`
+	FormData map[string]interface{} `json:"form_data" binding:"required"`
 	WalletID string            `json:"wallet_id" binding:"required"`
 	PIN      string            `json:"pin" binding:"required"`
 }
