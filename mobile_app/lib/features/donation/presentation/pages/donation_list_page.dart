@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/services/donation_api_service.dart';
 import 'campaign_detail_page.dart';
 
@@ -78,9 +79,7 @@ class _DonationListPageState extends State<DonationListPage> with SingleTickerPr
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Navigate to Create Campaign (Not implemented yet for mobile MVP or reuse event form logic?)
-          // For now just show snackbar or basic placeholder
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Création bientôt disponible sur mobile')));
+          context.goNamed('create-campaign');
         },
         backgroundColor: const Color(0xFF6366f1),
         icon: const Icon(Icons.add),

@@ -35,6 +35,7 @@ import '../../features/events/events_screen.dart';
 import '../../features/events/event_details_screen.dart';
 import '../../features/donation/presentation/pages/donation_list_page.dart';
 import '../../features/donation/presentation/pages/campaign_detail_page.dart';
+import '../../features/donation/presentation/pages/create_campaign_page.dart';
 
 class AppRouter {
   static late GoRouter router;
@@ -144,6 +145,11 @@ class AppRouter {
         name: 'donations',
         builder: (context, state) => const DonationListPage(),
         routes: [
+          GoRoute(
+            path: 'create',
+            name: 'create-campaign',
+            builder: (context, state) => const CreateCampaignPage(),
+          ),
           GoRoute(
             path: ':campaignId',
             name: 'campaign-detail',

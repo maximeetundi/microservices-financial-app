@@ -98,8 +98,8 @@ class DonationApiService {
     throw Exception('Failed to load donations');
   }
 
-  /// Upload Campaign Image (Uses same logic as ticket service usually)
-  Future<String> uploadImage(dynamic file) async {
+  /// Upload Campaign Media (Image or Video)
+  Future<String> uploadMedia(dynamic file) async {
     // Assuming file is File from dart:io or similar handled by ApiClient
     final response = await _client.uploadFile(
       '/donation-service/api/v1/upload', 

@@ -278,6 +278,15 @@ class ApiClient {
         case 'heif':
           contentType = 'image/heic';
           break;
+        case 'mp4':
+          contentType = 'video/mp4';
+          break;
+        case 'mov':
+          contentType = 'video/quicktime';
+          break;
+        case 'webm':
+          contentType = 'video/webm';
+          break;
         default:
           contentType = 'application/octet-stream';
       }
