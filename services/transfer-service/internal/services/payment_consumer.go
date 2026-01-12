@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
