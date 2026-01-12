@@ -32,8 +32,16 @@ type Campaign struct {
 	Tags            []string           `bson:"tags" json:"tags"`
 	
 	// FormSchema for dynamic data collection from donors
-	FormSchema      map[string]interface{} `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
+	FormSchema      []FormField `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
 
 	CreatedAt       time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt       time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+type FormField struct {
+	Name     string   `bson:"name" json:"name"`
+	Label    string   `bson:"label" json:"label"`
+	Type     string   `bson:"type" json:"type"`
+	Required bool     `bson:"required" json:"required"`
+	Options  []string `bson:"options,omitempty" json:"options,omitempty"`
 }
