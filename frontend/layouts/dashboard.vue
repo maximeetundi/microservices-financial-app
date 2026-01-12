@@ -179,6 +179,52 @@
       </div>
     </main>
 
+    <!-- Floating Action Button (FAB) -->
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end" @mouseenter="showFabMenu = true" @mouseleave="showFabMenu = false">
+      <!-- Menu Items -->
+      <transition 
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="transform translate-y-4 opacity-0 scale-90"
+        enter-to-class="transform translate-y-0 opacity-100 scale-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="transform translate-y-0 opacity-100 scale-100"
+        leave-to-class="transform translate-y-4 opacity-0 scale-90"
+      >
+        <div v-if="showFabMenu" class="flex flex-col gap-3 items-end mb-2">
+          <NuxtLink 
+            to="/scan" 
+            class="flex items-center gap-3 px-4 py-2 bg-white dark:bg-surface text-base font-semibold rounded-full shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-secondary-200 dark:border-secondary-700"
+          >
+            <span class="whitespace-nowrap">Scanner QR</span>
+            <span class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">📷</span>
+          </NuxtLink>
+
+          <NuxtLink 
+            to="/transfer" 
+            class="flex items-center gap-3 px-4 py-2 bg-white dark:bg-surface text-base font-semibold rounded-full shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-secondary-200 dark:border-secondary-700"
+          >
+            <span class="whitespace-nowrap">Virement</span>
+            <span class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl">💸</span>
+          </NuxtLink>
+        </div>
+      </transition>
+
+      <!-- Main Trigger Button -->
+      <button 
+        @click="showFabMenu = !showFabMenu"
+        class="w-14 h-14 rounded-full bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-xl shadow-primary-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300"
+      >
+        <transition mode="out-in">
+          <svg v-if="!showFabMenu" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          <svg v-else class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </transition>
+      </button>
+    </div>
+
     <!-- Global Modals -->
     <GlobalModal />
     <PinSetupModal />
@@ -199,6 +245,7 @@ import PinModal from '~/components/common/PinModal.vue'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
+const showFabMenu = ref(false)
 const { checkPinStatus, hasPin, showPinSetup, state: pinState, executePendingAction, closeModals } = usePin()
 
 const onPinSuccess = (pin) => {

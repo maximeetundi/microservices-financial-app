@@ -22,6 +22,7 @@ type Campaign struct {
 	Title           string             `bson:"title" json:"title"`
 	Description     string             `bson:"description" json:"description"`
 	ImageURL        string             `bson:"image_url" json:"image_url"`
+	VideoURL        string             `bson:"video_url" json:"video_url"`
 	TargetAmount    float64            `bson:"target_amount" json:"target_amount"`       // 0 for open ended
 	CollectedAmount float64            `bson:"collected_amount" json:"collected_amount"`
 	Currency        string             `bson:"currency" json:"currency"`

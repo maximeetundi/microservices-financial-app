@@ -624,6 +624,15 @@ export const donationAPI = {
     initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),
     getDonations: (campaignID: string, limit = 20, offset = 0) =>
         api.get(`/donation-service/api/v1/donations?campaign_id=${campaignID}&limit=${limit}&offset=${offset}`),
+
+    // Upload
+    uploadMedia: (file: File) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        return api.post('/donation-service/api/v1/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+    },
 }
 
 // === CONTACTS API ===

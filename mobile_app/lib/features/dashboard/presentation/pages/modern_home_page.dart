@@ -114,6 +114,101 @@ class _ModernHomePageState extends State<ModernHomePage>
     }
   }
 
+  void _showQuickActionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Actions Rapides',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildQuickActionTile(
+                  context,
+                  icon: Icons.qr_code_scanner_rounded,
+                  label: 'Scanner QR',
+                  color: const Color(0xFF6366F1),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/more/merchant/scan');
+                  },
+                ),
+                _buildQuickActionTile(
+                  context,
+                  icon: Icons.swap_horiz_rounded,
+                  label: 'Virement',
+                  color: const Color(0xFF10B981),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/more/transfer');
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: color, size: 36),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _fabAnimationController.dispose();
@@ -287,13 +382,13 @@ class _ModernHomePageState extends State<ModernHomePage>
           ),
         ),
         
-        // Floating Send Money Button
+        // Quick Action FAB
         floatingActionButton: ScaleTransition(
           scale: _fabAnimationController,
           child: Container(
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(30),
+              shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.primaryColor.withOpacity(0.4),
@@ -302,18 +397,13 @@ class _ModernHomePageState extends State<ModernHomePage>
                 ),
               ],
             ),
-            child: FloatingActionButton.extended(
-              onPressed: () => context.push('/more/transfer'),
+            child: FloatingActionButton(
+              onPressed: () => _showQuickActionsSheet(context),
               backgroundColor: Colors.transparent,
               elevation: 0,
-              icon: const Icon(Icons.send_rounded, color: Colors.white),
-              label: Text(
-                'Envoyer',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 28),
+              // Using QR icon as main action hint, or Add icon. User said "shortcut to scan".
+              // Let's use Add icon but the action is mainly scan.
             ),
           ),
         ),

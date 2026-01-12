@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
@@ -66,9 +67,34 @@ func main() {
 		go paymentConsumer.Start()
 	}
 
+	// Initialize MinIO storage
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "minio:9000"
+	}
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = "minioadmin"
+	}
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	if minioSecretKey == "" {
+		minioSecretKey = "minioadmin123"
+	}
+	minioPublicURL := os.Getenv("MINIO_PUBLIC_URL")
+	if minioPublicURL == "" {
+		minioPublicURL = "https://minio.maximeetundi.store"
+	}
+	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	storageService, err := services.NewStorageService(minioEndpoint, minioAccessKey, minioSecretKey, "campaign-media", minioUseSSL, minioPublicURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize storage service: %v", err)
+	}
+
 	// 7. Initialize Handlers
 	campaignHandler := handlers.NewCampaignHandler(campaignService)
 	donationHandler := handlers.NewDonationHandler(donationService)
+	uploadHandler := handlers.NewUploadHandler(storageService)
 
 	// 8. Setup Router
 	router := gin.New()
@@ -103,7 +129,7 @@ func main() {
 		api.GET("/donations", donationHandler.List)
 		
 		// Utility
-		api.POST("/upload", campaignHandler.UploadImage) // Stub
+		api.POST("/upload", uploadHandler.UploadMedia)
 	}
 
 	log.Printf("Donation service starting on port %s...", cfg.Port)
