@@ -32,17 +32,15 @@ func NewPaymentConsumer(
 func (c *PaymentConsumer) Start() {
 	// Subscribe to payment status events
 	// Note: We need to filter for events relevant to donations. 
-	// The common KafkaClient usually provides a Subscribe method.
-	// Assuming Subscribe(topic, groupID, handler)
 	
-	err := c.kafkaClient.Subscribe(messaging.TopicPaymentEvents, "donation-service-group", c.handlePaymentEvent)
+	err := c.kafkaClient.Subscribe(messaging.TopicPaymentEvents, c.handlePaymentEvent)
 	if err != nil {
 		log.Fatalf("Failed to start payment consumer: %v", err)
 	}
 }
 
-func (c *PaymentConsumer) handlePaymentEvent(msg *messaging.EventEnvelope) error {
-	if msg.Type != messaging.EventPaymentStatus {
+func (c *PaymentConsumer) handlePaymentEvent(ctx context.Context, msg *messaging.EventEnvelope) error {
+	if msg.Type != messaging.EventPaymentSuccess && msg.Type != messaging.EventPaymentFailed {
 		return nil // Ignore other events
 	}
 
