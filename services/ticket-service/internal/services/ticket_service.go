@@ -263,7 +263,7 @@ func (s *TicketService) GetEventTiers(eventID string) ([]models.TicketTier, erro
 
 func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicketRequest) (*models.Ticket, error) {
 	// 1. Verify Verification PIN securely
-	if err := s.userClient.VerifyPin(buyerID, req.Pin); err != nil {
+	if err := s.userClient.VerifyPin(buyerID, req.PIN); err != nil {
 		return nil, fmt.Errorf("security check failed: %w", err)
 	}
 
