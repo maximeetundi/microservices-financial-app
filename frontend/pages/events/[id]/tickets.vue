@@ -316,7 +316,7 @@ const totalPages = computed(() => Math.ceil((stats.value?.total_sold || 0) / ite
 // Computed Stats
 const tierStats = computed(() => {
     if (!event.value?.ticket_tiers) return []
-    return event.value.ticket_tiers.map((t: any) => ({
+    return event.value.ticket_tiers.filter((t: any) => t).map((t: any) => ({
         id: t.id,
         name: t.name,
         icon: t.icon,
@@ -342,7 +342,8 @@ const loadData = async () => {
     ])
     
     event.value = eventRes.data?.event || eventRes.data
-    tickets.value = ticketsRes.data?.tickets || ticketsRes.data || []
+    const rawTickets = ticketsRes.data?.tickets || ticketsRes.data || []
+    tickets.value = Array.isArray(rawTickets) ? rawTickets.filter(t => t) : []
     
     // Set Stats generic object for total counts
     stats.value = {
