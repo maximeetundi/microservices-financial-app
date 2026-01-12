@@ -44,15 +44,10 @@ func main() {
 	db := client.Database(cfg.MongoDBName)
 
 	// 3. Connect to Kafka
-	kafkaClient, err := messaging.NewKafkaClient([]string{cfg.KafkaBrokers}, cfg.KafkaGroupID)
-	if err != nil {
-		log.Printf("Warning: Failed to connect to Kafka: %v (running without messaging)", err)
-		// Assuming we can run without kafka for dev, but really should fail for prod features.
-		// For now, allow it but functionality will be limited.
-	} else {
-		log.Println("Connected to Kafka successfully")
-		defer kafkaClient.Close()
-	}
+	// 3. Connect to Kafka
+	kafkaClient := messaging.NewKafkaClient([]string{cfg.KafkaBrokers}, cfg.KafkaGroupID)
+	log.Println("Kafka client initialized")
+	defer kafkaClient.Close()
 
 	// 4. Initialize Repositories
 	campaignRepo := repository.NewCampaignRepository(db)
