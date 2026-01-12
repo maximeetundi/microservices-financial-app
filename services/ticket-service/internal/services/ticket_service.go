@@ -308,7 +308,7 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 	// Create ticket
 	ticket := &models.Ticket{
 		EventID:    req.EventID,
-		BuyerID:    buyerID,
+		BuyerID:    userID,
 		TierID:     req.TierID,
 		TierName:   tier.Name,
 		TierIcon:   tier.Icon,
@@ -335,7 +335,7 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 	
 	paymentReq := messaging.PaymentRequestEvent{
 		RequestID:         txID,
-		UserID:            buyerID, // Set buyer as the event initiator/payer
+		UserID:            userID, // Set buyer as the event initiator/payer
 		FromWalletID:      req.WalletID,
 		DestinationUserID: event.CreatorID, // Set organizer as destination
 		ToWalletID:        "",              // Will be resolved by transfer-service using DestinationUserID
