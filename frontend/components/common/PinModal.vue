@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { userAPI } from '~/composables/useApi'
+import { userAPI, authAPI } from '~/composables/useApi'
 
 const props = defineProps({
   isOpen: {
@@ -168,7 +168,7 @@ watch(() => props.isOpen, async (newVal) => {
     shuffleKeys() // Randomize layout on every open
     // Fetch Public Key
     try {
-        const res = await userAPI.authApi.getPublicKey()
+        const res = await authAPI.getPublicKey()
         const pem = res.data.public_key
         if (pem) {
             publicKey.value = await importKey(pem)
