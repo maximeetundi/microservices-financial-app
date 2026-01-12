@@ -52,6 +52,7 @@ func (s *NotificationService) Start() error {
 		messaging.TopicExchangeEvents,
 		messaging.TopicPaymentEvents,
 		messaging.TopicCardEvents,
+		messaging.TopicNotificationEvents,
 	}
 
 	for _, topic := range topics {
@@ -585,6 +586,27 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Type:     "payment",
 			Priority: PriorityHigh,
 			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+
+	// ===== DIRECT NOTIFICATION EVENTS =====
+	case "notification.created":
+		title, _ := event["title"].(string)
+		message, _ := event["message"].(string)
+		notifType, _ := event["type"].(string)
+		// Extract Data if present, handled by map decoding usually?
+		// event["data"] might be a map
+		var data map[string]interface{}
+		if d, ok := event["data"].(map[string]interface{}); ok {
+			data = d
+		}
+		
+		return &Notification{
+			Title:    title,
+			Body:     message,
+			Type:     notifType,
+			Priority: PriorityNormal,
+			Data:     data,
 			Channels: []string{"push", "email"},
 		}
 
