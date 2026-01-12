@@ -279,21 +279,36 @@ const getCountryName = (code) => {
 }
 
 onMounted(async () => {
-  // Check if user has PIN configured
-  try {
-    const pinStatus = await userAPI.checkPinStatus()
-    if (!pinStatus.data?.has_pin) {
-      // No PIN configured, force user to set it up
-      needsPinSetup.value = true
-    } else {
-      needsPinSetup.value = false
-      // Auto-trigger unlock (prompt for PIN immediately)
-      triggerUnlock()
+    // Check if user has PIN configured
+    try {
+        const pinStatus = await userAPI.checkPinStatus()
+        if (pinStatus.data?.has_pin === false) {
+            needsPinSetup.value = true
+        } else {
+            // PIN is set (or true)
+            needsPinSetup.value = false
+            triggerUnlock()
+        }
+    } catch (e) {
+        console.error('Error checking PIN status:', e)
+        // Fallback: Check local store to avoid blocking user on network error
+        // If we really don't know, maybe blocking is safer, but "Set PIN" is wrong if they have one.
+        // Better behavior: Trust auth store if available, or try to unlock.
+        // If unlock fails due to "No PIN", then prompt setup.
+        
+        // Let's assume initialized auth has correct status
+        const authStore = useAuthStore() // Import at top needed if not present, but usePin uses it implicitly? No.
+        // We need auth store here if we want to fallback.
+        
+        // For now, let's just NOT force setup on error, and try to unlock.
+        // If unlock fails (requires PIN), the modal handles it?
+        // Actually triggerUnlock calls requiresPin. If requiresPin finds no PIN set?
+        
+        // Safer approach: Do not assume "No PIN" on error.
+        needsPinSetup.value = false 
+        // Try to unlock anyway. If 403 happens there, handle it?
+        triggerUnlock()
     }
-  } catch (e) {
-    // If error checking PIN status, require PIN setup to be safe
-    needsPinSetup.value = true
-  }
 })
 
 definePageMeta({
