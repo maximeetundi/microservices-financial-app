@@ -18,6 +18,12 @@ type Ticket struct {
 	TicketCode    string            `json:"ticket_code" bson:"ticket_code"`
 	Status        string            `json:"status" bson:"status"` // pending, paid, used, cancelled, refunded
 	TransactionID string            `json:"transaction_id" bson:"transaction_id"`
+	
+	// Payment details (Original currency used by buyer)
+	PaymentWalletID string          `json:"payment_wallet_id" bson:"payment_wallet_id"`
+	PaymentCurrency string          `json:"payment_currency" bson:"payment_currency"`
+	PaymentAmount   float64         `json:"payment_amount" bson:"payment_amount"`
+
 	UsedAt        *time.Time        `json:"used_at,omitempty" bson:"used_at,omitempty"`
 	CreatedAt     time.Time         `json:"created_at" bson:"created_at"`
 

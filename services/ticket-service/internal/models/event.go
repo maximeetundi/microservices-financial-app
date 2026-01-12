@@ -45,13 +45,14 @@ type TicketTier struct {
 	Name        string    `json:"name" bson:"name"`
 	Icon        string    `json:"icon" bson:"icon"` // emoji or icon name from predefined list
 	Price       float64   `json:"price" bson:"price"`
-	Quantity    int       `json:"quantity" bson:"quantity"` // -1 for unlimited
-	Sold        int       `json:"sold" bson:"sold"`
-	Description string    `json:"description" bson:"description"`
-	Benefits    []string  `json:"benefits" bson:"benefits"`
-	Color       string    `json:"color" bson:"color"` // hex color for UI
-	SortOrder   int       `json:"sort_order" bson:"sort_order"`
-	CreatedAt   time.Time `json:"created_at" bson:"created_at"`
+	Quantity         int       `json:"quantity" bson:"quantity"` // -1 for unlimited
+	DisplayRemaining bool      `json:"display_remaining" bson:"display_remaining"`
+	Sold             int       `json:"sold" bson:"sold"`
+	Description      string    `json:"description" bson:"description"`
+	Benefits         []string  `json:"benefits" bson:"benefits"`
+	Color            string    `json:"color" bson:"color"` // hex color for UI
+	SortOrder        int       `json:"sort_order" bson:"sort_order"`
+	CreatedAt        time.Time `json:"created_at" bson:"created_at"`
 }
 
 // Predefined icons for ticket tiers

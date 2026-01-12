@@ -151,10 +151,35 @@
                     <input v-model.number="tier.price" type="number" min="0" required />
                   </div>
                   <div class="form-group">
-                    <label>Quantité (-1 = illimité)</label>
-                    <input v-model.number="tier.quantity" type="number" min="-1" />
+                    <label>Quantité</label>
+                    <div class="quantity-control">
+                      <label class="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          :checked="tier.quantity === -1" 
+                          @change="e => tier.quantity = e.target.checked ? -1 : 100"
+                        />
+                        Illimitée
+                      </label>
+                      <input 
+                        v-if="tier.quantity !== -1"
+                        v-model.number="tier.quantity" 
+                        type="number" 
+                        min="1" 
+                        placeholder="Nombre de tickets"
+                        required 
+                      />
+                    </div>
                   </div>
                 </div>
+                <!-- Display Remaining Toggle -->
+                <div class="form-group checkbox-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="tier.display_remaining" />
+                    Afficher le nombre de tickets restants aux participants
+                  </label>
+                </div>
+                
                 <div class="form-group">
                   <label>Description</label>
                   <textarea v-model="tier.description" rows="2" placeholder="Avantages inclus..."></textarea>
@@ -235,7 +260,7 @@ const form = reactive({
     { name: 'phone', label: 'Téléphone', type: 'phone', required: false },
   ],
   ticket_tiers: [
-    { name: 'Standard', icon: '🎫', price: 5000, quantity: -1, description: 'Accès standard', color: '#6366f1' },
+    { name: 'Standard', icon: '🎫', price: 5000, quantity: -1, display_remaining: false, description: 'Accès standard', color: '#6366f1' },
   ]
 })
 
@@ -294,6 +319,7 @@ const addTier = () => {
     icon: '🎟️',
     price: 0,
     quantity: -1,
+    display_remaining: false,
     description: '',
     color: '#8b5cf6'
   })
@@ -812,5 +838,39 @@ onMounted(async () => {
   .field-type {
     width: 100%;
   }
+}
+
+/* Quantity and Checkbox Styles */
+.quantity-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #6366f1;
+}
+
+.checkbox-group {
+  margin-top: -8px; 
+  margin-bottom: 20px;
+  padding-left: 4px;
 }
 </style>

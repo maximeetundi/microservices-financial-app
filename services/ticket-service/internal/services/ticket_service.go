@@ -299,6 +299,21 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		return nil, fmt.Errorf("no tickets available for this tier")
 	}
 
+	// Capture Payment Wallet Details (for Refund Routing)
+	var paymentWalletID, paymentCurrency string
+	buyerWallets, err := s.walletClient.GetUserWallets(userID)
+	if err == nil {
+		for _, w := range buyerWallets {
+			if id, ok := w["id"].(string); ok && id == req.WalletID {
+				paymentWalletID = id
+				if cur, ok := w["currency"].(string); ok {
+					paymentCurrency = cur
+				}
+				break
+			}
+		}
+	}
+
 	// Generate ticket code
 	ticketCode := s.generateTicketCode()
 	
@@ -307,17 +322,19 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 
 	// Create ticket
 	ticket := &models.Ticket{
-		EventID:    req.EventID,
-		BuyerID:    userID,
-		TierID:     req.TierID,
-		TierName:   tier.Name,
-		TierIcon:   tier.Icon,
-		Price:      tier.Price,
-		Currency:   event.Currency,
-		FormData:   req.FormData,
-		TicketCode: ticketCode,
-		Status:     models.TicketStatusPending, // Initially pending
-		TransactionID: txID,
+		EventID:         req.EventID,
+		BuyerID:         userID,
+		TierID:          req.TierID,
+		TierName:        tier.Name,
+		TierIcon:        tier.Icon,
+		Price:           tier.Price,
+		Currency:        event.Currency,
+		FormData:        req.FormData,
+		TicketCode:      ticketCode,
+		Status:          models.TicketStatusPending, // Initially pending
+		TransactionID:   txID,
+		PaymentWalletID: paymentWalletID,
+		PaymentCurrency: paymentCurrency,
 	}
 
 	// Generate ticket QR code
@@ -506,7 +523,7 @@ func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
 		UserID:            organizerID,          // Organizer is paying
 		FromWalletID:      sourceWalletID,       // From Organizer Wallet
 		DestinationUserID: ticket.BuyerID,       // To Buyer
-		ToWalletID:        "",                   // Let transfer-service resolve buyer's wallet
+		ToWalletID:        ticket.PaymentWalletID, // Target original wallet (Payment Consumer will auto-convert if currency mismatch)
 		DebitAmount:       ticket.Price,
 		CreditAmount:      ticket.Price,
 		Currency:          ticket.Currency,

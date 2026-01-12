@@ -122,11 +122,15 @@
                 🚀 Publier l'événement
               </button>
               
+              <button v-if="event.status === 'active'" @click="showCancelModal = true" class="btn-cancel-event">
+                🛑 Annuler l'événement
+              </button>
+              
               <div class="actions-row">
                 <NuxtLink :to="`/events/${event.id}/edit`" class="btn-edit">
                   ✏️ Modifier
                 </NuxtLink>
-                <button @click="confirmDelete" class="btn-delete">
+                <button v-if="event.status === 'draft'" @click="confirmDelete" class="btn-delete">
                   🗑️ Supprimer
                 </button>
               </div>
@@ -141,6 +145,38 @@
           </div>
         </div>
       </template>
+
+      <!-- Cancel Event Modal -->
+      <Teleport to="body">
+        <div v-if="showCancelModal" class="modal-overlay">
+          <div class="cancel-modal">
+            <template v-if="!cancelSuccess">
+              <div class="warning-icon">⚠️</div>
+              <h2>Annuler l'événement ?</h2>
+              <p>Cette action est irréversible. Tous les tickets vendus seront <strong>automatiquement remboursés</strong> aux participants.</p>
+              
+              <div class="modal-actions">
+                <button @click="showCancelModal = false" class="btn-secondary" :disabled="cancelling">Retour</button>
+                <button @click="cancelEvent" class="btn-danger" :disabled="cancelling">
+                  <span v-if="cancelling" class="spinner-small"></span>
+                  <span v-else>Confirmer l'annulation</span>
+                </button>
+              </div>
+            </template>
+            
+            <template v-else>
+              <div class="success-icon-anim">✅</div>
+              <h2>Événement annulé</h2>
+              <p>L'événement a été annulé avec succès.</p>
+              <div class="refund-info">
+                <p>💸 Les remboursements ont été initiés.</p>
+                <p>⚠️ Si les participants ont payé via une autre devise, ils seront remboursés dans la devise de l'événement ou un nouveau portefeuille sera créé.</p>
+              </div>
+              <button @click="reloadAfterCancel" class="btn-primary">Fermer</button>
+            </template>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Purchase Modal - Step 1: Info + Wallet -->
       <Teleport to="body">
@@ -535,6 +571,31 @@ const confirmDelete = async () => {
       alert(e.response?.data?.error || 'Erreur lors de la suppression')
     }
   }
+}
+
+// Cancel Event Logic
+const showCancelModal = ref(false)
+const cancelling = ref(false)
+const cancelSuccess = ref(false)
+
+const cancelEvent = async () => {
+  cancelling.value = true
+  try {
+    // API call to cancel event (endpoint must exist in ticketAPI)
+    // Assuming ticketAPI.cancelEvent(id) maps to POST /events/:id/cancel
+    await ticketAPI.cancelEvent(eventId)
+    cancelSuccess.value = true
+  } catch (e) {
+    alert(e.response?.data?.error || 'Erreur lors de l\'annulation')
+    showCancelModal.value = false
+  } finally {
+    cancelling.value = false
+  }
+}
+
+const reloadAfterCancel = () => {
+  showCancelModal.value = false
+  loadEvent()
 }
 
 const formatDate = (date) => {
@@ -1473,11 +1534,43 @@ onUnmounted(() => {
 
 .success-modal {
   text-align: center;
+  background: var(--surface);
+  padding: 40px;
+  border-radius: 24px;
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modal-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .success-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 72px;
+  margin-bottom: 24px;
+  animation: icon-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+}
+
+@keyframes icon-bounce {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.success-modal h2 {
+  font-size: 24px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.success-modal p {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 24px;
+  line-height: 1.5;
 }
 
 .ticket-qr {
@@ -1918,5 +2011,93 @@ onUnmounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.btn-cancel-event {
+  width: 100%;
+  padding: 14px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.btn-cancel-event:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+}
+
+.cancel-modal {
+  text-align: center;
+  background: var(--surface);
+  padding: 32px;
+  border-radius: 24px;
+  max-width: 450px;
+  width: 90%;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+.warning-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  animation: pulse 2s infinite;
+}
+
+.success-icon-anim {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bounce {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.refund-info {
+  background: var(--surface-hover);
+  padding: 16px;
+  border-radius: 12px;
+  margin: 20px 0;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.refund-info p {
+  margin: 5px 0;
+}
+
+.btn-danger {
+  padding: 12px 24px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
 }
 </style>
