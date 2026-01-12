@@ -80,6 +80,14 @@ services:
           - /messaging-service
         strip_path: true
 
+  - name: donation-service
+    url: http://donation-service:8096
+    routes:
+      - name: donation-routes
+        paths:
+          - /donation-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:
