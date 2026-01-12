@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/ticket_api_service.dart';
 import '../../core/services/wallet_api_service.dart';
+import '../../features/auth/presentation/pages/pin_verify_dialog.dart';
 
 class PurchaseTicketScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -62,6 +63,16 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
       return;
     }
 
+    // Show PIN Dialog and get encrypted PIN
+    final encryptedPin = await PinVerifyDialog.show(
+      context,
+      title: 'Confirmer l\'achat',
+      subtitle: 'Entrez votre PIN pour valider la transaction',
+      returnEncryptedPin: true,
+    );
+
+    if (encryptedPin == null || encryptedPin is! String) return; // Cancelled
+
     setState(() => _purchasing = true);
     try {
       final result = await _ticketApi.purchaseTicket(
@@ -69,7 +80,7 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
         tierId: widget.tier['id'],
         formData: _formData,
         walletId: _selectedWalletId!,
-        pin: _pin,
+        pin: encryptedPin,
       );
 
       if (!mounted) return;
@@ -485,49 +496,6 @@ class _PurchaseTicketScreenState extends State<PurchaseTicketScreen> {
             setState(() => _selectedWalletId = value);
           },
           validator: (value) => value == null ? 'Sélectionnez un portefeuille' : null,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          style: const TextStyle(color: Colors.white),
-          obscureText: true,
-          maxLength: 5,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Code PIN',
-            labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-            filled: true,
-            fillColor: const Color(0xFF1e293b),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF475569), width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6366f1), width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red, width: 1.5),
-            ),
-            counterText: '',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Code PIN requis';
-            }
-            if (value.length != 5) {
-              return 'Le PIN doit contenir 5 chiffres';
-            }
-            return null;
-          },
-          onChanged: (value) {
-            setState(() => _pin = value);
-          },
         ),
       ],
     );

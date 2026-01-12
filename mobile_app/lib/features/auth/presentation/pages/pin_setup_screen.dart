@@ -58,7 +58,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     });
 
     if (result.success) {
-      // Show success and proceed
+      // Sync to Local Storage for offline support
+      await BiometricService().setPin(_pin);
+            // Show success and proceed
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

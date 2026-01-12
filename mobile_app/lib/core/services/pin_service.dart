@@ -120,6 +120,7 @@ class PinService {
           valid: response.data['valid'] ?? false,
           attemptsLeft: response.data['attempts_left'],
           message: response.data['message'],
+          encryptedPin: encryptedPin, // Pass the encrypted PIN
         );
       }
 
@@ -205,18 +206,19 @@ class PinResult {
   PinResult({required this.success, required this.message});
 }
 
-/// Result of PIN verification
 class PinVerifyResult {
   final bool valid;
   final int? attemptsLeft;
   final String? message;
   final String? lockedUntil;
+  final String? encryptedPin; // Added field
 
   PinVerifyResult({
     required this.valid,
     this.attemptsLeft,
     this.message,
     this.lockedUntil,
+    this.encryptedPin,
   });
 
   bool get isLocked => lockedUntil != null || (attemptsLeft != null && attemptsLeft == 0);

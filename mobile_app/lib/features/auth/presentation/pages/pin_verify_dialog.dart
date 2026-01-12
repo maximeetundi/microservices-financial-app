@@ -8,34 +8,37 @@ import '../../../../core/services/biometric_service.dart';
 class PinVerifyDialog extends StatefulWidget {
   final String? title;
   final String? subtitle;
-  final bool allowBiometric;
-  final VoidCallback? onVerified;
-  final VoidCallback? onCancelled;
+  final bool returnEncryptedPin; // Add this
 
   const PinVerifyDialog({
     super.key,
     this.title,
     this.subtitle,
     this.allowBiometric = true,
+    this.returnEncryptedPin = false, // Default false
     this.onVerified,
     this.onCancelled,
   });
 
-  /// Shows the PIN verification dialog and returns true if verified
-  static Future<bool> show(
+  /// Shows the PIN verification dialog
+  /// Returns true (bool) if verified and returnEncryptedPin is false
+  /// Returns encrypted PIN (String) if verified and returnEncryptedPin is true
+  static Future<dynamic> show(
     BuildContext context, {
     String? title,
     String? subtitle,
     bool allowBiometric = true,
+    bool returnEncryptedPin = false,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await showDialog<dynamic>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.9), // Dark overlay like Web
+      barrierColor: Colors.black.withOpacity(0.9),
       builder: (context) => PinVerifyDialog(
         title: title,
         subtitle: subtitle,
         allowBiometric: allowBiometric,
+        returnEncryptedPin: returnEncryptedPin,
       ),
     );
     return result ?? false;
@@ -163,7 +166,16 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProv
       _errorMessage = null;
     });
 
-    final result = await _pinService.verifyPin(pin);
+    var result = await _pinService.verifyPin(pin);
+
+    // Offline Fallback logic
+    if (!result.valid && (result.message?.contains('connexion') ?? false) && !widget.returnEncryptedPin) {
+       final localValid = await _biometricService.verifyPin(pin);
+       if (localValid) {
+         // Create a success result locally
+         result = PinVerifyResult(valid: true, message: 'Vérifié hors ligne');
+       }
+    }
 
     setState(() {
       _isLoading = false;
@@ -172,7 +184,7 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProv
     if (result.valid) {
       widget.onVerified?.call();
       if (mounted) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(widget.returnEncryptedPin ? result.encryptedPin : true);
       }
     } else {
       // Enhanced Security: Clear PIN and RESHUFFLE keys on error

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/ticket_api_service.dart';
 import '../../core/services/auth_api_service.dart';
+import '../../features/auth/presentation/pages/pin_verify_dialog.dart';
 import 'dart:async';
 
 class SoldTicketsScreen extends StatefulWidget {
@@ -263,71 +264,25 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
 
     if (confirmed != true) return;
 
-    // 2. Request PIN
-    final pin = await _showPinDialog();
-    if (pin == null) return;
-
-    // 3. Verify PIN & Refund
-    _processRefund(ticket['id'], pin);
-  }
-
-  Future<String?> _showPinDialog() {
-    String pin = '';
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1e293b),
-        title: const Text('Code PIN de sécurité', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Entrez votre code PIN pour valider le remboursement.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 5,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
-              onChanged: (val) => pin = val,
-              decoration: InputDecoration(
-                counterText: '',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler', style: TextStyle(color: Colors.white)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, pin),
-             style: ElevatedButton.styleFrom(
-               backgroundColor: const Color(0xFF6366f1),
-               foregroundColor: Colors.white,
-             ),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
+    // 2. Request Security Verification
+    final verified = await PinVerifyDialog.show(
+      context,
+      title: 'Validation requise',
+      subtitle: 'Entrez votre PIN pour rembourser ce ticket',
     );
+
+    if (verified != true) return;
+
+    // 3. Process Refund (Verification already done)
+    _processRefund(ticket['id']);
   }
 
-  Future<void> _processRefund(String ticketId, String pin) async {
+
+
+  Future<void> _processRefund(String ticketId) async {
     setState(() => _loading = true);
     try {
-      // Step 1: Verify PIN
-      await _authApi.verifyPin(pin);
-      
-      // Step 2: Refund Ticket
+      // Step 1: Refund Ticket (PIN verified in dialog)
       await _ticketApi.refundTicket(ticketId);
       
       if (mounted) {

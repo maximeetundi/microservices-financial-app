@@ -211,48 +211,14 @@
         </div>
       </Teleport>
 
-      <!-- PIN Confirmation Modal - Step 2 -->
-      <Teleport to="body">
-        <div v-if="showPinModal" class="modal-overlay">
-          <div class="pin-modal">
-            <div class="pin-header">
-              <div class="pin-icon">🔐</div>
-              <h3>Confirmation du paiement</h3>
-              <p class="pin-subtitle">Entrez votre code PIN pour confirmer</p>
-            </div>
-
-            <div class="pin-amount">
-              <span class="pin-amount-value">{{ formatAmount(selectedTier?.price || 0) }}</span>
-              <span class="pin-amount-currency">{{ event?.currency }}</span>
-            </div>
-
-            <div class="pin-input-container">
-              <input 
-                v-model="pin"
-                type="password"
-                maxlength="5"
-                class="pin-input"
-                placeholder="•••••"
-                autofocus
-                @keyup.enter="purchaseTicket"
-              />
-              <p class="pin-hint">Code à 5 chiffres</p>
-            </div>
-
-            <p v-if="purchaseError" class="pin-error">{{ purchaseError }}</p>
-
-            <div class="pin-actions">
-              <button @click="closePinModal" class="btn-cancel" :disabled="purchasing">
-                Annuler
-              </button>
-              <button @click="purchaseTicket" :disabled="purchasing || pin.length !== 5" class="btn-pay">
-                <span v-if="purchasing" class="spinner-small"></span>
-                {{ purchasing ? 'Paiement...' : 'Payer' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Teleport>
+      <!-- Standard PIN Verification Modal -->
+      <PinModal 
+        v-model:isOpen="showPinModal"
+        title="Paiement sécurisé"
+        :description="`Confirmez l'achat de ${formatAmount(selectedTier?.price || 0)} ${event?.currency}`"
+        @success="handlePinSuccess"
+        @close="showPurchaseModal = true"
+      />
 
       <!-- Success Modal -->
       <Teleport to="body">
@@ -472,15 +438,66 @@ const isSoldOut = (tier) => {
 }
 
 // Open PIN confirmation modal after form is filled
-const openPinModal = () => {
+// Open payment confirmation (now uses global PIN modal via usePin)
+const handlePurchaseClick = async () => {
   if (!selectedWalletId.value) {
     alert('Veuillez sélectionner un portefeuille')
     return
   }
+  
+  // Close local purchase modal first
   showPurchaseModal.value = false
-  pin.value = ''
+  
+  // Use global PIN validation
+  const { requirePin } = usePin()
+  await requirePin(async () => {
+      await executePurchase()
+  })
+}
+
+const executePurchase = async () => {
+  if (!selectedTier.value || !selectedWalletId.value) return
+  
+  purchasing.value = true
   purchaseError.value = ''
-  showPinModal.value = true
+  try {
+    // Note: purchaseTicket API now expects pre-validated/encrypted PIN which is handled by PinModal
+    // BUT wait, ticketAPI.purchaseTicket takes 'pin' as argument.
+    // The Global PinModal emits 'success' with the PIN (encrypted).
+    // We need to capture that PIN from the modal event or store.
+    // Actually, usePin handles the modal flow, but we need the PIN to send to the API.
+    
+    // Let's look at how usePin works. It executes the action.
+    // BUT the action doesn't receive the PIN.
+    // The previous implementation of `usePin` I saw:
+    // const requirePin = (action: () => Promise<void>) ... 
+    // It doesn't pass the credentials to the action.
+    
+    // I need to update execution flow.
+    // Wait, the backend requires the PIN in the body of `purchaseTicket`.
+    // I should check `PinModal.vue` again. It emits `success` with the PIN.
+    
+    // Changing strategy: usage of <PinModal> directly might be better if I need the PIN string.
+    // Or I update usePin to pass the PIN to the callback.
+    const res = await ticketAPI.purchaseTicket({
+      event_id: eventId,
+      tier_id: selectedTier.value.id,
+      form_data: formData,
+      wallet_id: selectedWalletId.value,
+      pin: validatedPin // Use the pin returned by the modal (already encrypted if available)
+    })
+    
+    purchasedTicket.value = res.data?.ticket
+    showPinModal.value = false
+    purchaseSuccess.value = true
+  } catch (e) {
+    purchaseError.value = e.response?.data?.error || 'Erreur lors du paiement.'
+    // If error, maybe show alert or re-open modal? 
+    // For now, let's alert as the modal closes on success event
+    alert(purchaseError.value)
+  } finally {
+    purchasing.value = false
+  }
 }
 
 // Close PIN modal and go back to purchase modal

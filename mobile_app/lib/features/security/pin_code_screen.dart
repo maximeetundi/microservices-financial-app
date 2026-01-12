@@ -153,18 +153,32 @@ class _PinCodeScreenState extends State<PinCodeScreen> with SingleTickerProvider
 
   Future<void> _verifyConfirmPin() async {
     if (_pin == _confirmPin) {
-      // Save the PIN
-      await _biometricService.setPin(_pin);
-      HapticFeedback.heavyImpact();
+      setState(() => _isLoading = true);
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Code PIN configuré avec succès!'),
-            backgroundColor: Color(0xFF10B981),
-          ),
-        );
-        widget.onSuccess?.call();
+      // 1. Save to Backend First
+      final result = await _pinService.setupPin(_pin, _confirmPin);
+      
+      setState(() => _isLoading = false);
+
+      if (result.success) {
+        // 2. Sync to Local Storage (for offline unlock if needed)
+        await _biometricService.setPin(_pin);
+        HapticFeedback.heavyImpact();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Code PIN configuré avec succès!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+          widget.onSuccess?.call();
+        }
+      } else {
+        _showError(result.message);
+        setState(() {
+          _confirmPin = '';
+        });
       }
     } else {
       _showError('Les codes ne correspondent pas');
