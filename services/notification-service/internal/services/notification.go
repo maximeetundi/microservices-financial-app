@@ -533,7 +533,10 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 
 	// ===== PAYMENT STATUS EVENTS =====
 	case "payment.request":
-		amount, _ := event["amount"].(float64)
+		amount, _ := event["debit_amount"].(float64)
+		if amount == 0 {
+			amount, _ = event["amount"].(float64)
+		}
 		currency, _ := event["currency"].(string)
 		title, _ := event["title"].(string) 
 		return &Notification{
@@ -546,11 +549,33 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 		}
 
 	case "payment.status.success":
-		amount, _ := event["amount"].(float64)
-		currency, _ := event["currency"].(string)
+		amount, _ := event["amount"].(float64) // This comes from PaymentStatusEvent? No, status event doesn't have amount!
+		// PaymentStatusEvent only has RequestID, ReferenceID, Status, Error.
+		// It does NOT have Amount. 
+		// So payment.status.success will ALSO show 0.00 if it relies on "amount".
+		// We need to fetch the amount or include it in status event. 
+		// For now, let's just say "Votre paiement a été validé." without amount if 0.
+		
+		body := "Votre paiement a été validé avec succès."
+		if amount > 0 {
+			currency, _ := event["currency"].(string)
+			body = fmt.Sprintf("Votre paiement de %.2f %s a été validé avec succès.", amount, currency)
+		}
+		
 		return &Notification{
 			Title:    "Paiement validé",
-			Body:     fmt.Sprintf("Votre paiement de %.2f %s a été validé avec succès.", amount, currency),
+			Body:     body,
+			Type:     "payment",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+
+	case "payment.status.failed":
+		errMsg, _ := event["error"].(string)
+		return &Notification{
+			Title:    "❌ Paiement échoué",
+			Body:     fmt.Sprintf("Votre paiement a échoué: %s", errMsg),
 			Type:     "payment",
 			Priority: PriorityHigh,
 			Data:     event,
