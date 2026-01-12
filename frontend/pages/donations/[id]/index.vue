@@ -135,6 +135,26 @@
                         <textarea v-model="donationForm.message" rows="2" class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="Un petit mot pour l'organisateur..."></textarea>
                     </div>
 
+                    <!-- Dynamic Fields -->
+                    <div v-if="campaign?.form_schema?.length" class="mb-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+                        <h4 class="font-bold text-sm mb-4 text-gray-900 dark:text-white">Informations complémentaires</h4>
+                        <div v-for="field in campaign.form_schema" :key="field.name" class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                {{ field.label }} <span v-if="field.required" class="text-red-500">*</span>
+                            </label>
+                            
+                            <select v-if="field.type === 'select'" v-model="donationForm.formData[field.name]" class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500">
+                                <option value="" disabled>Sélectionner</option>
+                                <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+                            </select>
+                            
+                            <input v-else :type="field.type === 'number' ? 'number' : 'text'" 
+                                   v-model="donationForm.formData[field.name]"
+                                   class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
+                                   :placeholder="field.label">
+                        </div>
+                    </div>
+
                     <!-- Anonymous -->
                     <div class="mb-6">
                         <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
@@ -217,7 +237,8 @@ const donationForm = reactive({
     frequency: 'one_time',
     isAnonymous: false,
     message: '',
-    walletId: ''
+    walletId: '',
+    formData: {} as Record<string, any>
 })
 
 const frequencyOptions = [
@@ -261,6 +282,20 @@ const isValidDonation = computed(() => {
 
 const processDonation = async () => {
     if (!isValidDonation.value) return
+
+    // Validate Dynamic Fields
+    if (campaign.value.form_schema) {
+        for (const field of campaign.value.form_schema) {
+             if (field.required) {
+                 const val = donationForm.formData[field.name]
+                 if (!val || val.toString().trim() === '') {
+                     alert(`Le champ "${field.label}" est obligatoire.`)
+                     return
+                 }
+             }
+        }
+    }
+
     processing.value = true
     try {
         await donationApi.initiateDonation({
@@ -271,6 +306,7 @@ const processDonation = async () => {
             message: donationForm.message,
             is_anonymous: donationForm.isAnonymous,
             frequency: donationForm.frequency,
+            form_data: donationForm.formData, // Send dynamic data
             // PIN? Usually required. For MVP assuming simplified or cached pin session.
             // If API requires PIN, we need PinModal.
             // Let's assume we need PIN.
@@ -307,7 +343,7 @@ const formatAmount = (amount: number, currency: string) => {
 }
 
 const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString()
+    return new Date(date).toLocaleDateString('fr-FR')
 }
 
 onMounted(() => {
