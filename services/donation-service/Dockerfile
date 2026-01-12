@@ -5,12 +5,11 @@ WORKDIR /app
 # Copy go mod file
 COPY ./donation-service/go.mod ./
 
-# Download all dependencies. Run tidy to ensure go.sum exists
-RUN go mod tidy
-RUN go mod download
-
 # Copy the source from the current directory to the Working Directory inside the container
 COPY ./donation-service .
+
+# Tidy dependencies after copying source
+RUN go mod tidy
 
 # Build the Go app
 RUN CGO_ENABLED=0 GOOS=linux go build -o donation-service .

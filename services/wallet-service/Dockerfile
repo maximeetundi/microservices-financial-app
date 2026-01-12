@@ -17,12 +17,11 @@ RUN go mod download || true
 # Copy go mod file
 COPY ./wallet-service/go.mod ./
 
-# Download all dependencies. Run tidy to ensure go.sum exists
-RUN go mod tidy
-RUN go mod download
-
 # Copy service source code
 COPY ./wallet-service .
+
+# Tidy dependencies after copying source
+RUN go mod tidy
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/wallet-service/main .
