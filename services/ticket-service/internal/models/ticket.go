@@ -52,6 +52,7 @@ type PurchaseTicketRequest struct {
 	FormData map[string]interface{} `json:"form_data" binding:"required"`
 	WalletID string            `json:"wallet_id" binding:"required"`
 	PIN      string            `json:"pin" binding:"required"`
+	Quantity int               `json:"quantity"`
 }
 
 // VerifyTicketRequest represents the request to verify a ticket

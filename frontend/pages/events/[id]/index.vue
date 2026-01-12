@@ -223,6 +223,16 @@
               </div>
 
               <div class="form-group">
+                <label>Quantité *</label>
+                <div class="quantity-selector">
+                   <button type="button" @click="quantity > 1 && quantity--">-</button>
+                   <input v-model.number="quantity" type="number" min="1" :max="selectedTier?.max_per_user || 100" readonly />
+                   <button type="button" @click="quantity++">+</button>
+                </div>
+                <small v-if="selectedTier?.max_per_user > 0">Max: {{ selectedTier.max_per_user }} par personne</small>
+              </div>
+
+              <div class="form-group">
                 <label>Portefeuille *</label>
                 <select v-model="selectedWalletId" required>
                   <option value="">Sélectionner...</option>
@@ -234,8 +244,8 @@
 
               <div class="purchase-summary">
                 <div class="summary-row">
-                  <span>🎫 {{ selectedTier?.name }}</span>
-                  <span class="summary-price">{{ formatAmount(selectedTier?.price || 0) }} {{ event?.currency }}</span>
+                  <span>🎫 {{ selectedTier?.name }} (x{{ quantity }})</span>
+                  <span class="summary-price">{{ formatAmount((selectedTier?.price || 0) * quantity) }} {{ event?.currency }}</span>
                 </div>
               </div>
 
@@ -407,6 +417,7 @@ const pin = ref('')
 const formData = reactive({})
 const showQRModal = ref(false)
 const purchaseError = ref('')
+const quantity = ref(1)
 
 // Ticket Scanner state
 const showScannerModal = ref(false)
@@ -516,6 +527,7 @@ const executePurchase = async (pin) => {
       tier_id: selectedTier.value.id,
       form_data: formData,
       wallet_id: selectedWalletId.value,
+      quantity: quantity.value,
       pin: pin // Passed argument
     })
     
@@ -797,6 +809,36 @@ onUnmounted(() => {
 <style scoped>
 .event-detail-page {
   min-height: 100vh;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantity-selector button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.quantity-selector input {
+  width: 60px;
+  text-align: center;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--text-primary);
 }
 
 .loading-state, .error-state {

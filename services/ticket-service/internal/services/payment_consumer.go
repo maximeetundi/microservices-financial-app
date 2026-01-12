@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
@@ -68,20 +69,29 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 
 		// If payment successful, notify the organizer and the buyer
 		if newStatus == "paid" {
-			ticket, err := c.ticketRepo.GetByTransactionID(statusEvent.RequestID)
-			if err == nil && ticket != nil {
+			tickets, err := c.ticketRepo.GetListByTransactionID(statusEvent.RequestID)
+			if err == nil && len(tickets) > 0 {
+				ticket := tickets[0] // Representative ticket for common details
+				count := len(tickets)
+
 				// 1. Notify Organizer
 				if ticket.EventCreatorID != "" {
+					msg := "Un ticket a été acheté pour votre événement " + ticket.EventTitle
+					if count > 1 {
+						msg = fmt.Sprintf("%d tickets ont été achetés pour votre événement %s", count, ticket.EventTitle)
+					}
+					
 					notifEvent := messaging.NotificationEvent{
 						UserID:  ticket.EventCreatorID,
 						Type:    "ticket_sold",
 						Title:   "Nouveau ticket vendu ! 🎫",
-						Message: "Un ticket a été acheté pour votre événement " + ticket.EventTitle,
+						Message: msg,
 						Data: map[string]interface{}{
-							"ticket_id": ticket.ID,
+							"ticket_id": ticket.ID, // Just pass one ID or maybe none if batch
 							"event_id":  ticket.EventID,
-							"amount":    ticket.Price,
-							"currency":  ticket.Currency,
+							"amount":     ticket.Price * float64(count),
+							"currency":   ticket.Currency,
+							"quantity":   count,
 						},
 					}
 					
@@ -93,17 +103,23 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 
 				// 2. Notify Buyer
 				if ticket.BuyerID != "" {
+					msg := "Votre ticket " + ticket.TierName + " pour " + ticket.EventTitle + " a été payé avec succès."
+					if count > 1 {
+						msg = fmt.Sprintf("Vos %d tickets %s pour %s ont été payés avec succès.", count, ticket.TierName, ticket.EventTitle)
+					}
+
 					buyerNotifEvent := messaging.NotificationEvent{
 						UserID:  ticket.BuyerID,
 						Type:    "ticket_purchased",
 						Title:   "Paiement réussi ✅",
-						Message: "Votre ticket " + ticket.TierName + " pour " + ticket.EventTitle + " a été payé avec succès.",
+						Message: msg,
 						Data: map[string]interface{}{
 							"ticket_id": ticket.ID,
 							"event_id":  ticket.EventID,
-							"amount":    ticket.Price,
+							"amount":    ticket.Price * float64(count),
 							"currency":  ticket.Currency,
-							"route":     "/my-tickets", // Hint for mobile navigation
+							"route":     "/my-tickets",
+							"quantity":  count,
 						},
 					}
 					

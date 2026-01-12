@@ -125,6 +125,7 @@ class TicketApiService {
     required Map<String, String> formData,
     required String walletId,
     required String pin,
+    int quantity = 1,
   }) async {
     final response = await _client.post(
       '/ticket-service/api/v1/tickets/purchase',
@@ -134,6 +135,7 @@ class TicketApiService {
         'form_data': formData,
         'wallet_id': walletId,
         'pin': pin,
+        'quantity': quantity,
       },
     );
     if (response.statusCode == 201 || response.statusCode == 200) {

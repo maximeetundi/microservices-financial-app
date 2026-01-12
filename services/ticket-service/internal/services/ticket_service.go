@@ -293,10 +293,25 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		return nil, fmt.Errorf("ticket tier not found")
 	}
 
-	// Check availability
+	// Default quantity to 1
+	quantity := req.Quantity
+	if quantity <= 0 {
+		quantity = 1
+	}
+
+	// Check availability (check if enough remaining)
+	// We need a CheckAvailabilityForQuantity(tierID, quantity) or just rely on basic check + assumption?
+	// Existing CheckAvailability likely just checks status != sold_out or sold < total.
+	// Let's rely on CheckAvailability for now, ideally we should modify it to accept simple check.
+	// But let's verify logic:
 	available, err := s.tierRepo.CheckAvailability(req.TierID)
 	if err != nil || !available {
 		return nil, fmt.Errorf("no tickets available for this tier")
+	}
+	
+	// Better: Check explicit quantity if not unlimited
+	if tier.Quantity != -1 && (tier.Sold + quantity) > tier.Quantity {
+		return nil, fmt.Errorf("not enough tickets available (requested: %d, remaining: %d)", quantity, tier.Quantity - tier.Sold)
 	}
 
 	// Check per-user limit
@@ -305,8 +320,8 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		if err != nil {
 			return nil, fmt.Errorf("failed to check ticket limit: %w", err)
 		}
-		if int(count) >= tier.MaxPerUser {
-			return nil, fmt.Errorf("you have reached the maximum number of tickets (%d) allowed for this tier", tier.MaxPerUser)
+		if int(count)+quantity > tier.MaxPerUser {
+			return nil, fmt.Errorf("purchasing %d tickets would exceed your limit of %d for this tier", quantity, tier.MaxPerUser)
 		}
 	}
 
@@ -325,35 +340,40 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		}
 	}
 
-	// Generate ticket code
-	ticketCode := s.generateTicketCode()
-	
-	// Create transaction ID (will be used for payment)
+	// Generate transaction ID (shared for all tickets in this batch)
 	txID := "TX-" + s.generateEventCode()
+	
+	totalAmount := tier.Price * float64(quantity)
 
-	// Create ticket
-	ticket := &models.Ticket{
-		EventID:         req.EventID,
-		BuyerID:         userID,
-		TierID:          req.TierID,
-		TierName:        tier.Name,
-		TierIcon:        tier.Icon,
-		Price:           tier.Price,
-		Currency:        event.Currency,
-		FormData:        req.FormData,
-		TicketCode:      ticketCode,
-		Status:          models.TicketStatusPending, // Initially pending
-		TransactionID:   txID,
-		PaymentWalletID: paymentWalletID,
-		PaymentCurrency: paymentCurrency,
-	}
+	// Create tickets
+	for i := 0; i < quantity; i++ {
+		ticketCode := s.generateTicketCode()
+		
+		ticket := &models.Ticket{
+			EventID:         req.EventID,
+			BuyerID:         userID,
+			TierID:          req.TierID,
+			TierName:        tier.Name,
+			TierIcon:        tier.Icon,
+			Price:           tier.Price,
+			Currency:        event.Currency,
+			FormData:        req.FormData, // Shared form data for now
+			TicketCode:      ticketCode,
+			Status:          models.TicketStatusPending,
+			TransactionID:   txID,
+			PaymentWalletID: paymentWalletID,
+			PaymentCurrency: paymentCurrency,
+		}
 
-	// Generate ticket QR code
-	qrData := fmt.Sprintf("ZEKORA_TICKET:%s", ticketCode)
-	ticket.QRCode = s.generateQRCodeBase64(qrData)
+		// Generate ticket QR code
+		qrData := fmt.Sprintf("ZEKORA_TICKET:%s", ticketCode)
+		ticket.QRCode = s.generateQRCodeBase64(qrData)
 
-	if err := s.ticketRepo.Create(ticket); err != nil {
-		return nil, fmt.Errorf("failed to create ticket: %w", err)
+		if err := s.ticketRepo.Create(ticket); err != nil {
+			// In a real system, we might want to revert previous inserts or use a transaction.
+			// For now, returning error.
+			return nil, fmt.Errorf("failed to create ticket %d/%d: %w", i+1, quantity, err)
+		}
 	}
 
 	// Initiate Payment via Event Bus
@@ -367,7 +387,7 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		FromWalletID:      req.WalletID,
 		DestinationUserID: event.CreatorID, // Set organizer as destination
 		ToWalletID:        "",              // Will be resolved by transfer-service using DestinationUserID
-		DebitAmount:       tier.Price,
+		DebitAmount:       totalAmount,
 		CreditAmount:      tier.Price,
 		Currency:          event.Currency,
 		Type:              "ticket_purchase",

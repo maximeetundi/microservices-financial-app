@@ -172,8 +172,29 @@ func (r *TicketRepository) UpdateTransactionID(id, transactionID string) error {
 func (r *TicketRepository) UpdateStatusByTransactionID(transactionID, status string) error {
 	filter := bson.M{"transaction_id": transactionID}
 	update := bson.M{"$set": bson.M{"status": status}}
-	_, err := r.collection.UpdateOne(context.Background(), filter, update)
+	_, err := r.collection.UpdateMany(context.Background(), filter, update)
 	return err
+}
+
+func (r *TicketRepository) GetListByTransactionID(transactionID string) ([]*models.Ticket, error) {
+	var tickets []*models.Ticket
+	filter := bson.M{"transaction_id": transactionID}
+	
+	cursor, err := r.collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(context.Background()) {
+		var ticket models.Ticket
+		if err := cursor.Decode(&ticket); err != nil {
+			continue
+		}
+		r.populateEventDetails(&ticket)
+		tickets = append(tickets, &ticket)
+	}
+	return tickets, nil
 }
 
 func (r *TicketRepository) Delete(id string) error {
