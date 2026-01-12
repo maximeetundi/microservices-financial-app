@@ -95,8 +95,11 @@
 </template>
 
 <script setup lang="ts">
-import { donationAPI } from '~/composables/useApi'
-const { donationApi } = useApi()
+import { useApi } from '~/composables/useApi'
+const apiContext = useApi()
+const { donationApi } = apiContext
+console.log('useApi result:', Object.keys(apiContext))
+if (!donationApi) console.error('donationApi is missing!', apiContext)
 
 definePageMeta({
   middleware: 'auth'
