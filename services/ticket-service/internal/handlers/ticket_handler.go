@@ -214,7 +214,8 @@ func (h *TicketHandler) PurchaseTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.service.PurchaseTicket(userID, &req)
+	token := c.GetHeader("Authorization")
+	ticket, err := h.service.PurchaseTicket(userID, &req, token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

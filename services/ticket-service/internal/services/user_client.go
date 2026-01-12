@@ -29,7 +29,7 @@ func NewUserClient() *UserClient {
 }
 
 // VerifyPin calls auth-service to verify the PIN
-func (c *UserClient) VerifyPin(userID, pin string) error {
+func (c *UserClient) VerifyPin(userID, pin, token string) error {
 	url := fmt.Sprintf("%s/api/v1/users/pin/verify", c.baseURL)
 
 	reqBody := map[string]string{
@@ -45,6 +45,7 @@ func (c *UserClient) VerifyPin(userID, pin string) error {
 	// We need to pass the user_id header so auth-service knows who we are verifying
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-User-ID", userID)
+	req.Header.Set("Authorization", token) // Forward the auth token
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

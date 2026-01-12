@@ -261,9 +261,9 @@ func (s *TicketService) GetEventTiers(eventID string) ([]models.TicketTier, erro
 
 // === Ticket Purchase ===
 
-func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicketRequest) (*models.Ticket, error) {
+func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicketRequest, token string) (*models.Ticket, error) {
 	// 1. Verify Verification PIN securely
-	if err := s.userClient.VerifyPin(buyerID, req.PIN); err != nil {
+	if err := s.userClient.VerifyPin(userID, req.PIN, token); err != nil {
 		return nil, fmt.Errorf("security check failed: %w", err)
 	}
 
