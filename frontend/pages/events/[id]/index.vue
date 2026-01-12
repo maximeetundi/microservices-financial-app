@@ -487,10 +487,10 @@ const executePurchase = async (pin) => {
     showPinModal.value = false
     purchaseSuccess.value = true
   } catch (e) {
-    purchaseError.value = e.response?.data?.error || 'Erreur lors du paiement.'
-    // If error, maybe show alert or re-open modal? 
-    // For now, let's alert as the modal closes on success event
-    alert(purchaseError.value)
+    console.error("DEBUG PURCHASE ERROR:", e)
+    const errMsg = e.response?.data?.error || e.message || 'Erreur lors du paiement.'
+    purchaseError.value = errMsg
+    alert(`Erreur: ${errMsg}`)
   } finally {
     purchasing.value = false
   }
