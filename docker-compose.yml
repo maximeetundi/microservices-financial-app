@@ -432,6 +432,32 @@ services:
       - crypto-bank-network
     restart: unless-stopped
 
+  # Donation Service
+  donation-service:
+    build:
+      context: ./services
+      dockerfile: ./donation-service/Dockerfile
+    ports:
+      - "8096:8096"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/donation_service?authSource=admin
+      - MONGODB_DATABASE=donation_service
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - PORT=8096
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
   # Messaging Service (User-to-user chat)
   messaging-service:
     build:
