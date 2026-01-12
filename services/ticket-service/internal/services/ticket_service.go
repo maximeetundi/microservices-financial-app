@@ -19,6 +19,7 @@ type TicketService struct {
 	tierRepo     *repository.TierRepository
 	ticketRepo   *repository.TicketRepository
 	walletClient *WalletClient
+	userClient   *UserClient
 	kafkaClient  *messaging.KafkaClient
 }
 
@@ -33,6 +34,7 @@ func NewTicketService(
 		tierRepo:     tierRepo,
 		ticketRepo:   ticketRepo,
 		walletClient: NewWalletClient(),
+		userClient:   NewUserClient(),
 		kafkaClient:  kafkaClient,
 	}
 }
@@ -260,6 +262,11 @@ func (s *TicketService) GetEventTiers(eventID string) ([]models.TicketTier, erro
 // === Ticket Purchase ===
 
 func (s *TicketService) PurchaseTicket(buyerID string, req *models.PurchaseTicketRequest) (*models.Ticket, error) {
+	// 1. Verify Verification PIN securely
+	if err := s.userClient.VerifyPin(buyerID, req.Pin); err != nil {
+		return nil, fmt.Errorf("security check failed: %w", err)
+	}
+
 	// Get event
 	event, err := s.eventRepo.GetByID(req.EventID)
 	if err != nil {

@@ -196,8 +196,8 @@ const authStore = useAuthStore()
 const sidebarOpen = ref(false)
 const { checkPinStatus, hasPin, showPinSetup, state: pinState, executePendingAction, closeModals } = usePin()
 
-const onPinSuccess = () => {
-    executePendingAction()
+const onPinSuccess = (pin) => {
+    executePendingAction(pin)
 }
 
 const onPinClose = () => {

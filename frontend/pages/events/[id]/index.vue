@@ -212,13 +212,7 @@
       </Teleport>
 
       <!-- Standard PIN Verification Modal -->
-      <PinModal 
-        v-model:isOpen="showPinModal"
-        title="Paiement sécurisé"
-        :description="`Confirmez l'achat de ${formatAmount(selectedTier?.price || 0)} ${event?.currency}`"
-        @success="handlePinSuccess"
-        @close="showPurchaseModal = true"
-      />
+
 
       <!-- Success Modal -->
       <Teleport to="body">
@@ -376,7 +370,6 @@ const selectedWalletId = ref('')
 const pin = ref('')
 const formData = reactive({})
 const showQRModal = ref(false)
-const showPinModal = ref(false)
 const purchaseError = ref('')
 
 // Ticket Scanner state
@@ -455,11 +448,7 @@ const handlePurchaseClick = async () => {
   })
 }
 
-// Handle PIN verification success
-const handlePinSuccess = async (validatedPin) => {
-  const { executePendingAction } = usePin()
-  await executePendingAction(validatedPin)
-}
+
 
 const executePurchase = async (pin) => {
   if (!selectedTier.value || !selectedWalletId.value) return
