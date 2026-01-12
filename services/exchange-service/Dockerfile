@@ -15,11 +15,11 @@ WORKDIR /app/exchange-service
 RUN go mod download || true
 
 # Copy go mod file
-COPY go.mod ./
+COPY ./exchange-service/go.mod ./
 
 # Download all dependencies. Run tidy to ensure go.sum exists
 RUN go mod tidy
-RUN go mod downloady && go mod download
+RUN go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/exchange-service/main .

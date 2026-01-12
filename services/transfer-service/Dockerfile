@@ -15,11 +15,11 @@ WORKDIR /app/transfer-service
 RUN go mod download || true
 
 # Copy go mod file
-COPY go.mod ./
+COPY ./transfer-service/go.mod ./
 
 # Download all dependencies. Run tidy to ensure go.sum exists
 RUN go mod tidy
-RUN go mod downloady && go mod download
+RUN go mod download
 
 # Copy service source code
 COPY ./transfer-service .
