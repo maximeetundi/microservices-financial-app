@@ -325,9 +325,11 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 		}
 	}
 
-	// Capture Payment Wallet Details (for Refund Routing)
+	// Capture Payment Wallet Details (for Refund Routing) & Check Balance
 	var paymentWalletID, paymentCurrency string
 	buyerWallets, err := s.walletClient.GetUserWallets(userID)
+	totalAmount := tier.Price * float64(quantity)
+
 	if err == nil {
 		for _, w := range buyerWallets {
 			if id, ok := w["id"].(string); ok && id == req.WalletID {
@@ -335,16 +337,33 @@ func (s *TicketService) PurchaseTicket(userID string, req *models.PurchaseTicket
 				if cur, ok := w["currency"].(string); ok {
 					paymentCurrency = cur
 				}
+				
+				// Balance Check
+				if bal, ok := w["balance"].(float64); ok {
+					if bal < totalAmount {
+						return nil, fmt.Errorf("insufficient funds in wallet (Required: %f %s, Available: %f %s)", totalAmount, paymentCurrency, bal, paymentCurrency)
+					}
+				}
 				break
 			}
 		}
+	} else {
+		// If fails to fetch wallets, strict mode? 
+		// Ideally yes, but maybe service is down. 
+		// But allowing it might lead to bad UX (pending -> failed async).
+		// For now, let's log and proceed or fail?
+		// User experience issue: if balance check fails because service down, user might retry.
+		// Safe to fail.
+		return nil, fmt.Errorf("failed to verify wallet balance: %w", err)
+	}
+
+	if paymentWalletID == "" {
+		return nil, fmt.Errorf("wallet not found or invalid")
 	}
 
 	// Generate transaction ID (shared for all tickets in this batch)
 	txID := "TX-" + s.generateEventCode()
 	
-	totalAmount := tier.Price * float64(quantity)
-
 	// Create tickets
 	for i := 0; i < quantity; i++ {
 		ticketCode := s.generateTicketCode()

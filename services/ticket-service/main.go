@@ -73,7 +73,7 @@ func main() {
 		defer kafkaClient.Close()
 		
 		// Start Payment Status Consumer
-		paymentConsumer := services.NewPaymentStatusConsumer(kafkaClient, ticketRepo)
+		paymentConsumer := services.NewPaymentStatusConsumer(kafkaClient, ticketRepo, tierRepo)
 		if err := paymentConsumer.Start(); err != nil {
 			log.Printf("Warning: Failed to start PaymentStatusConsumer: %v", err)
 		}

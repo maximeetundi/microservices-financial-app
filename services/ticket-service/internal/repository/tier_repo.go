@@ -68,8 +68,12 @@ func (r *TierRepository) GetByID(id string) (*models.TicketTier, error) {
 }
 
 func (r *TierRepository) IncrementSold(tierID string) error {
+	return r.IncrementSoldBy(tierID, 1)
+}
+
+func (r *TierRepository) IncrementSoldBy(tierID string, quantity int) error {
 	filter := bson.M{"_id": tierID}
-	update := bson.M{"$inc": bson.M{"sold": 1}}
+	update := bson.M{"$inc": bson.M{"sold": quantity}}
 	_, err := r.collection.UpdateOne(context.Background(), filter, update)
 	return err
 }

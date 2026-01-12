@@ -225,8 +225,8 @@
               <div class="form-group">
                 <label>Quantité *</label>
                 <div class="quantity-selector">
-                   <button type="button" @click="quantity > 1 && quantity--">-</button>
-                   <input v-model.number="quantity" type="number" min="1" :max="selectedTier?.max_per_user || 100" readonly />
+                  <button type="button" @click="quantity > 1 && quantity--">-</button>
+                   <input v-model.number="quantity" type="number" min="1" :max="selectedTier?.max_per_user || 100" class="input-quantity" />
                    <button type="button" @click="quantity++">+</button>
                 </div>
                 <small v-if="selectedTier?.max_per_user > 0">Max: {{ selectedTier.max_per_user }} par personne</small>
@@ -240,6 +240,9 @@
                     {{ wallet.currency }} - {{ formatAmount(wallet.balance) }}
                   </option>
                 </select>
+                <p v-if="insufficientFunds" class="error-text">
+                   ⚠️ Solde insuffisant ({{ formatAmount(selectedWallet?.balance) }} {{ selectedWallet?.currency }})
+                </p>
               </div>
 
               <div class="purchase-summary">
@@ -249,7 +252,7 @@
                 </div>
               </div>
 
-              <button type="submit" class="btn-confirm">
+              <button type="submit" class="btn-confirm" :disabled="insufficientFunds">
                 Continuer vers le paiement →
               </button>
             </form>
@@ -434,8 +437,18 @@ const authStore = useAuthStore()
 const isOwner = computed(() => {
   if (!event.value) return false
   const userId = authStore.user?.id
-  console.log('DEBUG isOwner:', { creatorId: event.value.creator_id, userId, isOwner: event.value.creator_id === userId })
+  // console.log('DEBUG isOwner:', { creatorId: event.value.creator_id, userId, isOwner: event.value.creator_id === userId })
   return event.value.creator_id === userId
+})
+
+const selectedWallet = computed(() => {
+  return wallets.value.find(w => w.id === selectedWalletId.value)
+})
+
+const insufficientFunds = computed(() => {
+  if (!selectedWallet.value || !selectedTier.value) return false
+  const total = (selectedTier.value.price || 0) * quantity.value
+  return selectedWallet.value.balance < total
 })
 
 const loadEvent = async () => {
@@ -839,6 +852,27 @@ onUnmounted(() => {
   border-radius: 8px;
   background: var(--background);
   color: var(--text-primary);
+  /* Allow editing now */
+}
+
+/* Hide spin buttons */
+.quantity-selector input::-webkit-outer-spin-button,
+.quantity-selector input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 .loading-state, .error-state {

@@ -13,12 +13,14 @@ import (
 type PaymentStatusConsumer struct {
 	kafkaClient *messaging.KafkaClient
 	ticketRepo  *repository.TicketRepository
+	tierRepo    *repository.TierRepository
 }
 
-func NewPaymentStatusConsumer(kafkaClient *messaging.KafkaClient, ticketRepo *repository.TicketRepository) *PaymentStatusConsumer {
+func NewPaymentStatusConsumer(kafkaClient *messaging.KafkaClient, ticketRepo *repository.TicketRepository, tierRepo *repository.TierRepository) *PaymentStatusConsumer {
 	return &PaymentStatusConsumer{
 		kafkaClient: kafkaClient,
 		ticketRepo:  ticketRepo,
+		tierRepo:    tierRepo,
 	}
 }
 
@@ -73,6 +75,11 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 			if err == nil && len(tickets) > 0 {
 				ticket := tickets[0] // Representative ticket for common details
 				count := len(tickets)
+
+				// Update Sold Count in Tier
+				if err := c.tierRepo.IncrementSoldBy(ticket.TierID, count); err != nil {
+					log.Printf("[Kafka] Failed to increment sold count for tier %s: %v", ticket.TierID, err)
+				}
 
 				// 1. Notify Organizer
 				if ticket.EventCreatorID != "" {
