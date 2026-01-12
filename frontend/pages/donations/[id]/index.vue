@@ -39,7 +39,6 @@
                     <div class="w-full md:w-80 flex flex-col gap-6">
                         <!-- Progress Card -->
                         <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                             <!-- ... (Progress content preserved) ... -->
                             <div class="mb-4">
                                 <span class="text-3xl font-bold text-emerald-600">{{ formatAmount(campaign.collected_amount, campaign.currency) }}</span>
                                 <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">récoltés</span>
@@ -84,7 +83,11 @@
                     </div>
                 </div>
 
-                <!-- ... Description ... -->
+                <!-- Description -->
+                <div class="prose dark:prose-invert max-w-none mb-12">
+                    <h3 class="text-xl font-bold mb-4">À propos</h3>
+                    <p class="whitespace-pre-line text-gray-600 dark:text-gray-300 leading-relaxed">{{ campaign.description }}</p>
+                </div>
 
                 <!-- Wall of Donors (Refined) -->
                 <div>
@@ -227,118 +230,37 @@
         </div>
     </Teleport>
 
-    <style scoped>
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
-    </style>
-    
-    <!-- UseAuth Import -->
-    <script setup lang="ts">
-    import { useAuth } from '~/composables/useAuth'
-    import { usePin } from '~/composables/usePin' 
-    
-    const { user } = useAuth()
-    const { requirePin } = usePin()
-    const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id) // Correct placement
-    
-    const apiContext = useApi()
-    const { donationApi } = apiContext
-    
-    // ... imports ...
-
-    const donationForm = reactive({
-        amount: null as number | null,
-        frequency: 'one_time',
-        isAnonymous: false,
-        message: '',
-        walletId: '',
-        // pin removed
-        formData: {} as Record<string, any>
-    })
-
-    // ...
-
-    const isValidDonation = computed(() => {
-        return donationForm.amount && 
-               donationForm.amount > 0 && 
-               donationForm.walletId
-    })
-
-    const processDonation = async () => {
-        if (!isValidDonation.value) return
-    
-        // Validate Dynamic Fields (Skip if Anonymous)
-        if (campaign.value.form_schema && !donationForm.isAnonymous) {
-            for (const field of campaign.value.form_schema) {
-                 if (field.required) {
-                     const val = donationForm.formData[field.name]
-                     if (!val || val.toString().trim() === '') {
-                         alert(`Le champ "${field.label}" est obligatoire.`)
-                         return
-                     }
-                 }
-            }
-        }
-    
-        // Use Global PIN Modal
-        requirePin(async (pin) => {
-             processing.value = true
-             try {
-                await donationApi.initiateDonation({
-                    campaign_id: campaign.value.id,
-                    amount: donationForm.amount,
-                    currency: campaign.value.currency,
-                    wallet_id: donationForm.walletId,
-                    message: donationForm.message,
-                    is_anonymous: donationForm.isAnonymous,
-                    frequency: donationForm.frequency,
-                    form_data: donationForm.isAnonymous ? {} : donationForm.formData, 
-                    pin: pin 
-                })
-                
-                lastDonationAmount.value = donationForm.amount || 0
-                showDonateModal.value = false
-                showSuccessModal.value = true
-                loadData() // Refresh
-                
-                // Reset form
-                donationForm.amount = null
-                donationForm.message = ''
-                
-            } catch(e: any) {
-                alert(e.response?.data?.error || "Erreur lors du don")
-            } finally {
-                processing.value = false
-            }
-        })
-    }
-
     <!-- Success Modal -->
-     <Teleport to="body">
-          <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showSuccessModal = false">
-              <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300 text-center">
-                  <div class="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center mb-6 mx-auto animate-bounce">
-                      <span class="text-4xl">🎉</span>
-                  </div>
-                  <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Merci pour votre Don !</h3>
-                  <p class="text-gray-500 dark:text-gray-400 mb-8">
-                      Votre générosité fait la différence. Le montant de <strong>{{ formatAmount(lastDonationAmount, campaign?.currency) }}</strong> a été envoyé avec succès.
-                  </p>
-                  <button @click="closeSuccess" class="w-full px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-600/20">
-                      Génial !
-                  </button>
-              </div>
-          </div>
-      </Teleport>
+    <Teleport to="body">
+            <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showSuccessModal = false">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300 text-center">
+                    <div class="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center mb-6 mx-auto animate-bounce">
+                        <span class="text-4xl">🎉</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Merci pour votre Don !</h3>
+                    <p class="text-gray-500 dark:text-gray-400 mb-8">
+                        Votre générosité fait la différence. Le montant de <strong>{{ formatAmount(lastDonationAmount, campaign?.currency) }}</strong> a été envoyé avec succès.
+                    </p>
+                    <button @click="closeSuccess" class="w-full px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-600/20">
+                        Génial !
+                    </button>
+                </div>
+            </div>
+        </Teleport>
 
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
 import { useApi } from '~/composables/useApi'
-const { donationApi, walletApi } = useApi()
+import { useAuth } from '~/composables/useAuth'
+import { usePin } from '~/composables/usePin'
+
+const { user } = useAuth()
+const { requirePin } = usePin()
 const route = useRoute()
+const apiContext = useApi()
+const { donationApi, walletApi } = apiContext
 
 definePageMeta({
   middleware: 'auth'
@@ -348,7 +270,9 @@ const campaignId = computed(() => route.params.id as string)
 const campaign = ref<any>(null)
 const donations = ref<any[]>([])
 const loading = ref(true)
-const creatorName = ref('') // We might fetch this if we had user Service API exposed
+const creatorName = ref('') 
+
+const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id)
 
 // Donate Modal State
 const showDonateModal = ref(false)
@@ -356,6 +280,7 @@ const showSuccessModal = ref(false)
 const processing = ref(false)
 const wallets = ref<any[]>([])
 const lastDonationAmount = ref(0)
+const walletsLoaded = ref(false)
 
 const donationForm = reactive({
     amount: null as number | null,
@@ -389,16 +314,17 @@ const loadData = async () => {
 }
 
 const openDonateModal = async () => {
-    // Load wallets
-    try {
-        const res = await walletApi.getMyWallets() // Assuming this exists or getAll
-        wallets.value = res.data?.wallets || res.data || []
-        // Filter wallets compatible with campaign currency? Or auto-convert?
-        // Service handles conversion usually, but cleaner to show relevant ones.
-        // For now show all.
-    } catch(e) { console.error(e) }
-    
     showDonateModal.value = true
+    if (!walletsLoaded.value) {
+        try {
+            const res = await walletApi.getMyWallets() 
+            wallets.value = res.data?.wallets || res.data || []
+            walletsLoaded.value = true
+             if (wallets.value.length > 0) {
+                 donationForm.walletId = wallets.value[0].id
+            }
+        } catch(e) { console.error(e) }
+    }
 }
 
 const isValidDonation = computed(() => {
@@ -408,8 +334,8 @@ const isValidDonation = computed(() => {
 const processDonation = async () => {
     if (!isValidDonation.value) return
 
-    // Validate Dynamic Fields
-    if (campaign.value.form_schema) {
+    // Validate Dynamic Fields (Skip if Anonymous)
+    if (campaign.value.form_schema && !donationForm.isAnonymous) {
         for (const field of campaign.value.form_schema) {
              if (field.required) {
                  const val = donationForm.formData[field.name]
@@ -421,37 +347,37 @@ const processDonation = async () => {
         }
     }
 
-    processing.value = true
-    try {
-        await donationApi.initiateDonation({
-            campaign_id: campaign.value.id,
-            amount: donationForm.amount,
-            currency: campaign.value.currency,
-            wallet_id: donationForm.walletId,
-            message: donationForm.message,
-            is_anonymous: donationForm.isAnonymous,
-            frequency: donationForm.frequency,
-            form_data: donationForm.formData, // Send dynamic data
-            // PIN? Usually required. For MVP assuming simplified or cached pin session.
-            // If API requires PIN, we need PinModal.
-            // Let's assume we need PIN.
-            pin: "12345" // HARDCODED for now as PinModal integration takes more steps. Ideally use PinModal.
-        })
-        
-        lastDonationAmount.value = donationForm.amount || 0
-        showDonateModal.value = false
-        showSuccessModal.value = true
-        loadData() // Refresh
-        
-        // Reset form
-        donationForm.amount = null
-        donationForm.message = ''
-        
-    } catch(e: any) {
-        alert(e.response?.data?.error || "Erreur lors du don")
-    } finally {
-        processing.value = false
-    }
+    // Use Global PIN Modal
+    requirePin(async (pin) => {
+         processing.value = true
+         try {
+            await donationApi.initiateDonation({
+                campaign_id: campaign.value.id,
+                amount: donationForm.amount,
+                currency: campaign.value.currency,
+                wallet_id: donationForm.walletId,
+                message: donationForm.message,
+                is_anonymous: donationForm.isAnonymous,
+                frequency: donationForm.frequency,
+                form_data: donationForm.isAnonymous ? {} : donationForm.formData, 
+                pin: pin 
+            })
+            
+            lastDonationAmount.value = donationForm.amount || 0
+            showDonateModal.value = false
+            showSuccessModal.value = true
+            loadData() // Refresh
+            
+            // Reset form
+            donationForm.amount = null
+            donationForm.message = ''
+            
+        } catch(e: any) {
+            alert(e.response?.data?.error || "Erreur lors du don")
+        } finally {
+            processing.value = false
+        }
+    })
 }
 
 const closeSuccess = () => {
@@ -480,3 +406,9 @@ onMounted(() => {
     loadData()
 })
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+</style>
