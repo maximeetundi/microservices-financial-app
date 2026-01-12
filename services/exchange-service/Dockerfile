@@ -21,6 +21,9 @@ COPY ./exchange-service/go.mod ./
 RUN go mod tidy
 RUN go mod download
 
+# Copy service source code
+COPY ./exchange-service .
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/exchange-service/main .
 
