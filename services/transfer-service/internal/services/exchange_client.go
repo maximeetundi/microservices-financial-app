@@ -51,10 +51,17 @@ func (c *ExchangeClient) GetRate(from, to string) (float64, error) {
 		return 0, err
 	}
 
-	// Assuming response format of GetSpecificRate: {"rate": 655.95}
+	// Check for nested structure {"rate": {"rate": 123.45, ...}}
+	if rateObj, ok := result["rate"].(map[string]interface{}); ok {
+		if rate, ok := rateObj["rate"].(float64); ok {
+			return rate, nil
+		}
+	}
+
+	// Check for simple structure {"rate": 123.45}
 	if rate, ok := result["rate"].(float64); ok {
 		return rate, nil
 	}
 	
-	return 0, fmt.Errorf("invalid rate response")
+	return 0, fmt.Errorf("invalid rate response structure: %v", result)
 }
