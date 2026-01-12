@@ -110,8 +110,19 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 		debitAmount := paymentReq.DebitAmount
 
 		// Auto-Conversion Check
-		payerWallet, err := c.walletClient.GetWallet(paymentReq.FromWalletID)
+		payerWallets, err := c.walletClient.GetUserWallets(paymentReq.UserID)
+		var payerWallet map[string]interface{}
+		
 		if err == nil {
+			for _, w := range payerWallets {
+				if id, ok := w["id"].(string); ok && id == paymentReq.FromWalletID {
+					payerWallet = w
+					break
+				}
+			}
+		}
+
+		if payerWallet != nil {
 			if walletCurrency, ok := payerWallet["currency"].(string); ok && walletCurrency != "" {
 				if walletCurrency != paymentReq.Currency {
 					log.Printf("[TRACE-FIAT] Currency Mismatch detected. Wallet: %s, Request: %s. Initiating Auto-Conversion.", walletCurrency, paymentReq.Currency)
@@ -128,6 +139,11 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 					// Rate is From -> To (e.g. USD -> XOF = 650)
 					// We need 'DebitAmount' in ToCurrency (XOF).
 					// So AmountInFrom = AmountInTo / Rate
+					if rate == 0 {
+						log.Printf("[Kafka] Auto-Conversion Failed: Rate is 0")
+						c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", "Auto-conversion failed: Rate is 0")
+						return fmt.Errorf("rate is 0")
+					}
 					debitAmount = paymentReq.DebitAmount / rate
 					debitCurrency = walletCurrency
 					
@@ -136,7 +152,16 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 				}
 			}
 		} else {
-			log.Printf("[TRACE-FIAT] Warning: Could not fetch payer wallet details: %v. Proceeding with default currency.", err)
+			// If we can't find the wallet details, we CANNOT proceed safely because we don't know the currency.
+			// The previous behavior was to default to Request Currency, which causes "Currency Mismatch" errors in Wallet Service
+			// if the wallet is actually different.
+			errMsg := fmt.Sprintf("Could not fetch payer wallet details for resolution (ID: %s). Auth restriction or invalid ID.", paymentReq.FromWalletID)
+			if err != nil {
+				errMsg += fmt.Sprintf(" Error: %v", err)
+			}
+			log.Printf("[TRACE-FIAT] Error: %s", errMsg)
+			c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", errMsg)
+			return fmt.Errorf(errMsg)
 		}
 
 		debitReq := &WalletTransactionRequest{

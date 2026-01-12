@@ -35,7 +35,7 @@ func (c *ExchangeClient) GetRate(from, to string) (float64, error) {
 		return 1.0, nil
 	}
 
-	url := fmt.Sprintf("%s/api/v1/exchange/rates/%s/%s", c.baseURL, from, to)
+	url := fmt.Sprintf("%s/api/v1/rates/%s/%s", c.baseURL, from, to)
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
 		return 0, err
