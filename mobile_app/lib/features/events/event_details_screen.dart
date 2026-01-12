@@ -371,32 +371,40 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ),
             ],
           ),
-          if (!widget.isOwner && !isSoldOut) ...[
+          if (!widget.isOwner) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PurchaseTicketScreen(
-                        event: _event!,
-                        tier: tier,
-                      ),
-                    ),
-                  ).then((_) => _loadEvent()); // Refresh after purchase
-                },
+                onPressed: _event!['status'] == 'active' && !isSoldOut
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PurchaseTicketScreen(
+                              event: _event!,
+                              tier: tier,
+                            ),
+                          ),
+                        ).then((_) => _loadEvent()); // Refresh after purchase
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _hexToColor(tier['color'] ?? '#6366f1'),
+                  disabledBackgroundColor: Colors.white.withOpacity(0.1),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
-                  'Acheter ce ticket',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                child: Text(
+                  _event!['status'] == 'active'
+                      ? (isSoldOut ? 'Épuisé' : 'Acheter ce ticket')
+                      : 'Ventes fermées',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: _event!['status'] == 'active' && !isSoldOut ? Colors.white : Colors.white54,
+                  ),
                 ),
               ),
             ),
