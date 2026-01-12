@@ -601,6 +601,11 @@ class _ModernHomePageState extends State<ModernHomePage>
                   label: 'Convertir',
                   onTap: () => context.push('/exchange/fiat'),
                 ),
+                QuickActionItem(
+                  emoji: '🤲',
+                  label: 'Dons',
+                  onTap: () => context.push('/donations'),
+                ),
               ],
             ),
           ],
