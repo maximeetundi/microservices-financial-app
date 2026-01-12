@@ -205,29 +205,18 @@ const onPinClose = () => {
 }
 
 // Check PIN status on mount (only once per session)
+// Check PIN status on mount
 onMounted(async () => {
-  // Skip if already checked in this session or PIN is set
-  const alreadyChecked = sessionStorage.getItem('pin_status_checked')
-  const pinAlreadySet = sessionStorage.getItem('has_pin') === 'true'
-  
-  if (pinAlreadySet || pinState.value.hasPin) {
-    return // PIN already set, no need to show modal
-  }
-  
-  if (!alreadyChecked) {
-    sessionStorage.setItem('pin_status_checked', 'true')
-    try {
-      const hasPinSet = await checkPinStatus()
-      if (hasPinSet) {
-        sessionStorage.setItem('has_pin', 'true')
-      } else {
-        // Force PIN setup if user doesn't have one
-        showPinSetup()
-      }
-    } catch (error) {
-      console.error('Failed to check PIN status:', error)
-      // Don't show modal on error - let user continue
+  try {
+    // Always check PIN status to ensure state is synced with backend
+    const hasPinSet = await checkPinStatus()
+    
+    // If user has NO PIN, prompt them to set it up
+    if (!hasPinSet) {
+      showPinSetup()
     }
+  } catch (error) {
+    console.error('Failed to check PIN status:', error)
   }
 })
 
