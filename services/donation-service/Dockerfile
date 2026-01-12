@@ -2,8 +2,15 @@ FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
 
+# Copy common module first (required for local replace directive)
+COPY ./common ./common
+
 # Copy go mod file
-COPY ./donation-service/go.mod ./
+COPY ./donation-service/go.mod ./donation-service/
+
+# Download dependencies
+WORKDIR /app/donation-service
+RUN go mod download || true
 
 # Copy the source from the current directory to the Working Directory inside the container
 COPY ./donation-service .
@@ -20,7 +27,7 @@ FROM alpine:latest
 WORKDIR /root/
 
 # Copy the Pre-built binary file from the previous stage
-COPY --from=builder /app/donation-service .
+COPY --from=builder /app/donation-service/donation-service .
 
 # Expose port 8096 to the outside world
 EXPOSE 8096

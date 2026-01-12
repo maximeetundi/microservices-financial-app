@@ -9,13 +9,12 @@ RUN apk add --no-cache git
 # Copy common module first (required for local replace directive)
 COPY ./common ./common
 
-# Copy go mod files
+# Copy go mod file
+COPY ./wallet-service/go.mod ./wallet-service/
+
 # Download dependencies
 WORKDIR /app/wallet-service
 RUN go mod download || true
-
-# Copy go mod file
-COPY ./wallet-service/go.mod ./
 
 # Copy service source code
 COPY ./wallet-service .
