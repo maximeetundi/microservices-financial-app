@@ -203,7 +203,7 @@ export const userAPI = {
     revokeAllSessions: () => api.delete('/auth-service/api/v1/sessions'),
 
     // PIN (5-digit transaction security PIN)
-    checkPinStatus: () => api.get('/auth-service/api/v1/users/pin/status'),
+    checkPinStatus: () => api.get(`/auth-service/api/v1/users/pin/status?t=${Date.now()}`),
     setupPin: (data: { pin: string, confirm_pin: string }) =>
         api.post('/auth-service/api/v1/users/pin/setup', data),
     verifyPin: (data: { pin: string }) =>

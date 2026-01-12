@@ -764,6 +764,11 @@ func (h *AuthHandler) CheckPinStatus(c *gin.Context) {
 		return
 	}
 
+	// Prevent caching of security status
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
 	c.JSON(http.StatusOK, gin.H{
 		"has_pin": hasPin,
 		"required": true,
