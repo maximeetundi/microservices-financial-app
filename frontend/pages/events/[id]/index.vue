@@ -484,8 +484,6 @@ const executePurchase = async (pin) => {
     })
     
     purchasedTicket.value = res.data?.ticket
-    showPinModal.value = false
-    purchaseSuccess.value = true
   } catch (e) {
     console.error("DEBUG PURCHASE ERROR:", e)
     const errMsg = e.response?.data?.error || e.message || 'Erreur lors du paiement.'
@@ -494,14 +492,6 @@ const executePurchase = async (pin) => {
   } finally {
     purchasing.value = false
   }
-}
-
-// Close PIN modal and go back to purchase modal
-const closePinModal = () => {
-  showPinModal.value = false
-  pin.value = ''
-  purchaseError.value = ''
-  showPurchaseModal.value = true
 }
 
 const purchaseTicket = async () => {
@@ -519,7 +509,6 @@ const purchaseTicket = async () => {
     })
     
     purchasedTicket.value = res.data?.ticket
-    showPinModal.value = false
     purchaseSuccess.value = true
   } catch (e) {
     purchaseError.value = e.response?.data?.error || 'Erreur lors du paiement. Vérifiez votre PIN et réessayez.'

@@ -83,15 +83,22 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 			log.Printf("[TRACE-FIAT] No wallet found, creating new one for UserID: %s", paymentReq.DestinationUserID)
 			newWalletID, err := c.walletClient.CreateUserWallet(paymentReq.DestinationUserID, paymentReq.Currency)
 			if err != nil {
-				log.Printf("[Kafka] Failed to create wallet for destination user: %v", err)
-				// We can't proceed with credit, so we must fail and potentially refund/rollback
-				// Ideally we should rollback debit if it happened, but debit happens before this block in current flow?
-				// WAIT: Debit happens in lines 62-78. We should move this resolution BEFORE debit to be safe.
+				errMsg := "Failed to create wallet for destination user: " + err.Error()
+				log.Printf("[Kafka] %s", errMsg)
+				c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "failed", errMsg)
+				return nil // Stop processing
 			} else {
 				paymentReq.ToWalletID = newWalletID
 				log.Printf("[TRACE-FIAT] Created new wallet: %s", newWalletID)
 			}
 		}
+	} else if paymentReq.ToWalletID == "" && paymentReq.CreditAmount > 0 {
+		// If no destination wallet and no destination user, but credit is expected -> Error
+		// Unless it is a special burn/fee case? Assuming error for now.
+		// Actually, some flows might assume "system wallet" if missing? 
+		// But for ticket purchase, it's critical.
+		// Let's log warning.
+		log.Printf("[WARNING] CreditAmount > 0 but ToWalletID and DestinationUserID are empty!")
 	}
 
 	// Process debit operation via wallet client

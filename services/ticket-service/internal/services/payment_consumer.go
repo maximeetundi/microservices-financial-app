@@ -50,7 +50,7 @@ func (c *PaymentStatusConsumer) handlePaymentEvent(ctx context.Context, event *m
 		return err
 	}
 
-	log.Printf("[Kafka] Payment status for Request: %s - Status: %s", statusEvent.RequestID, statusEvent.Status)
+	log.Printf("[Kafka] Payment status for Request: %s - Status: %s - Error: %s", statusEvent.RequestID, statusEvent.Status, statusEvent.Error)
 
 	// Determine new ticket status
 	newStatus := "paid"
