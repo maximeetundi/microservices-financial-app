@@ -9,6 +9,7 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/services"
 	"github.com/gin-contrib/cors"
@@ -118,18 +119,19 @@ func main() {
 		// Internal routes (if any)
 		// Public routes
 		
-		// Campaigns
-		api.POST("/campaigns", campaignHandler.Create)
-		api.GET("/campaigns", campaignHandler.List)
-		api.GET("/campaigns/:id", campaignHandler.Get)
-		api.PUT("/campaigns/:id", campaignHandler.Update)
-		
-		// Donations
-		api.POST("/donations", donationHandler.Initiate)
-		api.GET("/donations", donationHandler.List)
-		
-		// Utility
-		api.POST("/upload", uploadHandler.UploadMedia)
+	// Public Routes
+	api.GET("/campaigns", campaignHandler.List)
+	api.GET("/campaigns/:id", campaignHandler.Get)
+	api.GET("/donations", donationHandler.List)
+
+	// Protected Routes
+	protected := api.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.POST("/campaigns", campaignHandler.Create)
+		protected.PUT("/campaigns/:id", campaignHandler.Update)
+		protected.POST("/donations", donationHandler.Initiate)
+		protected.POST("/upload", uploadHandler.UploadMedia)
 	}
 
 	log.Printf("Donation service starting on port %s...", cfg.Port)
