@@ -133,6 +133,7 @@ func main() {
 		protected.POST("/donations", donationHandler.Initiate)
 		protected.POST("/upload", uploadHandler.UploadMedia)
 	}
+	}
 
 	log.Printf("Donation service starting on port %s...", cfg.Port)
 	if err := router.Run(":" + cfg.Port); err != nil {
