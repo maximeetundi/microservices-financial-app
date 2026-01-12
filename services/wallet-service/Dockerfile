@@ -10,17 +10,19 @@ RUN apk add --no-cache git
 COPY ./common ./common
 
 # Copy go mod files
-COPY ./wallet-service/go.mod ./wallet-service/go.sum* ./wallet-service/
-
 # Download dependencies
 WORKDIR /app/wallet-service
 RUN go mod download || true
 
+# Copy go mod file
+COPY go.mod ./
+
+# Download all dependencies. Run tidy to ensure go.sum exists
+RUN go mod tidy
+RUN go mod downloady && go mod download
+
 # Copy service source code
 COPY ./wallet-service .
-
-# Tidy and download dependencies (regenerates go.sum if needed)
-RUN go mod tidy && go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/wallet-service/main .

@@ -10,17 +10,19 @@ RUN apk add --no-cache git
 COPY ./common ./common
 
 # Copy go mod files
-COPY ./transfer-service/go.mod ./transfer-service/go.sum* ./transfer-service/
-
 # Download dependencies
 WORKDIR /app/transfer-service
 RUN go mod download || true
 
+# Copy go mod file
+COPY go.mod ./
+
+# Download all dependencies. Run tidy to ensure go.sum exists
+RUN go mod tidy
+RUN go mod downloady && go mod download
+
 # Copy service source code
 COPY ./transfer-service .
-
-# Tidy and download dependencies (regenerates go.sum if needed)
-RUN go mod tidy && go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/transfer-service/main .

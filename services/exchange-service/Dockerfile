@@ -10,17 +10,16 @@ RUN apk add --no-cache git
 COPY ./common ./common
 
 # Copy go mod files
-COPY ./exchange-service/go.mod ./exchange-service/go.sum* ./exchange-service/
-
 # Download dependencies
 WORKDIR /app/exchange-service
 RUN go mod download || true
 
-# Copy service source code
-COPY ./exchange-service .
+# Copy go mod file
+COPY go.mod ./
 
-# Tidy and download dependencies (regenerates go.sum if needed)
-RUN go mod tidy && go mod download
+# Download all dependencies. Run tidy to ensure go.sum exists
+RUN go mod tidy
+RUN go mod downloady && go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/exchange-service/main .
