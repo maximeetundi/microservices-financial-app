@@ -253,10 +253,11 @@
 
 <script setup lang="ts">
 import { useApi } from '~/composables/useApi'
-import { useAuth } from '~/composables/useAuth'
+import { useAuthStore } from '~/stores/auth'
 import { usePin } from '~/composables/usePin'
 
-const { user } = useAuth()
+const authStore = useAuthStore()
+const user = computed(() => authStore.user)
 const { requirePin } = usePin()
 const route = useRoute()
 const apiContext = useApi()
