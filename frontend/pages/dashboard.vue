@@ -321,6 +321,15 @@ const fetchDashboardData = async () => {
     loading.value = true
   }
 
+  // Ensure user profile is loaded
+  if (!authStore.user?.first_name) {
+    try {
+        await authStore.fetchUserProfile()
+    } catch (e) {
+        console.error('Failed to fetch user profile:', e)
+    }
+  }
+
   try {
     // Trigger wallet fetch in background (store handles logic)
     walletStore.fetchWallets()

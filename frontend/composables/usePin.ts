@@ -24,7 +24,7 @@ export function usePin() {
             return response.data.has_pin
         } catch (error) {
             console.error('Failed to check PIN status:', error)
-            return false
+            throw error // Re-throw to allow caller to handle failure vs "no PIN"
         } finally {
             pinState.value.isLoading = false
         }
