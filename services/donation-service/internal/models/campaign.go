@@ -24,6 +24,8 @@ type Campaign struct {
 	ImageURL        string             `bson:"image_url" json:"image_url"`
 	VideoURL        string             `bson:"video_url" json:"video_url"`
 	TargetAmount    float64            `bson:"target_amount" json:"target_amount"`       // 0 for open ended
+	MinAmount       float64            `bson:"min_amount" json:"min_amount"`             // Minimum donation amount
+	MaxAmount       float64            `bson:"max_amount" json:"max_amount"`             // Maximum donation amount
 	CollectedAmount float64            `bson:"collected_amount" json:"collected_amount"`
 	Currency        string             `bson:"currency" json:"currency"`
 	Status          CampaignStatus     `bson:"status" json:"status"`
