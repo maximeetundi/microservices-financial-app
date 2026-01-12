@@ -240,6 +240,7 @@ export const userAPI = {
 export const walletAPI = {
     getAll: () => api.get('/wallet-service/api/v1/wallets'),
     getWallets: () => api.get('/wallet-service/api/v1/wallets'),
+    getMyWallets: () => api.get('/wallet-service/api/v1/wallets'),
     get: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}`),
     create: (data: { currency: string, wallet_type: string, name?: string, description?: string }) =>
         api.post('/wallet-service/api/v1/wallets', data),

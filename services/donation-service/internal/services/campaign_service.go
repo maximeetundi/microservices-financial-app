@@ -1,8 +1,14 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/skip2/go-qrcode"
 
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/donation-service/internal/repository"
@@ -24,8 +30,14 @@ func (s *CampaignService) CreateCampaign(campaign *models.Campaign) error {
 		return errors.New("creator_id is required")
 	}
 	
-	campaign.Status = models.CampaignStatusActive // Default to active? Or Draft?
-	// If draft, user needs to publish. Let's start with Active for MVP simplicity unless configured otherwise.
+	// Generate Campaign Code
+	campaign.CampaignCode = s.generateCampaignCode()
+
+	// Generate QR Code
+	qrData := fmt.Sprintf("ZEKORA_CAMPAIGN:%s", campaign.CampaignCode)
+	campaign.QRCode = s.generateQRCodeBase64(qrData)
+
+	campaign.Status = models.CampaignStatusActive // Default to active
 	
 	campaign.CreatedAt = time.Now()
 	campaign.UpdatedAt = time.Now()
@@ -56,4 +68,21 @@ func (s *CampaignService) UpdateCampaign(id, creatorID string, updates map[strin
 	}
 	
 	return s.repo.Update(id, updates)
+}
+
+// Helpers
+
+func (s *CampaignService) generateCampaignCode() string {
+	b := make([]byte, 6)
+	rand.Read(b)
+	code := strings.ToUpper(base64.RawURLEncoding.EncodeToString(b))
+	return "CPN-" + code[:8]
+}
+
+func (s *CampaignService) generateQRCodeBase64(data string) string {
+	qr, err := qrcode.Encode(data, qrcode.Medium, 256)
+	if err != nil {
+		return ""
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(qr)
 }

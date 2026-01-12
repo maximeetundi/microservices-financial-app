@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../../../../core/services/donation_api_service.dart';
 import '../widgets/donate_modal.dart';
+import 'donors_list_page.dart';
 
 class CampaignDetailPage extends StatefulWidget {
   final String campaignId;
@@ -52,6 +54,7 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
       builder: (context) => DonateModal(
         campaignId: widget.campaignId,
         currency: _campaign!['currency'] ?? 'XOF',
+        formSchema: _campaign!['form_schema'] != null ? List<dynamic>.from(_campaign!['form_schema']) : null,
       ),
     ).then((result) {
       if (result == true) {
@@ -134,6 +137,50 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
                   ),
                   const SizedBox(height: 24),
 
+                  // QR & Code
+                  if (campaign['qr_code'] != null && campaign['campaign_code'] != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        children: [
+                             // QR Image
+                             Container(
+                               height: 80, 
+                               width: 80,
+                               decoration: BoxDecoration(
+                                 color: Colors.white,
+                                 borderRadius: BorderRadius.circular(8),
+                               ),
+                               padding: const EdgeInsets.all(4),
+                               child: Image.memory(
+                                 base64Decode(campaign['qr_code'].toString().split(',').last),
+                               ),
+                             ),
+                             const SizedBox(width: 16),
+                             Expanded(
+                               child: Column(
+                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                 children: [
+                                   const Text('Code Campagne', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                   Text(
+                                     campaign['campaign_code'], 
+                                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                                   ),
+                                   const SizedBox(height: 4),
+                                   const Text('Scannez pour donner', style: TextStyle(color: Color(0xFF6366f1), fontSize: 12)),
+                                 ],
+                               )
+                             )
+                        ],
+                      ),
+                    ),
+
                   // Progress
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -195,7 +242,12 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
                         'Derniers dons',
                         style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      TextButton(onPressed: (){}, child: const Text('Voir tout'))
+                      TextButton(
+                        onPressed: (){
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => DonorsListPage(campaignId: widget.campaignId)));
+                        },
+                        child: const Text('Voir tout'),
+                      )
                     ],
                   ),
                   if (_donations.isEmpty)

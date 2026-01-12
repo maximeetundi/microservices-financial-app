@@ -57,9 +57,10 @@ func main() {
 
 	// 5. Initialize Services
 	walletClient := services.NewWalletClient()
+	userClient := services.NewUserClient()
 	
 	campaignService := services.NewCampaignService(campaignRepo)
-	donationService := services.NewDonationService(donationRepo, campaignRepo, walletClient, kafkaClient)
+	donationService := services.NewDonationService(donationRepo, campaignRepo, walletClient, userClient, kafkaClient)
 	
 	paymentConsumer := services.NewPaymentConsumer(kafkaClient, donationRepo, campaignRepo)
 

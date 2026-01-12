@@ -66,6 +66,7 @@ class DonationApiService {
     String message = '',
     bool isAnonymous = false,
     String frequency = 'one_time',
+    Map<String, dynamic>? formData,
   }) async {
     final response = await _client.post(
       '/donation-service/api/v1/donations',
@@ -78,6 +79,7 @@ class DonationApiService {
         'message': message,
         'is_anonymous': isAnonymous,
         'frequency': frequency,
+        'form_data': formData,
       },
     );
     if (response.statusCode == 201 || response.statusCode == 200) {

@@ -15,6 +15,7 @@ type DonationService struct {
 	donationRepo *repository.DonationRepository
 	campaignRepo *repository.CampaignRepository
 	walletClient *WalletClient
+	userClient   *UserClient
 	kafkaClient  *messaging.KafkaClient
 }
 
@@ -22,12 +23,14 @@ func NewDonationService(
 	donationRepo *repository.DonationRepository, 
 	campaignRepo *repository.CampaignRepository, 
 	walletClient *WalletClient,
+	userClient   *UserClient,
 	kafkaClient  *messaging.KafkaClient,
 ) *DonationService {
 	return &DonationService{
 		donationRepo: donationRepo,
 		campaignRepo: campaignRepo,
 		walletClient: walletClient,
+		userClient:   userClient,
 		kafkaClient:  kafkaClient,
 	}
 }
@@ -42,9 +45,15 @@ type InitiateDonationRequest struct {
 	Message    string  `json:"message"`
 	IsAnonymous bool   `json:"is_anonymous"`
 	Frequency  models.DonationFrequency `json:"frequency"`
+	FormData   map[string]interface{}   `json:"form_data"`
 }
 
-func (s *DonationService) InitiateDonation(req *InitiateDonationRequest) (*models.Donation, error) {
+func (s *DonationService) InitiateDonation(req *InitiateDonationRequest, token string) (*models.Donation, error) {
+	// 0. Verify PIN securely
+	if err := s.userClient.VerifyPin(req.DonorID, req.PIN, token); err != nil {
+		return nil, fmt.Errorf("security check failed: %w", err)
+	}
+
 	// 1. Get Campaign
 	campaign, err := s.campaignRepo.GetByID(req.CampaignID)
 	if err != nil {
@@ -75,6 +84,7 @@ func (s *DonationService) InitiateDonation(req *InitiateDonationRequest) (*model
 		Frequency:   req.Frequency,
 		Status:      models.DonationStatusPending,
 		PaymentWalletID: req.WalletID,
+		FormData:    req.FormData,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}

@@ -32,7 +32,8 @@ func (h *DonationHandler) Initiate(c *gin.Context) {
 		// If guest, DonorID is empty.
 	}
 
-	donation, err := h.service.InitiateDonation(&req)
+	token := c.GetHeader("Authorization")
+	donation, err := h.service.InitiateDonation(&req, token)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

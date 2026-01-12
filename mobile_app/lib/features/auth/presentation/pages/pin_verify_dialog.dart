@@ -8,27 +8,31 @@ import '../../../../core/services/biometric_service.dart';
 class PinVerifyDialog extends StatefulWidget {
   final String? title;
   final String? subtitle;
-  final bool returnEncryptedPin; // Add this
+  final bool returnEncryptedPin; 
+  final bool returnRawPin; // Add this
 
   const PinVerifyDialog({
     super.key,
     this.title,
     this.subtitle,
     this.allowBiometric = true,
-    this.returnEncryptedPin = false, // Default false
+    this.returnEncryptedPin = false,
+    this.returnRawPin = false, // Default false
     this.onVerified,
     this.onCancelled,
   });
 
   /// Shows the PIN verification dialog
-  /// Returns true (bool) if verified and returnEncryptedPin is false
+  /// Returns true (bool) if verified and returnEncryptedPin/returnRawPin are false
   /// Returns encrypted PIN (String) if verified and returnEncryptedPin is true
+  /// Returns raw PIN (String) if verified and returnRawPin is true
   static Future<dynamic> show(
     BuildContext context, {
     String? title,
     String? subtitle,
     bool allowBiometric = true,
     bool returnEncryptedPin = false,
+    bool returnRawPin = false,
   }) async {
     final result = await showDialog<dynamic>(
       context: context,
@@ -39,6 +43,7 @@ class PinVerifyDialog extends StatefulWidget {
         subtitle: subtitle,
         allowBiometric: allowBiometric,
         returnEncryptedPin: returnEncryptedPin,
+        returnRawPin: returnRawPin,
       ),
     );
     return result ?? false;
@@ -184,7 +189,13 @@ class _PinVerifyDialogState extends State<PinVerifyDialog> with SingleTickerProv
     if (result.valid) {
       widget.onVerified?.call();
       if (mounted) {
-        Navigator.of(context).pop(widget.returnEncryptedPin ? result.encryptedPin : true);
+        dynamic returnValue = true;
+        if (widget.returnEncryptedPin) {
+          returnValue = result.encryptedPin;
+        } else if (widget.returnRawPin) {
+          returnValue = pin;
+        }
+        Navigator.of(context).pop(returnValue);
       }
     } else {
       // Enhanced Security: Clear PIN and RESHUFFLE keys on error

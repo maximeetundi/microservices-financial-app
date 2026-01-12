@@ -31,6 +31,9 @@ type Campaign struct {
 	AllowRecurring  bool               `bson:"allow_recurring" json:"allow_recurring"`
 	Tags            []string           `bson:"tags" json:"tags"`
 	
+	QRCode          string             `bson:"qr_code,omitempty" json:"qr_code,omitempty"`
+	CampaignCode    string             `bson:"campaign_code,omitempty" json:"campaign_code,omitempty"`
+	
 	// FormSchema for dynamic data collection from donors
 	FormSchema      []FormField `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
 

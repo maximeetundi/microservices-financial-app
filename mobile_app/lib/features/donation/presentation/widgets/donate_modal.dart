@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
-import '../../../../core/services/wallet_api_service.dart';
-import '../../../../core/services/donation_api_service.dart';
+import '../../features/auth/presentation/pages/pin_verify_dialog.dart';
 
 class DonateModal extends StatefulWidget {
   final String campaignId;
   final String currency;
+  final List<dynamic>? formSchema;
 
   const DonateModal({
     super.key,
     required this.campaignId,
     required this.currency,
+    this.formSchema,
   });
 
   @override
@@ -20,7 +20,6 @@ class _DonateModalState extends State<DonateModal> {
   final WalletApiService _walletApi = WalletApiService();
   final DonationApiService _donationApi = DonationApiService();
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _pinController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
 
   List<dynamic> _wallets = [];
@@ -30,6 +29,7 @@ class _DonateModalState extends State<DonateModal> {
   
   String _frequency = 'one_time';
   bool _isAnonymous = false;
+  final Map<String, dynamic> _formData = {};
 
   @override
   void initState() {
@@ -54,10 +54,32 @@ class _DonateModalState extends State<DonateModal> {
   }
 
   Future<void> _donate() async {
-    if (_amountController.text.isEmpty || _selectedWalletId == null || _pinController.text.isEmpty) {
+    if (_amountController.text.isEmpty || _selectedWalletId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir tous les champs')));
       return;
     }
+
+    // Validate Dynamic Fields
+    if (widget.formSchema != null) {
+      for (var field in widget.formSchema!) {
+        if (field['required'] == true) {
+          final val = _formData[field['name']];
+          if (val == null || val.toString().trim().isEmpty) {
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Le champ "${field['label']}" est obligatoire')));
+             return;
+          }
+        }
+      }
+    }
+
+    // Secure PIN Verification
+    final pin = await PinVerifyDialog.show(
+      context, 
+      returnRawPin: true,
+      subtitle: 'Confirmez un don de ${_amountController.text} ${widget.currency}',
+    );
+
+    if (pin == null || pin is! String) return; // Cancelled or failed
 
     setState(() => _submitting = true);
     
@@ -67,10 +89,11 @@ class _DonateModalState extends State<DonateModal> {
         amount: double.parse(_amountController.text),
         currency: widget.currency,
         walletId: _selectedWalletId!,
-        pin: _pinController.text,
+        pin: pin,
         message: _messageController.text,
         isAnonymous: _isAnonymous,
         frequency: _frequency,
+        formData: _formData,
       );
       
       if (mounted) {
@@ -148,6 +171,17 @@ class _DonateModalState extends State<DonateModal> {
               ),
             const SizedBox(height: 16),
 
+            // Dynamic Fields
+            if (widget.formSchema != null && widget.formSchema!.isNotEmpty) ...[
+               const Text('Informations supplémentaires', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+               const SizedBox(height: 12),
+               ...widget.formSchema!.map((field) => Padding(
+                 padding: const EdgeInsets.only(bottom: 12),
+                 child: _buildDynamicField(field),
+               )).toList(),
+               const SizedBox(height: 4),
+            ],
+
             // Wallet
             if (_loadingWallets)
               const Center(child: CircularProgressIndicator())
@@ -194,21 +228,6 @@ class _DonateModalState extends State<DonateModal> {
               onChanged: (val) => setState(() => _isAnonymous = val),
               activeColor: const Color(0xFF6366f1),
             ),
-            
-            // PIN
-            TextField(
-              controller: _pinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Code PIN',
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
             const SizedBox(height: 24),
 
             // Submit
@@ -228,6 +247,43 @@ class _DonateModalState extends State<DonateModal> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicField(Map<String, dynamic> field) {
+    String label = field['label'] ?? field['name'];
+    if (field['required'] == true) label += ' *';
+    
+    // For now simple text input for all types. Can be enhanced for 'select', 'date' etc.
+    final type = field['type'] ?? 'text';
+
+    if (type == 'select' && field['options'] != null) {
+      final options = List<String>.from(field['options']);
+      return DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.1),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+        dropdownColor: const Color(0xFF1a1a2e),
+        style: const TextStyle(color: Colors.white),
+        items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
+        onChanged: (val) => _formData[field['name']] = val,
+      );
+    }
+    
+    return TextField(
+      onChanged: (val) => _formData[field['name']] = val,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
