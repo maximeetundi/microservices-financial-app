@@ -225,7 +225,7 @@ const verifyPin = async () => {
 
     const res = await userAPI.verifyPin({ pin: payloadPin })
     if (res.data?.valid === true || res.status === 200) { 
-       emit('success', pin)
+       emit('success', payloadPin) // Emit the encrypted PIN
        emit('update:isOpen', false)
     } else {
        throw new Error('PIN incorrect')

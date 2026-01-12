@@ -151,7 +151,7 @@
             <p class="modal-subtitle">{{ selectedTier?.icon }} {{ selectedTier?.name }} - {{ formatAmount(selectedTier?.price || 0) }} {{ event?.currency }}</p>
             
             <!-- Form Fields -->
-            <form @submit.prevent="openPinModal">
+            <form @submit.prevent="handlePurchaseClick">
               <div v-for="field in event?.form_fields" :key="field.name" class="form-group">
                 <label>{{ field.label }} <span v-if="field.required">*</span></label>
                 
@@ -450,12 +450,18 @@ const handlePurchaseClick = async () => {
   
   // Use global PIN validation
   const { requirePin } = usePin()
-  await requirePin(async () => {
-      await executePurchase()
+  await requirePin(async (validatedPin) => {
+      await executePurchase(validatedPin)
   })
 }
 
-const executePurchase = async () => {
+// Handle PIN verification success
+const handlePinSuccess = async (validatedPin) => {
+  const { executePendingAction } = usePin()
+  await executePendingAction(validatedPin)
+}
+
+const executePurchase = async (pin) => {
   if (!selectedTier.value || !selectedWalletId.value) return
   
   purchasing.value = true
@@ -479,12 +485,13 @@ const executePurchase = async () => {
     
     // Changing strategy: usage of <PinModal> directly might be better if I need the PIN string.
     // Or I update usePin to pass the PIN to the callback.
+    // Use validated PIN passed by the modal callback
     const res = await ticketAPI.purchaseTicket({
       event_id: eventId,
       tier_id: selectedTier.value.id,
       form_data: formData,
       wallet_id: selectedWalletId.value,
-      pin: validatedPin // Use the pin returned by the modal (already encrypted if available)
+      pin: pin // Passed argument
     })
     
     purchasedTicket.value = res.data?.ticket

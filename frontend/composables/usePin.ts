@@ -9,7 +9,7 @@ const pinState = ref({
     isLoading: false,
     showSetupModal: false,
     showVerifyModal: false,
-    pendingAction: null as (() => Promise<void>) | null,
+    pendingAction: null as ((pin?: string) => Promise<void>) | null,
     verifyCallback: null as ((verified: boolean) => void) | null,
 })
 
@@ -91,7 +91,7 @@ export function usePin() {
     }
 
     // Require PIN before executing an action
-    const requirePin = (action: () => Promise<void>): Promise<boolean> => {
+    const requirePin = (action: (pin?: string) => Promise<void>): Promise<boolean> => {
         return new Promise((resolve) => {
             if (!pinState.value.hasPin) {
                 // No PIN set, require setup first
@@ -124,7 +124,7 @@ export function usePin() {
     }
 
     // Execute pending action after successful verification
-    const executePendingAction = async () => {
+    const executePendingAction = async (pin?: string) => {
         // Close modal FIRST
         pinState.value.showSetupModal = false
         pinState.value.showVerifyModal = false
@@ -139,7 +139,7 @@ export function usePin() {
         // Execute action if exists
         if (action) {
             try {
-                await action()
+                await action(pin)
             } catch (error) {
                 console.error('Pending action failed:', error)
             }
