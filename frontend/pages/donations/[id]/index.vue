@@ -35,60 +35,98 @@
                         </div>
                     </div>
                     
-                    <!-- Progress Card (Desktop Side) -->
-                    <div class="w-full md:w-80 bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="mb-4">
-                            <span class="text-3xl font-bold text-emerald-600">{{ formatAmount(campaign.collected_amount, campaign.currency) }}</span>
-                            <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">récoltés</span>
-                        </div>
-                        
-                        <div class="bg-gray-200 dark:bg-gray-700 h-3 rounded-full overflow-hidden mb-2">
-                             <div class="bg-emerald-500 h-full rounded-full transition-all duration-1000" :style="{ width: getProgress(campaign) + '%' }"></div>
-                        </div>
-                        
-                        <div v-if="campaign.target_amount > 0" class="flex justify-between text-sm text-gray-500 mb-6">
-                            <span>Objectif: {{ formatAmount(campaign.target_amount, campaign.currency) }}</span>
-                            <span>{{ Math.round(getProgress(campaign)) }}%</span>
-                        </div>
-                        <div v-else class="text-sm text-emerald-600 font-medium mb-6">Objectif illimité 🚀</div>
+                    <!-- Right Column (Progress & Share) (Desktop) -->
+                    <div class="w-full md:w-80 flex flex-col gap-6">
+                        <!-- Progress Card -->
+                        <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                             <!-- ... (Progress content preserved) ... -->
+                            <div class="mb-4">
+                                <span class="text-3xl font-bold text-emerald-600">{{ formatAmount(campaign.collected_amount, campaign.currency) }}</span>
+                                <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">récoltés</span>
+                            </div>
+                            
+                            <div class="bg-gray-200 dark:bg-gray-700 h-3 rounded-full overflow-hidden mb-2">
+                                 <div class="bg-emerald-500 h-full rounded-full transition-all duration-1000" :style="{ width: getProgress(campaign) + '%' }"></div>
+                            </div>
+                            
+                            <div v-if="campaign.target_amount > 0" class="flex justify-between text-sm text-gray-500 mb-6">
+                                <span>Objectif: {{ formatAmount(campaign.target_amount, campaign.currency) }}</span>
+                                <span>{{ Math.round(getProgress(campaign)) }}%</span>
+                            </div>
+                            <div v-else class="text-sm text-emerald-600 font-medium mb-6">Objectif illimité 🚀</div>
 
-                        <button @click="openDonateModal" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1">
-                            Faire un don ❤️
-                        </button>
+                            <button @click="openDonateModal" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1">
+                                Faire un don ❤️
+                            </button>
+                        </div>
+
+                        <!-- Share Card (Creator Only) -->
+                        <div v-if="isCreator" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <h4 class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                               <span>📱</span> Partager (Visible par vous seul)
+                            </h4>
+                            
+                            <!-- QR Code -->
+                            <div v-if="campaign.qr_code_url" class="flex justify-center mb-4 bg-white p-2 rounded-xl border border-gray-100">
+                                 <img :src="campaign.qr_code_url" class="w-32 h-32 object-contain" alt="QR Code">
+                            </div>
+
+                            <!-- Code -->
+                            <div v-if="campaign.code" class="bg-gray-50 dark:bg-slate-800 p-3 rounded-xl flex justify-between items-center mb-4">
+                                <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-lg">{{ campaign.code }}</span>
+                                <button @click="copyCode(campaign.code)" class="text-xs bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 transition-colors">Copier</button>
+                            </div>
+                            
+                            <p class="text-xs text-center text-gray-500 leading-relaxed">
+                                Scannez ce code pour tester ou partagez-le avec vos donateurs.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Description -->
-                <div class="prose dark:prose-invert max-w-none mb-12">
-                    <h3 class="text-xl font-bold mb-4">À propos</h3>
-                    <p class="whitespace-pre-line text-gray-600 dark:text-gray-300 leading-relaxed">{{ campaign.description }}</p>
-                </div>
+                <!-- ... Description ... -->
 
-                <!-- Wall of Donors -->
+                <!-- Wall of Donors (Refined) -->
                 <div>
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
-                        <span>🏆</span> Mur des donateurs
+                    <h3 class="text-2xl font-bold mb-8 flex items-center gap-3 text-gray-900 dark:text-white">
+                        <span class="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-lg">🏆</span> Mur des donateurs
                     </h3>
                     
-                    <div v-if="donations.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div v-for="donation in donations" :key="donation.id" class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700">
-                            <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-xl">
-                                {{ donation.is_anonymous ? '🕵️' : '👤' }}
+                    <div v-if="donations.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="donation in donations" :key="donation.id" 
+                             class="group relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            
+                            <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-bl-full -mr-6 -mt-6"></div>
+
+                            <div class="flex items-start gap-4 mb-4">
+                                <div class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-xl font-bold shadow-inner"
+                                     :class="donation.is_anonymous ? 'bg-gray-100 dark:bg-gray-700 text-gray-500' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600'">
+                                    {{ donation.is_anonymous ? '?' : (donation.donor_name?.[0]?.toUpperCase() || 'B') }}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-900 dark:text-white text-lg">
+                                        {{ donation.is_anonymous ? 'Donateur Anonyme' : (donation.donor_name || 'Bienfaiteur') }}
+                                    </p>
+                                    <p class="text-sm text-gray-500">{{ formatDate(donation.created_at) }}</p>
+                                </div>
                             </div>
-                            <div class="flex-1">
-                                <p class="font-bold text-gray-900 dark:text-white">
-                                    {{ donation.is_anonymous ? 'Donateur Anonyme' : (donation.donor_name || 'Bienfaiteur') }}
-                                </p>
-                                <p class="text-sm text-gray-500">{{ formatDate(donation.created_at) }}</p>
-                                <div v-if="donation.message" class="text-xs text-gray-400 italic mt-1">"{{ donation.message }}"</div>
-                            </div>
-                            <div class="font-bold text-emerald-600">
-                                +{{ formatAmount(donation.amount, donation.currency) }}
+
+                            <div class="flex justify-between items-end">
+                                <div class="flex-1 pr-4">
+                                    <p v-if="donation.message" class="text-sm text-gray-600 dark:text-gray-300 italic relative pl-3 border-l-2 border-indigo-200 dark:border-indigo-800 line-clamp-2">
+                                        {{ donation.message }}
+                                    </p>
+                                </div>
+                                <div class="font-bold text-xl text-emerald-600 tabular-nums">
+                                    +{{ formatAmount(donation.amount, donation.currency) }}
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div v-else class="text-center py-8 text-gray-500 bg-gray-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                        Soyez le premier à soutenir cette cause ! 🚀
+                    <div v-else class="text-center py-12 px-6 bg-gray-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                        <div class="text-4xl mb-3">🌱</div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white">Soyez le premier à planter une graine !</h4>
+                        <p class="text-gray-500">Votre soutien peut déclencher une vague de générosité.</p>
                     </div>
                 </div>
             </div>
@@ -98,8 +136,8 @@
     <!-- Donate Modal -->
     <Teleport to="body">
         <div v-if="showDonateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showDonateModal = false">
-            <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800">
-                <div class="p-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]">
+                <div class="p-6 overflow-y-auto custom-scrollbar"> 
                     <h3 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Faire un don ❤️</h3>
                     
                     <!-- Amount -->
@@ -135,8 +173,19 @@
                         <textarea v-model="donationForm.message" rows="2" class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="Un petit mot pour l'organisateur..."></textarea>
                     </div>
 
-                    <!-- Dynamic Fields -->
-                    <div v-if="campaign?.form_schema?.length" class="mb-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+                    <!-- Anonymous Toggle -->
+                    <div class="mb-6">
+                        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                            <input type="checkbox" v-model="donationForm.isAnonymous" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                            <div>
+                                <span class="block font-medium text-gray-900 dark:text-white">Rester anonyme</span>
+                                <span class="block text-xs text-gray-500">Masquer mon nom et ignorer les détails facultatifs.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Dynamic Fields (Hidden if Anonymous) -->
+                    <div v-if="campaign?.form_schema?.length && !donationForm.isAnonymous" class="mb-6 border-t border-gray-100 dark:border-gray-800 pt-4 animate-in slide-in-from-top-2">
                         <h4 class="font-bold text-sm mb-4 text-gray-900 dark:text-white">Informations complémentaires</h4>
                         <div v-for="field in campaign.form_schema" :key="field.name" class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -155,19 +204,8 @@
                         </div>
                     </div>
 
-                    <!-- Anonymous -->
-                    <div class="mb-6">
-                        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
-                            <input type="checkbox" v-model="donationForm.isAnonymous" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
-                            <div>
-                                <span class="block font-medium text-gray-900 dark:text-white">Rester anonyme</span>
-                                <span class="block text-xs text-gray-500">Votre nom ne sera pas affiché publiquement.</span>
-                            </div>
-                        </label>
-                    </div>
-
                     <!-- Wallet Selection -->
-                    <div class="mb-6">
+                    <div class="mb-8">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payer avec</label>
                          <select v-model="donationForm.walletId" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800">
                              <option value="" disabled>Choisir un portefeuille</option>
@@ -181,13 +219,100 @@
                         <button @click="showDonateModal = false" class="flex-1 px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors">Annuler</button>
                         <button @click="processDonation" :disabled="processing || !isValidDonation" class="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
                             <span v-if="processing" class="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></span>
-                            {{ processing ? 'Traitement...' : 'Confirmer le Don' }}
+                            {{ processing ? 'Confirmer le Don' : 'Confirmer le Don' }}
                         </button>
                     </div>
                 </div>
             </div>
         </div>
     </Teleport>
+
+    <style scoped>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+    </style>
+    
+    <!-- UseAuth Import -->
+    <script setup lang="ts">
+    import { useAuth } from '~/composables/useAuth'
+    import { usePin } from '~/composables/usePin' 
+    
+    const { user } = useAuth()
+    const { requirePin } = usePin()
+    const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id) // Correct placement
+    
+    const apiContext = useApi()
+    const { donationApi } = apiContext
+    
+    // ... imports ...
+
+    const donationForm = reactive({
+        amount: null as number | null,
+        frequency: 'one_time',
+        isAnonymous: false,
+        message: '',
+        walletId: '',
+        // pin removed
+        formData: {} as Record<string, any>
+    })
+
+    // ...
+
+    const isValidDonation = computed(() => {
+        return donationForm.amount && 
+               donationForm.amount > 0 && 
+               donationForm.walletId
+    })
+
+    const processDonation = async () => {
+        if (!isValidDonation.value) return
+    
+        // Validate Dynamic Fields (Skip if Anonymous)
+        if (campaign.value.form_schema && !donationForm.isAnonymous) {
+            for (const field of campaign.value.form_schema) {
+                 if (field.required) {
+                     const val = donationForm.formData[field.name]
+                     if (!val || val.toString().trim() === '') {
+                         alert(`Le champ "${field.label}" est obligatoire.`)
+                         return
+                     }
+                 }
+            }
+        }
+    
+        // Use Global PIN Modal
+        requirePin(async (pin) => {
+             processing.value = true
+             try {
+                await donationApi.initiateDonation({
+                    campaign_id: campaign.value.id,
+                    amount: donationForm.amount,
+                    currency: campaign.value.currency,
+                    wallet_id: donationForm.walletId,
+                    message: donationForm.message,
+                    is_anonymous: donationForm.isAnonymous,
+                    frequency: donationForm.frequency,
+                    form_data: donationForm.isAnonymous ? {} : donationForm.formData, 
+                    pin: pin 
+                })
+                
+                lastDonationAmount.value = donationForm.amount || 0
+                showDonateModal.value = false
+                showSuccessModal.value = true
+                loadData() // Refresh
+                
+                // Reset form
+                donationForm.amount = null
+                donationForm.message = ''
+                
+            } catch(e: any) {
+                alert(e.response?.data?.error || "Erreur lors du don")
+            } finally {
+                processing.value = false
+            }
+        })
+    }
 
     <!-- Success Modal -->
      <Teleport to="body">
@@ -344,6 +469,11 @@ const formatAmount = (amount: number, currency: string) => {
 
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('fr-FR')
+}
+
+const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code)
+    alert('Code copié !')
 }
 
 onMounted(() => {

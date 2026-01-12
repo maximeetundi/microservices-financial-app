@@ -60,8 +60,17 @@ func (s *DonationService) InitiateDonation(req *InitiateDonationRequest, token s
 		return nil, errors.New("campaign not found")
 	}
 	
+
 	if campaign.Status != models.CampaignStatusActive {
 		return nil, errors.New("campaign is not active")
+	}
+
+	// 1b. Validate Amount Limits
+	if campaign.MinAmount > 0 && req.Amount < campaign.MinAmount {
+		return nil, fmt.Errorf("amount below minimum allowed (%f %s)", campaign.MinAmount, campaign.Currency)
+	}
+	if campaign.MaxAmount > 0 && req.Amount > campaign.MaxAmount {
+		return nil, fmt.Errorf("amount exceeds maximum allowed (%f %s)", campaign.MaxAmount, campaign.Currency)
 	}
 
 	// 2. Validate Frequency
