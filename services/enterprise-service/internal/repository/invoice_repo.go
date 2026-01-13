@@ -46,3 +46,19 @@ func (r *InvoiceRepository) FindByEnterprise(ctx context.Context, enterpriseID s
 	}
 	return invs, nil
 }
+
+func (r *InvoiceRepository) FindBySubscriptionID(ctx context.Context, subscriptionID string) ([]models.Invoice, error) {
+	oid, err := primitive.ObjectIDFromHex(subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := r.collection.Find(ctx, bson.M{"subscription_id": oid})
+	if err != nil {
+		return nil, err
+	}
+	var invs []models.Invoice
+	if err = cursor.All(ctx, &invs); err != nil {
+		return nil, err
+	}
+	return invs, nil
+}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type SchoolService struct {
@@ -76,7 +75,7 @@ func (s *SchoolService) GetStudentStatus(ctx context.Context, enterpriseID strin
 		}
 
 		studentReport := map[string]interface{}{
-			"student_id": sub.UserID, // Using UserID as Student Identifier
+			"student_id": sub.ClientID, // Using UserID as Student Identifier
 			"name": sub.Metadata["student_name"],
 			"total_due": totalDue,
 			"total_paid": totalPaid,

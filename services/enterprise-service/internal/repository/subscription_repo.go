@@ -44,3 +44,32 @@ func (r *SubscriptionRepository) FindDueSubscriptions(ctx context.Context) ([]mo
 	}
 	return subs, nil
 }
+
+func (r *SubscriptionRepository) FindByEnterprise(ctx context.Context, enterpriseID string) ([]models.Subscription, error) {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := r.collection.Find(ctx, bson.M{"enterprise_id": oid})
+	if err != nil {
+		return nil, err
+	}
+	var subs []models.Subscription
+	if err = cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+func (r *SubscriptionRepository) FindByID(ctx context.Context, id string) (*models.Subscription, error) {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	var sub models.Subscription
+	err = r.collection.FindOne(ctx, bson.M{"_id": oid}).Decode(&sub)
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}

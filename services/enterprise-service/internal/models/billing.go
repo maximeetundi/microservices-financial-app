@@ -29,10 +29,13 @@ type Invoice struct {
 	// Service Info
 	ServiceID     string             `bson:"service_id" json:"service_id"` // "utility_bill", "school_fee"
 	ServiceName   string             `bson:"service_name" json:"service_name"`
+	SubscriptionID primitive.ObjectID `bson:"subscription_id,omitempty" json:"subscription_id,omitempty"`
 	
 	Amount        float64            `bson:"amount" json:"amount"`
 	Currency      string             `bson:"currency" json:"currency"`
 	Description   string             `bson:"description" json:"description"`
+	Type          string             `bson:"type" json:"type"` // e.g., "TUITION", "TRANSPORT"
+	Metadata      map[string]string  `bson:"metadata,omitempty" json:"metadata,omitempty"`
 	
 	// Dates
 	DueDate       time.Time          `bson:"due_date" json:"due_date"`
@@ -57,6 +60,8 @@ type Subscription struct {
 	// Specialized Config (Polymorphic-ish)
 	TransportDetails *TransportDetails `bson:"transport_details,omitempty" json:"transport_details,omitempty"`
 	SchoolDetails    *SchoolDetails    `bson:"school_details,omitempty" json:"school_details,omitempty"`
+	
+	Metadata     map[string]string   `bson:"metadata,omitempty" json:"metadata,omitempty"`
 	
 	Status        string             `bson:"status" json:"status"` // ACTIVE, CANCELLED
 	
