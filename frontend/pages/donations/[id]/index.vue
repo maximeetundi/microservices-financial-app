@@ -606,28 +606,7 @@ onMounted(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
 </style>
 
-        <div class="glass-card bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-xl border border-gray-100 dark:border-gray-800">
-            <!-- Hero Image -->
-            <div class="h-64 md:h-80 bg-gray-100 dark:bg-slate-800 relative">
-                <img v-if="campaign.image_url" :src="campaign.image_url" class="w-full h-full object-cover" alt="Campaign">
-                <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-6xl">
-                    🤲
-                </div>
-            </div>
 
-            <div class="p-8 md:p-10">
-                <div class="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
-                    <div>
-                        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">{{ campaign.title }}</h1>
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 font-bold">
-                                👤
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Organisé par</p>
-                                <p class="font-medium text-gray-900 dark:text-white">{{ creatorName || 'Utilisateur ' + campaign.creator_id.slice(0,6) }}</p>
-                            </div>
-                        </div>
                     </div>
                     
                     <!-- Right Column (Progress & Share) (Desktop) -->
