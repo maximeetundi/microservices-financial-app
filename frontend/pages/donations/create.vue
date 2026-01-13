@@ -76,7 +76,7 @@
                             <label class="block text-sm font-bold text-gray-900 dark:text-white mb-2">Objectif (Optionnel)</label>
                             <div class="relative">
                                 <input v-model.number="form.targetAmount" type="number" class="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="0">
-                                <span class="absolute right-4 top-3.5 text-gray-500 font-bold">XOF</span>
+                                <span class="absolute right-4 top-3.5 text-gray-500 font-bold">{{ form.currency }}</span>
                             </div>
                         </div>
                         <div>
@@ -85,6 +85,12 @@
                                 <option value="XOF">XOF (CFA)</option>
                                 <option value="USD">USD ($)</option>
                                 <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="CAD">CAD ($)</option>
+                                <option value="CHF">CHF (Fr)</option>
+                                <option value="JPY">JPY (¥)</option>
+                                <option value="AUD">AUD ($)</option>
+                                <option value="CNY">CNY (¥)</option>
                             </select>
                         </div>
                     </div>

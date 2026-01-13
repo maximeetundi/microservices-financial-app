@@ -73,3 +73,35 @@ func (h *DonationHandler) List(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"donations": donations})
 }
+
+func (h *DonationHandler) Refund(c *gin.Context) {
+	donationID := c.Param("id")
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.service.RefundDonation(donationID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "refund initiated"})
+}
+
+func (h *DonationHandler) CancelCampaign(c *gin.Context) {
+	campaignID := c.Param("id")
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.service.CancelCampaign(campaignID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "campaign cancelled and refunds initiated"})
+}

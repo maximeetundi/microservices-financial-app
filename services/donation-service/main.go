@@ -131,7 +131,9 @@ func main() {
 	{
 		protected.POST("/campaigns", campaignHandler.Create)
 		protected.PUT("/campaigns/:id", campaignHandler.Update)
+		protected.POST("/campaigns/:id/cancel", donationHandler.CancelCampaign)
 		protected.POST("/donations", donationHandler.Initiate)
+		protected.POST("/donations/:id/refund", donationHandler.Refund)
 		protected.POST("/upload", uploadHandler.UploadMedia)
 	}
 	}

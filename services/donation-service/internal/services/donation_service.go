@@ -170,7 +170,135 @@ func (s *DonationService) ListDonations(campaignID string, limit, offset int64) 
 	if err != nil {
 		return nil, err
 	}
-	// Filter anonymity? 
-	// The repo returns full objects. The Handler should filter sensitive data (DonorID if anonymous).
 	return donations, nil
+}
+
+// RefundDonation initiates a refund for a specific donation
+func (s *DonationService) RefundDonation(donationID, requesterID string) error {
+	// 1. Get Donation
+	donation, err := s.donationRepo.GetByID(donationID)
+	if err != nil {
+		return errors.New("donation not found")
+	}
+
+	if donation.Status != models.DonationStatusPaid {
+		return fmt.Errorf("donation status is %s, cannot refund", donation.Status)
+	}
+
+	// 2. Get Campaign to verify Creator
+	campaign, err := s.campaignRepo.GetByID(donation.CampaignID)
+	if err != nil {
+		return errors.New("associated campaign not found")
+	}
+
+	if campaign.CreatorID != requesterID {
+		return errors.New("unauthorized: only campaign creator can refund")
+	}
+
+	// 3. Identify Source Wallet (Creator's Wallet)
+	// We need to find the wallet that originally received the funds? 
+	// Or just a wallet of the creator with same currency.
+	// For now, let's find a wallet of creator with matching currency.
+	serverWallets, err := s.walletClient.GetUserWallets(campaign.CreatorID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch creator wallets: %w", err)
+	}
+
+	var sourceWalletID string
+	for _, w := range serverWallets {
+		if cur, ok := w["currency"].(string); ok && cur == donation.Currency {
+			if id, ok := w["id"].(string); ok {
+				sourceWalletID = id
+				break
+			}
+		}
+	}
+	if sourceWalletID == "" {
+		return errors.New("creator does not have a wallet for refund currency")
+	}
+
+	// 4. Identify Destination Wallet (Donor's Wallet)
+	// We stored `PaymentWalletID` in Donation model.
+	destWalletID := donation.PaymentWalletID
+	if destWalletID == "" {
+		return errors.New("donor wallet not recorded, cannot refund automatically")
+	}
+
+	// 5. Trigger Refund Payment Event
+	refundReq := messaging.PaymentRequestEvent{
+		RequestID:         fmt.Sprintf("REF-%s", donation.ID.Hex()),
+		UserID:            requesterID,        // Initiator (Creator)
+		FromWalletID:      sourceWalletID,     // Creator pays back
+		ToWalletID:        destWalletID,       // Donor receives
+		DebitAmount:       donation.Amount,    // Full amount
+		CreditAmount:      donation.Amount,
+		Currency:          donation.Currency,
+		Type:              "refund",
+		ReferenceID:       fmt.Sprintf("REF-DON-%s", donation.ID.Hex()),
+	}
+
+	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "donation-service", refundReq)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicPaymentEvents, envelope); err != nil {
+		return fmt.Errorf("failed to publish refund request: %w", err)
+	}
+
+	// 6. Update Donation Status
+	if err := s.donationRepo.UpdateStatus(donationID, models.DonationStatusRefunding, ""); err != nil {
+		return fmt.Errorf("failed to update donation status: %w", err)
+	}
+
+	return nil
+}
+
+// CancelCampaign cancels a campaign and refunds all paid donations
+func (s *DonationService) CancelCampaign(campaignID, requesterID string) error {
+	// 1. Get Campaign
+	campaign, err := s.campaignRepo.GetByID(campaignID)
+	if err != nil {
+		return errors.New("campaign not found")
+	}
+
+	if campaign.CreatorID != requesterID {
+		return errors.New("unauthorized: only creator can cancel campaign")
+	}
+
+	if campaign.Status == models.CampaignStatusCancelled {
+		return errors.New("campaign is already cancelled")
+	}
+
+	// 2. Mark Campaign as Cancelled
+	// This prevents new donations.
+	updates := map[string]interface{}{
+		"status": models.CampaignStatusCancelled,
+	}
+	if err := s.campaignRepo.Update(campaignID, updates); err != nil {
+		return fmt.Errorf("failed to update campaign status: %w", err)
+	}
+
+	// 3. List Data and Refund
+	// Note: Pagination? If thousands of donations, this might timeout.
+	// For MVP, limit to 1000 or reasonable number.
+	donations, err := s.donationRepo.ListByCampaign(campaignID, 1000, 0)
+	if err != nil {
+		// Log error but campaign is already cancelled.
+		fmt.Printf("Failed to list donations for cancellation: %v\n", err)
+		return nil
+	}
+
+	for _, d := range donations {
+		if d.Status == models.DonationStatusPaid {
+			// Trigger refund asynchronously or synchronously?
+			// Synchronously for now, but handle details carefully.
+			// Re-use Refund logic but bypass some checks if needed?
+			// reusing RefundDonation is safest as it checks wallets.
+			
+			// We pass requesterID (creator) to authorize the refund.
+			if err := s.RefundDonation(d.ID.Hex(), requesterID); err != nil {
+				fmt.Printf("Failed to refund donation %s: %v\n", d.ID.Hex(), err)
+				// Continue to next donation
+			}
+		}
+	}
+
+	return nil
 }

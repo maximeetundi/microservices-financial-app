@@ -212,6 +212,8 @@ export const userAPI = {
         api.post('/auth-service/api/v1/users/pin/change', data),
 
     // User lookup
+    getById: (id: string) => api.get(`/auth-service/api/v1/users/${id}`),
+
     lookup: (query: { email?: string, phone?: string }) => {
         const params = new URLSearchParams()
         if (query.email) params.append('email', query.email)
@@ -620,9 +622,11 @@ export const donationAPI = {
     getMyCampaigns: (creatorID: string) => api.get(`/donation-service/api/v1/campaigns?creator_id=${creatorID}`),
     getCampaign: (id: string) => api.get(`/donation-service/api/v1/campaigns/${id}`),
     updateCampaign: (id: string, data: any) => api.put(`/donation-service/api/v1/campaigns/${id}`, data),
+    cancelCampaign: (id: string) => api.post(`/donation-service/api/v1/campaigns/${id}/cancel`),
 
     // Donations
     initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),
+    refundDonation: (id: string) => api.post(`/donation-service/api/v1/donations/${id}/refund`),
     getDonations: (campaignID: string, limit = 20, offset = 0) =>
         api.get(`/donation-service/api/v1/donations?campaign_id=${campaignID}&limit=${limit}&offset=${offset}`),
 

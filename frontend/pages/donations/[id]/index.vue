@@ -54,20 +54,27 @@
                             </div>
                             <div v-else class="text-sm text-emerald-600 font-medium mb-6">Objectif illimité 🚀</div>
 
-                            <button @click="openDonateModal" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1">
+                            <button @click="openDonateModal" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1 mb-3">
                                 Faire un don ❤️
+                            </button>
+
+                             <button @click="shareCampaign" class="w-full py-3 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 rounded-xl font-bold hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors flex justify-center items-center gap-2">
+                                <span>🔗</span> Partager
                             </button>
                         </div>
 
-                        <!-- Share Card (Creator Only) -->
-                        <div v-if="isCreator" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <!-- Share Card (Creator Code) -->
+                        <div v-if="isCreator || campaign.qr_code_url" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <h4 class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                               <span>📱</span> Partager (Visible par vous seul)
+                               <span>📱</span> QR Code & Lien
                             </h4>
                             
                             <!-- QR Code -->
                             <div v-if="campaign.qr_code_url" class="flex justify-center mb-4 bg-white p-2 rounded-xl border border-gray-100">
                                  <img :src="campaign.qr_code_url" class="w-32 h-32 object-contain" alt="QR Code">
+                            </div>
+                            <div v-else class="flex justify-center mb-4 text-6xl opacity-20">
+                                📱
                             </div>
 
                             <!-- Code -->
@@ -77,7 +84,7 @@
                             </div>
                             
                             <p class="text-xs text-center text-gray-500 leading-relaxed">
-                                Scannez ce code pour tester ou partagez-le avec vos donateurs.
+                                Scannez ce code pour tester ou partagez-le.
                             </p>
                         </div>
                     </div>
@@ -91,9 +98,23 @@
 
                 <!-- Wall of Donors (Refined) -->
                 <div>
-                    <h3 class="text-2xl font-bold mb-8 flex items-center gap-3 text-gray-900 dark:text-white">
-                        <span class="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-lg">🏆</span> Mur des donateurs
-                    </h3>
+                <!-- Wall of Donors (Refined) -->
+                <div>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+                        <h3 class="text-2xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
+                            <span class="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-lg">🏆</span> Mur des donateurs
+                        </h3>
+                        
+                        <!-- Management Controls for Creator -->
+                        <div v-if="isCreator && campaign?.status === 'active'" class="w-full sm:w-auto flex gap-3">
+                            <button @click="confirmCancelCampaign" class="w-full sm:w-auto px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm hover:bg-red-200 transition-colors">
+                                🛑 Annuler la campagne
+                            </button>
+                        </div>
+                         <div v-if="campaign?.status === 'cancelled'" class="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm">
+                            🛑 Campagne Annulée
+                        </div>
+                    </div>
                     
                     <div v-if="donations.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div v-for="donation in donations" :key="donation.id" 
@@ -120,9 +141,21 @@
                                         {{ donation.message }}
                                     </p>
                                 </div>
-                                <div class="font-bold text-xl text-emerald-600 tabular-nums">
-                                    +{{ formatAmount(donation.amount, donation.currency) }}
+                                <div class="text-right">
+                                    <div class="font-bold text-xl text-emerald-600 tabular-nums">
+                                        +{{ formatAmount(donation.amount, donation.currency) }}
+                                    </div>
+                                    <div v-if="donation.status === 'refunding' || donation.status === 'refunded'" class="text-xs text-red-500 font-bold mt-1 uppercase">
+                                        {{ donation.status === 'refunding' ? 'Remboursement...' : 'Remboursé' }}
+                                    </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Refund Action for Creator - Always visible now -->
+                            <div v-if="isCreator && donation.status === 'paid'" class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                                <button @click="confirmRefund(donation)" class="text-xs text-red-500 hover:text-red-600 font-medium underline px-2 py-1 bg-red-50 dark:bg-red-900/10 rounded-lg hover:bg-red-100 transition-colors">
+                                    Rembourser ce don
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -307,10 +340,38 @@ const loadData = async () => {
         ])
         campaign.value = campRes.data
         donations.value = donRes.data.donations || []
+
+        // Fetch Creator Name
+        if (campaign.value?.creator_id) {
+            try {
+                const userRes = await apiContext.userApi.getById(campaign.value.creator_id)
+                const u = userRes.data
+                creatorName.value = u.first_name || u.last_name ? `${u.first_name} ${u.last_name}` : u.username || `Utilisateur ${campaign.value.creator_id.slice(0,6)}`
+            } catch (e) {
+                console.warn("Could not fetch creator info", e)
+            }
+        }
     } catch (e) {
         console.error(e)
     } finally {
         loading.value = false
+    }
+}
+
+const shareCampaign = async () => {
+    const url = window.location.href
+    const title = campaign.value?.title || 'Soutenez cette campagne !'
+    
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: title,
+                text: campaign.value?.description?.slice(0, 100) + '...',
+                url: url
+            })
+        } catch (e) { console.log('Share cancelled') }
+    } else {
+        copyCode(url)
     }
 }
 
@@ -400,7 +461,31 @@ const formatDate = (date: string) => {
 
 const copyCode = (code: string) => {
     navigator.clipboard.writeText(code)
-    alert('Code copié !')
+    alert('Lien/Code copié !')
+}
+
+const confirmCancelCampaign = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir annuler cette campagne ? Cela remboursera automatiquement tous les donateurs. C\'est irréversible.')) return
+
+    try {
+        await donationApi.cancelCampaign(campaign.value.id)
+        alert('Campagne annulée initée. Les remboursement sont en cours.')
+        loadData()
+    } catch (e: any) {
+        alert(e.response?.data?.error || "Erreur lors de l'annulation")
+    }
+}
+
+const confirmRefund = async (donation: any) => {
+    if (!confirm(`Rembourser le don de ${formatAmount(donation.amount, donation.currency)} ?`)) return
+
+    try {
+        await donationApi.refundDonation(donation.id)
+        alert('Remboursement initié.')
+        loadData()
+    } catch (e: any) {
+        alert(e.response?.data?.error || "Erreur lors du remboursement")
+    }
 }
 
 onMounted(() => {
