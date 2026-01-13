@@ -98,8 +98,6 @@
 
                 <!-- Wall of Donors (Refined) -->
                 <div>
-                <!-- Wall of Donors (Refined) -->
-                <div>
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
                         <h3 class="text-2xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
                             <span class="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-lg">🏆</span> Mur des donateurs
