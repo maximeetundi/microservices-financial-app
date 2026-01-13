@@ -3,27 +3,22 @@
     <div class="max-w-7xl mx-auto py-8 px-4">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">🤲 Mes Cagnottes</h1>
-          <p class="text-gray-500 dark:text-gray-400">Gérez les campagnes que vous avez créées.</p>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">🌍 Explorer les campagnes</h1>
+          <p class="text-gray-500 dark:text-gray-400">Découvrez et soutenez des causes inspirantes.</p>
         </div>
-        <div class="flex gap-3">
-             <button @click="navigateTo('/donations/explore')" class="px-4 py-2 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-gray-200 dark:border-gray-700 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <span>🌍</span> Voir toutes les campagnes
-            </button>
-            <button @click="navigateTo('/donations/create')" class="btn-premium flex items-center gap-2">
-                <span>+</span> Créer une cagnotte
-            </button>
-        </div>
+        <button @click="navigateTo('/donations')" class="px-4 py-2 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+            <span>👤</span> Mes campagnes
+        </button>
       </div>
 
       <!-- Search & Filters -->
       <div class="flex gap-4 mb-8 overflow-x-auto pb-2">
          <div class="relative flex-1 min-w-[200px]">
-             <input v-model="searchQuery" type="text" placeholder="Rechercher dans mes cagnottes..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 transition-shadow">
+             <input v-model="searchQuery" type="text" placeholder="Rechercher une cause..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 transition-shadow">
              <span class="absolute left-3 top-3 text-gray-400">🔍</span>
          </div>
          <select v-model="filterStatus" class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800">
-             <option value="active">Actives</option>
+             <option value="active">En cours</option>
              <option value="all">Toutes</option>
              <option value="completed">Terminées</option>
          </select>
@@ -36,12 +31,9 @@
 
       <!-- Empty State -->
       <div v-else-if="filteredCampaigns.length === 0" class="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-          <div class="text-6xl mb-4">🌱</div>
-          <h3 class="text-xl font-bold text-gray-900 dark:text-white">Vous n'avez aucune campagne</h3>
-          <p class="text-gray-500 mt-2">Lancez votre première collecte de fonds dès maintenant !</p>
-          <button @click="navigateTo('/donations/create')" class="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
-              Lancer un projet
-          </button>
+          <div class="text-6xl mb-4">🔍</div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">Aucune campagne trouvée</h3>
+          <p class="text-gray-500 mt-2">D'autres campagnes apparaîtront ici bientôt.</p>
       </div>
 
       <!-- Grid -->
@@ -54,7 +46,7 @@
             <div class="h-48 bg-gray-100 dark:bg-slate-800 relative overflow-hidden">
                 <img v-if="campaign.image_url" :src="campaign.image_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Campaign">
                 <div v-else class="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-                    🙏
+                    🌍
                 </div>
                 <!-- Badge -->
                 <div class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md"
@@ -93,7 +85,7 @@
             </div>
             
             <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-slate-800/50 flex justify-between items-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/10 transition-colors">
-                <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Gérer ma campagne →</span>
+                <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Soutenir le projet →</span>
                 <span class="text-xs text-gray-400">{{ formatDate(campaign.created_at) }}</span>
             </div>
         </div>
@@ -122,6 +114,12 @@ const filterStatus = ref('active')
 
 const filteredCampaigns = computed(() => {
     let list = campaigns.value
+    
+    // Filter out user's own campaigns
+    if (user.value?.id) {
+        list = list.filter(c => c.creator_id !== user.value.id)
+    }
+
     if (filterStatus.value !== 'all') {
         list = list.filter(c => c.status === filterStatus.value)
     }
@@ -135,8 +133,8 @@ const filteredCampaigns = computed(() => {
 const loadCampaigns = async () => {
     loading.value = true
     try {
-        if (!user.value?.id) return
-        const res = await donationApi.getMyCampaigns(user.value.id) 
+        // Fetch public campaigns (limit higher for exploration)
+        const res = await donationApi.getCampaigns(100) 
         campaigns.value = res.data?.campaigns || res.data || []
     } catch (e) {
         console.error("Failed to load campaigns", e)
@@ -159,16 +157,6 @@ const formatDate = (date: string) => {
 }
 
 onMounted(() => {
-    if (user.value) {
-        loadCampaigns()
-    } else {
-        // Watch for user load if not ready
-        const unwatch = watch(user, (u) => {
-            if (u) {
-                loadCampaigns()
-                unwatch()
-            }
-        })
-    }
+    loadCampaigns()
 })
 </script>
