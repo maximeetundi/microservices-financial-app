@@ -32,6 +32,7 @@ type Campaign struct {
 	AllowAnonymous  bool               `bson:"allow_anonymous" json:"allow_anonymous"`
 	AllowRecurring  bool               `bson:"allow_recurring" json:"allow_recurring"`
 	Tags            []string           `bson:"tags" json:"tags"`
+	ShowDonors      bool               `bson:"show_donors" json:"show_donors"`
 	
 	QRCode          string             `bson:"qr_code,omitempty" json:"qr_code,omitempty"`
 	CampaignCode    string             `bson:"campaign_code,omitempty" json:"campaign_code,omitempty"`

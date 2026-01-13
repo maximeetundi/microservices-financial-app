@@ -416,9 +416,33 @@ class _NotificationsPageState extends State<NotificationsPage> {
       await _markAsRead(id);
     }
     
-    // Optional: Add specific navigation logic here based on type
-    // final type = notification['type'];
-    // if (type == 'transaction') context.push('/transaction/${notification['reference_id']}');
+    // Navigation Logic
+    final type = notification['type']?.toString().toLowerCase();
+    var data = notification['data'];
+    
+    String? refId;
+    if (notification['reference_id'] != null) {
+       refId = notification['reference_id'].toString();
+    } else if (data is Map) {
+       refId = data['transfer_id']?.toString() ?? data['id']?.toString() ?? data['reference_id']?.toString();
+    }
+    
+    if (type == 'transfer' || type == 'payment' || type == 'transaction') {
+        if (refId != null) {
+            // Navigate to transfer detail
+            context.pushNamed('transfer-detail', pathParameters: {'transferId': refId});
+        } else {
+            context.go('/transactions');
+        }
+    } else if (type == 'card') {
+        context.goNamed('cards');
+    } else if (type == 'security') {
+        context.goNamed('security');
+    } else if (type == 'kyc') {
+        context.goNamed('kyc');
+    } else if (type == 'wallet') {
+        context.go('/wallet');
+    }
   }
 
   Future<void> _markAsRead(String id) async {

@@ -366,7 +366,38 @@ const handleScanResult = (data) => {
     return
   }
   
-  // 9. Default: assume merchant payment code
+  // 9. CAMPAIGN URL or CODE: "/donations/XXXX" or "CPN-XXXX"
+  if (code.includes('/donations/')) {
+    const campaignId = code.split('/donations/').pop().split('?')[0] // handle params if any
+    console.log('Detected: CAMPAIGN URL -', campaignId)
+    navigateTo(`/donations/${campaignId}`)
+    return
+  }
+
+  if (code.startsWith('CPN-')) {
+     console.log('Detected: CAMPAIGN CODE -', code)
+     // Campaign codes need to be resolved to ID, or handled by a lookup page.
+     // For now, if CPN code IS the ID (which it might be in some contexts, but usually ID is UUID and Code is CPN-...)
+     // Actually, earlier we saw campaign code used as ID in some places or vice versa?
+     // The Campaign Code "CPN-..." is stored in `campaign_code`. 
+     // We should probably check if the frontend router supports resolving by Code?
+     // If not, we might need a lookup.
+     // However, the best path for now is to try navigating to it, but `donations/[id]` usually expects ID.
+     // A safer bet: The QR code we generated (in prev step) puts the *full URL* with ID.
+     // So the URL check above handles the new QRs.
+     // For OLD QRs or manual CPN code entry:
+     // We will redirect to /donations/code/:code if we make such a page, OR just try /donations/:id and let it fail?
+     // Let's assume for now we redirect to /donations/explore causing a search?
+     // Better: Redirect to /donations/${code} and generic error if not found?
+     // Actually, the user screenshot showed /pay/CPN-..., which failed.
+     // If we redirect to /donations/CPN-..., it might fail if [id] expects UUID.
+     // BUT, we can make [id].vue handle it?
+     // Let's use /donations/${code} and hope backend resolves it or we add resolution logic.
+     navigateTo(`/donations/${code}`)
+     return
+  }
+  
+  // 10. Default: assume merchant payment code
   console.log('Detected: UNKNOWN (treating as merchant) -', code)
   navigateTo(`/pay/${code}`)
 }
