@@ -626,7 +626,7 @@ export const donationAPI = {
     getMyCampaigns: (creatorID: string) => api.get(`/donation-service/api/v1/campaigns?creator_id=${creatorID}`),
     getCampaign: (id: string) => api.get(`/donation-service/api/v1/campaigns/${id}`),
     updateCampaign: (id: string, data: any) => api.put(`/donation-service/api/v1/campaigns/${id}`, data),
-    cancelCampaign: (id: string, reason: string) => api.post(`/donation-service/api/v1/campaigns/${id}/cancel`, { reason }),
+    cancelCampaign: (id: string, reason: string, pin: string) => api.post(`/donation-service/api/v1/campaigns/${id}/cancel`, { reason, pin }),
 
     // Donations
     initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),

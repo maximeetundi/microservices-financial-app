@@ -108,13 +108,15 @@ func (h *DonationHandler) CancelCampaign(c *gin.Context) {
 
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
+		PIN    string `json:"pin" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason and pin are required"})
 		return
 	}
 
-	if err := h.service.CancelCampaign(campaignID, userID, req.Reason); err != nil {
+	token := c.GetHeader("Authorization")
+	if err := h.service.CancelCampaign(campaignID, userID, req.Reason, req.PIN, token); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

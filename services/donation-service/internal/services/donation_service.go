@@ -241,7 +241,12 @@ func (s *DonationService) RefundDonation(donationID, requesterID, reason string)
 }
 
 // CancelCampaign cancels a campaign and refunds all paid donations
-func (s *DonationService) CancelCampaign(campaignID, requesterID, reason string) error {
+func (s *DonationService) CancelCampaign(campaignID, requesterID, reason, pin, token string) error {
+	// 0. Verify PIN
+	if err := s.userClient.VerifyPin(requesterID, pin, token); err != nil {
+		return fmt.Errorf("security check failed: %w", err)
+	}
+
 	// 1. Get Campaign
 	campaign, err := s.campaignRepo.GetByID(campaignID)
 	if err != nil {
