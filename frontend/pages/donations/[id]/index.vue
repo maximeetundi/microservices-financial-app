@@ -607,47 +607,6 @@ onMounted(() => {
 </style>
 
 
-                    </div>
-                    
-                    <!-- Right Column (Progress & Share) (Desktop) -->
-                    <div class="w-full md:w-80 flex flex-col gap-6">
-                        <!-- Progress Card -->
-                        <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                            <div class="mb-4">
-                                <span class="text-3xl font-bold text-emerald-600">{{ formatAmount(campaign.collected_amount, campaign.currency) }}</span>
-                                <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">récoltés</span>
-                            </div>
-                            
-                            <div class="bg-gray-200 dark:bg-gray-700 h-3 rounded-full overflow-hidden mb-2">
-                                 <div class="bg-emerald-500 h-full rounded-full transition-all duration-1000" :style="{ width: getProgress(campaign) + '%' }"></div>
-                            </div>
-                            
-                            <div v-if="campaign.target_amount > 0" class="flex justify-between text-sm text-gray-500 mb-6">
-                                <span>Objectif: {{ formatAmount(campaign.target_amount, campaign.currency) }}</span>
-                                <span>{{ Math.round(getProgress(campaign)) }}%</span>
-                            </div>
-                            <div v-else class="text-sm text-emerald-600 font-medium mb-6">Objectif illimité 🚀</div>
-
-                            <button @click="openDonateModal" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1 mb-3">
-                                Faire un don ❤️
-                            </button>
-
-                             <button @click="shareCampaign" class="w-full py-3 bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 rounded-xl font-bold hover:bg-indigo-50 dark:hover:bg-slate-600 transition-colors flex justify-center items-center gap-2">
-                                <span>🔗</span> Partager
-                            </button>
-                        </div>
-
-                        <!-- Share Card (Creator Code) -->
-                        <div v-if="isCreator || campaign.qr_code_url" class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                            <h4 class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                               <span>📱</span> QR Code & Lien
-                            </h4>
-                            
-                            <!-- QR Code -->
-                            <div v-if="campaign.qr_code_url" class="flex justify-center mb-4 bg-white p-2 rounded-xl border border-gray-100">
-                                 <img :src="campaign.qr_code_url" class="w-32 h-32 object-contain" alt="QR Code">
-                            </div>
-                            <div v-else class="flex justify-center mb-4 text-6xl opacity-20">
                                 📱
                             </div>
 
