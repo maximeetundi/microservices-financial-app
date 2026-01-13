@@ -665,6 +665,32 @@ export const contactsAPI = {
         api.get('/auth-service/api/v1/users/contacts/lookup', { params: { phone, email } }),
 }
 
+// === ENTERPRISE API ===
+export const enterpriseAPI = {
+    // Enterprise CRUD
+    create: (data: any) => api.post('/enterprise-service/api/v1/enterprises', data),
+    list: () => api.get('/enterprise-service/api/v1/enterprises'),
+    get: (id: string) => api.get(`/enterprise-service/api/v1/enterprises/${id}`),
+
+    // Employee Management
+    listEmployees: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/employees`),
+    inviteEmployee: (data: any) => api.post('/enterprise-service/api/v1/employees/invite', data),
+    acceptInvitation: (data: { pin: string, token: string }) => api.post('/enterprise-service/api/v1/employees/accept', data),
+    promoteEmployee: (id: string, data: any) => api.put(`/enterprise-service/api/v1/employees/${id}/promote`, data),
+
+    // Payroll
+    previewPayroll: (entId: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/payroll/preview`),
+    executePayroll: (entId: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/payroll/execute`),
+
+    // Billing & Invoicing
+    createInvoice: (data: any) => api.post('/enterprise-service/api/v1/invoices', data),
+    importInvoices: (entId: string, formData: FormData) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/import`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    validateBatch: (entId: string, batchId: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches/${batchId}/validate`),
+    scheduleBatch: (entId: string, batchId: string, scheduledAt: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches/${batchId}/schedule`, { scheduled_at: scheduledAt }),
+}
+
 export const useApi = () => {
     return {
         authApi: authAPI,
@@ -684,6 +710,7 @@ export const useApi = () => {
         ticketApi: ticketAPI,
         contactsApi: contactsAPI,
         donationApi: donationAPI,
+        enterpriseApi: enterpriseAPI,
     }
 }
 

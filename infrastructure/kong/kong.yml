@@ -88,6 +88,14 @@ services:
           - /donation-service
         strip_path: true
 
+  - name: enterprise-service
+    url: http://enterprise-service:8097
+    routes:
+      - name: enterprise-routes
+        paths:
+          - /enterprise-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:

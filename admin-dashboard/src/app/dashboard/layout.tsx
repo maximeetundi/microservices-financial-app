@@ -21,6 +21,7 @@ import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
     UserIcon,
+    BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { logout } from '@/lib/api';
@@ -53,6 +54,7 @@ interface SidebarProps {
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Entreprises', href: '/dashboard/enterprises', icon: BuildingOfficeIcon },
     { name: 'Utilisateurs', href: '/dashboard/users', icon: UsersIcon },
     { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowsRightLeftIcon },
     { name: 'Cartes', href: '/dashboard/cards', icon: CreditCardIcon },

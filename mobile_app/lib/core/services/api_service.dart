@@ -29,6 +29,7 @@ export 'transfer_api_service.dart';
 export 'card_api_service.dart';
 export 'exchange_api_service.dart';
 export 'merchant_api_service.dart';
+export 'enterprise_api_service.dart';
 
 import 'auth_api_service.dart';
 import 'wallet_api_service.dart';
@@ -36,6 +37,7 @@ import 'transfer_api_service.dart';
 import 'card_api_service.dart';
 import 'exchange_api_service.dart';
 import 'merchant_api_service.dart';
+import 'enterprise_api_service.dart';
 
 /// Service API unifié regroupant tous les microservices
 class ApiService {
@@ -61,6 +63,9 @@ class ApiService {
   
   /// Service des paiements marchands
   final MerchantApiService merchant = MerchantApiService();
+
+  /// Service entreprise
+  final EnterpriseApiService enterprise = EnterpriseApiService();
   
   // ========== Static methods for easy access ==========
   

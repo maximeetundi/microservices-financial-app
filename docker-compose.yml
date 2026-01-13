@@ -477,6 +477,26 @@ services:
       - crypto-bank-network
     restart: unless-stopped
 
+  # Enterprise Service
+  enterprise-service:
+    build:
+      context: ./services
+      dockerfile: ./enterprise-service/Dockerfile
+    ports:
+      - "8097:8097"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/enterprise_service?authSource=admin
+      - DB_NAME=enterprise_service
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - PORT=8097
+      - ENVIRONMENT=development
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
   # Messaging Service (User-to-user chat)
   messaging-service:
     build:

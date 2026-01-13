@@ -36,6 +36,7 @@ import '../../features/events/event_details_screen.dart';
 import '../../features/donation/presentation/pages/donation_list_page.dart';
 import '../../features/donation/presentation/pages/campaign_detail_page.dart';
 import '../../features/donation/presentation/pages/create_campaign_page.dart';
+import '../../features/enterprise/presentation/pages/enterprise_page.dart';
 
 class AppRouter {
   static late GoRouter router;
@@ -285,6 +286,12 @@ class AppRouter {
                 builder: (context, state) => const ScanPayScreen(),
               ),
             ],
+          ),
+          
+          GoRoute(
+            path: 'enterprise',
+            name: 'enterprise',
+            builder: (context, state) => const EnterprisePage(),
           ),
         ],
       ),
