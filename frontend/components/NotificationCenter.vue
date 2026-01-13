@@ -215,12 +215,20 @@ const handleClick = async (notif) => {
       router.push('/support')
     }
   } else if (type === 'transfer' || type === 'transaction') {
-    // Navigate to wallet/transactions
-    router.push('/wallet')
+    // Navigate to transaction details
+    if (refId) {
+        router.push(`/transactions?ref=${refId}`)
+    } else {
+        router.push('/transactions') // or /wallet if transactions page doesn't exist broadly, but transactions is better
+    }
   } else if (type === 'card') {
     router.push('/cards')
   } else if (type === 'wallet' || type === 'payment') {
-    router.push('/wallet')
+    if (refId && type === 'payment') {
+         router.push(`/transactions?ref=${refId}`)
+    } else {
+         router.push('/wallet')
+    }
   } else if (type === 'security') {
     router.push('/settings')
   } else if (type === 'kyc') {
@@ -604,5 +612,3 @@ onUnmounted(() => {
   }
 }
 </style>
-
-

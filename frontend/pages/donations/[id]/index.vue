@@ -60,14 +60,14 @@
                     </section>
 
                     <!-- Creator Code Section -->
-                    <section v-if="isCreator || campaign.code" class="bg-indigo-50 dark:bg-slate-800/80 rounded-3xl p-8 border border-indigo-100 dark:border-indigo-900/30 relative overflow-hidden">
+                    <section v-if="isValidCode" class="bg-indigo-50 dark:bg-slate-800/80 rounded-3xl p-8 border border-indigo-100 dark:border-indigo-900/30 relative overflow-hidden">
                         <div class="relative z-10">
                             <h3 class="text-xl font-bold mb-6 flex items-center gap-2 text-indigo-900 dark:text-indigo-100">
                                 🔲 Partagez cette campagne
                             </h3>
                             <div class="flex flex-wrap gap-4 items-center">
-                                <div class="bg-white dark:bg-slate-900 px-6 py-3 rounded-xl border border-indigo-200 dark:border-indigo-800 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" @click="copyCode(campaign.code)">
-                                    <span class="font-mono font-bold text-2xl text-indigo-600 dark:text-indigo-400 tracking-wider">{{ campaign.code }}</span>
+                                <div class="bg-white dark:bg-slate-900 px-6 py-3 rounded-xl border border-indigo-200 dark:border-indigo-800 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" @click="copyCode(displayCode)">
+                                    <span class="font-mono font-bold text-2xl text-indigo-600 dark:text-indigo-400 tracking-wider">{{ displayCode }}</span>
                                     <span class="text-gray-400 text-sm">📋</span>
                                 </div>
                                 <button @click="openQRModal" class="px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 flex items-center gap-2">
@@ -270,11 +270,11 @@
 
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">{{ campaign?.title }}</h3>
                     <p class="text-gray-500 text-sm mb-8 font-mono bg-gray-100 dark:bg-slate-800 py-2 rounded-lg select-all">
-                        {{ campaign?.code }}
+                        {{ displayCode }}
                     </p>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <button @click="copyCode(campaign?.code)" class="py-3 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+                        <button @click="copyCode(displayCode)" class="py-3 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
                             <span>📋</span> Copier
                         </button>
                          <button @click="downloadQRCode" class="py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
@@ -336,6 +336,12 @@ const qrCodeUrl = ref('')
 
 const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id)
 
+const displayCode = computed(() => {
+    return campaign.value?.campaign_code || campaign.value?.id || ''
+})
+
+const isValidCode = computed(() => !!displayCode.value)
+
 // Donate Modal State
 const showDonateModal = ref(false)
 const showQRModal = ref(false)
@@ -366,10 +372,8 @@ const loadData = async () => {
         const campRes = await donationApi.getCampaign(campaignId.value)
         campaign.value = campRes.data
 
-        // Generate QR Code
-        if (campaign.value.code) {
-           generateQRCode(campaign.value.code)
-        }
+        // Always generate QR code from URL for easy scanning
+        generateQRCode(window.location.href)
 
         // Fetch Creator Name
         if (campaign.value.creator_id) {
@@ -390,7 +394,7 @@ const loadData = async () => {
 
 const generateQRCode = async (text: string) => {
     try {
-        qrCodeUrl.value = await QRCode.toDataURL(text, { width: 300, margin: 2 })
+        qrCodeUrl.value = await QRCode.toDataURL(text, { width: 300, margin: 2, color: { dark: '#4f46e5', light: '#ffffff' } })
     } catch (e) {
         console.error("QR Env err", e)
     }
@@ -398,9 +402,8 @@ const generateQRCode = async (text: string) => {
 
 const openQRModal = () => {
     showQRModal.value = true
-    // Regen if needed or missing
-    if (!qrCodeUrl.value && campaign.value?.code) {
-        generateQRCode(campaign.value.code)
+    if (!qrCodeUrl.value) {
+        generateQRCode(window.location.href)
     }
 }
 
@@ -506,7 +509,7 @@ const formatDate = (date: string) => {
 const copyCode = (code: string) => {
     if (!code) return alert("Code non disponible")
     navigator.clipboard.writeText(code)
-    alert('Copié !')
+    alert('Code copié !')
 }
 
 const downloadQRCode = () => {
@@ -517,7 +520,7 @@ const downloadQRCode = () => {
   
   const link = document.createElement('a')
   link.href = qrCodeUrl.value
-  link.download = `campaign-${campaign.value.code || 'qr'}.png`
+  link.download = `campaign-${displayCode.value}.png`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
