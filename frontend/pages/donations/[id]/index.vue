@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="event-detail-page"> <!-- Using event-detail-page class for shared styling if available, otherwise we rely on scoped styles similar to events -->
+    <div class="event-detail-page"> 
       
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center py-20">
@@ -60,7 +60,7 @@
                     </section>
 
                     <!-- Creator Code Section -->
-                    <section v-if="isCreator || campaign.qr_code_url" class="bg-indigo-50 dark:bg-slate-800/80 rounded-3xl p-8 border border-indigo-100 dark:border-indigo-900/30 relative overflow-hidden">
+                    <section v-if="isCreator || campaign.code" class="bg-indigo-50 dark:bg-slate-800/80 rounded-3xl p-8 border border-indigo-100 dark:border-indigo-900/30 relative overflow-hidden">
                         <div class="relative z-10">
                             <h3 class="text-xl font-bold mb-6 flex items-center gap-2 text-indigo-900 dark:text-indigo-100">
                                 🔲 Partagez cette campagne
@@ -70,7 +70,7 @@
                                     <span class="font-mono font-bold text-2xl text-indigo-600 dark:text-indigo-400 tracking-wider">{{ campaign.code }}</span>
                                     <span class="text-gray-400 text-sm">📋</span>
                                 </div>
-                                <button @click="showQRModal = true" class="px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                                <button @click="openQRModal" class="px-5 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 flex items-center gap-2">
                                     🔍 QR Code & Options
                                 </button>
                             </div>
@@ -82,60 +82,19 @@
                         <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
                     </section>
                     
-                    <!-- Wall of Donors -->
+                    <!-- View Donors Button -->
                     <section>
-                         <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-2xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
-                                <span class="bg-yellow-100 dark:bg-yellow-900/30 p-2 rounded-lg">🏆</span> Mur des donateurs
-                            </h3>
-                         </div>
-                        
-                        <div v-if="donations.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="donation in donations" :key="donation.id" 
-                                class="group relative p-5 rounded-2xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all hover:shadow-md">
-                                
-                                <div class="flex items-start gap-4">
-                                    <div class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-xl font-bold"
-                                        :class="donation.is_anonymous ? 'bg-gray-100 dark:bg-gray-700 text-gray-500' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600'">
-                                        {{ donation.is_anonymous ? '?' : (donation.donor_name?.[0]?.toUpperCase() || 'B') }}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex justify-between items-start">
-                                            <div>
-                                                <p class="font-bold text-gray-900 dark:text-white truncate">
-                                                    {{ donation.is_anonymous ? 'Donateur Anonyme' : (donation.donor_name || 'Bienfaiteur') }}
-                                                </p>
-                                                <p class="text-xs text-gray-500">{{ formatDate(donation.created_at) }}</p>
-                                            </div>
-                                            <div class="text-right">
-                                                <div class="font-bold text-emerald-600">
-                                                    +{{ formatAmount(donation.amount, donation.currency) }}
-                                                </div>
-                                                <div v-if="donation.status === 'refunding' || donation.status === 'refunded'" class="text-[10px] text-red-500 font-bold uppercase tracking-wider">
-                                                    {{ donation.status === 'refunding' ? 'En cours...' : 'Remboursé' }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <p v-if="donation.message" class="mt-2 text-sm text-gray-600 dark:text-gray-300 italic line-clamp-2">
-                                            "{{ donation.message }}"
-                                        </p>
-
-                                        <!-- Refund Action for Creator -->
-                                        <div v-if="isCreator && donation.status === 'paid'" class="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 flex justify-end">
-                                            <button @click="confirmRefund(donation)" class="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 bg-red-50 dark:bg-red-900/10 rounded hover:bg-red-100 transition-colors flex items-center gap-1">
-                                                ↩️ Rembourser
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="text-center py-12 px-6 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                            <div class="text-4xl mb-3">🌱</div>
-                            <h4 class="text-lg font-medium text-gray-900 dark:text-white">Aucun don pour le moment</h4>
-                            <p class="text-gray-500">Soyez le premier à planter une graine de générosité !</p>
-                        </div>
+                         <button @click="navigateTo(`/donations/${campaign.id}/donors`)" 
+                                 class="w-full py-6 bg-white dark:bg-slate-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group flex items-center justify-between px-8">
+                             <div class="flex items-center gap-4">
+                                 <span class="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🏆</span>
+                                 <div class="text-left">
+                                     <h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Mur des Donateurs</h3>
+                                     <p class="text-gray-500">Voir la liste complète et les statistiques</p>
+                                 </div>
+                             </div>
+                             <span class="text-2xl text-gray-300 group-hover:translate-x-2 transition-transform">→</span>
+                         </button>
                     </section>
                 </div>
 
@@ -176,7 +135,7 @@
                                  <NuxtLink :to="`/donations/${campaign.id}/edit`" class="py-2 px-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm text-center hover:bg-gray-200 transition-colors">
                                      ✏️ Modifier
                                  </NuxtLink>
-                                 <button @click="showQRModal = true" class="py-2 px-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm hover:bg-gray-200 transition-colors">
+                                 <button @click="navigateTo('/scan')" class="py-2 px-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm hover:bg-gray-200 transition-colors">
                                      📷 Scanner (QR)
                                  </button>
                              </div>
@@ -204,8 +163,7 @@
       <!-- Donate Modal -->
       <Teleport to="body">
         <div v-if="showDonateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showDonateModal = false">
-            <!-- Modal styling kept same as it works fine -->
-            <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]">
+             <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]">
                 <div class="p-6 overflow-y-auto custom-scrollbar"> 
                     <h3 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Faire un don ❤️</h3>
                     
@@ -218,7 +176,7 @@
                         </div>
                     </div>
 
-                    <!-- Frequency (Recurring) -->
+                     <!-- Frequency (Recurring) -->
                     <div v-if="campaign?.allow_recurring" class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fréquence</label>
                         <div class="grid grid-cols-3 gap-2">
@@ -293,7 +251,7 @@
         </div>
       </Teleport>
 
-      <!-- QR Code Modal (New) -->
+      <!-- QR Code Modal -->
       <Teleport to="body">
         <div v-if="showQRModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showQRModal = false">
             <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -304,7 +262,8 @@
                 <div class="p-8 text-center">
                     <div class="mb-8 relative inline-block">
                         <div class="bg-white p-4 rounded-2xl shadow-xl">
-                            <img v-if="campaign?.qr_code_url" :src="campaign.qr_code_url" alt="QR Code" class="w-48 h-48 object-contain">
+                            <!-- Generated QR Code -->
+                            <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="w-48 h-48 object-contain">
                             <div v-else class="w-48 h-48 bg-gray-100 flex items-center justify-center text-gray-300 text-6xl rounded-lg">📱</div>
                         </div>
                     </div>
@@ -330,7 +289,7 @@
         </div>
       </Teleport>
 
-       <!-- Success Modal -->
+      <!-- Success Modal (Simplified) -->
         <Teleport to="body">
             <div v-if="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showSuccessModal = false">
                 <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl p-6 border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in duration-300 text-center">
@@ -355,12 +314,13 @@
 import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import { usePin } from '~/composables/usePin'
+import QRCode from 'qrcode'
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const { requirePin } = usePin()
 const route = useRoute()
-const router = useRouter() // Need router use
+const router = useRouter()
 const apiContext = useApi()
 const { donationApi, walletApi } = apiContext
 
@@ -370,15 +330,15 @@ definePageMeta({
 
 const campaignId = computed(() => route.params.id as string)
 const campaign = ref<any>(null)
-const donations = ref<any[]>([])
 const loading = ref(true)
 const creatorName = ref('') 
+const qrCodeUrl = ref('')
 
 const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id)
 
 // Donate Modal State
 const showDonateModal = ref(false)
-const showQRModal = ref(false) // New
+const showQRModal = ref(false)
 const showSuccessModal = ref(false)
 const processing = ref(false)
 const wallets = ref<any[]>([])
@@ -403,15 +363,16 @@ const frequencyOptions = [
 const loadData = async () => {
     loading.value = true
     try {
-        const [campRes, donRes] = await Promise.all([
-            donationApi.getCampaign(campaignId.value),
-            donationApi.getDonations(campaignId.value, 50)
-        ])
+        const campRes = await donationApi.getCampaign(campaignId.value)
         campaign.value = campRes.data
-        donations.value = donRes.data.donations || []
+
+        // Generate QR Code
+        if (campaign.value.code) {
+           generateQRCode(campaign.value.code)
+        }
 
         // Fetch Creator Name
-        if (campaign.value?.creator_id) {
+        if (campaign.value.creator_id) {
             try {
                 const userRes = await apiContext.userApi.getById(campaign.value.creator_id)
                 const u = userRes.data
@@ -424,6 +385,22 @@ const loadData = async () => {
         console.error(e)
     } finally {
         loading.value = false
+    }
+}
+
+const generateQRCode = async (text: string) => {
+    try {
+        qrCodeUrl.value = await QRCode.toDataURL(text, { width: 300, margin: 2 })
+    } catch (e) {
+        console.error("QR Env err", e)
+    }
+}
+
+const openQRModal = () => {
+    showQRModal.value = true
+    // Regen if needed or missing
+    if (!qrCodeUrl.value && campaign.value?.code) {
+        generateQRCode(campaign.value.code)
     }
 }
 
@@ -465,7 +442,7 @@ const isValidDonation = computed(() => {
 const processDonation = async () => {
     if (!isValidDonation.value) return
 
-    // Validate Dynamic Fields (Skip if Anonymous)
+    // Dynamic fields validation
     if (campaign.value.form_schema && !donationForm.isAnonymous) {
         for (const field of campaign.value.form_schema) {
              if (field.required) {
@@ -478,7 +455,6 @@ const processDonation = async () => {
         }
     }
 
-    // Use Global PIN Modal
     requirePin(async (pin) => {
          processing.value = true
          try {
@@ -497,9 +473,8 @@ const processDonation = async () => {
             lastDonationAmount.value = donationForm.amount || 0
             showDonateModal.value = false
             showSuccessModal.value = true
-            loadData() // Refresh
+            loadData() 
             
-            // Reset form
             donationForm.amount = null
             donationForm.message = ''
             
@@ -529,18 +504,19 @@ const formatDate = (date: string) => {
 }
 
 const copyCode = (code: string) => {
+    if (!code) return alert("Code non disponible")
     navigator.clipboard.writeText(code)
     alert('Copié !')
 }
 
 const downloadQRCode = () => {
-  if (!campaign.value?.qr_code_url) {
+  if (!qrCodeUrl.value) {
     alert('QR Code non disponible')
     return
   }
   
   const link = document.createElement('a')
-  link.href = campaign.value.qr_code_url
+  link.href = qrCodeUrl.value
   link.download = `campaign-${campaign.value.code || 'qr'}.png`
   document.body.appendChild(link)
   link.click()
@@ -561,47 +537,11 @@ const confirmCancelCampaign = async () => {
 
 const confirmDelete = async () => {
      if (!confirm('ATTENTION: Supprimer définitivement cette campagne ? Cette action est irréversible.')) return
-     
-     try {
-         // Assuming delete logic exists or just use cancel if delete not fully implemented in API yet
-         // The user asked for "Delete" button. If delete endpoint missing, we use cancel or just delete.
-         // Let's assume there is a delete or we just hide/archive. 
-         // For now, if no explicit DELETE endpoint in backend, I'll assume we can't truly delete efficiently without side effects if money involved. A cancel is safer.
-         // But the user requested "Supprimer". 
-         // Let's try to call delete if it exists, otherwise just redirect.
-         // NOTE: Backend repo has Delete, but Handler might not expose it? Check handler.
-         // Actually, let's treat it as a hard delete if 0 funds, or error.
-         // For SAFETY, currently just Cancel is better. 
-         // But I will implement a visual delete that calls API (if I added it? No I didn't add delete endpoint).
-         // I'll leave it as calling delete endpoint if I did, but I didn't. 
-         // I will simply show alert "Contact support" or implement later.
-         // Wait, I should match Event page. Event page has `ticketAPI.deleteEvent`.
-         // `donation-service` likely has standard delete in repo, but maybe not in handler.
-         // Step 1: Check if I can delete. 
-         // If not, I'll make it alert "Feature coming soon" or fallback to Cancel.
-         alert("Fonctionnalité de suppression en cours de développement.")
-     } catch(e) { console.error(e) }
-}
-
-const confirmRefund = async (donation: any) => {
-    if (!confirm(`Rembourser le don de ${formatAmount(donation.amount, donation.currency)} ?`)) return
-
-    try {
-        await donationApi.refundDonation(donation.id)
-        alert('Remboursement initié.')
-        loadData()
-    } catch (e: any) {
-        alert(e.response?.data?.error || "Erreur lors du remboursement")
-    }
+     // TODO: Implement actual delete if supported by backend
+     alert("Fonctionnalité de suppression en cours de développement.")
 }
 
 onMounted(() => {
     loadData()
 })
 </script>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
-</style>
