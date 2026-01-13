@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
     "math/rand"
@@ -336,10 +337,42 @@ func (s *TransferService) calculateFee(transferType string, amount float64) floa
 }
 
 func (s *TransferService) resolveOrCreateRecipientWallet(email *string, phone *string, currency string) (string, error) {
-    // Stub functionality: P2P transfer recipient resolution requires User Service lookup
-    // For now, return error as we don't have direct access to User Service here without a client.
-    // Ideally, we should add UserClient similar to DonationService.
-    return "", fmt.Errorf("P2P transfer recipient resolution not implemented yet")
+	var userID string
+	var err error
+
+	// 1. Resolve User ID
+	if email != nil && *email != "" {
+		userID, err = s.walletRepo.GetUserIDByEmail(*email)
+	} else if phone != nil && *phone != "" {
+		userID, err = s.walletRepo.GetUserIDByPhone(*phone)
+	} else {
+		return "", fmt.Errorf("either email or phone must be provided")
+	}
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("recipient user not found")
+		}
+		return "", fmt.Errorf("failed to lookup recipient: %w", err)
+	}
+
+	// 2. Find existing wallet for this currency
+	walletID, err := s.walletRepo.GetWalletIDByUserAndCurrency(userID, currency)
+	if err == nil {
+		return walletID, nil
+	}
+	
+	if err != sql.ErrNoRows {
+		return "", fmt.Errorf("failed to check recipient wallet: %w", err)
+	}
+
+	// 3. Create new wallet if not found
+	newWalletID := generateID()
+	if err := s.walletRepo.CreateWallet(newWalletID, userID, currency); err != nil {
+		return "", fmt.Errorf("failed to create recipient wallet: %w", err)
+	}
+
+	return newWalletID, nil
 }
 
 func generateID() string {
