@@ -296,10 +296,14 @@ const fetchTransactions = async () => {
         const txRes = await walletAPI.getTransactions(wallet.id, limit, offset.value)
         if (txRes.data?.transactions) {
           txRes.data.transactions.forEach(tx => {
+            let txType = tx.transaction_type || 'transfer'
+            if (tx.reference && tx.reference.startsWith('DON-')) txType = 'donation'
+            if (tx.reference && tx.reference.startsWith('REF-')) txType = 'refund'
+
             allTransactions.push({
               id: tx.id,
-              type: tx.transaction_type || 'transfer',
-              title: getTransactionTitle(tx.transaction_type),
+              type: txType,
+              title: getTransactionTitle(txType),
               description: tx.description || `${wallet.currency}`,
               amount: tx.from_wallet_id === wallet.id ? -tx.amount : tx.amount,
               currency: tx.currency || wallet.currency,
@@ -365,11 +369,24 @@ const loadTransferDetails = async (tx) => {
     receiverInfo.value = null
     
     try {
-        // Only fetch if it's a transfer and has a reference (transfer ID)
-        if (tx.type === 'transfer' && tx.reference) {
+        // Fetch details for transfer, donation, or refund types
+        const isTransferType = ['transfer', 'donation', 'refund'].includes(tx.type) || tx.reference?.startsWith('DON-') || tx.reference?.startsWith('REF-')
+        
+        if (isTransferType && tx.reference) {
             try {
+                let transferId = tx.reference
+                // Extract clean Transfer/Donation ID from reference
+                if (tx.reference.startsWith('DON-')) {
+                   transferId = tx.reference.replace('DON-', '')
+                }
+                // For refund, reference is typically REF-DON-{ID}. 
+                // Transfer ID might be REF-{ID} (RequestID).
+                // Try fetching by reference if possible, or attempt ID construction?
+                // For now, let's try passing the reference directly if it fails, or logic above.
+                // Assuming transfer-service might accept reference or we need exact ID.
+                
                 // Fetch full transfer details (enriched by backend)
-                const res = await transferAPI.get(tx.reference)
+                const res = await transferAPI.get(transferId)
                 const transfer = res.data
 
                 // Use enriched details if available

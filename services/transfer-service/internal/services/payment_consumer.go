@@ -325,6 +325,9 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 		}
 	} else if paymentReq.Type == "donation" {
         desc = "Donation"
+		if title, ok := paymentReq.Metadata["campaign_title"].(string); ok && title != "" {
+			desc += fmt.Sprintf(": %s", title)
+		}
     } else if paymentReq.Type == "ticket_purchase" {
         desc = "Achat de Ticket" // Better French description
     }

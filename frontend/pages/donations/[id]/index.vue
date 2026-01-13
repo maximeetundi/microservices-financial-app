@@ -568,9 +568,17 @@ const processDonation = async () => {
             })
             
             lastDonationAmount.value = donationForm.amount || 0
+            
+            // Optimistically update collected amount for better UX
+            if (campaign.value && donationForm.amount) {
+                campaign.value.collected_amount = (campaign.value.collected_amount || 0) + donationForm.amount
+            }
+
             showDonateModal.value = false
             showSuccessModal.value = true
-            loadData() 
+            
+            // Delay reload slightly to allow backend propagation, though optimistic update covers immediate view
+            setTimeout(() => loadData(), 2000)
             
             donationForm.amount = null
             donationForm.message = ''

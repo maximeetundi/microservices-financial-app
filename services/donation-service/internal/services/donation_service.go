@@ -134,6 +134,10 @@ func (s *DonationService) InitiateDonation(req *InitiateDonationRequest, token s
 		Currency:          req.Currency,
 		Type:              "donation",
 		ReferenceID:       fmt.Sprintf("DON-%s", donation.ID.Hex()),
+		Metadata:          map[string]interface{}{
+			"campaign_title": campaign.Title,
+			"campaign_id":    campaign.ID.Hex(),
+		},
 	}
 
 	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "donation-service", paymentReq)
