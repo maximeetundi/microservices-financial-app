@@ -186,7 +186,7 @@ func (s *DonationService) RefundDonation(donationID, requesterID string) error {
 	}
 
 	// 2. Get Campaign to verify Creator
-	campaign, err := s.campaignRepo.GetByID(donation.CampaignID)
+	campaign, err := s.campaignRepo.GetByID(donation.CampaignID.Hex())
 	if err != nil {
 		return errors.New("associated campaign not found")
 	}

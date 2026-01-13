@@ -12,6 +12,7 @@ const (
 	DonationStatusPending DonationStatus = "pending"
 	DonationStatusPaid    DonationStatus = "paid"
 	DonationStatusFailed  DonationStatus = "failed"
+	DonationStatusRefunding DonationStatus = "refunding"
 	DonationStatusRefunded DonationStatus = "refunded"
 )
 
