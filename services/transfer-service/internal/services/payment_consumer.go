@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 )
 
@@ -16,15 +18,23 @@ type PaymentRequestConsumer struct {
 	walletClient   *WalletClient
 	exchangeClient *ExchangeClient
 	walletRepo     *repository.WalletRepository
+	transferRepo   *repository.TransferRepository
 }
 
 // NewPaymentRequestConsumer creates a new payment request consumer
-func NewPaymentRequestConsumer(kafkaClient *messaging.KafkaClient, walletClient *WalletClient, exchangeClient *ExchangeClient, walletRepo *repository.WalletRepository) *PaymentRequestConsumer {
+func NewPaymentRequestConsumer(
+	kafkaClient *messaging.KafkaClient, 
+	walletClient *WalletClient, 
+	exchangeClient *ExchangeClient, 
+	walletRepo *repository.WalletRepository,
+	transferRepo *repository.TransferRepository,
+) *PaymentRequestConsumer {
 	return &PaymentRequestConsumer{
 		kafkaClient:    kafkaClient,
 		walletClient:   walletClient,
 		exchangeClient: exchangeClient,
 		walletRepo:     walletRepo,
+		transferRepo:   transferRepo,
 	}
 }
 
@@ -280,6 +290,41 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	log.Printf("[Kafka] Payment request %s processed successfully", paymentReq.RequestID)
 	c.publishPaymentStatus(paymentReq.RequestID, paymentReq.ReferenceID, paymentReq.Type, "success", "")
+
+	// --- RECORD TRANSACTION IN HISTORY ---
+	// Map payment type to transfer type (or keep original)
+	txType := paymentReq.Type
+	if txType == "donation" {
+		txType = "donation"
+	} else if txType == "ticket_purchase" {
+		txType = "payment"
+	}
+
+	// Create Transfer Record
+	transfer := &models.Transfer{
+		ID:             paymentReq.RequestID, // Use RequestID to match external ID
+		UserID:         paymentReq.UserID,    // Payer
+		FromWalletID:   &paymentReq.FromWalletID,
+		ToWalletID:     &paymentReq.ToWalletID,
+		TransferType:   txType,
+		Amount:         paymentReq.DebitAmount,
+		Currency:       paymentReq.Currency,
+		Status:         "completed",
+		Reference:      &paymentReq.ReferenceID,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	// Set Description
+	desc := fmt.Sprintf("Paiement: %s", paymentReq.Type)
+	transfer.Description = &desc
+
+	if err := c.transferRepo.Create(transfer); err != nil {
+		log.Printf("[Kafka] Failed to record transfer history for %s: %v", paymentReq.RequestID, err)
+	} else {
+		log.Printf("[Kafka] Recorded transfer history for %s", paymentReq.RequestID)
+	}
+	// -------------------------------------
 
 	return nil
 }

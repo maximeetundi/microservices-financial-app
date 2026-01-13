@@ -23,6 +23,7 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
   String _currency = 'XOF';
   bool _allowRecurring = true;
   bool _allowAnonymous = true;
+  bool _showDonors = false;
 
   // Media
   File? _imageFile;
@@ -134,6 +135,7 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
         'video_url': videoUrl,
         'allow_recurring': _allowRecurring,
         'allow_anonymous': _allowAnonymous,
+        'show_donors': _showDonors,
         'form_schema': schema,
       };
 
@@ -288,6 +290,20 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Visibility Settings
+              SwitchListTile(
+                title: const Text('Afficher les donateurs', style: TextStyle(color: Colors.white)),
+                subtitle: Text(
+                  _showDonors ? 'La liste des donateurs sera visible par tous' : 'La liste des donateurs sera masquée (sauf pour vous)',
+                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                ),
+                activeColor: const Color(0xFF6366f1),
+                contentPadding: EdgeInsets.zero,
+                value: _showDonors,
+                onChanged: (v) => setState(() => _showDonors = v),
+              ),
+              const Divider(color: Colors.white12),
 
               // Dynamic Form Builder
               Row(

@@ -172,6 +172,17 @@
                             </div>
                             <input type="checkbox" v-model="form.allowAnonymous" class="w-6 h-6 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
                         </label>
+
+                        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                            <div class="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-600">
+                                👁️
+                            </div>
+                            <div class="flex-1">
+                                <span class="block font-bold text-gray-900 dark:text-white">Afficher les donateurs</span>
+                                <span class="block text-xs text-gray-500">{{ form.showDonors ? 'La liste des donateurs sera visible par tous.' : 'La liste des donateurs sera privée (visible uniquement par vous).' }}</span>
+                            </div>
+                            <input type="checkbox" v-model="form.showDonors" class="w-6 h-6 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                        </label>
                     </div>
 
                     <!-- Submit -->
@@ -220,6 +231,7 @@ const form = reactive({
     videoUrl: '', 
     allowRecurring: true,
     allowAnonymous: true,
+    showDonors: false,
     form_fields: [] as any[]
 })
 
@@ -236,6 +248,7 @@ const loadCampaign = async () => {
         form.videoUrl = c.video_url
         form.allowRecurring = c.allow_recurring
         form.allowAnonymous = c.allow_anonymous
+        form.showDonors = c.show_donors
         
         // Parse form schema back to edit format
         if (c.form_schema) {
@@ -352,6 +365,7 @@ const updateCampaign = async () => {
             video_url: finalVideoUrl,
             allow_recurring: form.allowRecurring,
             allow_anonymous: form.allowAnonymous,
+            show_donors: form.showDonors,
             form_schema: form.form_fields.map(f => ({
                 name: f.label ? f.label.toLowerCase().replace(/\s+/g, '_') : f.name,
                 label: f.label,

@@ -126,6 +126,7 @@ func (c *PaymentConsumer) sendNotification(donation *models.Donation, status str
 				"donation_id": donation.ID.Hex(),
 				"amount":      donation.Amount,
 			},
+			ActionUrl: fmt.Sprintf("/transactions/%s", donation.ID.Hex()),
 		}
 		env := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "donation-service", notif)
 		c.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, env)
@@ -139,6 +140,7 @@ func (c *PaymentConsumer) sendNotification(donation *models.Donation, status str
 				Type:    "donation_sent",
 				Title:   "Don Confirmé ✅",
 				Message: thankYouMsg,
+				ActionUrl: fmt.Sprintf("/transactions/%s", donation.ID.Hex()),
 			}
 			donorEnv := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "donation-service", donorNotif)
 			c.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, donorEnv)

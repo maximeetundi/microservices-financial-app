@@ -307,11 +307,19 @@ const loadTransferDetails = async (tx) => {
         // Only fetch if it's a transfer and has a reference (transfer ID)
         if (tx.type === 'transfer' && tx.reference) {
             try {
+                // Fetch full transfer details (enriched by backend)
                 const res = await transferAPI.get(tx.reference)
                 const transfer = res.data
 
-                // Get Sender Info
-                if (transfer.user_id) {
+                // Use enriched details if available
+                if (transfer.sender_details) {
+                    senderInfo.value = {
+                        name: transfer.sender_details.name,
+                        email: transfer.sender_details.email,
+                        phone: transfer.sender_details.phone
+                    }
+                } else if (transfer.user_id) {
+                     // Fallback to fetching user if not enriched (backwards compat)
                     try {
                         const uRes = await userAPI.getById(transfer.user_id)
                         const u = uRes.data
@@ -323,18 +331,18 @@ const loadTransferDetails = async (tx) => {
                     } catch (e) { console.warn('Fetch sender failed', e) }
                 }
 
-                // Get Recipient Info
-                if(transfer.recipient_email || transfer.recipient_phone) {
+                if (transfer.recipient_details) {
+                    receiverInfo.value = {
+                        name: transfer.recipient_details.name,
+                        email: transfer.recipient_details.email,
+                        phone: transfer.recipient_details.phone
+                    }
+                } else if(transfer.recipient_email || transfer.recipient_phone) {
                      receiverInfo.value = {
-                         name: transfer.recipient_name || 'Contact Externe', // Name might be missing if simple P2P
+                         name: transfer.recipient_name || 'Contact Externe',
                          email: transfer.recipient_email,
                          phone: transfer.recipient_phone
                      }
-                     // Try to see if we can resolve user from email/phone?
-                } else if (transfer.to_wallet_id) {
-                    // Try to fetch wallet? We might not have permission.
-                    // But if WE are the sender, we might want to know who received it.
-                    // If WE are the receiver, we are the Recipient.
                 }
             } catch (e) {
                 console.warn("Failed to fetch transfer details", e)

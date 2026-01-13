@@ -167,7 +167,65 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 
 
 func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
-	return s.transferRepo.GetByID(id)
+	transfer, err := s.transferRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Populate Sender Details
+	// Getting sender user ID from wallet
+	if transfer.FromWalletID != nil {
+		fromWallet, err := s.walletRepo.GetByID(*transfer.FromWalletID)
+		if err == nil {
+			name, email, phone, err := s.walletRepo.GetUserInfo(fromWallet.UserID)
+			if err == nil {
+				transfer.SenderDetails = &models.UserDetails{
+					Name:  name,
+					Email: email,
+					Phone: phone,
+				}
+			}
+		}
+	}
+
+	// 2. Populate Recipient Details
+	// Check if internal transfer with wallet ID
+	if transfer.ToWalletID != nil && *transfer.ToWalletID != "" {
+		toWallet, err := s.walletRepo.GetByID(*transfer.ToWalletID)
+		if err == nil {
+			name, email, phone, err := s.walletRepo.GetUserInfo(toWallet.UserID)
+			if err == nil {
+				transfer.RecipientDetails = &models.UserDetails{
+					Name:  name,
+					Email: email,
+					Phone: phone,
+				}
+			}
+		}
+	} else {
+		// External or P2P by email/phone - data is already in transfer object
+		var name, email, phone string
+		
+		// If mobile money or international, these details might be in the specific structs, 
+		// but standard transfer struct has RecipientEmail/Phone too.
+		if transfer.RecipientEmail != nil {
+			email = *transfer.RecipientEmail
+		}
+		if transfer.RecipientPhone != nil {
+			phone = *transfer.RecipientPhone
+		}
+		
+		if email != "" || phone != "" {
+			name = "Contact Externe"
+			transfer.RecipientDetails = &models.UserDetails{
+				Name:  name,
+				Email: email,
+				Phone: phone,
+			}
+		}
+	}
+
+	return transfer, nil
 }
 
 func (s *TransferService) GetTransferHistory(userID string, limit, offset int) ([]*models.Transfer, error) {

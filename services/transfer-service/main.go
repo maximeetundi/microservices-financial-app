@@ -68,7 +68,7 @@ func main() {
 	complianceService := services.NewComplianceService(cfg)
 	
 	// Start Kafka Consumers
-	paymentConsumer := services.NewPaymentRequestConsumer(kafkaClient, walletClient, exchangeClient, walletRepo)
+	paymentConsumer := services.NewPaymentRequestConsumer(kafkaClient, walletClient, exchangeClient, walletRepo, transferRepo)
 	if err := paymentConsumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start PaymentRequestConsumer: %v", err)
 	}

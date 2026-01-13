@@ -170,4 +170,5 @@ type NotificationEvent struct {
 	Title   string                 `json:"title"`
 	Message string                 `json:"message"`
 	Data    map[string]interface{} `json:"data,omitempty"`
+	ActionUrl string             `json:"action_url,omitempty"`
 }

@@ -173,3 +173,18 @@ func (r *WalletRepository) GetUserNameByID(userID string) (string, error) {
 	}
 	return fullName, nil
 }
+
+// GetUserInfo retrieves detailed user info by ID
+func (r *WalletRepository) GetUserInfo(userID string) (string, string, string, error) {
+	query := `SELECT COALESCE(first_name, '') || ' ' || COALESCE(last_name, ''), email, phone FROM users WHERE id = $1`
+	var fullName, email, phone string
+	err := r.db.QueryRow(query, userID).Scan(&fullName, &email, &phone)
+	if err != nil {
+		return "", "", "", err
+	}
+	// Fallback if name is empty
+	if fullName == " " || fullName == "" {
+		fullName = "Utilisateur" // Generic name
+	}
+	return fullName, email, phone, nil
+}

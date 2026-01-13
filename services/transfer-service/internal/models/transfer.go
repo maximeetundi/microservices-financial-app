@@ -30,6 +30,16 @@ type Transfer struct {
 	// Additional fields for different transfer types
 	InternationalDetails *InternationalTransferDetails `json:"international_details,omitempty" db:"-"`
 	MobileMoneyDetails   *MobileMoneyDetails          `json:"mobile_money_details,omitempty" db:"-"`
+
+	// Enriched Data (not stored in DB)
+	SenderDetails    *UserDetails `json:"sender_details,omitempty" db:"-"`
+	RecipientDetails *UserDetails `json:"recipient_details,omitempty" db:"-"`
+}
+
+type UserDetails struct {
+	Name  string `json:"name"`
+	Email string `json:"email,omitempty"`
+	Phone string `json:"phone,omitempty"`
 }
 
 type InternationalTransferDetails struct {
