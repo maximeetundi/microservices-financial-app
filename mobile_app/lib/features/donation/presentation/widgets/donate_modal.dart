@@ -4,12 +4,24 @@ class DonateModal extends StatefulWidget {
   final String campaignId;
   final String currency;
   final List<dynamic>? formSchema;
+  
+  // Advanced Options
+  final String donationType; // free, fixed, tiers
+  final double? fixedAmount;
+  final List<dynamic>? donationTiers;
+  final double? minAmount;
+  final double? maxAmount;
 
   const DonateModal({
     super.key,
     required this.campaignId,
     required this.currency,
     this.formSchema,
+    this.donationType = 'free',
+    this.fixedAmount,
+    this.donationTiers,
+    this.minAmount,
+    this.maxAmount,
   });
 
   @override
@@ -35,6 +47,13 @@ class _DonateModalState extends State<DonateModal> {
   void initState() {
     super.initState();
     _loadWallets();
+    
+    // Init Amount
+    if (widget.donationType == 'fixed' && widget.fixedAmount != null) {
+      _amountController.text = widget.fixedAmount!.toStringAsFixed(0);
+    } else if (widget.donationType == 'tiers' && widget.donationTiers != null && widget.donationTiers!.isNotEmpty) {
+      // Default to first tier? Or let user pick. Let's let user pick.
+    }
   }
 
   Future<void> _loadWallets() async {
@@ -57,6 +76,23 @@ class _DonateModalState extends State<DonateModal> {
     if (_amountController.text.isEmpty || _selectedWalletId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez remplir tous les champs')));
       return;
+    }
+
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (amount <= 0) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Montant invalide')));
+       return;
+    }
+
+    if (widget.donationType == 'free') {
+       if (widget.minAmount != null && amount < widget.minAmount!) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Le montant minimum est de ${widget.minAmount} ${widget.currency}')));
+          return;
+       }
+       if (widget.maxAmount != null && amount > widget.maxAmount!) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Le montant maximum est de ${widget.maxAmount} ${widget.currency}')));
+          return;
+       }
     }
 
     // Validate Dynamic Fields
@@ -135,18 +171,74 @@ class _DonateModalState extends State<DonateModal> {
             const SizedBox(height: 20),
             
             // Amount
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Montant (${widget.currency})',
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
+            // Amount Section
+            if (widget.donationType == 'fixed') ...[
+               Container(
+                 width: double.infinity,
+                 padding: const EdgeInsets.all(16),
+                 decoration: BoxDecoration(
+                   color: const Color(0xFF6366f1).withOpacity(0.1),
+                   borderRadius: BorderRadius.circular(12),
+                   border: Border.all(color: const Color(0xFF6366f1)),
+                 ),
+                 child: Column(
+                   children: [
+                     const Text('Montant Fixe', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                     Text(
+                       '${widget.fixedAmount?.toStringAsFixed(0) ?? 0} ${widget.currency}',
+                       style: const TextStyle(color: Color(0xFF6366f1), fontSize: 24, fontWeight: FontWeight.bold),
+                     ),
+                   ],
+                 ),
+               ),
+            ] else if (widget.donationType == 'tiers' && widget.donationTiers != null) ...[
+               Wrap(
+                 spacing: 8,
+                 runSpacing: 8,
+                 children: widget.donationTiers!.map((tier) {
+                   final amount = double.tryParse(tier['amount'].toString()) ?? 0;
+                   final isSelected = _amountController.text == amount.toStringAsFixed(0);
+                   return GestureDetector(
+                     onTap: () {
+                         setState(() {
+                           _amountController.text = amount.toStringAsFixed(0);
+                         });
+                     },
+                     child: Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                       decoration: BoxDecoration(
+                         color: isSelected ? const Color(0xFF6366f1) : Colors.white.withOpacity(0.1),
+                         borderRadius: BorderRadius.circular(12),
+                         border: Border.all(color: isSelected ? const Color(0xFF6366f1) : Colors.transparent),
+                       ),
+                       child: Column(
+                         children: [
+                           Text(tier['label'], style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: FontWeight.bold)),
+                           Text('${amount.toStringAsFixed(0)} ${widget.currency}', style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF6366f1), fontSize: 12)),
+                         ],
+                       ),
+                     ),
+                   );
+                 }).toList(),
+               ),
+            ] else ...[
+                TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Montant (${widget.currency})',
+                    labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.1),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    helperText: (widget.minAmount != null || widget.maxAmount != null) 
+                        ? 'Min: ${widget.minAmount ?? 0} - Max: ${widget.maxAmount ?? "Illimité"}' 
+                        : null,
+                    helperStyle: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
 
             // Frequency

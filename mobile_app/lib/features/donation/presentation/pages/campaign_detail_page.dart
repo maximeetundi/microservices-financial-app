@@ -59,6 +59,11 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
         campaignId: widget.campaignId,
         currency: _campaign!['currency'] ?? 'XOF',
         formSchema: _campaign!['form_schema'] != null ? List<dynamic>.from(_campaign!['form_schema']) : null,
+        donationType: _campaign!['donation_type'] ?? 'free',
+        fixedAmount: double.tryParse(_campaign!['fixed_amount']?.toString() ?? ''),
+        minAmount: double.tryParse(_campaign!['min_amount']?.toString() ?? ''),
+        maxAmount: double.tryParse(_campaign!['max_amount']?.toString() ?? ''),
+        donationTiers: _campaign!['donation_tiers'] != null ? List<dynamic>.from(_campaign!['donation_tiers']) : null,
       ),
     ).then((result) {
       if (result == true) {

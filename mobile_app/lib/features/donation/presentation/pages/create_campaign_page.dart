@@ -25,6 +25,13 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
   bool _allowAnonymous = true;
   bool _showDonors = false;
 
+  // Donation Config
+  String _donationType = 'free'; // free, fixed, tiers
+  double? _fixedAmount;
+  double? _minAmount; // For free donations
+  double? _maxAmount;
+  final List<Map<String, dynamic>> _donationTiers = [];
+
   // Media
   File? _imageFile;
   File? _videoFile;
@@ -136,6 +143,12 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
         'allow_recurring': _allowRecurring,
         'allow_anonymous': _allowAnonymous,
         'show_donors': _showDonors,
+        'show_donors': _showDonors,
+        'donation_type': _donationType,
+        'fixed_amount': _fixedAmount,
+        'min_amount': _minAmount,
+        'max_amount': _maxAmount,
+        'donation_tiers': _donationTiers,
         'form_schema': schema,
       };
 
@@ -248,6 +261,113 @@ class _CreateCampaignPageState extends State<CreateCampaignPage> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // === Donation Configuration ===
+               const Text('Options de Don', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+
+              // Type Selector
+              Container(
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: ['free', 'fixed', 'tiers'].map((type) {
+                     final isSelected = _donationType == type;
+                     return Expanded(
+                       child: GestureDetector(
+                         onTap: () => setState(() => _donationType = type),
+                         child: Container(
+                           padding: const EdgeInsets.symmetric(vertical: 12),
+                           decoration: BoxDecoration(
+                             color: isSelected ? const Color(0xFF6366f1) : Colors.transparent,
+                             borderRadius: BorderRadius.circular(12),
+                           ),
+                           child: Text(
+                             type == 'free' ? 'Libre' : (type == 'fixed' ? 'Fixe' : 'Paliers'),
+                             textAlign: TextAlign.center,
+                             style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontWeight: FontWeight.bold),
+                           ),
+                         ),
+                       ),
+                     );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Config Fields based on Type
+              if (_donationType == 'free') ...[
+                 Row(
+                   children: [
+                      Expanded(child: TextFormField(
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _inputDecoration('Min (Optionnel)'),
+                        keyboardType: TextInputType.number,
+                        onSaved: (v) => _minAmount = v!.isEmpty ? null : double.tryParse(v),
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: TextFormField(
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _inputDecoration('Max (Optionnel)'),
+                        keyboardType: TextInputType.number,
+                        onSaved: (v) => _maxAmount = v!.isEmpty ? null : double.tryParse(v),
+                      )),
+                   ],
+                 ),
+              ] else if (_donationType == 'fixed') ...[
+                 TextFormField(
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration('Montant Fixe ($_currency)'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => _donationType == 'fixed' && (v == null || v.isEmpty) ? 'Requis' : null,
+                    onSaved: (v) => _fixedAmount = double.tryParse(v!),
+                 ),
+              ] else if (_donationType == 'tiers') ...[
+                  ..._donationTiers.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final tier = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              initialValue: tier['label'],
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _inputDecoration('Nom'),
+                              onChanged: (v) => tier['label'] = v,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              initialValue: tier['amount']?.toString(),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: _inputDecoration('Montant'),
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) => tier['amount'] = double.tryParse(v) ?? 0,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => setState(() => _donationTiers.removeAt(idx)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  TextButton.icon(
+                    onPressed: () => setState(() => _donationTiers.add({'label': '', 'amount': 0.0})),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ajouter un palier'),
+                  ),
+              ],
+              const SizedBox(height: 24),
+              const Divider(color: Colors.white12),
+              const SizedBox(height: 24),
+
+              // Visibility Settings
 
               // Video Picker
               GestureDetector(

@@ -167,12 +167,42 @@
                 <div class="p-6 overflow-y-auto custom-scrollbar"> 
                     <h3 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Faire un don ❤️</h3>
                     
-                    <!-- Amount -->
+                    <!-- Amount Section -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Montant du don</label>
-                        <div class="relative">
+                        
+                        <!-- FIXED AMOUNT -->
+                        <div v-if="campaign.donation_type === 'fixed'" class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-center border border-indigo-100 dark:border-indigo-900/50">
+                            <span class="block text-gray-500 text-sm mb-1">Montant Fixe</span>
+                            <span class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{{ formatAmount(campaign.fixed_amount, campaign.currency) }}</span>
+                        </div>
+
+                        <!-- TIERS -->
+                        <div v-else-if="campaign.donation_type === 'tiers'" class="space-y-3">
+                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                 <button v-for="(tier, idx) in campaign.donation_tiers" :key="idx"
+                                         @click="selectTier(tier)"
+                                         class="p-3 rounded-xl border-2 text-left transition-all relative overflow-hidden group"
+                                         :class="donationForm.amount === tier.amount 
+                                            ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' 
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300'">
+                                     <span class="block font-bold text-gray-900 dark:text-white">{{ tier.label }}</span>
+                                     <span class="block text-indigo-600 dark:text-indigo-400 font-bold">{{ formatAmount(tier.amount, campaign.currency) }}</span>
+                                 </button>
+                             </div>
+                             <!-- Optional Custom Amount for Tiers? Usually no, but let's assume strict tiers for now unless 'custom' tier exists. For MVP, strict tiers. -->
+                        </div>
+
+                        <!-- FREE AMOUNT -->
+                        <div v-else class="relative">
                             <input v-model.number="donationForm.amount" type="number" class="w-full pl-4 pr-12 py-3 text-xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="0">
                             <span class="absolute right-4 top-3.5 text-gray-500 font-bold">{{ campaign?.currency }}</span>
+                            
+                            <!-- Limits Hint -->
+                            <div class="flex justify-between mt-2 text-xs text-gray-400" v-if="campaign.min_amount || campaign.max_amount">
+                                <span v-if="campaign.min_amount">Min: {{ formatAmount(campaign.min_amount, campaign.currency) }}</span>
+                                <span v-if="campaign.max_amount">Max: {{ formatAmount(campaign.max_amount, campaign.currency) }}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -426,6 +456,17 @@ const shareCampaign = async () => {
 
 const openDonateModal = async () => {
     showDonateModal.value = true
+    
+    // Initialize Amount based on Type
+    if (campaign.value.donation_type === 'fixed') {
+        donationForm.amount = campaign.value.fixed_amount
+    } else if (campaign.value.donation_type === 'tiers' && campaign.value.donation_tiers?.length > 0) {
+        // Select first tier by default
+        donationForm.amount = campaign.value.donation_tiers[0].amount
+    } else {
+        donationForm.amount = null
+    }
+
     if (!walletsLoaded.value) {
         try {
             const res = await walletApi.getMyWallets() 
@@ -438,8 +479,20 @@ const openDonateModal = async () => {
     }
 }
 
+const selectTier = (tier: any) => {
+    donationForm.amount = tier.amount
+}
+
 const isValidDonation = computed(() => {
-    return donationForm.amount && donationForm.amount > 0 && donationForm.walletId
+    if (!donationForm.amount || donationForm.amount <= 0 || !donationForm.walletId) return false
+    
+    // Validate Limits for Free Type
+    if (campaign.value.donation_type === 'free') {
+        if (campaign.value.min_amount && donationForm.amount < campaign.value.min_amount) return false
+        if (campaign.value.max_amount && donationForm.amount > campaign.value.max_amount) return false
+    }
+    
+    return true
 })
 
 const processDonation = async () => {

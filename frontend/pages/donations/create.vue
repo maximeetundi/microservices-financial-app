@@ -95,6 +95,67 @@
                         </div>
                     </div>
 
+                    <!-- Vaccination / Advanced Donation Config -->
+                    <div class="border-t border-gray-100 dark:border-gray-800 pt-6">
+                         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">💰 Options de Don</h3>
+                        
+                         <!-- Donation Type Selector -->
+                         <div class="flex gap-2 mb-6 bg-gray-50 dark:bg-slate-800 p-1 rounded-xl">
+                             <button type="button" @click="form.donationType = 'free'" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all" :class="form.donationType === 'free' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700'">
+                                 Libre
+                             </button>
+                             <button type="button" @click="form.donationType = 'fixed'" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all" :class="form.donationType === 'fixed' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700'">
+                                 Montant Fixe
+                             </button>
+                             <button type="button" @click="form.donationType = 'tiers'" class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all" :class="form.donationType === 'tiers' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700'">
+                                 Paliers
+                             </button>
+                         </div>
+
+                         <!-- Free Donation Config -->
+                         <div v-if="form.donationType === 'free'" class="grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-200">
+                             <div>
+                                 <label class="block text-xs font-bold text-gray-500 mb-1">Min (Optionnel)</label>
+                                 <div class="relative">
+                                     <input v-model.number="form.minAmount" type="number" class="w-full pl-3 pr-8 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm" placeholder="0">
+                                     <span class="absolute right-3 top-2 text-gray-400 text-xs font-bold">{{ form.currency }}</span>
+                                 </div>
+                             </div>
+                             <div>
+                                 <label class="block text-xs font-bold text-gray-500 mb-1">Max (Optionnel)</label>
+                                 <div class="relative">
+                                     <input v-model.number="form.maxAmount" type="number" class="w-full pl-3 pr-8 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm" placeholder="Illimité">
+                                     <span class="absolute right-3 top-2 text-gray-400 text-xs font-bold">{{ form.currency }}</span>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- Fixed Donation Config -->
+                         <div v-if="form.donationType === 'fixed'" class="animate-in fade-in zoom-in duration-200">
+                             <label class="block text-sm font-bold text-gray-900 dark:text-white mb-2">Montant du Don</label>
+                             <div class="relative">
+                                 <input v-model.number="form.fixedAmount" type="number" class="w-full pl-4 pr-12 py-3 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-900/10 focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-600" placeholder="5000">
+                                 <span class="absolute right-4 top-3.5 text-indigo-500 font-bold">{{ form.currency }}</span>
+                             </div>
+                             <p class="text-xs text-gray-500 mt-1">Tous les donateurs paieront ce montant exact.</p>
+                         </div>
+
+                         <!-- Tiers Config -->
+                         <div v-if="form.donationType === 'tiers'" class="space-y-3 animate-in fade-in zoom-in duration-200">
+                             <div v-for="(tier, idx) in form.tiers" :key="idx" class="flex gap-2 items-center">
+                                 <input v-model="tier.label" type="text" placeholder="Nom (Ex: Silver)" class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm">
+                                 <div class="relative w-32">
+                                     <input v-model.number="tier.amount" type="number" class="w-full pl-2 pr-8 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold" placeholder="Amount">
+                                     <span class="absolute right-3 top-2 text-gray-400 text-xs">{{ form.currency }}</span>
+                                 </div>
+                                 <button type="button" @click="removeTier(idx)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg">✕</button>
+                             </div>
+                             <button type="button" @click="addTier" class="text-indigo-600 text-sm font-bold flex items-center gap-1">
+                                 + Ajouter un palier
+                             </button>
+                         </div>
+                    </div>
+
                     <!-- Dynamic Form Builder -->
                     <div class="border-t border-gray-100 dark:border-gray-800 pt-6">
                         <div class="flex justify-between items-center mb-4">
@@ -207,15 +268,28 @@ const form = reactive({
     targetAmount: null as number | null,
     currency: 'XOF',
     imageUrl: '',
-    videoUrl: '', // New field
+    videoUrl: '', 
     allowRecurring: true,
     allowAnonymous: true,
     showDonors: false,
+    donationType: 'free', // free, fixed, tiers
+    fixedAmount: null as number | null,
+    minAmount: null as number | null,
+    maxAmount: null as number | null,
+    tiers: [] as { label: string, amount: number }[],
     form_fields: [
         { name: 'full_name', label: 'Nom complet', type: 'text', required: true, options: [] as string[], optionsText: '' },
         { name: 'email', label: 'Email', type: 'email', required: true, options: [] as string[], optionsText: '' },
     ]
 })
+
+const addTier = () => {
+  form.tiers.push({ label: '', amount: 0 })
+}
+
+const removeTier = (index: number) => {
+  form.tiers.splice(index, 1)
+}
 
 const addField = () => {
   form.form_fields.push({
@@ -321,6 +395,15 @@ const createCampaign = async () => {
                 type: f.type,
                 required: f.required,
                 options: f.options
+            })),
+            donation_type: form.donationType,
+            fixed_amount: form.fixedAmount,
+            min_amount: form.minAmount,
+            max_amount: form.maxAmount,
+            donation_tiers: form.tiers.map(t => ({
+                label: t.label,
+                amount: t.amount,
+                description: '' 
             }))
         }
         

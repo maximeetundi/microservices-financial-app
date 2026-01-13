@@ -34,6 +34,10 @@ type Campaign struct {
 	Tags            []string           `bson:"tags" json:"tags"`
 	ShowDonors      bool               `bson:"show_donors" json:"show_donors"`
 	
+	DonationType    string          `bson:"donation_type" json:"donation_type"` // free, fixed, tiers
+	FixedAmount     float64         `bson:"fixed_amount" json:"fixed_amount"`
+	DonationTiers   []DonationTier  `bson:"donation_tiers,omitempty" json:"donation_tiers,omitempty"`
+
 	QRCode          string             `bson:"qr_code,omitempty" json:"qr_code,omitempty"`
 	CampaignCode    string             `bson:"campaign_code,omitempty" json:"campaign_code,omitempty"`
 	
@@ -50,4 +54,10 @@ type FormField struct {
 	Type     string   `bson:"type" json:"type"`
 	Required bool     `bson:"required" json:"required"`
 	Options  []string `bson:"options,omitempty" json:"options,omitempty"`
+}
+
+type DonationTier struct {
+	Label       string  `bson:"label" json:"label"`
+	Amount      float64 `bson:"amount" json:"amount"`
+	Description string  `bson:"description,omitempty" json:"description,omitempty"`
 }
