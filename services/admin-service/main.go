@@ -57,6 +57,13 @@ func main() {
 	}
 	defer mainDB.Close()
 
+	// Initialize MongoDB
+	mongoClient, err := database.InitializeMongoDB(cfg.MongoDBURI)
+	if err != nil {
+		log.Fatal("Failed to initialize MongoDB:", err)
+	}
+	defer database.CloseMongoDB(mongoClient)
+
 	// Initialize Kafka
 	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers, cfg.KafkaGroupID)
 	if err != nil {
@@ -66,9 +73,10 @@ func main() {
 
 	// Initialize repository
 	repo := repository.NewAdminRepository(adminDB, mainDB)
+	mongoRepo := repository.NewMongoRepository(mongoClient)
 
 	// Initialize service
-	adminService := services.NewAdminService(repo, kafkaClient, cfg)
+	adminService := services.NewAdminService(repo, mongoRepo, kafkaClient, cfg)
 
 	// Initialize storage service for presigned URLs
 	storageService, err := services.NewStorageService(
@@ -214,6 +222,14 @@ func main() {
 			notifications.POST("", notifHandler.CreateNotification)
 			notifications.DELETE("/cleanup", notifHandler.DeleteOldNotifications)
 		}
+
+		// Donations & Campaigns
+		protected.GET("/campaigns", handler.GetCampaigns)
+		protected.GET("/donations", handler.GetDonations)
+
+		// Events & Tickets
+		protected.GET("/events", handler.GetEvents)
+		protected.GET("/sold-tickets", handler.GetSoldTickets)
 
 		// Payment Providers management
 		paymentHandler := handlers.NewPaymentHandler(mainDB)

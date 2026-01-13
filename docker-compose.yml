@@ -366,6 +366,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       - ADMIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank_admin?sslmode=disable
       - MAIN_DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank?sslmode=disable
@@ -384,6 +386,7 @@ services:
       - MINIO_BUCKET=kyc-documents
       - MINIO_USE_SSL=false
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/?authSource=admin
     networks:
       - crypto-bank-network
     restart: unless-stopped

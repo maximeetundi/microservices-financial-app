@@ -14,6 +14,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.47
 	golang.org/x/crypto v0.16.0
 	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
+	go.mongodb.org/mongo-driver v1.13.1
 )
 
 replace (

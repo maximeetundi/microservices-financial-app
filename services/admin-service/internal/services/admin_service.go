@@ -15,13 +15,15 @@ import (
 
 type AdminService struct {
 	repo        *repository.AdminRepository
+	mongoRepo   *repository.MongoRepository
 	kafkaClient *messaging.KafkaClient
 	config      *config.Config
 }
 
-func NewAdminService(repo *repository.AdminRepository, kafkaClient *messaging.KafkaClient, cfg *config.Config) *AdminService {
+func NewAdminService(repo *repository.AdminRepository, mongoRepo *repository.MongoRepository, kafkaClient *messaging.KafkaClient, cfg *config.Config) *AdminService {
 	return &AdminService{
 		repo:        repo,
+		mongoRepo:   mongoRepo,
 		kafkaClient: kafkaClient,
 		config:      cfg,
 	}
@@ -210,6 +212,36 @@ func (s *AdminService) GetWallets(limit, offset int) ([]map[string]interface{}, 
 
 func (s *AdminService) GetUserKYCDocuments(userID string) ([]map[string]interface{}, error) {
 	return s.repo.GetUserKYCDocuments(userID)
+}
+
+// ========== Mongo Data (Read-Only) ==========
+
+func (s *AdminService) GetCampaigns(limit, offset int) ([]map[string]interface{}, error) {
+	if s.mongoRepo == nil {
+		return nil, errors.New("mongo repository not initialized")
+	}
+	return s.mongoRepo.GetCampaigns(limit, offset)
+}
+
+func (s *AdminService) GetDonations(limit, offset int) ([]map[string]interface{}, error) {
+	if s.mongoRepo == nil {
+		return nil, errors.New("mongo repository not initialized")
+	}
+	return s.mongoRepo.GetDonations(limit, offset)
+}
+
+func (s *AdminService) GetEvents(limit, offset int) ([]map[string]interface{}, error) {
+	if s.mongoRepo == nil {
+		return nil, errors.New("mongo repository not initialized")
+	}
+	return s.mongoRepo.GetEvents(limit, offset)
+}
+
+func (s *AdminService) GetSoldTickets(limit, offset int) ([]map[string]interface{}, error) {
+	if s.mongoRepo == nil {
+		return nil, errors.New("mongo repository not initialized")
+	}
+	return s.mongoRepo.GetSoldTickets(limit, offset)
 }
 
 // ========== Admin Actions via Kafka ==========

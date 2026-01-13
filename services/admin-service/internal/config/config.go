@@ -12,6 +12,8 @@ type Config struct {
 	// Database (separate admin database)
 	AdminDBURL  string
 	MainDBURL   string  // Read-only access to main database
+	MongoDBURI  string  // Access to Mongo databases (Donations, Tickets)
+	MongoDBURI  string  // Access to Mongo databases (Donations, Tickets)
 	
 	// Redis
 	RedisURL    string
@@ -50,6 +52,8 @@ func Load() *Config {
 		
 		AdminDBURL:  getEnv("ADMIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank_admin?sslmode=disable"),
 		MainDBURL:   getEnv("MAIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		MongoDBURI:  getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+		MongoDBURI:  getEnv("MONGODB_URI", "mongodb://localhost:27017"),
 		
 		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
 		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
