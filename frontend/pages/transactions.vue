@@ -128,17 +128,6 @@
                    </div>
                </template>
 
-                   <!-- Receiver -->
-                   <div class="detail-row" v-if="receiverInfo">
-                       <span class="detail-label">À (Récepteur)</span>
-                       <div class="text-right flex flex-col items-end">
-                            <span class="detail-value font-bold">{{ receiverInfo.name }}</span>
-                            <span v-if="receiverInfo.phone" class="text-xs text-gray-400">{{ receiverInfo.phone }}</span>
-                            <span v-if="receiverInfo.email" class="text-xs text-gray-400">{{ receiverInfo.email }}</span>
-                       </div>
-                   </div>
-               </template>
-
                <!-- Transfer Actions (Cancel/Reverse) -->
                <div v-if="selectedTx.type === 'transfer' && (selectedTx.status === 'completed' || selectedTx.status === 'pending' || selectedTx.status === 'processing')" class="mt-6 pt-6 border-t border-gray-700">
                    <!-- Sender Cancel -->
