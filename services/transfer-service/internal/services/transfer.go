@@ -163,7 +163,54 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	return transfer, nil
 }
 
-// ... (omitted methods remain unchanged)
+	return transfer, nil
+}
+
+func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
+	return s.transferRepo.GetByID(id)
+}
+
+func (s *TransferService) GetTransferHistory(userID string, limit, offset int) ([]*models.Transfer, error) {
+	// We need to fetch wallets for this user first
+    // Note: This relies on walletRepo having a method to list user wallets, OR we query transfers by userID directly?
+    // Usually transfers are linked to wallets. But Transfer model might not have UserID directly on it (it has FromWalletID).
+    // Let's assume transferRepo has functionality to list by UserID (joining wallets) or we filter by wallets.
+    // simpler: s.transferRepo.ListByUserID(userID, limit, offset)
+    return s.transferRepo.GetByUserID(userID, limit, offset)
+}
+
+func (s *TransferService) CancelTransfer(id string) error {
+    // 1. Get Transfer
+    transfer, err := s.transferRepo.GetByID(id)
+    if err != nil {
+        return err
+    }
+    
+    // 2. Check if cancellable (e.g. pending)
+    if transfer.Status != "pending" && transfer.Status != "processing" {
+        return fmt.Errorf("transfer cannot be cancelled in status %s", transfer.Status)
+    }
+    
+    // 3. Update Status
+    if err := s.transferRepo.UpdateStatus(id, "cancelled"); err != nil {
+        return err
+    }
+    
+    // 4. Refund logic?
+    // If we debited wallet, we should credit it back.
+    // In CreateTransfer, we debit immediately. So yes, refund.
+    totalDebit := transfer.Amount + transfer.Fee
+    // Assuming FromWalletID is valid
+    if transfer.FromWalletID != nil {
+        if err := s.walletRepo.UpdateBalance(*transfer.FromWalletID, totalDebit); err != nil {
+             // Log critical error: Money lost?
+             fmt.Printf("CRITICAL: Failed to refund wallet %s on cancellation of transfer %s\n", *transfer.FromWalletID, id)
+             return fmt.Errorf("failed to refund wallet")
+        }
+    }
+
+    return nil
+}
 
 // publishTransferEvent publishes transfer events to Kafka for notifications
 func (s *TransferService) publishTransferEvent(eventType string, transfer *models.Transfer, targetUserID, actualSenderID, actualRecipientID string) {

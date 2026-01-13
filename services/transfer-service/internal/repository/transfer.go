@@ -63,7 +63,7 @@ func (r *TransferRepository) GetByID(id string) (*models.Transfer, error) {
 	return &transfer, nil
 }
 
-func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]models.Transfer, error) {
+func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]*models.Transfer, error) {
 	query := `
 		SELECT t.id, t.from_wallet_id, t.to_wallet_id, t.transaction_type, t.amount, t.fee, t.currency, t.status, t.reference_id, t.description, t.created_at, t.updated_at
 		FROM transactions t
@@ -78,7 +78,7 @@ func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]mo
 	}
 	defer rows.Close()
 
-	var transfers []models.Transfer
+	var transfers []*models.Transfer
 	for rows.Next() {
 		var t models.Transfer
 		err := rows.Scan(
@@ -89,7 +89,7 @@ func (r *TransferRepository) GetByUserID(userID string, limit, offset int) ([]mo
 		if err != nil {
 			return nil, err
 		}
-		transfers = append(transfers, t)
+		transfers = append(transfers, &t)
 	}
 	return transfers, nil
 }
