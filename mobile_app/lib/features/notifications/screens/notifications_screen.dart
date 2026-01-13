@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/services/notification_api_service.dart';
 import '../models/notification_model.dart';
 import '../../support/support_screen.dart';
@@ -64,6 +65,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _navigateToRelatedScreen(NotificationModel notif) {
+    // 1. Prioritize Action URL
+    if (notif.actionUrl != null) {
+      final url = notif.actionUrl!;
+      
+      if (url.startsWith('/transactions/')) {
+        final id = url.split('/').last;
+        // Try to open transfer detail
+        // Note: We assume it's a transfer for now as 'transactions' usually implies wallet history
+        // If we had a generic transaction detail, we'd use that. 
+        // For now, let's open the wallet page which lists transactions.
+        context.pushNamed('wallet');
+        return;
+      }
+      
+      if (url.startsWith('/tickets/')) {
+        final eventId = notif.data?['event_id']?.toString();
+        if (eventId != null) {
+           context.pushNamed('event-detail', pathParameters: {'eventId': eventId});
+        } else {
+           context.pushNamed('dashboard');
+        }
+        return;
+      }
+
+      if (url.startsWith('/payment-requests/')) {
+          context.pushNamed('wallet');
+          return;
+      }
+      
+      // Fallback
+      context.pushNamed('dashboard');
+      return;
+    }
+
+    // 2. Fallback to Type-based navigation
     final type = notif.type.toLowerCase();
     final refId = notif.data?['reference_id']?.toString() ?? 
                   notif.data?['id']?.toString() ?? 
@@ -77,13 +113,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
     } else if (type == 'transfer' || type == 'transaction') {
-      Navigator.pushNamed(context, '/wallet');
+      context.pushNamed('wallet');
     } else if (type == 'card') {
-      Navigator.pushNamed(context, '/cards');
+      context.pushNamed('cards');
     } else if (type == 'security' || type == 'kyc') {
-      Navigator.pushNamed(context, '/settings');
+      context.pushNamed('settings');
     } else if (type == 'wallet' || type == 'payment') {
-      Navigator.pushNamed(context, '/wallet');
+      context.pushNamed('wallet');
+    } else {
+       context.pushNamed('dashboard');
     }
   }
 

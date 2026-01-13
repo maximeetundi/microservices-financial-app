@@ -71,6 +71,11 @@ type VerifyTicketResponse struct {
 	AlreadyUsed bool    `json:"already_used"`
 }
 
+// RefundTicketRequest represents the request to refund a ticket
+type RefundTicketRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
 // TicketStats represents statistics for an event
 type TicketStats struct {
 	TotalTickets  int         `json:"total_tickets"`

@@ -198,6 +198,12 @@ const handleClick = async (notif) => {
   // Navigate based on notification type and reference
   isOpen.value = false
   
+  // Prioritize action_url if present
+  if (notif.action_url) {
+      router.push(notif.action_url)
+      return
+  }
+  
   const type = notif.type?.toLowerCase() || ''
   const refId = notif.reference_id || notif.data?.reference_id || notif.data?.id
   

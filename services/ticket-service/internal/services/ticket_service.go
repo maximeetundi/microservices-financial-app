@@ -539,7 +539,8 @@ func (s *TicketService) GetEventStats(eventID string) (*models.TicketStats, erro
 
 // === Refund Operations ===
 
-func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
+// RefundTicket refunds a ticket
+func (s *TicketService) RefundTicket(ticketID, organizerID, reason string) error {
 	ticket, err := s.ticketRepo.GetByID(ticketID)
 	if err != nil {
 		return fmt.Errorf("ticket not found")
@@ -579,17 +580,12 @@ func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
 	}
 
 	// Create Refund Event (Organizer -> Buyer)
-	// We use "ticket_refund" type so transfer-service can handle it (or treat as p2p transfer)
-	// Since transfer-service consumer logs "Type" but processes debit/credit generic logic, 
-	// as long as we supply wallets, it should work.
-	// We set ReferenceID to "REFUND_TCT-..."
-	
 	refundReq := messaging.PaymentRequestEvent{
 		RequestID:         fmt.Sprintf("REF-%s-%d", ticket.TicketCode, time.Now().Unix()),
 		UserID:            organizerID,          // Organizer is paying
 		FromWalletID:      sourceWalletID,       // From Organizer Wallet
 		DestinationUserID: ticket.BuyerID,       // To Buyer
-		ToWalletID:        ticket.PaymentWalletID, // Target original wallet (Payment Consumer will auto-convert if currency mismatch)
+		ToWalletID:        ticket.PaymentWalletID, // Target original wallet
 		DebitAmount:       ticket.Price,
 		CreditAmount:      ticket.Price,
 		Currency:          ticket.Currency,
@@ -609,7 +605,7 @@ func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
 	}
 
 	// 1. Notify Buyer
-	buyerMsg := fmt.Sprintf("Votre ticket %s pour %s a été remboursé.", ticket.TierName, ticket.EventTitle)
+	buyerMsg := fmt.Sprintf("Votre ticket %s pour %s a été remboursé.\nMotif: %s", ticket.TierName, ticket.EventTitle, reason)
 	buyerNotif := messaging.NotificationEvent{
 		UserID:  ticket.BuyerID,
 		Type:    "ticket_refunded",
@@ -620,6 +616,7 @@ func (s *TicketService) RefundTicket(ticketID, organizerID string) error {
 			"event_id":  ticket.EventID,
 			"amount":    ticket.Price,
 			"currency":  ticket.Currency,
+			"reason":    reason,
 		},
 	}
 	buyerEnv := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "ticket-service", buyerNotif)
@@ -665,25 +662,17 @@ func (s *TicketService) CancelAndRefundEvent(eventID, organizerID string) error 
 	}
 
 	// Find all paid tickets
-	// Note: Pagination might be an issue for huge events, but acceptable for MVP.
-	// We'll fetch in batches if needed, but for now fetch all (limit 1000?)
 	tickets, err := s.ticketRepo.GetByEvent(eventID, "", 10000, 0)
 	if err != nil {
 		return err
 	}
 
-	count := 0
 	for _, ticket := range tickets {
 		if ticket.Status == models.TicketStatusPaid {
-			// Trigger refund for each
-			// We reuse RefundTicket logic but we already have the event verification done.
-			// Calling RefundTicket directly does redundant checks but is safe.
-			// Optimization: batch process? For now, simple loop.
-			if err := s.RefundTicket(ticket.ID, organizerID); err != nil {
+			// Trigger refund for each with default reason
+			if err := s.RefundTicket(ticket.ID, organizerID, "Événement annulé par l'organisateur"); err != nil {
 				// Log error but continue with others?
 				fmt.Printf("Failed to refund ticket %s: %v\n", ticket.ID, err)
-			} else {
-				count++
 			}
 		}
 	}

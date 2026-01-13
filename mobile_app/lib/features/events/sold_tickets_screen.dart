@@ -239,51 +239,87 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
   Future<void> _initiateRefund(dynamic ticket) async {
     Navigator.pop(context); // Close details sheet
     
-    // 1. Confirm refund intent
-    final confirmed = await showDialog<bool>(
+    final reasonController = TextEditingController();
+
+    // 1. Confirm refund intent & Get Reason
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1e293b),
-        title: const Text('Confirmer le remboursement', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Voulez-vous rembourser le ticket ${ticket['ticket_code']} ?\n\nCette action est irréversible.',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler', style: TextStyle(color: Colors.white)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continuer', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      builder: (context) {
+        bool isValid = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1e293b),
+              title: const Text('Confirmer le remboursement', style: TextStyle(color: Colors.white)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Voulez-vous rembourser le ticket ${ticket['ticket_code']} ?',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonController,
+                    onChanged: (v) => setState(() => isValid = v.trim().isNotEmpty),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Motif du remboursement (Requis)',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Cette action est irréversible.',
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text('Annuler', style: TextStyle(color: Colors.white54)),
+                ),
+                TextButton(
+                  onPressed: isValid ? () => Navigator.pop(context, reasonController.text) : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    disabledForegroundColor: Colors.red.withOpacity(0.3),
+                  ),
+                  child: const Text('Continuer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
-    if (confirmed != true) return;
+    if (reason == null) return;
 
     // 2. Request Security Verification
     final verified = await PinVerifyDialog.show(
       context,
       title: 'Validation requise',
-      subtitle: 'Entrez votre PIN pour rembourser ce ticket',
+      subtitle: 'Entrez votre PIN pour confirmer',
     );
 
     if (verified != true) return;
 
-    // 3. Process Refund (Verification already done)
-    _processRefund(ticket['id']);
+    // 3. Process Refund
+    _processRefund(ticket['id'], reason);
   }
 
-
-
-  Future<void> _processRefund(String ticketId) async {
+  Future<void> _processRefund(String ticketId, String reason) async {
     setState(() => _loading = true);
     try {
       // Step 1: Refund Ticket (PIN verified in dialog)
-      await _ticketApi.refundTicket(ticketId);
+      await _ticketApi.refundTicket(ticketId, reason);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

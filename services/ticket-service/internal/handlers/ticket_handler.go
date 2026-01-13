@@ -306,6 +306,7 @@ func (h *TicketHandler) UseTicket(c *gin.Context) {
 }
 
 // RefundTicket refunds a ticket
+// RefundTicket refunds a ticket
 func (h *TicketHandler) RefundTicket(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -315,7 +316,13 @@ func (h *TicketHandler) RefundTicket(c *gin.Context) {
 
 	ticketID := c.Param("id")
 
-	if err := h.service.RefundTicket(ticketID, userID); err != nil {
+	var req models.RefundTicketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Reason is required: " + err.Error()})
+		return
+	}
+
+	if err := h.service.RefundTicket(ticketID, userID, req.Reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

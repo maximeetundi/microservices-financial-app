@@ -98,7 +98,7 @@ func main() {
 	kafkaClient := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
 	defer kafkaClient.Close()
 	
-	balanceConsumer := services.NewKafkaConsumer(kafkaClient, userRepo)
+	balanceConsumer := services.NewKafkaConsumer(kafkaClient, userRepo, sessionRepo)
 	if err := balanceConsumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start balance consumer: %v", err)
 	}

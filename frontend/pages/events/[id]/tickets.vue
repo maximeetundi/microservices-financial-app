@@ -235,9 +235,20 @@
                       montant: <span class="font-bold text-gray-900 dark:text-white">{{ formatAmount(ticketToRefund?.price) }} {{ ticketToRefund?.currency }}</span><br><br>
                       Cette action est irréversible.
                   </p>
+                  
+                  <div class="mb-6">
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motif du remboursement</label>
+                      <textarea 
+                          v-model="refundReason" 
+                          rows="3" 
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm focus:ring-red-500 focus:border-red-500"
+                          placeholder="Indiquez la raison du remboursement..."
+                      ></textarea>
+                  </div>
+
                   <div class="flex gap-3">
                       <button @click="showRefundModal = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Annuler</button>
-                      <button @click="openPinForRefund" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20">Continuer</button>
+                      <button @click="openPinForRefund" :disabled="!refundReason.trim()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">Continuer</button>
                   </div>
               </div>
           </div>
@@ -478,9 +489,11 @@ const showPinModal = ref(false)
 const pinCode = ref('')
 const verifyingPin = ref(false)
 const ticketToRefund = ref<any>(null)
+const refundReason = ref('')
 
 const openRefundModal = (ticket: any) => {
     ticketToRefund.value = ticket
+    refundReason.value = ''
     showRefundModal.value = true
 }
 
@@ -515,7 +528,7 @@ const showRefundSuccessModal = ref(false)
 const executeRefund = async () => {
     if (!ticketToRefund.value) return
     try {
-        await ticketAPI.refundTicket(ticketToRefund.value.id)
+        await ticketAPI.refundTicket(ticketToRefund.value.id, refundReason.value)
         
         // Optimistic update
         const t = tickets.value.find(t => t.id === ticketToRefund.value.id)

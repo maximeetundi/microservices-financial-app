@@ -56,8 +56,9 @@
             <div class="notif-time">{{ formatTime(notif.created_at) }}</div>
           </div>
           <div class="notif-actions">
-            <button v-if="!notif.is_read" @click.stop="markAsRead(notif.id)" class="action-mark">✓</button>
-            <button @click.stop="deleteNotification(notif.id)" class="action-delete">✕</button>
+             <button v-if="notif.action_url" @click.stop="navigateTo(notif.action_url)" class="action-view" title="Voir les détails">👁️</button>
+            <button v-if="!notif.is_read" @click.stop="markAsRead(notif.id)" class="action-mark" title="Marquer comme lu">✓</button>
+            <button @click.stop="deleteNotification(notif.id)" class="action-delete" title="Supprimer">✕</button>
           </div>
         </div>
       </div>
@@ -74,6 +75,11 @@
               <span class="modal-type">{{ getTypeLabel(selectedNotification.type) }}</span>
               <span class="modal-date">{{ formatFullDate(selectedNotification.created_at) }}</span>
             </div>
+            <div v-if="selectedNotification.action_url" class="modal-actions mb-4">
+              <button @click="navigateTo(selectedNotification.action_url)" class="modal-btn-primary w-full">
+                Voir les détails →
+              </button>
+            </div>
             <button @click="closeDetailModal" class="modal-btn">Fermer</button>
           </div>
         </div>
@@ -89,6 +95,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useApi } from '~/composables/useApi'
 
 const { notificationApi } = useApi()
@@ -191,6 +198,13 @@ const handleNotificationClick = (notification) => {
   if (!notification.is_read) {
     markAsRead(notification.id)
   }
+}
+
+const router = useRouter()
+const navigateTo = (url) => {
+    if(!url) return
+    router.push(url)
+    closeDetailModal()
 }
 
 const getTypeIcon = (type) => {
@@ -448,7 +462,7 @@ definePageMeta({
   flex-shrink: 0;
 }
 
-.action-mark, .action-delete {
+.action-mark, .action-delete, .action-view {
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 0.375rem;
@@ -463,6 +477,11 @@ definePageMeta({
 .action-mark {
   background: rgba(34, 197, 94, 0.2);
   color: #22c55e;
+}
+
+.action-view {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
 }
 
 .action-delete {
@@ -602,6 +621,21 @@ definePageMeta({
 }
 
 .modal-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-btn-primary {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: white;
   border: none;
@@ -610,9 +644,10 @@ definePageMeta({
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s;
+  margin-bottom: 0.5rem;
 }
 
-.modal-btn:hover {
+.modal-btn-primary:hover {
   transform: scale(1.02);
 }
 </style>

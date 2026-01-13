@@ -115,6 +115,7 @@ type Notification struct {
 	Type     string
 	Priority NotificationPriority
 	Data     map[string]interface{}
+	ActionUrl string // URL or route to redirect to
 	Channels []string // email, sms, push
 }
 
@@ -196,6 +197,7 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Type:     "transfer",
 			Priority: PriorityHigh,
 			Data:     event,
+			ActionUrl: fmt.Sprintf("/transactions/%s", event["transfer_id"]),
 			Channels: []string{"push", "email", "sms"}, // SMS pour transferts réussis (important)
 		}
 	case "transfer.sent":
@@ -232,6 +234,7 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Type:     "transfer",
 			Priority: PriorityHigh,
 			Data:     event,
+			ActionUrl: fmt.Sprintf("/transactions/%s", event["transfer_id"]),
 			Channels: []string{"push", "email", "sms"}, // SMS pour réception
 		}
 
@@ -552,6 +555,7 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Type:     "payment",
 			Priority: PriorityNormal,
 			Data:     event,
+			ActionUrl: fmt.Sprintf("/payment-requests/%s", event["request_id"]),
 			Channels: []string{"push", "email"},
 		}
 
@@ -601,12 +605,41 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			data = d
 		}
 		
+		actionUrl, _ := event["action_url"].(string)
+
 		return &Notification{
 			Title:    title,
 			Body:     message,
 			Type:     notifType,
 			Priority: PriorityNormal,
 			Data:     data,
+			ActionUrl: actionUrl,
+			Channels: []string{"push", "email"},
+		}
+	case "ticket.created":
+		ticketID, _ := event["ticket_id"].(string)
+		eventID, _ := event["event_id"].(string)
+		amount, _ := event["amount"].(float64)
+		currency, _ := event["currency"].(string)
+		reason, _ := event["reason"].(string)
+
+		body := fmt.Sprintf("Nouveau ticket créé pour l'événement %s. Montant: %.2f %s.", eventID, amount, currency)
+		if reason != "" {
+			body += fmt.Sprintf(" Raison: %s", reason)
+		}
+
+		return &Notification{
+			Title:    "🎫 Nouveau Ticket",
+			Body:     body,
+			Type:     "ticket",
+			Priority: PriorityNormal,
+			Data: map[string]interface{}{
+				"event_id":  eventID,
+				"amount":    amount,
+				"currency":  currency,
+				"reason":    reason,
+			},
+			ActionUrl: fmt.Sprintf("/tickets/%s", ticketID),
 			Channels: []string{"push", "email"},
 		}
 
@@ -866,7 +899,17 @@ func (s *NotificationService) sendPush(userID string, notification *Notification
 			"title": notification.Title,
 			"body":  notification.Body,
 		},
-		"data": notification.Data,
+		"data": func() map[string]interface{} {
+			// Copy data and add action_url
+			d := make(map[string]interface{})
+			for k, v := range notification.Data {
+				d[k] = v
+			}
+			if notification.ActionUrl != "" {
+				d["action_url"] = notification.ActionUrl
+			}
+			return d
+		}(),
 	}
 	
 	body, _ := json.Marshal(payload)

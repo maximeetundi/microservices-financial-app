@@ -4,7 +4,8 @@ class NotificationModel {
   final String type;
   final String title;
   final String message;
-  final String? data;
+  final Map<String, dynamic>? data;
+  final String? actionUrl;
   final bool isRead;
   final DateTime? readAt;
   final DateTime createdAt;
@@ -16,6 +17,7 @@ class NotificationModel {
     required this.title,
     required this.message,
     this.data,
+    this.actionUrl,
     required this.isRead,
     this.readAt,
     required this.createdAt,
@@ -28,7 +30,8 @@ class NotificationModel {
       type: json['type'] ?? 'default',
       title: json['title'] ?? '',
       message: json['message'] ?? '',
-      data: json['data'],
+      data: json['data'] is Map ? json['data'] as Map<String, dynamic> : null,
+      actionUrl: json['action_url'] ?? json['data']?['action_url'],
       isRead: json['is_read'] ?? false,
       readAt: json['read_at'] != null ? DateTime.parse(json['read_at']) : null,
       createdAt: json['created_at'] != null 
@@ -45,6 +48,7 @@ class NotificationModel {
       'title': title,
       'message': message,
       'data': data,
+      'action_url': actionUrl,
       'is_read': isRead,
       'read_at': readAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),

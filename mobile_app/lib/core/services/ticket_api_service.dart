@@ -207,8 +207,11 @@ class TicketApiService {
   }
 
   /// Refund a ticket
-  Future<void> refundTicket(String id) async {
-    final response = await _client.post('/ticket-service/api/v1/tickets/$id/refund');
+  Future<void> refundTicket(String id, String reason) async {
+    final response = await _client.post(
+      '/ticket-service/api/v1/tickets/$id/refund',
+      data: {'reason': reason},
+    );
     if (response.statusCode != 200) {
       throw Exception(response.data['error'] ?? 'Failed to refund ticket');
     }

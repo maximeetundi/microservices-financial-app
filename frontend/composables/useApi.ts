@@ -608,7 +608,7 @@ export const ticketAPI = {
     },
 
     // Refund and Cancellation
-    refundTicket: (id: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`),
+    refundTicket: (id: string, reason: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`, { reason }),
     cancelEvent: (id: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`),
 }
 
