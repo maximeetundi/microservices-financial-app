@@ -25,7 +25,7 @@
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="state-container">
+      <div v-if="loading && transactions.length === 0" class="state-container">
         <div class="spinner"></div>
         <p>Chargement...</p>
       </div>
@@ -100,6 +100,34 @@
                 <span class="detail-label">Description</span>
                 <span class="detail-value">{{ selectedTx.description }}</span>
               </div>
+
+               <!-- Extended Details -->
+               <div v-if="loadingDetails" class="detail-row justify-center py-4">
+                  <div class="spinner-sm"></div>
+               </div>
+               
+               <template v-else>
+                   <!-- Sender -->
+                   <div class="detail-row" v-if="senderInfo">
+                       <span class="detail-label">De (Remetteur)</span>
+                       <div class="text-right flex flex-col items-end">
+                           <span class="detail-value font-bold">{{ senderInfo.name }}</span>
+                           <span v-if="senderInfo.phone" class="text-xs text-gray-400">{{ senderInfo.phone }}</span>
+                           <span v-if="senderInfo.email" class="text-xs text-gray-400">{{ senderInfo.email }}</span>
+                       </div>
+                   </div>
+
+                   <!-- Receiver -->
+                   <div class="detail-row" v-if="receiverInfo">
+                       <span class="detail-label">À (Récepteur)</span>
+                       <div class="text-right flex flex-col items-end">
+                            <span class="detail-value font-bold">{{ receiverInfo.name }}</span>
+                            <span v-if="receiverInfo.phone" class="text-xs text-gray-400">{{ receiverInfo.phone }}</span>
+                            <span v-if="receiverInfo.email" class="text-xs text-gray-400">{{ receiverInfo.email }}</span>
+                       </div>
+                   </div>
+               </template>
+
             </div>
             
             <button @click="closeTxDetail" class="modal-btn">Fermer</button>
@@ -112,7 +140,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { walletAPI } from '~/composables/useApi'
+import { walletAPI, transferAPI, userAPI } from '~/composables/useApi'
+const route = useRoute()
 
 const transactions = ref([])
 const loading = ref(false)
@@ -122,6 +151,11 @@ const offset = ref(0)
 const limit = 50
 const hasMore = ref(false)
 const selectedTx = ref(null)
+
+// Extended Details
+const loadingDetails = ref(false)
+const senderInfo = ref(null)
+const receiverInfo = ref(null)
 
 const filteredTransactions = computed(() => {
   let result = [...transactions.value]
@@ -210,7 +244,9 @@ const fetchTransactions = async () => {
               description: tx.description || `${wallet.currency}`,
               amount: tx.from_wallet_id === wallet.id ? -tx.amount : tx.amount,
               currency: tx.currency || wallet.currency,
-              date: tx.created_at
+              date: tx.created_at,
+              reference: tx.reference,
+              status: tx.status
             })
           })
         }
@@ -224,7 +260,6 @@ const fetchTransactions = async () => {
     hasMore.value = allTransactions.length >= limit
   } catch (e) {
     console.error('Error fetching transactions:', e)
-    transactions.value = []
   } finally {
     loading.value = false
   }
@@ -263,12 +298,67 @@ const formatFullDate = (date) => {
   }).format(new Date(date))
 }
 
+const loadTransferDetails = async (tx) => {
+    loadingDetails.value = true
+    senderInfo.value = null
+    receiverInfo.value = null
+    
+    try {
+        // Only fetch if it's a transfer and has a reference (transfer ID)
+        if (tx.type === 'transfer' && tx.reference) {
+            try {
+                const res = await transferAPI.get(tx.reference)
+                const transfer = res.data
+
+                // Get Sender Info
+                if (transfer.user_id) {
+                    try {
+                        const uRes = await userAPI.getById(transfer.user_id)
+                        const u = uRes.data
+                        senderInfo.value = {
+                            name: `${u.first_name} ${u.last_name}`.trim() || u.username || 'Utilisateur',
+                            phone: u.phone,
+                            email: u.email
+                        }
+                    } catch (e) { console.warn('Fetch sender failed', e) }
+                }
+
+                // Get Recipient Info
+                if(transfer.recipient_email || transfer.recipient_phone) {
+                     receiverInfo.value = {
+                         name: transfer.recipient_name || 'Contact Externe', // Name might be missing if simple P2P
+                         email: transfer.recipient_email,
+                         phone: transfer.recipient_phone
+                     }
+                     // Try to see if we can resolve user from email/phone?
+                } else if (transfer.to_wallet_id) {
+                    // Try to fetch wallet? We might not have permission.
+                    // But if WE are the sender, we might want to know who received it.
+                    // If WE are the receiver, we are the Recipient.
+                }
+            } catch (e) {
+                console.warn("Failed to fetch transfer details", e)
+            }
+        }
+    } finally {
+        loadingDetails.value = false
+    }
+}
+
 const openTxDetail = (tx) => {
   selectedTx.value = tx
+  loadTransferDetails(tx)
 }
 
 const closeTxDetail = () => {
   selectedTx.value = null
+  senderInfo.value = null
+  receiverInfo.value = null
+  // Clean query param
+  const url = new URL(window.location.href);
+  url.searchParams.delete("id");
+  url.searchParams.delete("ref");
+  window.history.replaceState({}, "", url);
 }
 
 const loadMore = async () => {
@@ -276,8 +366,37 @@ const loadMore = async () => {
   await fetchTransactions()
 }
 
-onMounted(() => {
-  fetchTransactions()
+onMounted(async () => {
+  await fetchTransactions()
+  
+  // Check for deep link
+  const refId = route.query.ref || route.query.id
+  if (refId) {
+      // Find in current list
+      const tx = transactions.value.find(t => t.id === refId || t.reference === refId)
+      if (tx) {
+          openTxDetail(tx)
+      } else {
+         // If not found in list (maybe older?), try to construct one from Transfer API
+         try {
+             // If ID format is UUID, it might be Transfer ID.
+             const res = await transferAPI.get(refId)
+             const t = res.data
+             const mockTx = {
+                 id: t.id, // Using Transfer ID as ID if TX not found
+                 type: 'transfer',
+                 title: 'Transfert (Archive)',
+                 description: t.description || 'Transfert',
+                 amount: t.amount, // Direction unknown without wallet context, assume +? Or check user_id
+                 currency: t.currency,
+                 date: t.created_at,
+                 reference: t.id,
+                 status: t.status
+             }
+             openTxDetail(mockTx)
+         } catch(e) { console.error("Deep link failed", e) }
+      }
+  }
 })
 
 definePageMeta({
@@ -351,6 +470,16 @@ definePageMeta({
   animation: spin 1s linear infinite;
 }
 
+.spinner-sm {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 1s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -379,9 +508,10 @@ definePageMeta({
   padding: 0.75rem;
   border-radius: 0.75rem;
   transition: background 0.2s;
+  cursor: pointer;
 }
 
-.tx-item:active {
+.tx-item:hover {
   background: rgba(255,255,255,0.05);
 }
 

@@ -108,6 +108,7 @@ const limit = 20
 const hasMore = ref(true)
 const activeFilter = ref('all')
 const selectedNotification = ref(null)
+const router = useRouter()
 
 const filters = [
   { id: 'all', label: 'Toutes', icon: '📋' },
@@ -121,6 +122,31 @@ const filteredNotifications = computed(() => {
   return notifications.value.filter(n => n.type === activeFilter.value)
 })
 
+const processNotifications = (list) => {
+    return list.map(n => {
+        let meta = {}
+        try {
+            if (n.data) {
+                meta = typeof n.data === 'string' ? JSON.parse(n.data) : n.data
+            }
+        } catch (e) {
+            console.warn('Failed to parse notification data', e)
+        }
+        
+        // Determine Action URL
+        let url = n.action_url || null
+        if (!url && n.type === 'transfer' && (meta.transfer_id || meta.reference)) {
+            url = `/transactions?ref=${meta.transfer_id || meta.reference}`
+        }
+        
+        return {
+            ...n,
+            meta,
+            action_url: url
+        }
+    })
+}
+
 const fetchNotifications = async () => {
   loading.value = true
   try {
@@ -128,10 +154,11 @@ const fetchNotifications = async () => {
       notificationApi.getAll({ limit, offset: 0 }),
       notificationApi.getUnreadCount()
     ])
-    notifications.value = notifRes.data.notifications || []
+    const rawList = notifRes.data.notifications || []
+    notifications.value = processNotifications(rawList)
     unreadCount.value = countRes.data.unread_count || 0
     offset.value = limit
-    hasMore.value = notifications.value.length >= limit
+    hasMore.value = rawList.length >= limit
   } catch (error) {
     console.error('Failed to fetch notifications:', error)
     notifications.value = []
@@ -145,10 +172,11 @@ const loadMore = async () => {
   loading.value = true
   try {
     const res = await notificationApi.getAll({ limit, offset: offset.value })
-    const newNotifs = res.data.notifications || []
-    notifications.value.push(...newNotifs)
+    const rawList = res.data.notifications || []
+    const processed = processNotifications(rawList)
+    notifications.value.push(...processed)
     offset.value += limit
-    hasMore.value = newNotifs.length >= limit
+    hasMore.value = rawList.length >= limit
   } catch (error) {
     console.error('Failed to load more:', error)
   } finally {
@@ -194,13 +222,6 @@ const deleteNotification = async (id) => {
   }
 }
 
-const handleNotificationClick = (notification) => {
-  if (!notification.is_read) {
-    markAsRead(notification.id)
-  }
-}
-
-const router = useRouter()
 const navigateTo = (url) => {
     if(!url) return
     router.push(url)
