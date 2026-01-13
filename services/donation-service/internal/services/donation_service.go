@@ -120,36 +120,15 @@ func (s *DonationService) InitiateDonation(req *InitiateDonationRequest, token s
 	}
 
 	// 4. Create Payment Request Event
-	// We need the Organizer's (Creator's) Wallet to deposit to.
-	// We need to fetch Organizer's wallet for the currency.
+	// Delegate wallet resolution to transfer-service (like TicketService)
+	// We pass the Organizer's (Creator's) UserID as DestinationUserID.
 	
-	wallets, err := s.walletClient.GetUserWallets(campaign.CreatorID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch organizer wallets: %w", err)
-	}
-
-	var destWalletID string
-	for _, w := range wallets {
-		if cur, ok := w["currency"].(string); ok && cur == req.Currency {
-			if id, ok := w["id"].(string); ok {
-				destWalletID = id
-				break
-			}
-		}
-	}
-	
-	if destWalletID == "" {
-		// Fallback: If no wallet found for created currency, maybe default wallet? 
-		// Or error out. Better to error or create a wallet?
-		// For MVP, error out.
-		return nil, fmt.Errorf("organizer does not have a wallet for currency %s", req.Currency)
-	}
-
 	paymentReq := messaging.PaymentRequestEvent{
 		RequestID:         donation.ID.Hex(), // Use Donation ID as RequestID
 		UserID:            req.DonorID,       // Payer
 		FromWalletID:      req.WalletID,
-		ToWalletID:        destWalletID,
+		DestinationUserID: campaign.CreatorID, // Set organizer as destination
+		ToWalletID:        "",                 // Will be resolved by transfer-service
 		DebitAmount:       req.Amount,
 		CreditAmount:      req.Amount, // Or less fees?
 		Currency:          req.Currency,
