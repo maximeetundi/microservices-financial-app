@@ -247,37 +247,158 @@ func (s *TransferService) GetTransferHistory(userID string, limit, offset int) (
     return s.transferRepo.GetByUserID(userID, limit, offset)
 }
 
-func (s *TransferService) CancelTransfer(id string) error {
-    // 1. Get Transfer
-    transfer, err := s.transferRepo.GetByID(id)
-    if err != nil {
-        return err
-    }
-    
-    // 2. Check if cancellable (e.g. pending)
-    if transfer.Status != "pending" && transfer.Status != "processing" {
-        return fmt.Errorf("transfer cannot be cancelled in status %s", transfer.Status)
-    }
-    
-    // 3. Update Status
-    if err := s.transferRepo.UpdateStatus(id, "cancelled"); err != nil {
-        return err
-    }
-    
-    // 4. Refund logic?
-    // If we debited wallet, we should credit it back.
-    // In CreateTransfer, we debit immediately. So yes, refund.
-    totalDebit := transfer.Amount + transfer.Fee
-    // Assuming FromWalletID is valid
-    if transfer.FromWalletID != nil {
-        if err := s.walletRepo.UpdateBalance(*transfer.FromWalletID, totalDebit); err != nil {
-             // Log critical error: Money lost?
-             fmt.Printf("CRITICAL: Failed to refund wallet %s on cancellation of transfer %s\n", *transfer.FromWalletID, id)
-             return fmt.Errorf("failed to refund wallet")
-        }
-    }
+func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
+	// 1. Get Transfer
+	transfer, err := s.transferRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
 
-    return nil
+	// 2. Validate Sender
+	// We need to resolve sender user ID.
+	// We can trust requesterID passed from handler (extracted from token).
+	// Check if transfer.FromWalletID belongs to requesterID.
+	if transfer.FromWalletID == nil {
+		return fmt.Errorf("cannot cancel external transfer")
+	}
+	fromWallet, err := s.walletRepo.GetByID(*transfer.FromWalletID)
+	if err != nil {
+		return fmt.Errorf("sender wallet not found")
+	}
+	if fromWallet.UserID != requesterID {
+		return fmt.Errorf("unauthorized: you are not the sender")
+	}
+
+	// 3. Check Time Conditions (Sender Cancel)
+	// - Less than 1 hour
+	// - OR More than 7 days (Inactive assumption)
+	duration := time.Since(transfer.CreatedAt)
+	isRecent := duration < time.Hour
+	isOld := duration > 7*24*time.Hour
+
+	if !isRecent && !isOld {
+		return fmt.Errorf("cancellation allowed only within 1 hour or after 7 days of inactivity")
+	}
+
+	// 4. Check Status
+	if transfer.Status == "cancelled" || transfer.Status == "reversed" {
+		return fmt.Errorf("transfer already cancelled/reversed")
+	}
+
+	// 5. If Completed, Check Recipient Balance and Reversal
+	if transfer.Status == "completed" {
+		if transfer.ToWalletID == nil {
+			return fmt.Errorf("cannot reverse external completed transfer")
+		}
+		toWalletID := *transfer.ToWalletID
+
+		// Check Recipient Balance
+		toWallet, err := s.walletRepo.GetByID(toWalletID)
+		if err != nil {
+			return fmt.Errorf("recipient wallet not found")
+		}
+		if toWallet.Balance < transfer.Amount {
+			return fmt.Errorf("recipient has insufficient funds for reversal")
+		}
+
+		// Execute Reversal: Debit Recipient, Credit Sender
+		if err := s.walletRepo.UpdateBalance(toWalletID, -transfer.Amount); err != nil {
+			return fmt.Errorf("failed to debit recipient: %w", err)
+		}
+		if err := s.walletRepo.UpdateBalance(*transfer.FromWalletID, transfer.Amount); err != nil {
+			// CRITICAL: Failed to credit sender after debiting recipient
+			// Rollback recipient debit
+			s.walletRepo.UpdateBalance(toWalletID, transfer.Amount)
+			return fmt.Errorf("failed to credit sender: %w", err)
+		}
+	} else if transfer.Status == "pending" || transfer.Status == "processing" {
+		// Just refund sender if pending (money hasn't reached recipient or strictly pending)
+		// But in CreateTransfer we debit Sender immediately.
+		// If Pending, money is in Utils/Hold? No, it's just out of Sender.
+		// So Credit Sender.
+		if err := s.walletRepo.UpdateBalance(*transfer.FromWalletID, transfer.Amount+transfer.Fee); err != nil {
+			return fmt.Errorf("failed to refund sender: %w", err)
+		}
+	} else {
+		return fmt.Errorf("cannot cancel transfer in status %s", transfer.Status)
+	}
+
+	// 6. Update Transfer Status
+	updates := map[string]interface{}{
+		"status": "cancelled",
+		"description": fmt.Sprintf("%s | Cancel Reason: %s", transfer.Description, reason),
+	}
+	// Note: We might want a separate field for cancellation reason, but appending to description works for MVP.
+	// Or use a repository method that supports extra fields.
+	// For now, simple status update.
+	if err := s.transferRepo.UpdateStatus(id, "cancelled"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *TransferService) ReverseTransfer(id, requesterID, reason string) error {
+	// 1. Get Transfer
+	transfer, err := s.transferRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Validate Recipient (Beneficiary)
+	if transfer.ToWalletID == nil {
+		return fmt.Errorf("cannot reverse external transfer")
+	}
+	toWallet, err := s.walletRepo.GetByID(*transfer.ToWalletID)
+	if err != nil {
+		return fmt.Errorf("recipient wallet not found")
+	}
+	if toWallet.UserID != requesterID {
+		return fmt.Errorf("unauthorized: you are not the recipient")
+	}
+
+	// 3. Check Time Condition (Beneficiary Return)
+	// - Less than 7 days
+	duration := time.Since(transfer.CreatedAt)
+	if duration > 7*24*time.Hour {
+		return fmt.Errorf("return allowed only within 7 days")
+	}
+
+	// 4. Check Status
+	if transfer.Status != "completed" {
+		return fmt.Errorf("only completed transfers can be returned")
+	}
+
+	// 5. Check Balance
+	if toWallet.Balance < transfer.Amount {
+		return fmt.Errorf("insufficient funds to return transfer")
+	}
+
+	// 6. Execute Reversal
+	// Debit Recipient
+	if err := s.walletRepo.UpdateBalance(*transfer.ToWalletID, -transfer.Amount); err != nil {
+		return fmt.Errorf("failed to debit account: %w", err)
+	}
+	// Credit Sender (FromWallet)
+	if transfer.FromWalletID == nil {
+		// Should not happen for internal/completed, but safe check
+		// If FromWallet is missing, maybe burn? No, fail.
+		s.walletRepo.UpdateBalance(*transfer.ToWalletID, transfer.Amount) // Rollback
+		return fmt.Errorf("sender wallet unknown")
+	}
+	if err := s.walletRepo.UpdateBalance(*transfer.FromWalletID, transfer.Amount); err != nil {
+		s.walletRepo.UpdateBalance(*transfer.ToWalletID, transfer.Amount) // Rollback
+		return fmt.Errorf("failed to credit sender: %w", err)
+	}
+
+	// 7. Update Status
+	// Set to "reversed"
+	if err := s.transferRepo.UpdateStatus(id, "reversed"); err != nil {
+		// Non-critical but bad state
+		return err
+	}
+
+	return nil
 }
 
 // publishTransferEvent publishes transfer events to Kafka for notifications

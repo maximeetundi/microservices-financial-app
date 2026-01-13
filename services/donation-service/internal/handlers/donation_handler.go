@@ -82,7 +82,15 @@ func (h *DonationHandler) Refund(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.RefundDonation(donationID, userID); err != nil {
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	if err := h.service.RefundDonation(donationID, userID, req.Reason); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -98,7 +106,15 @@ func (h *DonationHandler) CancelCampaign(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CancelCampaign(campaignID, userID); err != nil {
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	if err := h.service.CancelCampaign(campaignID, userID, req.Reason); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

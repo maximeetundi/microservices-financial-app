@@ -299,11 +299,22 @@
                           <input type="checkbox" v-model="confirmCancelCheck" class="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
                           <span class="text-sm text-red-800 dark:text-red-300">Je comprends que cette action va déclencher le remboursement de tous les participants et annuler l'événement définitivement.</span>
                       </label>
+                      </label>
+                  </div>
+                  
+                  <div class="mb-6">
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motif de l'annulation</label>
+                      <textarea 
+                          v-model="cancelReason" 
+                          rows="3" 
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm focus:ring-red-500 focus:border-red-500"
+                          placeholder="Indiquez la raison de l'annulation..."
+                      ></textarea>
                   </div>
 
                   <div class="flex gap-3">
                       <button @click="showCancelModal = false; confirmCancelCheck = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Ne pas annuler</button>
-                      <button @click="openPinForCancel" :disabled="!confirmCancelCheck" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <button @click="openPinForCancel" :disabled="!confirmCancelCheck || !cancelReason.trim()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
                           CONTINUER VERS PIN
                       </button>
                   </div>
@@ -550,13 +561,16 @@ const executeRefund = async () => {
 
 const showCancelModal = ref(false)
 const confirmCancelCheck = ref(false)
+const cancelReason = ref('')
+
 const openCancelModal = () => {
     showCancelModal.value = true
     confirmCancelCheck.value = false
+    cancelReason.value = ''
 }
 const processCancelEvent = async () => {
     try {
-        await ticketAPI.cancelEvent(eventId.value)
+        await ticketAPI.cancelEvent(eventId.value, cancelReason.value)
         showCancelModal.value = false
         alert('Événement annulé et remboursements initiés.')
         loadData()

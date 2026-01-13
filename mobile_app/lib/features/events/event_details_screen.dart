@@ -92,6 +92,69 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         }
       }
     }
+    }
+  }
+
+  Future<void> _confirmCancel(Map<String, dynamic> event) async {
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1e293b),
+        title: const Text('Annuler l\'événement ?', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             const Text(
+              'ATTENTION : Cette action est IRRÉVERSIBLE. Tous les tickets vendus seront REMBOURSÉS automatiquement et l\'événement sera annulé.',
+              style: TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+             TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.black26,
+                        hintText: 'Motif de l\'annulation (Requis)',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                )
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Retour', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, reasonController.text),
+            child: const Text('Confirmer l\'annulation', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _loading = true);
+      try {
+        await _ticketApi.cancelEvent(widget.eventId, reason: result);
+        if (mounted) {
+          _loadEvent();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Événement annulé et remboursements initiés'), backgroundColor: Colors.orange),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+           setState(() => _loading = false);
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        }
+      }
+    }
   }
 
   @override
@@ -137,11 +200,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     icon: const Icon(Icons.edit),
                     tooltip: 'Modifier',
                   ),
-                  IconButton(
-                    onPressed: () => _confirmDelete(event),
-                    icon: const Icon(Icons.delete, color: Colors.white),
-                    tooltip: 'Supprimer',
-                  ),
+                  if (event['status'] == 'draft' || event['status'] == 'cancelled')
+                    IconButton(
+                      onPressed: () => _confirmDelete(event),
+                      icon: const Icon(Icons.delete, color: Colors.white),
+                      tooltip: 'Supprimer',
+                    ),
+                  if (event['status'] == 'active')
+                    IconButton(
+                        onPressed: () => _confirmCancel(event),
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        tooltip: 'Annuler',
+                    ),
                 ]
               : null,
           flexibleSpace: FlexibleSpaceBar(
@@ -265,6 +335,27 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       ),
                       child: const Text(
                         '🚀 Publier l\'événement',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+
+                if (widget.isOwner && event['status'] == 'active')
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _confirmCancel(event),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.all(16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.red.withOpacity(0.5)),
+                        ),
+                      ),
+                      child: const Text(
+                        '🚫 Annuler l\'événement',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                     ),

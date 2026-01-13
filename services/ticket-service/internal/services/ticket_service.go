@@ -646,7 +646,7 @@ func (s *TicketService) RefundTicket(ticketID, organizerID, reason string) error
 	return s.ticketRepo.UpdateStatus(ticketID, models.TicketStatusRefunded)
 }
 
-func (s *TicketService) CancelAndRefundEvent(eventID, organizerID string) error {
+func (s *TicketService) CancelAndRefundEvent(eventID, organizerID, reason string) error {
 	// Verify ownership
 	event, err := s.eventRepo.GetByID(eventID)
 	if err != nil {
@@ -670,7 +670,7 @@ func (s *TicketService) CancelAndRefundEvent(eventID, organizerID string) error 
 	for _, ticket := range tickets {
 		if ticket.Status == models.TicketStatusPaid {
 			// Trigger refund for each with default reason
-			if err := s.RefundTicket(ticket.ID, organizerID, "Événement annulé par l'organisateur"); err != nil {
+			if err := s.RefundTicket(ticket.ID, organizerID, reason); err != nil {
 				// Log error but continue with others?
 				fmt.Printf("Failed to refund ticket %s: %v\n", ticket.ID, err)
 			}

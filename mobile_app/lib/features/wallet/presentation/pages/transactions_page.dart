@@ -8,6 +8,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
 import '../../../wallet/domain/entities/transaction.dart';
+import '../../../../core/services/transfer_api_service.dart';
+
+/// Transactions Page matching web design with filters
 
 /// Transactions Page matching web design with filters
 class TransactionsPage extends StatefulWidget {
@@ -18,6 +21,7 @@ class TransactionsPage extends StatefulWidget {
 }
 
 class _TransactionsPageState extends State<TransactionsPage> {
+  final TransferApiService _transferApi = TransferApiService();
   String _filterType = '';
   String _filterPeriod = 'all';
   
@@ -251,7 +255,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: GlassContainer(
+      child: GestureDetector(
+        onTap: () => _showTransactionDetails(tx),
+        child: GlassContainer(
         padding: const EdgeInsets.all(16),
         borderRadius: 16,
         child: Row(
@@ -332,7 +338,148 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  void _showTransactionDetails(Transaction tx) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 24),
+            Text('Détails de la transaction', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            _buildDetailRow('Type', _getTransactionTitle(tx)),
+            _buildDetailRow('Montant', '${tx.isIncoming ? '+' : ''}${_formatMoney(tx.amount, tx.currency)}'),
+            _buildDetailRow('Date', _formatDate(tx.createdAt)),
+            _buildDetailRow('Statut', tx.status),
+            if (tx.metadata != null && tx.metadata!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('MÉTADONNÉES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Text(tx.metadata.toString(), style: const TextStyle(fontSize: 12)),
+            ],
+
+            const SizedBox(height: 32),
+            
+            // Actions for Transfers
+            if (tx.type.name.toLowerCase() == 'transfer') ...[
+                // Cancel (Sender)
+                if (!tx.isIncoming && (tx.status == 'pending' || tx.status == 'processing')) 
+                    SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                            onPressed: () {
+                                Navigator.pop(context);
+                                _confirmAction(tx, 'cancel');
+                            },
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Annuler le transfert'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        ),
+                    ),
+                
+                // Reverse (Beneficiary)
+                if (tx.isIncoming && tx.status == 'completed')
+                    SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                            onPressed: () {
+                                Navigator.pop(context);
+                                _confirmAction(tx, 'reverse');
+                            },
+                            icon: const Icon(Icons.undo),
+                            label: const Text('Rembourser (Retourner les fonds)'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                        ),
+                    ),
+            ],
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmAction(Transaction tx, String action) async {
+      final isCancel = action == 'cancel';
+      final reasonController = TextEditingController();
+
+      final result = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF1e293b),
+              title: Text(isCancel ? 'Annuler le transfert ?' : 'Retourner les fonds ?', style: const TextStyle(color: Colors.white)),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      Text(
+                          isCancel 
+                             ? 'Voulez-vous vraiment annuler ce transfert en cours ?'
+                             : 'Voulez-vous retourner les fonds à l\'expéditeur ? Cette action est irréversible.',
+                          style: const TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                          controller: reasonController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.black26,
+                              hintText: 'Motif (Optionnel)',
+                              hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          ),
+                      )
+                  ],
+              ),
+              actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Retour', style: TextStyle(color: Colors.grey))),
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx, reasonController.text), 
+                      child: Text('Confirmer', style: TextStyle(color: isCancel ? Colors.red : Colors.orange)),
+                  ),
+              ],
+          ),
+      );
+
+      if (result != null) {
+          try {
+              if (isCancel) {
+                  await _transferApi.cancelTransfer(tx.id, reason: result);
+              } else {
+                  await _transferApi.reverseTransfer(tx.id, reason: result);
+              }
+              if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isCancel ? 'Transfert annulé' : 'Fonds retournés')));
+                  context.read<WalletBloc>().add(LoadWalletsEvent()); // Reload
+              }
+          } catch (e) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+          }
+      }
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+      return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                  Text(label, style: const TextStyle(color: Colors.grey)),
+                  Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+          ),
+      );
+  }
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

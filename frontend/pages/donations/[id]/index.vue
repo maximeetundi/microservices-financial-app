@@ -141,7 +141,7 @@
                              </div>
 
                              <div v-if="campaign.status === 'active'" class="space-y-2">
-                                <button @click="confirmCancelCampaign" class="w-full py-2 px-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2">
+                                <button @click="openCancelModal" class="w-full py-2 px-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2">
                                     🛑 Annuler la campagne
                                 </button>
                              </div>
@@ -333,6 +333,48 @@
                     <button @click="closeSuccess" class="w-full px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-600/20">
                         Génial !
                     </button>
+                </div>
+            </div>
+            </div>
+        </Teleport>
+
+        <!-- Cancel Campaign Modal -->
+        <Teleport to="body">
+            <div v-if="showCancelModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" @click.self="showCancelModal = false">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-red-500/20 animate-in fade-in zoom-in duration-200">
+                    <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mb-4 mx-auto animate-pulse">
+                        <span class="text-4xl">🛑</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-red-600 dark:text-red-500 text-center mb-2">ANNULATION DE CAMPAGNE</h3>
+                    <p class="text-gray-600 dark:text-gray-300 text-center text-sm mb-6 leading-relaxed">
+                        Attention ! Vous êtes sur le point d'annuler la campagne <strong>{{ campaign?.title }}</strong>.<br><br>
+                        🔴 <strong>Tous les dons collectés seront REMBOURSÉS automatiquement.</strong><br>
+                        🔴 Cette action est <strong>IRRÉVERSIBLE</strong>.
+                    </p>
+                    
+                    <div class="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20 mb-6">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" v-model="confirmCancelCheck" class="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                            <span class="text-sm text-red-800 dark:text-red-300">Je comprends que cette action va déclencher le remboursement de tous les donateurs et annuler la campagne définitivement.</span>
+                        </label>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motif de l'annulation</label>
+                        <textarea 
+                            v-model="cancelReason" 
+                            rows="3" 
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm focus:ring-red-500 focus:border-red-500 p-2"
+                            placeholder="Indiquez la raison de l'annulation..."
+                        ></textarea>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button @click="showCancelModal = false; confirmCancelCheck = false" class="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium">Ne pas annuler</button>
+                        <button @click="processCancelCampaign" :disabled="!confirmCancelCheck || !cancelReason.trim()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                            CONFIRMER ANNULATION
+                        </button>
+                    </div>
                 </div>
             </div>
         </Teleport>
@@ -579,11 +621,21 @@ const downloadQRCode = () => {
   document.body.removeChild(link)
 }
 
-const confirmCancelCampaign = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler cette campagne ? Cela remboursera automatiquement tous les donateurs. C\'est irréversible.')) return
+// Cancel Campaign Logic
+const showCancelModal = ref(false)
+const confirmCancelCheck = ref(false)
+const cancelReason = ref('')
 
+const openCancelModal = () => {
+    showCancelModal.value = true
+    confirmCancelCheck.value = false
+    cancelReason.value = ''
+}
+
+const processCancelCampaign = async () => {
     try {
-        await donationApi.cancelCampaign(campaign.value.id)
+        await donationApi.cancelCampaign(campaign.value.id, cancelReason.value)
+        showCancelModal.value = false
         alert('Campagne annulée initée. Les remboursement sont en cours.')
         loadData()
     } catch (e: any) {

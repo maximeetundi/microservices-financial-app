@@ -54,6 +54,17 @@ class DonationApiService {
     }
   }
 
+  /// Cancel campaign
+  Future<void> cancelCampaign(String id, {String? reason}) async {
+    final response = await _client.post(
+      '/donation-service/api/v1/campaigns/$id/cancel',
+      data: reason != null ? {'reason': reason} : {},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to cancel campaign');
+    }
+  }
+
   // === Donations ===
 
   /// Initiate a donation
@@ -98,6 +109,17 @@ class DonationApiService {
       return response.data['donations'] ?? [];
     }
     throw Exception('Failed to load donations');
+  }
+
+  /// Refund a donation
+  Future<void> refundDonation(String id, {String? reason}) async {
+    final response = await _client.post(
+      '/donation-service/api/v1/donations/$id/refund',
+      data: reason != null ? {'reason': reason} : {},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to refund donation');
+    }
   }
 
   /// Upload Campaign Media (Image or Video)

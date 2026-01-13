@@ -128,11 +128,74 @@
                    </div>
                </template>
 
+                   <!-- Receiver -->
+                   <div class="detail-row" v-if="receiverInfo">
+                       <span class="detail-label">À (Récepteur)</span>
+                       <div class="text-right flex flex-col items-end">
+                            <span class="detail-value font-bold">{{ receiverInfo.name }}</span>
+                            <span v-if="receiverInfo.phone" class="text-xs text-gray-400">{{ receiverInfo.phone }}</span>
+                            <span v-if="receiverInfo.email" class="text-xs text-gray-400">{{ receiverInfo.email }}</span>
+                       </div>
+                   </div>
+               </template>
+
+               <!-- Transfer Actions (Cancel/Reverse) -->
+               <div v-if="selectedTx.type === 'transfer' && (selectedTx.status === 'completed' || selectedTx.status === 'pending' || selectedTx.status === 'processing')" class="mt-6 pt-6 border-t border-gray-700">
+                   <!-- Sender Cancel -->
+                   <button v-if="selectedTx.amount < 0" @click="initiateAction('cancel')" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/20 transition-colors mb-2">
+                       Annuler le transfert
+                   </button>
+                   
+                   <!-- Recipient Reverse -->
+                   <button v-if="selectedTx.amount > 0 && selectedTx.status === 'completed'" @click="initiateAction('reverse')" class="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 transition-colors mb-2">
+                       Renvoyer les fonds
+                   </button>
+               </div>
+
             </div>
             
             <button @click="closeTxDetail" class="modal-btn">Fermer</button>
           </div>
         </div>
+      </Teleport>
+
+      <!-- Action Reason Modal -->
+      <Teleport to="body">
+          <div v-if="showActionModal" class="modal-overlay" @click.self="closeActionModal">
+              <div class="modal-content">
+                  <h3 class="modal-title mb-2">
+                      {{ actionType === 'cancel' ? 'Annuler le transfert' : 'Renvoyer les fonds' }}
+                  </h3>
+                  <p class="text-gray-400 text-sm mb-6">
+                      {{ actionType === 'cancel' 
+                          ? 'Êtes-vous sûr de vouloir annuler ce transfert ? Cette action est irréversible.' 
+                          : 'Êtes-vous sûr de vouloir renvoyer les fonds reçus ?' 
+                      }}
+                  </p>
+
+                  <div class="text-left mb-6">
+                      <label class="block text-sm font-medium text-gray-400 mb-2">Motif (Obligatoire)</label>
+                      <textarea 
+                          v-model="actionReason"
+                          rows="3"
+                          class="w-full bg-black/20 border border-gray-700 rounded-xl p-3 text-white focus:border-indigo-500 outline-none"
+                          :placeholder="actionType === 'cancel' ? 'Erreur de montant, destinataire incorrect...' : 'Erreur de réception...'"
+                      ></textarea>
+                  </div>
+
+                  <div class="flex gap-3">
+                      <button @click="closeActionModal" class="flex-1 py-3 bg-gray-700/50 hover:bg-gray-700 text-white rounded-xl font-medium transition-colors">Retour</button>
+                      <button 
+                          @click="submitAction" 
+                          :disabled="!actionReason.trim() || actionLoading"
+                          class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                      >
+                          <span v-if="actionLoading" class="spinner-sm border-white w-4 h-4"></span>
+                          {{ actionType === 'cancel' ? 'Confirmer Annulation' : 'Confirmer Renvoi' }}
+                      </button>
+                  </div>
+              </div>
+          </div>
       </Teleport>
     </div>
   </NuxtLayout>
@@ -141,7 +204,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { walletAPI, transferAPI, userAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
+
 const route = useRoute()
+const authStore = useAuthStore()
 
 const transactions = ref([])
 const loading = ref(false)
@@ -372,6 +438,55 @@ const closeTxDetail = () => {
 const loadMore = async () => {
   offset.value += limit
   await fetchTransactions()
+}
+
+// === Transfer Actions Logic ===
+const showActionModal = ref(false)
+const actionType = ref('cancel') // 'cancel' | 'reverse'
+const actionReason = ref('')
+const actionLoading = ref(false)
+
+const initiateAction = (type) => {
+    actionType.value = type
+    actionReason.value = ''
+    showActionModal.value = true
+}
+
+const closeActionModal = () => {
+    showActionModal.value = false
+    actionReason.value = ''
+}
+
+const submitAction = async () => {
+    if (!selectedTx.value || !selectedTx.value.reference) return
+    
+    actionLoading.value = true
+    try {
+        const transferId = selectedTx.value.reference // Assuming reference is Transfer ID for 'transfer' type
+        
+        if (actionType.value === 'cancel') {
+            await transferAPI.cancelTransfer(transferId, actionReason.value)
+            alert("Transfert annulé avec succès.")
+        } else {
+            await transferAPI.reverseTransfer(transferId, actionReason.value)
+            alert("Fonds renvoyés avec succès.")
+        }
+        
+        closeActionModal()
+        closeTxDetail()
+        
+        // Reload transactions to reflect status change
+        // Reset list and reload
+        offset.value = 0
+        transactions.value = []
+        await fetchTransactions()
+        
+    } catch (e) {
+        console.error(e)
+        alert(e.response?.data?.error || "Une erreur est survenue lors de l'opération.")
+    } finally {
+        actionLoading.value = false
+    }
 }
 
 onMounted(async () => {

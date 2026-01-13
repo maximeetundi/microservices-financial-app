@@ -64,10 +64,25 @@ class TransferApiService {
   }
   
   /// Annuler un transfert
-  Future<void> cancelTransfer(String transferId) async {
-    final response = await _client.post(ApiEndpoints.cancelTransfer(transferId));
+  /// Annuler un transfert
+  Future<void> cancelTransfer(String transferId, {String? reason}) async {
+    final response = await _client.post(
+       ApiEndpoints.cancelTransfer(transferId),
+       data: reason != null ? {'reason': reason} : {},
+    );
     if (response.statusCode != 200) {
       throw Exception(response.data['error'] ?? 'Failed to cancel transfer');
+    }
+  }
+
+  /// Inverser (Rembourser) un transfert
+  Future<void> reverseTransfer(String transferId, {String? reason}) async {
+    final response = await _client.post(
+       '${ApiEndpoints.baseTransfer}/$transferId/reverse', // Assuming endpoint naming convention
+       data: reason != null ? {'reason': reason} : {},
+    );
+    if (response.statusCode != 200) {
+      throw Exception(response.data['error'] ?? 'Failed to reverse transfer');
     }
   }
   

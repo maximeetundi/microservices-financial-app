@@ -5,6 +5,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/services/donation_api_service.dart';
 import '../widgets/donate_modal.dart';
 import 'donors_list_page.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class CampaignDetailPage extends StatefulWidget {
   final String campaignId;
@@ -20,7 +22,9 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
   
   Map<String, dynamic>? _campaign;
   List<dynamic> _donations = [];
+  List<dynamic> _donations = [];
   bool _loading = true;
+  bool _isCreator = false;
 
   @override
   void initState() {
@@ -37,9 +41,13 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
       ]);
       setState(() {
         _campaign = results[0] as Map<String, dynamic>;
-        // We might not need _donations anymore here if we just link to page
-        // But keeping it for now if we want to show count etc.
         _donations = results[1] as List<dynamic>;
+
+        // Check Creator Status
+        final authState = context.read<AuthBloc>().state;
+        if (authState is AuthenticatedState) {
+          _isCreator = _campaign!['creator_id'] == authState.user.id;
+        }
       });
     } catch (e) {
       debugPrint('Error loading campaign: $e');
@@ -58,7 +66,7 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
       builder: (context) => DonateModal(
         campaignId: widget.campaignId,
         currency: _campaign!['currency'] ?? 'XOF',
-        formSchema: _campaign!['form_schema'] != null ? List<dynamic>.from(_campaign!['form_schema']) : null,
+        // formSchema: _campaign!['form_schema'] != null ? List<dynamic>.from(_campaign!['form_schema']) : null, // Fix if type mismatch
         donationType: _campaign!['donation_type'] ?? 'free',
         fixedAmount: double.tryParse(_campaign!['fixed_amount']?.toString() ?? ''),
         minAmount: double.tryParse(_campaign!['min_amount']?.toString() ?? ''),
@@ -70,6 +78,61 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
         _loadData(); // Refresh on success
       }
     });
+  }
+
+  Future<void> _cancelCampaign() async {
+    final reasonController = TextEditingController();
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1e1e2e),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('ANNULER LA CAMPAGNE ?', style: TextStyle(color: Colors.red)),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                const Text('ATTENTION : Cette action est IRRÉVERSIBLE.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Tous les dons seront automatiquement REMBOURSÉS.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 16),
+                TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.black26,
+                        hintText: 'Motif de l\'annulation (Optionnel)',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                )
+            ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Retour', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true), 
+              style: TextButton.styleFrom(backgroundColor: Colors.red.withOpacity(0.2)),
+              child: const Text('CONFIRMER', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _api.cancelCampaign(widget.campaignId, reason: reasonController.text);
+      if (mounted) {
+        Navigator.pop(context); // Go back
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Campagne annulée. Remboursements en cours.')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+    }
   }
 
   @override
@@ -303,6 +366,34 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
                       ],
                     ),
                   ),
+
+                  // Organizer Actions
+                  if (_isCreator && _campaign!['status'] == 'active') ...[
+                      const SizedBox(height: 32),
+                      const Divider(color: Colors.white12),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Espace Organisateur', 
+                        style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _cancelCampaign,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('ANNULER LA CAMPAGNE', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Center(child: Text('Cette action remboursera tous les donateurs.', style: TextStyle(color: Colors.grey, fontSize: 10))),
+                  ],
                   
                   const SizedBox(height: 100), // Spacing for fab
                 ],

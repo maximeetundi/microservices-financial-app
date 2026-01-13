@@ -177,6 +177,31 @@
             </div>
         </div>
     </div>
+    
+    <!-- Refund Reason Modal -->
+    <div v-if="refundModalOpen" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
+            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Motif du remboursement</h3>
+            <p class="text-sm text-gray-500 mb-4">Veuillez indiquer la raison de ce remboursement. Ce motif sera visible par le donateur.</p>
+            
+            <textarea 
+                v-model="refundReason" 
+                placeholder="Ex: Erreur de montant, Demande du donateur..." 
+                class="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 mb-4 focus:ring-2 focus:ring-red-500 min-h-[100px]"
+            ></textarea>
+
+            <div class="flex justify-end gap-3">
+                <button @click="closeRefundModal" class="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg">Annuler</button>
+                <button 
+                    @click="submitRefund" 
+                    :disabled="!refundReason"
+                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Confirmer
+                </button>
+            </div>
+        </div>
+    </div>
   </NuxtLayout>
 </template>
 
@@ -248,6 +273,41 @@ const tierStats = computed(() => {
     })
 })
 
+// === Refund Logic ===
+const refundModalOpen = ref(false)
+const selectedRefundDonation = ref<any>(null)
+const refundReason = ref('')
+
+const openRefundModal = (donation: any) => {
+    selectedRefundDonation.value = donation
+    refundReason.value = '' // Reset
+    refundModalOpen.value = true
+}
+
+const closeRefundModal = () => {
+    refundModalOpen.value = false
+    selectedRefundDonation.value = null
+}
+
+const submitRefund = async () => {
+    if (!selectedRefundDonation.value || !refundReason.value) return
+    
+    try {
+        await donationApi.refundDonation(selectedRefundDonation.value.id, refundReason.value)
+        
+        // Update local state
+        const idx = donations.value.findIndex(d => d.id === selectedRefundDonation.value.id)
+        if(idx !== -1) donations.value[idx].status = 'refunding' // Optimistic update
+        
+        closeRefundModal()
+        // Ideally show toast here
+        alert('Remboursement initié avec succès.')
+    } catch (e: any) {
+        console.error(e)
+        alert(e.response?.data?.error || "Erreur lors du remboursement")
+    }
+}
+
 const selectedDonation = ref<any>(null)
 const openDonationModal = (donation: any) => {
     // If not creator and private data, maybe restricted? But here we are on Wall of Donors.
@@ -296,17 +356,8 @@ const getProgress = (c: any) => {
     return Math.min(100, (c.collected_amount / c.target_amount) * 100)
 }
 
-const confirmRefund = async (donation: any) => {
-    if (!confirm(`Rembourser le don de ${formatAmount(donation.amount, donation.currency)} ?`)) return
-    try {
-        await donationApi.refundDonation(donation.id)
-        alert('Remboursement initié.')
-        // Reload to update status
-        const idx = donations.value.findIndex(d => d.id === donation.id)
-        if(idx !== -1) donations.value[idx].status = 'refunding'
-    } catch (e: any) {
-        alert(e.response?.data?.error || "Erreur lors du remboursement")
-    }
+const confirmRefund = (donation: any) => {
+    openRefundModal(donation)
 }
 
 onMounted(() => {

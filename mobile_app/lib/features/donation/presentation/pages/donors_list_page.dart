@@ -79,15 +79,42 @@ class _DonorsListPageState extends State<DonorsListPage> {
   }
 
   Future<void> _refundDonation(String donationId) async {
-    // Confirm Dialog
+    final reasonController = TextEditingController();
+    
+    // Confirm Dialog with Reason
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rembourser ce don ?'),
-        content: const Text('Cette action est irréversible.'),
+        backgroundColor: const Color(0xFF1e1e2e),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Rembourser ce don ?', style: TextStyle(color: Colors.white)),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                const Text('Cette action est irréversible. Le montant sera retourné au donateur.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 16),
+                TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.black26,
+                        hintText: 'Motif (Optionnel)',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                )
+            ],
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Rembourser', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true), 
+              style: TextButton.styleFrom(backgroundColor: Colors.red.withOpacity(0.1)),
+              child: const Text('Rembourser', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );
@@ -95,7 +122,7 @@ class _DonorsListPageState extends State<DonorsListPage> {
     if (confirm != true) return;
 
     try {
-      await _api.refundDonation(donationId);
+      await _api.refundDonation(donationId, reason: reasonController.text);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Remboursement initié')));
         _loadData(); // Reload
@@ -302,7 +329,10 @@ class _DonorsListPageState extends State<DonorsListPage> {
                         label: const Text('Rembourser ce don', style: TextStyle(color: Colors.red)),
                         onPressed: () {
                            Navigator.pop(context);
-                           _refundDonation(donation['id']);
+                           // Wait slightly for modal to close
+                           Future.delayed(const Duration(milliseconds: 200), () {
+                               _refundDonation(donation['id']);
+                           });
                         },
                     )
              ],

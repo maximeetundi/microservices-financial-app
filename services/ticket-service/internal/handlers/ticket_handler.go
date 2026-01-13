@@ -340,7 +340,15 @@ func (h *TicketHandler) CancelEvent(c *gin.Context) {
 
 	eventID := c.Param("id")
 
-	if err := h.service.CancelAndRefundEvent(eventID, userID); err != nil {
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	if err := h.service.CancelAndRefundEvent(eventID, userID, req.Reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

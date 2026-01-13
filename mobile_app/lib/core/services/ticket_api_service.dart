@@ -218,8 +218,11 @@ class TicketApiService {
   }
 
   /// Cancel event and refund all tickets
-  Future<void> cancelEvent(String id) async {
-    final response = await _client.post('/ticket-service/api/v1/events/$id/cancel');
+  Future<void> cancelEvent(String id, {String? reason}) async {
+    final response = await _client.post(
+      '/ticket-service/api/v1/events/$id/cancel',
+      data: reason != null ? {'reason': reason} : {},
+    );
     if (response.statusCode != 200) {
       throw Exception(response.data['error'] ?? 'Failed to cancel event');
     }

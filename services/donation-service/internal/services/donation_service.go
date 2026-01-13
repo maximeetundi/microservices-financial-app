@@ -174,7 +174,7 @@ func (s *DonationService) ListDonations(campaignID string, limit, offset int64) 
 }
 
 // RefundDonation initiates a refund for a specific donation
-func (s *DonationService) RefundDonation(donationID, requesterID string) error {
+func (s *DonationService) RefundDonation(donationID, requesterID, reason string) error {
 	// 1. Get Donation
 	donation, err := s.donationRepo.GetByID(donationID)
 	if err != nil {
@@ -234,7 +234,9 @@ func (s *DonationService) RefundDonation(donationID, requesterID string) error {
 		CreditAmount:      donation.Amount,
 		Currency:          donation.Currency,
 		Type:              "refund",
+		Type:              "refund",
 		ReferenceID:       fmt.Sprintf("REF-DON-%s", donation.ID.Hex()),
+		Metadata:          map[string]string{"reason": reason},
 	}
 
 	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "donation-service", refundReq)
@@ -251,7 +253,7 @@ func (s *DonationService) RefundDonation(donationID, requesterID string) error {
 }
 
 // CancelCampaign cancels a campaign and refunds all paid donations
-func (s *DonationService) CancelCampaign(campaignID, requesterID string) error {
+func (s *DonationService) CancelCampaign(campaignID, requesterID, reason string) error {
 	// 1. Get Campaign
 	campaign, err := s.campaignRepo.GetByID(campaignID)
 	if err != nil {
@@ -293,7 +295,7 @@ func (s *DonationService) CancelCampaign(campaignID, requesterID string) error {
 			// reusing RefundDonation is safest as it checks wallets.
 			
 			// We pass requesterID (creator) to authorize the refund.
-			if err := s.RefundDonation(d.ID.Hex(), requesterID); err != nil {
+			if err := s.RefundDonation(d.ID.Hex(), requesterID, reason); err != nil {
 				fmt.Printf("Failed to refund donation %s: %v\n", d.ID.Hex(), err)
 				// Continue to next donation
 			}

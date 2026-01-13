@@ -117,6 +117,7 @@ func main() {
 		
 		api.GET("/transfers/:transfer_id", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransfer)
 		api.POST("/transfers/:transfer_id/cancel", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CancelTransfer)
+		api.POST("/transfers/:transfer_id/reverse", middleware.JWTAuth(cfg.JWTSecret), transferHandler.ReverseTransfer)
 
 		// International transfers
 		api.POST("/international", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateInternationalTransfer)

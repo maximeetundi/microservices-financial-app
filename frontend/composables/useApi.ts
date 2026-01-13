@@ -284,6 +284,10 @@ export const transferAPI = {
         api.post('/transfer-service/api/v1/transfers/validate-recipient', { type, recipient }),
     getFees: (type: string, amount: number, currency: string) =>
         api.get(`/transfer-service/api/v1/transfers/fees?type=${type}&amount=${amount}&currency=${currency}`),
+
+    // Cancellation & Reversal
+    cancelTransfer: (id: string, reason: string) => api.post(`/transfer-service/api/v1/transfers/${id}/cancel`, { reason }),
+    reverseTransfer: (id: string, reason: string) => api.post(`/transfer-service/api/v1/transfers/${id}/reverse`, { reason }),
 }
 
 // ========== Cards ==========
@@ -611,7 +615,7 @@ export const ticketAPI = {
 
     // Refund and Cancellation
     refundTicket: (id: string, reason: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`, { reason }),
-    cancelEvent: (id: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`),
+    cancelEvent: (id: string, reason: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`, { reason }),
 }
 
 // ========== Donations ==========
@@ -622,11 +626,11 @@ export const donationAPI = {
     getMyCampaigns: (creatorID: string) => api.get(`/donation-service/api/v1/campaigns?creator_id=${creatorID}`),
     getCampaign: (id: string) => api.get(`/donation-service/api/v1/campaigns/${id}`),
     updateCampaign: (id: string, data: any) => api.put(`/donation-service/api/v1/campaigns/${id}`, data),
-    cancelCampaign: (id: string) => api.post(`/donation-service/api/v1/campaigns/${id}/cancel`),
+    cancelCampaign: (id: string, reason: string) => api.post(`/donation-service/api/v1/campaigns/${id}/cancel`, { reason }),
 
     // Donations
     initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),
-    refundDonation: (id: string) => api.post(`/donation-service/api/v1/donations/${id}/refund`),
+    refundDonation: (id: string, reason: string) => api.post(`/donation-service/api/v1/donations/${id}/refund`, { reason }),
     getDonations: (campaignID: string, limit = 20, offset = 0) =>
         api.get(`/donation-service/api/v1/donations?campaign_id=${campaignID}&limit=${limit}&offset=${offset}`),
 

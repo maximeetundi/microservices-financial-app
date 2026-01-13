@@ -176,37 +176,57 @@ class _SoldTicketsScreenState extends State<SoldTicketsScreen> {
 
   // ... (Cancel Event logic remains same, omitted for brevity if unmodified, but including to keep context)
   Future<void> _confirmCancelEvent() async {
-    final confirmed = await showDialog<bool>(
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1e293b),
         title: const Text('Annuler l\'événement ?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'ATTENTION : Cette action est IRRÉVERSIBLE. Tous les tickets vendus seront REMBOURSÉS automatiquement et l\'événement sera annulé.',
-          style: TextStyle(color: Colors.white70),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             const Text(
+              'ATTENTION : Cette action est IRRÉVERSIBLE. Tous les tickets vendus seront REMBOURSÉS automatiquement et l\'événement sera annulé.',
+              style: TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+             TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.black26,
+                        hintText: 'Motif de l\'annulation (Requis)',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                )
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Retour', style: TextStyle(color: Colors.white)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(context, reasonController.text),
             child: const Text('Confirmer l\'annulation', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      _cancelEvent();
+    if (result != null && result.isNotEmpty) {
+      _cancelEvent(result);
     }
   }
 
-  Future<void> _cancelEvent() async {
+  Future<void> _cancelEvent(String reason) async {
     setState(() => _loading = true);
     try {
-      await _ticketApi.cancelEvent(widget.eventId);
+      await _ticketApi.cancelEvent(widget.eventId, reason: reason);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Événement annulé et remboursements initiés')),

@@ -84,13 +84,42 @@ func (h *TransferHandler) GetTransferHistory(c *gin.Context) {
 
 func (h *TransferHandler) CancelTransfer(c *gin.Context) {
 	transferID := c.Param("transfer_id")
+	userID := c.GetString("user_id")
 	
-	if err := h.transferService.CancelTransfer(transferID); err != nil {
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	if err := h.transferService.CancelTransfer(transferID, userID, req.Reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Transfer cancelled successfully"})
+}
+
+func (h *TransferHandler) ReverseTransfer(c *gin.Context) {
+	transferID := c.Param("transfer_id")
+	userID := c.GetString("user_id")
+
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	if err := h.transferService.ReverseTransfer(transferID, userID, req.Reason); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Transfer reversed successfully"})
 }
 
 func (h *TransferHandler) CreateInternationalTransfer(c *gin.Context) {
