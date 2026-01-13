@@ -249,7 +249,7 @@ func (s *DonationService) RefundDonation(donationID, requesterID, reason string)
 	}
 
 	// 7. Decrement Campaign Amount
-	if err := s.campaignRepo.IncrementAmount(campaign.ID.Hex(), -donation.Amount); err != nil {
+	if err := s.campaignRepo.IncrementCollectedAmount(campaign.ID.Hex(), -donation.Amount); err != nil {
 		// Log error but proceed as refund is initiated
 		fmt.Printf("Failed to decrement campaign amount for refund %s: %v\n", donationID, err)
 	}
