@@ -324,10 +324,8 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 	}
 
 	// 6. Update Transfer Status
-	updates := map[string]interface{}{
-		"status": "cancelled",
-		"description": fmt.Sprintf("%s | Cancel Reason: %s", transfer.Description, reason),
-	}
+	// 6. Update Transfer Status
+
 	// Note: We might want a separate field for cancellation reason, but appending to description works for MVP.
 	// Or use a repository method that supports extra fields.
 	// For now, simple status update.
