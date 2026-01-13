@@ -234,9 +234,6 @@ func (s *DonationService) RefundDonation(donationID, requesterID, reason string)
 		CreditAmount:      donation.Amount,
 		Currency:          donation.Currency,
 		Type:              "refund",
-		Type:              "refund",
-		ReferenceID:       fmt.Sprintf("REF-DON-%s", donation.ID.Hex()),
-		Metadata:          map[string]string{"reason": reason},
 	}
 
 	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "donation-service", refundReq)
