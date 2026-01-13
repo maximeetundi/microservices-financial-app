@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"time"
+    "math/rand"
 
+	"github.com/google/uuid"
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
@@ -275,4 +277,30 @@ func (s *ComplianceService) CheckTransfer(transfer *models.Transfer) (*models.Co
 	}
 
 	return result, nil
+}
+
+// Helper functions and methods
+
+func (s *TransferService) calculateFee(transferType string, amount float64) float64 {
+    // Simple fee logic: 1% for international, 0 for domestic
+    if transferType == "international" {
+        return amount * 0.01
+    }
+    return 0
+}
+
+func (s *TransferService) resolveOrCreateRecipientWallet(email *string, phone *string, currency string) (string, error) {
+    // Stub functionality: P2P transfer recipient resolution requires User Service lookup
+    // For now, return error as we don't have direct access to User Service here without a client.
+    // Ideally, we should add UserClient similar to DonationService.
+    return "", fmt.Errorf("P2P transfer recipient resolution not implemented yet")
+}
+
+func generateID() string {
+    return uuid.New().String()
+}
+
+func generateReferenceID() string {
+    // Generate a unique reference ID, e.g., TRF-timestamp-random
+    return fmt.Sprintf("TRF-%d-%d", time.Now().Unix(), rand.Intn(10000))
 }
