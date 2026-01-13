@@ -45,8 +45,11 @@ func (s *CampaignService) CreateCampaign(campaign *models.Campaign) error {
 	return s.repo.Create(campaign)
 }
 
-func (s *CampaignService) GetCampaign(id string) (*models.Campaign, error) {
-	return s.repo.GetByID(id)
+func (s *CampaignService) GetCampaign(idOrCode string) (*models.Campaign, error) {
+	if strings.HasPrefix(idOrCode, "CPN-") {
+		return s.repo.GetByCode(idOrCode)
+	}
+	return s.repo.GetByID(idOrCode)
 }
 
 func (s *CampaignService) ListCampaigns(limit, offset int64) ([]*models.Campaign, error) {

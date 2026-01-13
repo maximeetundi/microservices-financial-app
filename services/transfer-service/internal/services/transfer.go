@@ -173,17 +173,27 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 	}
 
 	// 1. Populate Sender Details
-	// Getting sender user ID from wallet
-	if transfer.FromWalletID != nil {
+	// Getting sender user ID from wallet or directly from transfer
+	var senderUserID string
+	if transfer.FromWalletID != nil && *transfer.FromWalletID != "" {
 		fromWallet, err := s.walletRepo.GetByID(*transfer.FromWalletID)
 		if err == nil {
-			name, email, phone, err := s.walletRepo.GetUserInfo(fromWallet.UserID)
-			if err == nil {
-				transfer.SenderDetails = &models.UserDetails{
-					Name:  name,
-					Email: email,
-					Phone: phone,
-				}
+			senderUserID = fromWallet.UserID
+		}
+	}
+	
+	// Fallback to transfer.UserID if wallet lookup failed or provided no user (e.g. external)
+	if senderUserID == "" {
+		senderUserID = transfer.UserID
+	}
+
+	if senderUserID != "" {
+		name, email, phone, err := s.walletRepo.GetUserInfo(senderUserID)
+		if err == nil {
+			transfer.SenderDetails = &models.UserDetails{
+				Name:  name,
+				Email: email,
+				Phone: phone,
 			}
 		}
 	}

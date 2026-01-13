@@ -48,6 +48,15 @@ func (r *CampaignRepository) GetByID(id string) (*models.Campaign, error) {
 	return &campaign, nil
 }
 
+func (r *CampaignRepository) GetByCode(code string) (*models.Campaign, error) {
+	var campaign models.Campaign
+	err := r.collection.FindOne(context.Background(), bson.M{"campaign_code": code}).Decode(&campaign)
+	if err != nil {
+		return nil, err
+	}
+	return &campaign, nil
+}
+
 func (r *CampaignRepository) Update(id string, updates map[string]interface{}) error {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
