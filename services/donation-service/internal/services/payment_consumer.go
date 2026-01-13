@@ -82,17 +82,17 @@ func (c *PaymentConsumer) handlePaymentEvent(ctx context.Context, msg *messaging
 		// Send Notification to Creator?
 		// "You received a donation of X from Y"
 		// "New donation on campaign Z"
-		c.sendNotification(donation, "success")
+		c.sendNotification(donation, "success", "")
 		
 	} else {
 		c.donationRepo.UpdateStatus(donationID, models.DonationStatusFailed, "")
-		c.sendNotification(donation, "failed")
+		c.sendNotification(donation, "failed", event.Error)
 	}
 
 	return nil
 }
 
-func (c *PaymentConsumer) sendNotification(donation *models.Donation, status string) {
+func (c *PaymentConsumer) sendNotification(donation *models.Donation, status, errorMsg string) {
 	// 1. Get Campaign to know Creator and Title
 	campaign, err := c.campaignRepo.GetByID(donation.CampaignID.Hex())
 	if err != nil {
@@ -146,5 +146,23 @@ func (c *PaymentConsumer) sendNotification(donation *models.Donation, status str
 			c.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, donorEnv)
 		}
 
+	} else if status == "failed" {
+		title = "Don Échoué ❌"
+		message = fmt.Sprintf("Votre don de %.2f %s a échoué. Raison: %s", donation.Amount, donation.Currency, errorMsg)
+		
+		if donation.DonorID != "" {
+			notif := messaging.NotificationEvent{
+				UserID:  donation.DonorID,
+				Type:    "donation_failed",
+				Title:   title,
+				Message: message,
+				Data: map[string]interface{}{
+					"donation_id": donation.ID.Hex(),
+					"reason":      errorMsg,
+				},
+			}
+			env := messaging.NewEventEnvelope(messaging.EventNotificationCreated, "donation-service", notif)
+			c.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, env)
+		}
 	}
 }
