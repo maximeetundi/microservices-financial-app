@@ -47,7 +47,7 @@ func (s *SchoolService) GetStudentStatus(ctx context.Context, enterpriseID strin
 	subs, err := s.subRepo.FindByEnterprise(ctx, enterpriseID)
 	if err != nil { return nil, err }
 
-	var report []map[string]interface{}{}
+	var report []map[string]interface{}
 
 	for _, sub := range subs {
 		// Filter by class (simplified, ideally repo does this)
