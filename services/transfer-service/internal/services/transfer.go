@@ -163,8 +163,7 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	return transfer, nil
 }
 
-	return transfer, nil
-}
+
 
 func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 	return s.transferRepo.GetByID(id)
