@@ -299,7 +299,6 @@
                           <input type="checkbox" v-model="confirmCancelCheck" class="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
                           <span class="text-sm text-red-800 dark:text-red-300">Je comprends que cette action va déclencher le remboursement de tous les participants et annuler l'événement définitivement.</span>
                       </label>
-                      </label>
                   </div>
                   
                   <div class="mb-6">
