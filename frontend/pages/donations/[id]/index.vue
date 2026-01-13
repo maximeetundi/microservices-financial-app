@@ -335,7 +335,6 @@
                     </button>
                 </div>
             </div>
-            </div>
         </Teleport>
 
         <!-- Cancel Campaign Modal -->
