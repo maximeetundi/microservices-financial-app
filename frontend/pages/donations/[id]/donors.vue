@@ -51,10 +51,29 @@
                   </div>
               </div>
 
+              <!-- Filters & Search -->
+              <div class="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
+                  <div class="relative flex-1">
+                      <input v-model="searchQuery" type="text" placeholder="Rechercher un donateur..." class="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500">
+                      <span class="absolute left-3 top-2.5 text-gray-400">🔍</span>
+                  </div>
+                  <!-- Tier Filter (Optional, maybe later) -->
+              </div>
+
+              <!-- Tier Stats (For Tiers Campaigns) -->
+              <div v-if="campaign.donation_type === 'tiers' && tierStats.length > 0" class="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <div v-for="stat in tierStats" :key="stat.label" class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                      <div class="text-xs text-gray-500 uppercase font-bold">{{ stat.label }}</div>
+                      <div class="text-xl font-bold text-indigo-600 dark:text-indigo-400">{{ stat.count }} dons</div>
+                      <div class="text-xs text-gray-400">{{ formatAmount(stat.total, campaign.currency) }}</div>
+                  </div>
+              </div>
+
               <!-- Donors List -->
-              <div v-if="donations.length > 0" class="space-y-4">
-                  <div v-for="donation in donations" :key="donation.id" 
-                       class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow">
+              <div v-if="filteredDonations.length > 0" class="space-y-4">
+                  <div v-for="donation in filteredDonations" :key="donation.id" 
+                       @click="openDonationModal(donation)"
+                       class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer">
                       
                       <div class="flex items-center gap-4">
                           <div class="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
@@ -105,6 +124,59 @@
           </div>
       </div>
     </div>
+
+    <!-- Donation Detail Modal -->
+    <div v-if="selectedDonation" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="selectedDonation = null">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 relative">
+                <button @click="selectedDonation = null" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+                
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-2xl font-bold mb-3"
+                         :class="selectedDonation.is_anonymous ? 'bg-gray-100 dark:bg-gray-700 text-gray-500' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600'">
+                        {{ selectedDonation.is_anonymous ? '?' : (selectedDonation.donor_name?.[0]?.toUpperCase() || 'B') }}
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                        {{ selectedDonation.is_anonymous ? 'Donateur Anonyme' : (selectedDonation.donor_name || 'Bienfaiteur') }}
+                    </h3>
+                    <p class="text-sm text-gray-500">{{ formatDate(selectedDonation.created_at) }}</p>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 mb-6 text-center">
+                    <span class="block text-gray-500 text-sm mb-1">Montant du Don</span>
+                    <span class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                        {{ formatAmount(selectedDonation.amount, selectedDonation.currency) }}
+                    </span>
+                    <div v-if="selectedDonation.frequency && selectedDonation.frequency !== 'one_time'" class="mt-2 inline-block px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs rounded-lg">
+                        🔄 {{ selectedDonation.frequency === 'monthly' ? 'Mensuel' : 'Annuel' }}
+                    </div>
+                </div>
+
+                <div v-if="selectedDonation.message" class="mb-6">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Message</h4>
+                    <p class="text-gray-700 dark:text-gray-300 italic bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                        "{{ selectedDonation.message }}"
+                    </p>
+                </div>
+
+                <!-- Custom Fields Data -->
+                <div v-if="selectedDonation.form_data && Object.keys(selectedDonation.form_data).length > 0" class="space-y-3">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Informations</h4>
+                    <div v-for="(value, key) in selectedDonation.form_data" :key="key" class="flex justify-between text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
+                        <span class="text-gray-500 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-gray-100 dark:border-gray-800 text-center">
+                     <button v-if="isCreator && selectedDonation.status === 'paid'" @click="confirmRefund(selectedDonation)" 
+                           class="text-red-500 hover:text-red-700 font-bold text-sm hover:underline">
+                        Demander un remboursement
+                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
   </NuxtLayout>
 </template>
 
@@ -146,6 +218,42 @@ const globalStats = computed(() => {
         average: avg
     }
 })
+
+// === Search & Filtering ===
+const searchQuery = ref('')
+
+const filteredDonations = computed(() => {
+    if (!searchQuery.value) return donations.value
+    const q = searchQuery.value.toLowerCase()
+    return donations.value.filter(d => 
+        (d.donor_name && d.donor_name.toLowerCase().includes(q)) ||
+        (d.message && d.message.toLowerCase().includes(q))
+    )
+})
+
+// === Tier Stats ===
+const tierStats = computed(() => {
+    if (!campaign.value || campaign.value.donation_type !== 'tiers' || !campaign.value.donation_tiers) return []
+    
+    // Map tiers to stats
+    return campaign.value.donation_tiers.map((tier: any) => {
+        // Find donations matching this tier amount (approximate check usually sufficient for float, but exact match preferred for tiers logic)
+        const tierDonations = donations.value.filter(d => Math.abs(d.amount - tier.amount) < 0.01)
+        const total = tierDonations.reduce((sum, d) => sum + d.amount, 0)
+        return {
+            label: tier.label,
+            count: tierDonations.length,
+            total: total
+        }
+    })
+})
+
+const selectedDonation = ref<any>(null)
+const openDonationModal = (donation: any) => {
+    // If not creator and private data, maybe restricted? But here we are on Wall of Donors.
+    // If anonymous, maybe we hide details? For now show what we have.
+    selectedDonation.value = donation
+}
 
 const loadData = async () => {
     loading.value = true
