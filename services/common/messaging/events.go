@@ -131,8 +131,9 @@ type PaymentRequestEvent struct {
 	DestinationUserID string `json:"destination_user_id,omitempty"` // For auto-resolution
 	ToWalletID   string  `json:"to_wallet_id,omitempty"`
 	DebitAmount  float64 `json:"debit_amount"`
-	CreditAmount float64 `json:"credit_amount,omitempty"`
-	Currency     string  `json:"currency"`
+	CreditAmount float64                `json:"credit_amount,omitempty"`
+	Currency     string                 `json:"currency"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type PaymentStatusEvent struct {

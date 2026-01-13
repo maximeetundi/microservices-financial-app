@@ -261,7 +261,9 @@ const getTypeIcon = (type) => {
     withdraw: '↑',
     transfer: '💸',
     exchange: '💱',
-    payment: '💳'
+    payment: '💳',
+    refund: '↩️',
+    donation: '💖'
   }
   return icons[type] || '💰'
 }
@@ -272,7 +274,9 @@ const getTypeColorClass = (type) => {
     withdraw: 'icon-red',
     transfer: 'icon-purple',
     exchange: 'icon-blue',
-    payment: 'icon-orange'
+    payment: 'icon-orange',
+    refund: 'icon-purple',
+    donation: 'icon-purple'
   }
   return colors[type] || 'icon-gray'
 }
@@ -326,7 +330,9 @@ const getTransactionTitle = (type) => {
     withdraw: 'Retrait',
     transfer: 'Transfert',
     exchange: 'Échange',
-    payment: 'Paiement'
+    payment: 'Paiement',
+    refund: 'Remboursement',
+    donation: 'Donation'
   }
   return titles[type] || 'Transaction'
 }

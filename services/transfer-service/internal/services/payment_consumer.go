@@ -317,6 +317,17 @@ func (c *PaymentRequestConsumer) handlePaymentEvent(ctx context.Context, event *
 
 	// Set Description
 	desc := fmt.Sprintf("Paiement: %s", paymentReq.Type)
+	if paymentReq.Type == "refund" {
+		desc = "Remboursement"
+		// Append reason if available
+		if reason, ok := paymentReq.Metadata["reason"].(string); ok && reason != "" {
+			desc += fmt.Sprintf(" - Motif: %s", reason)
+		}
+	} else if paymentReq.Type == "donation" {
+        desc = "Donation"
+    } else if paymentReq.Type == "ticket_purchase" {
+        desc = "Achat de Ticket" // Better French description
+    }
 	transfer.Description = &desc
 
 	if err := c.transferRepo.Create(transfer); err != nil {

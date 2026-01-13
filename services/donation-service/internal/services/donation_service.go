@@ -234,6 +234,8 @@ func (s *DonationService) RefundDonation(donationID, requesterID, reason string)
 		CreditAmount:      donation.Amount,
 		Currency:          donation.Currency,
 		Type:              "refund",
+		ReferenceID:       fmt.Sprintf("REF-DON-%s", donation.ID.Hex()),
+		Metadata:          map[string]interface{}{"reason": reason},
 	}
 
 	envelope := messaging.NewEventEnvelope(messaging.EventPaymentRequest, "donation-service", refundReq)
@@ -244,6 +246,12 @@ func (s *DonationService) RefundDonation(donationID, requesterID, reason string)
 	// 6. Update Donation Status
 	if err := s.donationRepo.UpdateStatus(donationID, models.DonationStatusRefunding, ""); err != nil {
 		return fmt.Errorf("failed to update donation status: %w", err)
+	}
+
+	// 7. Decrement Campaign Amount
+	if err := s.campaignRepo.IncrementAmount(campaign.ID.Hex(), -donation.Amount); err != nil {
+		// Log error but proceed as refund is initiated
+		fmt.Printf("Failed to decrement campaign amount for refund %s: %v\n", donationID, err)
 	}
 
 	return nil

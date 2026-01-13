@@ -542,13 +542,26 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 		if paymentType == "ticket_purchase" || paymentType == "donation" {
 			return nil
 		}
-		
+
 		amount, _ := event["debit_amount"].(float64)
 		if amount == 0 {
 			amount, _ = event["amount"].(float64)
 		}
 		currency, _ := event["currency"].(string)
 		title, _ := event["title"].(string) 
+
+		if paymentType == "refund" {
+			return &Notification{
+				Title:    "Remboursement initié",
+				Body:     fmt.Sprintf("Un remboursement de %.2f %s est en cours de traitement.", amount, currency),
+				Type:     "payment",
+				Priority: PriorityNormal,
+				Data:     event,
+				ActionUrl: fmt.Sprintf("/transactions/%s", event["request_id"]), // Link to transaction
+				Channels: []string{"push", "email"},
+			}
+		}
+		
 		return &Notification{
 			Title:    "Demande de paiement",
 			Body:     fmt.Sprintf("Nouvelle demande de paiement: %s (%.2f %s)", title, amount, currency),
