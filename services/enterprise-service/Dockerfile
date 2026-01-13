@@ -10,16 +10,16 @@ RUN apk add --no-cache git
 COPY ./common ./common
 
 # Create service directory
-WORKDIR /app/services/enterprise-service
+WORKDIR /app/enterprise-service
 
 # Copy go mod files
-COPY ./services/enterprise-service/go.mod ./services/enterprise-service/go.sum* ./
+COPY ./enterprise-service/go.mod ./enterprise-service/go.sum* ./
 
 # Download dependencies
 RUN go mod download || true
 
 # Copy service source code
-COPY ./services/enterprise-service .
+COPY ./enterprise-service .
 
 # Tidy and download dependencies (regenerates go.sum if needed)
 RUN go mod tidy && go mod download
@@ -29,7 +29,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
 FROM alpine:latest
 WORKDIR /app
-COPY --from=builder /app/services/enterprise-service/main .
+COPY --from=builder /app/enterprise-service/main .
 
 EXPOSE 8097
 CMD ["./main"]
