@@ -130,6 +130,7 @@ func (s *BillingService) GenerateBatchFromManualEntry(ctx context.Context, enter
 		}
 		
 		// Fallback to Base Price if still 0 (e.g. Fixed service manual trigger)
+		if finalAmount == 0 {
 			finalAmount = sub.Amount
         }
         
