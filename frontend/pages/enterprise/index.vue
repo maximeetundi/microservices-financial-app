@@ -685,11 +685,7 @@ const getServiceName = (id) => {
 }
 
 // Watch tab change to fetch clients
-watch(currentTab, (newTab) => {
-    if (newTab === 'Clients') {
-        fetchClients()
-    }
-})
+
 
 // ... Existing Code ...
 
