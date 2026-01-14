@@ -5,9 +5,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"errors"
-	"io"
 	"strconv"
-	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 )
