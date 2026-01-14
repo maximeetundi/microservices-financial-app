@@ -15,20 +15,26 @@ const (
 	EnterpriseTypeUtility   EnterpriseType = "UTILITY" // Electricity, Water
 )
 
-// Enterprise corresponds to Section 1: "Création et gestion d’une entreprise"
+// Enterprise corresponds to Section 1: "Création et gestion d'une entreprise"
 type Enterprise struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name      string             `bson:"name" json:"name"`
 	Type      EnterpriseType     `bson:"type" json:"type"` // Default: SERVICE
 	Logo      string             `bson:"logo,omitempty" json:"logo,omitempty"`
 	EmployeeCountRange string    `bson:"employee_count_range" json:"employee_count_range"` // "1-10", "11-50", etc.
-	RegistrationNumber string    `bson:"registration_number,omitempty" json:"registration_number,omitempty"` // Asked later
+	RegistrationNumber string    `bson:"registration_number,omitempty" json:"registration_number,omitempty"`
 	
-	OwnerID   string             `bson:"owner_id" json:"owner_id"` // Link to User ID
+	OwnerID   string             `bson:"owner_id" json:"owner_id"` // Link to User ID (auto-admin)
 	Settings  EnterpriseSettings `bson:"settings" json:"settings"`
 	
+	// === Enterprise Wallets ===
+	DefaultWalletID string   `bson:"default_wallet_id" json:"default_wallet_id"` // Auto-created
+	WalletIDs       []string `bson:"wallet_ids" json:"wallet_ids"`               // Additional wallets
+	
+	// === Security Policies (Dynamic Multi-Approval) ===
+	SecurityPolicies []SecurityPolicy `bson:"security_policies" json:"security_policies"`
+	
 	// Dynamic Service Definitions (Section 7)
-	// OLD: CustomServices []ServiceDefinition
 	ServiceGroups []ServiceGroup `bson:"service_groups" json:"service_groups"`
 
 	// Specialized Modules Config (Section 7a, 7b)
@@ -39,6 +45,38 @@ type Enterprise struct {
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
+// SecurityPolicy defines approval rules for specific actions
+type SecurityPolicy struct {
+	ID              string   `bson:"id" json:"id"`
+	Name            string   `bson:"name" json:"name"`              // "Paiement de salaires", "Transfert important"
+	ActionType      string   `bson:"action_type" json:"action_type"` // See ActionType constants
+	Enabled         bool     `bson:"enabled" json:"enabled"`
+	
+	// Approval Rules
+	MinApprovals    int      `bson:"min_approvals" json:"min_approvals"`       // Nombre minimum d'admins
+	RequireMajority bool     `bson:"require_majority" json:"require_majority"` // Ou majorité des admins
+	RequireAllAdmins bool    `bson:"require_all_admins" json:"require_all_admins"` // Tous les admins
+	
+	// Conditions (optionnelles)
+	ThresholdAmount float64  `bson:"threshold_amount,omitempty" json:"threshold_amount,omitempty"` // Montant minimum pour appliquer
+	
+	// Timeout
+	ExpirationHours int      `bson:"expiration_hours" json:"expiration_hours"` // Délai avant expiration (defaut: 24h)
+}
+
+// Action types that can require multi-approval
+const (
+	ActionTypeTransaction       = "TRANSACTION"        // Transferts, retraits
+	ActionTypePayroll           = "PAYROLL"            // Paiement des salaires
+	ActionTypeEmployeeTerminate = "EMPLOYEE_TERMINATE" // Licenciement
+	ActionTypeEmployeePromote   = "EMPLOYEE_PROMOTE"   // Promotion
+	ActionTypeSettingsChange    = "SETTINGS_CHANGE"    // Modification des paramètres
+	ActionTypeWalletCreate      = "WALLET_CREATE"      // Création de wallet
+	ActionTypeAdminChange       = "ADMIN_CHANGE"       // Ajout/retrait d'admin
+	ActionTypeServiceCreate     = "SERVICE_CREATE"     // Création de service
+	ActionTypeInvoiceBatch      = "INVOICE_BATCH"      // Envoi de factures en lot
+)
+
 type ServiceGroup struct {
 	ID        string              `bson:"id" json:"id"`
 	Name      string              `bson:"name" json:"name"` // e.g. "Pension 6ème"
@@ -48,9 +86,9 @@ type ServiceGroup struct {
 }
 
 type EnterpriseSettings struct {
-	// Currency        string `bson:"currency" json:"currency"` // Moved to ServiceGroup
 	PayrollDate     int    `bson:"payroll_date" json:"payroll_date"` // e.g., 25th of month
 	AutoPaySalaries bool   `bson:"auto_pay_salaries" json:"auto_pay_salaries"`
+	DefaultCurrency string `bson:"default_currency" json:"default_currency"` // XOF, EUR, etc.
 }
 
 // ServiceDefinition allows defining "Eau", "Electricité", "Gardiennage" dynamically.
@@ -65,35 +103,29 @@ type ServiceDefinition struct {
 	BillingFrequency string  `bson:"billing_frequency" json:"billing_frequency"` // DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
 	CustomInterval   int     `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // If CUSTOM, e.g., every 15 days
     
-    // Category removed, now using ServiceGroup structure
-    
-    PaymentSchedule  []PaymentScheduleItem `bson:"payment_schedule,omitempty" json:"payment_schedule,omitempty"` // If CUSTOM, specific periods
-    
-    // Custom Form for Subscription (Client side)
+    PaymentSchedule  []PaymentScheduleItem `bson:"payment_schedule,omitempty" json:"payment_schedule,omitempty"`
     FormSchema       []ReqFormField        `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
-    
-    // Late Payment Penalty Configuration
     PenaltyConfig    *PenaltyConfig        `bson:"penalty_config,omitempty" json:"penalty_config,omitempty"`
 }
 
 type PenaltyConfig struct {
-    Type        string  `bson:"type" json:"type"`         // FIXED, PERCENTAGE, HYBRID
-    Value       float64 `bson:"value" json:"value"`       // Amount or Percentage (e.g., 5.0 for 5%)
-    ValueFixed  float64 `bson:"value_fixed,omitempty" json:"value_fixed,omitempty"` // For HYBRID: Percentage + Fixed
-    Frequency   string  `bson:"frequency" json:"frequency"` // DAILY, WEEKLY, MONTHLY, ONETIME
-    GracePeriod int     `bson:"grace_period" json:"grace_period"` // Days before penalty applies
+    Type        string  `bson:"type" json:"type"`
+    Value       float64 `bson:"value" json:"value"`
+    ValueFixed  float64 `bson:"value_fixed,omitempty" json:"value_fixed,omitempty"`
+    Frequency   string  `bson:"frequency" json:"frequency"`
+    GracePeriod int     `bson:"grace_period" json:"grace_period"`
 }
 
 type ReqFormField struct {
-    Key      string `bson:"key" json:"key"`       // "student_name"
-    Label    string `bson:"label" json:"label"`   // "Nom de l'enfant"
-    Type     string `bson:"type" json:"type"`     // "text", "number", "date", "select"
-    Required bool   `bson:"required" json:"required"`
-    Options  []string `bson:"options,omitempty" json:"options,omitempty"` // For select
+    Key      string   `bson:"key" json:"key"`
+    Label    string   `bson:"label" json:"label"`
+    Type     string   `bson:"type" json:"type"`
+    Required bool     `bson:"required" json:"required"`
+    Options  []string `bson:"options,omitempty" json:"options,omitempty"`
 }
 
 type PaymentScheduleItem struct {
-    Name      string    `bson:"name" json:"name"` // "Period 1", "Janvier"
+    Name      string    `bson:"name" json:"name"`
     StartDate time.Time `bson:"start_date" json:"start_date"`
     EndDate   time.Time `bson:"end_date" json:"end_date"`
     Amount    float64   `bson:"amount" json:"amount"`
@@ -107,13 +139,13 @@ type TransportConfig struct {
 
 type Route struct {
 	ID          string  `bson:"id" json:"id"`
-	Name        string  `bson:"name" json:"name"` // "Ligne 14"
+	Name        string  `bson:"name" json:"name"`
 	BasePrice   float64 `bson:"base_price" json:"base_price"`
 }
 
 type Zone struct {
 	ID   string `bson:"id" json:"id"`
-	Name string `bson:"name" json:"name"` // "Zone A - Centre"
+	Name string `bson:"name" json:"name"`
 }
 
 // SchoolConfig (Point 7b: Classes, Tranches)
@@ -122,15 +154,47 @@ type SchoolConfig struct {
 }
 
 type Class struct {
-	ID          string    `bson:"id" json:"id"` // "CP", "CE1"
+	ID          string    `bson:"id" json:"id"`
 	Name        string    `bson:"name" json:"name"`
 	TotalFees   float64   `bson:"total_fees" json:"total_fees"`
 	Tranches    []Tranche `bson:"tranches" json:"tranches"`
 }
 
 type Tranche struct {
-	ID        string    `bson:"id" json:"id"` // "T1", "T2"
-	Name      string    `bson:"name" json:"name"` // "1ère Tranche"
+	ID        string    `bson:"id" json:"id"`
+	Name      string    `bson:"name" json:"name"`
 	Amount    float64   `bson:"amount" json:"amount"`
 	DueDate   time.Time `bson:"due_date" json:"due_date"`
 }
+
+// GetDefaultSecurityPolicies returns sensible default policies for new enterprises
+func GetDefaultSecurityPolicies() []SecurityPolicy {
+	return []SecurityPolicy{
+		{
+			ID:              "policy_payroll",
+			Name:            "Paiement des salaires",
+			ActionType:      ActionTypePayroll,
+			Enabled:         false, // Désactivé par défaut
+			MinApprovals:    1,
+			ExpirationHours: 24,
+		},
+		{
+			ID:              "policy_large_transfer",
+			Name:            "Transferts importants",
+			ActionType:      ActionTypeTransaction,
+			Enabled:         false,
+			MinApprovals:    2,
+			ThresholdAmount: 1000000, // 1M XOF
+			ExpirationHours: 24,
+		},
+		{
+			ID:              "policy_admin_change",
+			Name:            "Modification des administrateurs",
+			ActionType:      ActionTypeAdminChange,
+			Enabled:         true, // Activé par défaut pour sécurité
+			RequireAllAdmins: true,
+			ExpirationHours: 48,
+		},
+	}
+}
+

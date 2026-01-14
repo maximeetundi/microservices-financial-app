@@ -14,6 +14,15 @@ const (
 	EmployeeStatusTerminated EmployeeStatus = "TERMINATED"
 )
 
+// EmployeeRole defines the access level within the enterprise
+type EmployeeRole string
+
+const (
+	EmployeeRoleStandard EmployeeRole = "STANDARD" // Normal employee
+	EmployeeRoleAdmin    EmployeeRole = "ADMIN"    // Can manage enterprise, approve actions
+	EmployeeRoleOwner    EmployeeRole = "OWNER"    // Creator, all rights
+)
+
 // Employee corresponds to Section 2: "Gestion avancée des employés"
 type Employee struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -27,9 +36,11 @@ type Employee struct {
 	Email       string `bson:"email" json:"email"`
 	PhoneNumber string `bson:"phone_number" json:"phone_number"`
 
-	// Section 2: Consentement & Sécurité
+	// Role & Access Level
+	Role EmployeeRole `bson:"role" json:"role"` // STANDARD, ADMIN, OWNER
+
+	// Status & Security
 	Status     EmployeeStatus `bson:"status" json:"status"`
-	PinHash    string         `bson:"-" json:"-"` // Not stored here, verified against Auth service or local hash depending on arch
 	InvitedAt  time.Time      `bson:"invited_at" json:"invited_at"`
 	AcceptedAt time.Time      `bson:"accepted_at,omitempty" json:"accepted_at,omitempty"`
 
@@ -65,4 +76,9 @@ type CareerEvent struct {
 	Description string    `bson:"description" json:"description"`
 	Previous    interface{} `bson:"previous,omitempty" json:"previous,omitempty"`
 	New         interface{} `bson:"new,omitempty" json:"new,omitempty"`
+}
+
+// IsAdmin returns true if the employee can approve actions
+func (e *Employee) IsAdmin() bool {
+	return e.Role == EmployeeRoleAdmin || e.Role == EmployeeRoleOwner
 }

@@ -232,9 +232,6 @@
         </div>
       </div>
     </section>
-
-    <!-- Service Groups Manager -->
-    <ServiceGroupsManager v-model="enterprise.service_groups" />
   </div>
 </template>
 
@@ -243,7 +240,6 @@ import {
   BuildingOffice2Icon, CameraIcon, BanknotesIcon, AcademicCapIcon, 
   TruckIcon, PlusIcon, TrashIcon, XMarkIcon
 } from '@heroicons/vue/24/outline'
-import ServiceGroupsManager from './ServiceGroupsManager.vue'
 
 const props = defineProps({
   modelValue: {

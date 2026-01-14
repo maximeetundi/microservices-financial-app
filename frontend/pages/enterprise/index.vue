@@ -107,6 +107,11 @@
           v-if="currentTab === 'Clients'" 
           :enterprise="currentEnterprise" />
 
+        <ServicesTab 
+          v-if="currentTab === 'Services'" 
+          :enterprise="currentEnterprise"
+          @update="handleEnterpriseUpdate" />
+
         <PayrollTab 
           v-if="currentTab === 'Payroll'" 
           :enterprise-id="currentEnterprise.id" />
@@ -163,6 +168,7 @@ import QRCodeModal from '@/components/enterprise/QRCodeModal.vue'
 
 // Lazy loaded components (create stubs for now)
 const ClientsTab = defineAsyncComponent(() => import('@/components/enterprise/ClientsTab.vue'))
+const ServicesTab = defineAsyncComponent(() => import('@/components/enterprise/ServicesTab.vue'))
 const PayrollTab = defineAsyncComponent(() => import('@/components/enterprise/PayrollTab.vue'))
 const BillingTab = defineAsyncComponent(() => import('@/components/enterprise/BillingTab.vue'))
 const CreateEnterpriseModal = defineAsyncComponent(() => import('@/components/enterprise/CreateEnterpriseModal.vue'))
@@ -177,11 +183,12 @@ const showQRModal = ref(false)
 const showCreateModal = ref(false)
 
 // Tabs configuration
-const tabs = ['Overview', 'Employees', 'Clients', 'Payroll', 'Billing', 'Settings']
+const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Payroll', 'Billing', 'Settings']
 const tabLabels = {
   'Overview': 'Aperçu',
   'Employees': 'Employés',
   'Clients': 'Abonnés',
+  'Services': 'Services',
   'Payroll': 'Paie',
   'Billing': 'Facturation',
   'Settings': 'Paramètres'
@@ -192,6 +199,7 @@ const getTabIcon = (tab) => {
     case 'Overview': return Squares2X2Icon
     case 'Employees': return UsersIcon
     case 'Clients': return UserGroupIcon
+    case 'Services': return FolderIcon
     case 'Payroll': return BanknotesIcon
     case 'Billing': return DocumentTextIcon
     case 'Settings': return Cog6ToothIcon
@@ -277,6 +285,11 @@ const saveSettings = async () => {
 
 const handleEnterpriseCreated = () => {
   showCreateModal.value = false
+  fetchEnterprises()
+}
+
+const handleEnterpriseUpdate = (updated) => {
+  currentEnterprise.value = updated
   fetchEnterprises()
 }
 
