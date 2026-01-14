@@ -70,6 +70,8 @@ func main() {
 	billHandler := handlers.NewBillingHandler(billService)
 
 	api := router.Group("/api/v1")
+	// Apply JWT Auth Middleware using configuration secret
+	api.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
 		// Enterprise Routes
 		api.GET("/enterprises", entHandler.ListEnterprises)
