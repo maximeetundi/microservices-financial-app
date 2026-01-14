@@ -157,170 +157,7 @@
              </div>
          </div>
 
-         <!-- SERVICES TAB -->
-         <div v-if="currentTab === 'Services'" class="space-y-6">
-             <!-- Header Action -->
-             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                 <div>
-                     <h3 class="text-xl font-bold dark:text-white">Catalogue de Services</h3>
-                     <p class="text-sm text-gray-500 mt-1">Gérez vos prestations, abonnements et classes.</p>
-                 </div>
-                 <button @click="addServiceGroup" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-900/20 font-medium flex items-center gap-2 transition-all transform hover:-translate-y-0.5">
-                     <FolderIcon class="w-5 h-5" />
-                     Nouveau Groupe
-                 </button>
-             </div>
 
-             <!-- Services Groups List -->
-             <div v-if="!currentEnterprise.service_groups?.length" class="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                 <div class="w-16 h-16 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                     <FolderIcon class="w-8 h-8 text-gray-400" />
-                 </div>
-                 <h3 class="font-medium text-gray-900 dark:text-white mb-2">Catalogue vide</h3>
-                 <p class="text-gray-500 max-w-sm mx-auto mb-6">Commencez par créer un groupe de services (ex: "Scolarité", "Cantine", "Transport") pour y ajouter vos prestations.</p>
-                 <button @click="addServiceGroup" class="text-primary-600 font-medium hover:underline">Créer un groupe maintenant</button>
-             </div>
-
-             <div v-else class="grid grid-cols-1 gap-6">
-                 <div v-for="(group, gIdx) in currentEnterprise.service_groups" :key="group.id" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                     <!-- Group Header -->
-                     <div class="p-5 bg-gray-50 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                         <div class="flex-1 space-y-3 w-full">
-                             <div class="flex items-center gap-3">
-                                 <div class="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm">
-                                     <FolderIcon class="w-6 h-6 text-primary-600" />
-                                 </div>
-                                 <input v-model="group.name" placeholder="Nom du Groupe" class="bg-transparent border-none text-lg font-bold text-gray-900 dark:text-white focus:ring-0 p-0 w-full placeholder-gray-400">
-                             </div>
-                             
-                             <div class="flex items-center gap-4 text-sm">
-                                 <div class="flex items-center gap-2">
-                                     <span class="text-gray-500">Devise:</span>
-                                     <select v-model="group.currency" class="bg-transparent border-none py-0 pl-0 pr-8 text-sm font-mono font-medium text-gray-700 dark:text-gray-300 focus:ring-0 cursor-pointer hover:text-primary-600">
-                                         <option v-for="curr in currencies" :key="curr.code" :value="curr.code">{{ curr.code }}</option>
-                                     </select>
-                                 </div>
-                                 <label class="flex items-center gap-2 cursor-pointer group hover:text-primary-600 transition-colors">
-                                     <div class="relative">
-                                         <input type="checkbox" v-model="group.is_private" class="sr-only peer">
-                                         <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
-                                     </div>
-                                     <span class="text-gray-500">Privé</span>
-                                 </label>
-                             </div>
-                         </div>
-                         
-                         <div class="flex items-center gap-3 w-full md:w-auto">
-                              <button @click="group.showDetails = !group.showDetails" class="text-sm text-gray-500 hover:text-gray-700 underline">
-                                  {{ group.showDetails ? 'Masquer' : 'Détails' }}
-                              </button>
-                              <button @click="removeServiceGroup(gIdx)" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors">
-                                  <TrashIcon class="w-5 h-5" />
-                              </button>
-                         </div>
-                     </div>
-
-                     <!-- Group Services -->
-                     <div class="p-5">
-                         <div class="flex justify-between items-center mb-4">
-                             <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Services Inclus</h4>
-                             <button @click="addCustomService(group)" class="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full hover:bg-indigo-100 font-medium flex items-center gap-1 transition-colors">
-                                 <PlusIcon class="w-3 h-3" /> Ajouter Service
-                             </button>
-                         </div>
-
-                         <div v-if="!group.services?.length" class="text-sm text-gray-400 italic py-2">
-                             Aucun service dans ce groupe. Ajoutez-en un pour commencer.
-                         </div>
-
-                         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                             <div v-for="(svc, idx) in group.services" :key="svc.uid" class="relative group/svc bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-primary-200 dark:hover:border-primary-800 transition-all">
-                                 
-                                 <button @click="removeCustomService(group, svc)" class="absolute top-2 right-2 opacity-0 group-hover/svc:opacity-100 text-red-300 hover:text-red-500 transition-opacity p-1">
-                                     <TrashIcon class="w-4 h-4" />
-                                 </button>
-
-                                 <div class="space-y-3">
-                                     <!-- Service Header -->
-                                     <div class="flex gap-3">
-                                         <div class="w-10 h-10 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center text-primary-500 shadow-sm">
-                                             <TagIcon class="w-5 h-5" />
-                                         </div>
-                                         <div class="flex-1">
-                                             <input v-model="svc.name" placeholder="Nom du Service" class="block w-full bg-transparent border-none p-0 text-gray-900 dark:text-white font-bold placeholder-gray-400 focus:ring-0 text-sm">
-                                             <input v-model="svc.id" placeholder="ID Unique (ex: frais_sco)" class="block w-full bg-transparent border-none p-0 text-gray-400 text-xs font-mono focus:ring-0">
-                                         </div>
-                                     </div>
-                                     
-                                     <!-- Service Config -->
-                                     <div class="grid grid-cols-2 gap-2 text-xs">
-                                         <div>
-                                             <label class="block text-gray-400 mb-1">Facturation</label>
-                                             <select v-model="svc.billing_frequency" class="w-full bg-white dark:bg-gray-700 border-none rounded-lg py-1 px-2 text-gray-700 dark:text-gray-200 shadow-sm focus:ring-1 focus:ring-primary-500">
-                                                <option value="DAILY">Journalier</option>
-                                                <option value="WEEKLY">Hebdo</option>
-                                                <option value="MONTHLY">Mensuel</option>
-                                                <option value="ANNUALLY">Annuel</option>
-                                                <option value="CUSTOM">Custom</option>
-                                                <option value="ONETIME">Unique</option>
-                                             </select>
-                                         </div>
-                                         <div>
-                                             <label class="block text-gray-400 mb-1">Montant</label>
-                                             <div class="relative">
-                                                 <input v-model.number="svc.base_price" type="number" class="w-full bg-white dark:bg-gray-700 border-none rounded-lg py-1 pl-2 pr-8 text-gray-900 dark:text-white font-bold shadow-sm focus:ring-1 focus:ring-primary-500">
-                                                 <span class="absolute right-2 top-1.5 text-gray-400">{{ group.currency }}</span>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     
-                                     <!-- Advanced Toggle -->
-                                     <div class="pt-2 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
-                                         <button @click="svc.showConfig = !svc.showConfig" class="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-                                             <Cog6ToothIcon class="w-3 h-3" /> Config Avancée
-                                         </button>
-                                         <div v-if="svc.billing_type === 'USAGE'" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Usage</div>
-                                     </div>
-
-                                     <!-- Drawer for Advanced Config (Simplified) -->
-                                     <div v-if="svc.showConfig" class="space-y-2 mt-2 pt-2 bg-white dark:bg-gray-700 p-2 rounded-lg animate-fade-in text-xs">
-                                          <!-- ... (Add specific config fields if needed, kept simple for now) ... -->
-                                          <label class="flex items-center gap-2">
-                                              <span>Type:</span>
-                                              <select v-model="svc.billing_type" class="bg-gray-100 rounded border-none py-0.5 text-xs"><option value="FIXED">Fixe</option><option value="USAGE">Usage</option></select>
-                                          </label>
-                                          <div v-if="svc.billing_type === 'USAGE'">
-                                              Unit: <input v-model="svc.unit" class="bg-gray-100 rounded border-none py-0.5 px-1 w-16 text-xs">
-                                          </div>
-                                          <!-- Restore Form Builder Trigger -->
-                                           <div class="flex items-center justify-between mt-2">
-                                              <span>Formulaire: {{ svc.form_schema?.length || 0 }} champs</span>
-                                              <button @click="addFormField(svc)" class="text-indigo-600 hover:underline">+ Ajouter</button>
-                                           </div>
-                                            <div v-if="svc.form_schema?.length" class="space-y-1 mt-1">
-                                                 <div v-for="(f, i) in svc.form_schema" :key="i" class="flex gap-1">
-                                                      <input v-model="f.label" class="w-full border-gray-200 rounded text-xs py-0.5 px-1" placeholder="Label">
-                                                      <button @click="removeFormField(svc, i)" class="text-red-500">x</button>
-                                                 </div>
-                                            </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-             
-             <!-- Save Button sticky footer or similar -->
-             <div class="flex justify-end pt-4">
-                 <button @click="saveSettings" :disabled="isSaving" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-900/20 flex items-center gap-2 transition-all">
-                     <template v-if="isSaving">Enregistrement...</template>
-                     <template v-else>
-                         <CheckCircleIcon class="w-5 h-5" /> Enregistrer les changements
-                     </template>
-                 </button>
-             </div>
-         </div>
 
          <!-- Employee Tab -->
          <div v-if="currentTab === 'Employees'" class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -715,6 +552,188 @@
 
 
 
+            <!-- Service Groups Management -->
+            <div class="mb-8 p-4 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <h4 class="font-medium mb-4 dark:text-gray-200 flex items-center gap-2">
+                    <span>⚡ Groupes & Services</span>
+                </h4>
+                
+                <div class="mb-6 flex justify-between items-center">
+                    <p class="text-sm text-gray-500">Organisez vos services par catégories (ex: Scolarité, Transport).</p>
+                    <button @click="addServiceGroup" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center gap-2">
+                        <PlusIcon class="w-4 h-4" /> Nouveau Groupe
+                    </button>
+                </div>
+
+                <div v-if="!currentEnterprise.service_groups?.length" class="text-center py-8 text-gray-400 border-2 border-dashed border-gray-300 rounded-xl">
+                    Aucun groupe de services configuré.
+                </div>
+
+                <!-- Groups Loop -->
+                <div v-for="(group, gIdx) in currentEnterprise.service_groups" :key="group.id" class="mb-6 p-4 border rounded-xl dark:border-gray-600 bg-white dark:bg-gray-800 shadow-sm">
+                     
+                     <!-- Group Header Config -->
+                     <div class="flex flex-col md:flex-row gap-4 mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
+                        <div class="flex-1">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Nom du Groupe</label>
+                            <input v-model="group.name" placeholder="ex: Scolarité" class="w-full rounded-md border-gray-300 text-base font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                        </div>
+                        <div class="w-full md:w-32">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Devise</label>
+                            <select v-model="group.currency" class="w-full rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-2 border font-mono">
+                                <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
+                                    {{ curr.code }} - {{ curr.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="flex items-center pt-5">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" v-model="group.is_private" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Privé (Inv. seule)</span>
+                            </label>
+                        </div>
+                        <div class="pt-5">
+                             <button @click="removeServiceGroup(gIdx)" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Supprimer le groupe">
+                                <TrashIcon class="w-5 h-5" />
+                             </button>
+                        </div>
+                     </div>
+
+                     <!-- Services in Group -->
+                     <div class="space-y-4 pl-0 md:pl-4">
+                        <div v-if="!group.services?.length" class="text-sm text-gray-400 italic mb-2">
+                            Aucun service dans ce groupe.
+                        </div>
+
+                        <div v-for="(svc, idx) in group.services" :key="svc.uid" class="flex flex-col gap-2 p-3 rounded shadow-sm border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
+                             <div class="flex gap-2">
+                                <input v-model="svc.id" placeholder="ID (ex: water_usage)" class="w-1/4 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border font-mono">
+                                <input v-model="svc.name" placeholder="Nom (ex: Consommation Eau)" class="flex-1 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                <button @click="removeCustomService(group, svc)" class="text-red-500 hover:text-red-700 text-sm px-2">Suppr.</button>
+                             </div>
+                             
+                             <!-- Config Fields -->
+                             <div class="flex gap-2 items-center flex-wrap">
+                                <select v-model="svc.billing_type" class="w-32 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                    <option value="FIXED">Fixe / Forfait</option>
+                                    <option value="USAGE">À l'usage</option>
+                                </select>
+                                <select v-model="svc.billing_frequency" class="w-32 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                    <option value="DAILY">Journalier</option>
+                                    <option value="WEEKLY">Hebdomadaire</option>
+                                    <option value="MONTHLY">Mensuel</option>
+                                    <option value="ANNUALLY">Annuel</option>
+                                    <option value="CUSTOM">Personnalisé</option>
+                                    <option value="ONETIME">Ponctuel</option>
+                                </select>
+                                
+                                <input v-if="svc.billing_frequency === 'CUSTOM' && !svc.use_schedule" v-model.number="svc.custom_interval" type="number" placeholder="Jours" class="w-20 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                
+                                <input v-if="svc.billing_type === 'USAGE'" v-model="svc.unit" placeholder="Unité" class="w-20 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                
+                                <div class="relative">
+                                    <input v-model.number="svc.base_price" type="number" step="0.01" :placeholder="svc.billing_type === 'USAGE' ? 'Prix Unit.' : 'Montant'" class="w-28 rounded-md border-gray-300 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white pl-2 pr-8 py-1 border">
+                                    <span class="absolute right-2 top-1.5 text-xs text-gray-500 font-bold">{{ group.currency }}</span>
+                                </div>
+                             </div>
+
+                             <!-- Payment Schedule UI -->
+                             <div v-if="svc.billing_frequency === 'CUSTOM'" class="mt-2 ml-2 pl-4 border-l-2 border-orange-200 dark:border-orange-800">
+                                   <!-- ... Schedule Content ... -->
+                                   <div class="flex items-center gap-2 mb-2">
+                                       <label class="text-xs font-semibold text-gray-500 uppercase">Calendrier de Paiement</label>
+                                       <div class="flex items-center gap-2 ml-4">
+                                           <button @click="toggleSchedule(svc)" :class="{'bg-orange-100 text-orange-700': svc.use_schedule, 'text-gray-400': !svc.use_schedule}" class="text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600">
+                                               {{ svc.use_schedule ? 'Mode: Calendrier' : 'Mode: Intervalle' }}
+                                           </button>
+                                       </div>
+                                   </div>
+                                   
+                                   <div v-if="svc.use_schedule">
+                                         <div v-for="(item, sIdx) in svc.payment_schedule" :key="sIdx" class="flex items-center gap-2 mb-1">
+                                            <input v-model="item.name" placeholder="Nom" class="flex-1 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                            <input v-model="item.start_date" type="date" class="w-28 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                            <span class="text-xs text-gray-400">au</span>
+                                            <input v-model="item.end_date" type="date" class="w-28 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                            <input v-model.number="item.amount" type="number" placeholder="Montant" class="w-24 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                            <button @click="removeScheduleItem(svc, sIdx)" class="text-red-400 hover:text-red-600 text-xs font-bold px-1">×</button>
+                                         </div>
+                                         <button @click="addScheduleItem(svc)" class="text-xs text-blue-600 hover:text-blue-800 mt-1">+ Ajouter une période</button>
+                                   </div>
+                             </div>
+
+                             <!-- Form Builder & Penalty -->
+                             <div class="flex flex-col gap-2">
+                                <!-- Form Builder -->
+                                 <div class="mt-2 ml-2 pl-4 border-l-2 border-indigo-200 dark:border-indigo-800">
+                                       <div class="flex items-center gap-2 mb-2">
+                                           <label class="text-xs font-semibold text-gray-500 uppercase">Formulaire</label>
+                                           <button @click="addFormField(svc)" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">+ Champ</button>
+                                       </div>
+                                       <div v-if="svc.form_schema?.length">
+                                             <div v-for="(field, fIdx) in svc.form_schema" :key="fIdx" class="flex items-center gap-2 mb-1 bg-gray-50 dark:bg-gray-700 p-1 rounded">
+                                                <input v-model="field.label" placeholder="Libellé" class="flex-1 rounded-md border-gray-300 text-xs dark:bg-gray-600 dark:border-gray-500 dark:text-white px-2 py-1 border">
+                                                <select v-model="field.type" class="w-24 rounded-md border-gray-300 text-xs dark:bg-gray-600 dark:border-gray-500 dark:text-white px-1 py-1 border">
+                                                    <option value="text">Texte</option>
+                                                    <option value="number">Nombre</option>
+                                                    <option value="date">Date</option>
+                                                    <option value="select">Liste</option>
+                                                </select>
+                                                <label class="flex items-center gap-1 text-xs text-gray-500">
+                                                    <input type="checkbox" v-model="field.required">
+                                                    <span>Req.</span>
+                                                </label>
+                                                <button @click="removeFormField(svc, fIdx)" class="text-red-400 hover:text-red-600 text-xs font-bold px-1">×</button>
+                                             </div>
+                                       </div>
+                                 </div>
+
+                                 <!-- Penalty Configuration -->
+                                <div class="mt-2 ml-2 pl-4 border-l-2 border-red-200 dark:border-red-800">
+                                   <!-- ... Same Penalty UI ... -->
+                                   <div class="flex items-center gap-2 mb-2">
+                                       <label class="text-xs font-semibold text-gray-500 uppercase">Pénalités</label>
+                                       <button @click="togglePenalty(svc)" :class="{'bg-red-100 text-red-700 border-red-200': svc.penalty_config, 'text-gray-400 border-gray-200': !svc.penalty_config}" class="text-xs px-2 py-0.5 rounded border">
+                                           {{ svc.penalty_config ? 'Configuré' : 'Aucune' }}
+                                       </button>
+                                   </div>
+                                   <div v-if="svc.penalty_config" class="bg-red-50 dark:bg-red-900/10 p-2 rounded-lg space-y-2">
+                                       <div class="flex flex-col md:flex-row gap-2">
+                                           <select v-model="svc.penalty_config.type" class="rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                               <option value="FIXED">Montant Fixe</option>
+                                               <option value="PERCENTAGE">Pourcentage (%)</option>
+                                               <option value="HYBRID">Hybride</option>
+                                           </select>
+                                            <div class="flex gap-2">
+                                                <input v-model.number="svc.penalty_config.value" type="number" :placeholder="svc.penalty_config.type === 'FIXED' ? 'Montant' : '%'" class="w-24 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                                <input v-if="svc.penalty_config.type === 'HYBRID'" v-model.number="svc.penalty_config.value_fixed" type="number" placeholder="+ Fixe" class="w-24 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                            </div>
+                                       </div>
+                                       <div class="flex gap-2 items-center flex-wrap">
+                                           <span class="text-xs text-gray-500">Fréq:</span>
+                                           <select v-model="svc.penalty_config.frequency" class="rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                               <option value="DAILY">Jour</option>
+                                               <option value="WEEKLY">Semaine</option>
+                                               <option value="MONTHLY">Mois</option>
+                                               <option value="ONETIME">Unique</option>
+                                           </select>
+                                           <span class="text-xs text-gray-500">Grâce:</span>
+                                           <input v-model.number="svc.penalty_config.grace_period" type="number" placeholder="Jours" class="w-16 rounded-md border-gray-300 text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white px-2 py-1 border">
+                                       </div>
+                                   </div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <button @click="addCustomService(group)" class="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+                                + Ajouter un Service dans {{ group.name }}
+                            </button>
+                        </div>
+                     </div>
+                </div>
+            </div>
+
             <!-- Save Actions -->
             <div class="flex justify-end pt-4 border-t dark:border-gray-700">
                 <button @click="saveSettings" :disabled="isSaving" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2">
@@ -979,7 +998,6 @@ const formatBillingFrequency = (freq) => {
 const getTabIcon = (tab) => {
     switch (tab) {
         case 'Overview': return Squares2X2Icon
-        case 'Services': return FolderIcon
         case 'Employees': return UsersIcon
         case 'Clients': return UserGroupIcon
         case 'Payroll': return BanknotesIcon
@@ -1142,10 +1160,9 @@ const currencies = [
     { code: 'TRY', name: 'Lire Turque' },
 ]
 
-const tabs = ['Overview', 'Services', 'Employees', 'Clients', 'Payroll', 'Billing', 'Settings']
+const tabs = ['Overview', 'Employees', 'Clients', 'Payroll', 'Billing', 'Settings']
 const tabLabels = {
     'Overview': 'Aperçu',
-    'Services': 'Services',
     'Employees': 'Employés',
     'Clients': 'Abonnés / Élèves',
     'Payroll': 'Paie',
@@ -1436,16 +1453,16 @@ const removeServiceGroup = (idx) => {
 }
 
 const addCustomService = (group) => {
-    // Open Modal pre-filled with this group
-    newService.value = {
-        group_id: group.id,
-        name: '',
+    if (!group.services) group.services = []
+    group.services.push({ 
+        id: '', 
+        name: '', 
         billing_type: 'FIXED', 
         billing_frequency: 'MONTHLY', 
         base_price: 0, 
-        unit: ''
-    }
-    showAddServiceModal.value = true
+        unit: '',
+        uid: Date.now()
+    })
 }
 
 const removeCustomService = (group, svc) => {
@@ -1500,8 +1517,8 @@ const newService = ref({
 const goToSettingsAndAddService = () => {
     // If no groups, user must create one first
     if (!currentEnterprise.value.service_groups || currentEnterprise.value.service_groups.length === 0) {
-        alert("Veuillez d'abord créer un groupe de services (ex: 'Scolarité', 'Transport') dans le catalogue.")
-        currentTab.value = 'Services'
+        alert("Veuillez d'abord créer un groupe de services (ex: 'Scolarité', 'Transport') dans les Paramètres.")
+        currentTab.value = 'Settings'
         return
     }
     
@@ -1540,7 +1557,7 @@ const confirmAddService = () => {
     
     showAddServiceModal.value = false
     alert('Service ajouté ! N\'oubliez pas d\'enregistrer les modifications.')
-    currentTab.value = 'Services' // Go to Services so they can save
+    currentTab.value = 'Settings' // Go to Settings so they can save
 }
 
 // QR Modal Logic
