@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type PayrollRepository struct {
@@ -46,3 +47,28 @@ func (r *PayrollRepository) FindByEnterprise(ctx context.Context, enterpriseID s
 	}
 	return runs, nil
 }
+
+func (r *PayrollRepository) FindByEnterpriseAndYear(ctx context.Context, enterpriseID string, year int) ([]models.PayrollRun, error) {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	
+	filter := bson.M{
+		"enterprise_id": oid,
+		"period_year":   year,
+	}
+	
+	opts := options.Find().SetSort(bson.D{{Key: "period_month", Value: -1}})
+	
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	var runs []models.PayrollRun
+	if err = cursor.All(ctx, &runs); err != nil {
+		return nil, err
+	}
+	return runs, nil
+}
+

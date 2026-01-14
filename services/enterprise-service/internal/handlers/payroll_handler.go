@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/services"
 	"github.com/gin-gonic/gin"
@@ -45,3 +47,21 @@ func (h *PayrollHandler) ExecutePayroll(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Payroll executed successfully", "run_id": run.ID})
 }
+
+// ListPayrollRuns returns payroll history
+func (h *PayrollHandler) ListPayrollRuns(c *gin.Context) {
+	enterpriseID := c.Param("id")
+	yearStr := c.DefaultQuery("year", "2025")
+	year := 2025
+	if _, err := fmt.Sscan(yearStr, &year); err != nil {
+		year = time.Now().Year()
+	}
+	
+	runs, err := h.service.ListPayrollRuns(c.Request.Context(), enterpriseID, year)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list payroll runs", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, runs)
+}
+

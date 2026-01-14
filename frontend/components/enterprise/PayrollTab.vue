@@ -11,7 +11,7 @@
           Exécutez et suivez les versements de salaires
         </p>
       </div>
-      <button @click="showRunPayroll = true" 
+      <button @click="initiateRunPayroll" 
         class="px-5 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl text-sm font-semibold shadow-lg shadow-green-500/25 transition-all flex items-center gap-2">
         <PlayIcon class="w-5 h-5" />
         Exécuter la Paie
@@ -119,10 +119,13 @@ import {
   BanknotesIcon, PlayIcon, CalendarIcon, CheckIcon, ClockIcon, XMarkIcon
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
+import { usePin } from '@/composables/usePin'
 
 const props = defineProps({
   enterpriseId: { type: String, required: true }
 })
+
+const { requirePin, checkPinStatus } = usePin()
 
 const payrollRuns = ref([])
 const isLoading = ref(true)
@@ -137,6 +140,12 @@ const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil
 const years = computed(() => {
   const curr = currentDate.getFullYear()
   return [curr - 1, curr, curr + 1]
+})
+
+// Check PIN status on mount
+onMounted(async () => {
+  await checkPinStatus()
+  fetchPayrollRuns()
 })
 
 const stats = computed(() => {
@@ -188,10 +197,15 @@ const getStatusBadgeClass = (status) => {
   }
 }
 
+// 🔒 Run Payroll with PIN verification
+const initiateRunPayroll = async () => {
+  await requirePin(async () => {
+    showRunPayroll.value = true
+  })
+}
+
 const handlePayrollExecuted = () => {
   showRunPayroll.value = false
   fetchPayrollRuns()
 }
-
-onMounted(fetchPayrollRuns)
 </script>

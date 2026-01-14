@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
@@ -10,25 +11,48 @@ import (
 )
 
 type BillingService struct {
-	subRepo   *repository.SubscriptionRepository
-	invRepo   *repository.InvoiceRepository
-	batchRepo *repository.BatchRepository
-	entRepo   *repository.EnterpriseRepository
+	subRepo     *repository.SubscriptionRepository
+	invRepo     *repository.InvoiceRepository
+	batchRepo   *repository.BatchRepository
+	entRepo     *repository.EnterpriseRepository
+	notifClient *NotificationClient
 }
 
-func NewBillingService(subRepo *repository.SubscriptionRepository, invRepo *repository.InvoiceRepository, batchRepo *repository.BatchRepository, entRepo *repository.EnterpriseRepository) *BillingService {
+func NewBillingService(
+	subRepo *repository.SubscriptionRepository, 
+	invRepo *repository.InvoiceRepository, 
+	batchRepo *repository.BatchRepository, 
+	entRepo *repository.EnterpriseRepository,
+	notifClient *NotificationClient,
+) *BillingService {
 	return &BillingService{
-		subRepo:   subRepo,
-		invRepo:   invRepo,
-		batchRepo: batchRepo,
-		entRepo:   entRepo,
+		subRepo:     subRepo,
+		invRepo:     invRepo,
+		batchRepo:   batchRepo,
+		entRepo:     entRepo,
+		notifClient: notifClient,
 	}
 }
 
 // CreateInvoice (Single manual or system generated)
 func (s *BillingService) CreateInvoice(ctx context.Context, inv *models.Invoice) error {
 	inv.Status = models.InvoiceStatusDraft
-	return s.invRepo.Create(ctx, inv)
+	if err := s.invRepo.Create(ctx, inv); err != nil {
+		return err
+	}
+	
+	// Send notification to client
+	if inv.ClientID != "" && s.notifClient != nil {
+		ent, err := s.entRepo.FindByID(ctx, inv.EnterpriseID.Hex())
+		if err == nil {
+			dueDate := inv.DueDate.Format("02/01/2006")
+			if err := s.notifClient.NotifyInvoice(ctx, inv.ClientID, ent.Name, inv.ServiceName, inv.Amount, dueDate); err != nil {
+				log.Printf("Failed to send invoice notification: %v", err)
+			}
+		}
+	}
+	
+	return nil
 }
 
 // ProcessRecurringBilling (Cron Job)

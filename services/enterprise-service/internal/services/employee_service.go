@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
@@ -13,13 +14,23 @@ type EmployeeService struct {
 	repo          *repository.EmployeeRepository
 	salaryService *SalaryService
 	authClient    *AuthClient
+	entRepo       *repository.EnterpriseRepository
+	notifClient   *NotificationClient
 }
 
-func NewEmployeeService(repo *repository.EmployeeRepository, salaryService *SalaryService, authClient *AuthClient) *EmployeeService {
+func NewEmployeeService(
+	repo *repository.EmployeeRepository, 
+	salaryService *SalaryService, 
+	authClient *AuthClient,
+	entRepo *repository.EnterpriseRepository,
+	notifClient *NotificationClient,
+) *EmployeeService {
 	return &EmployeeService{
 		repo:          repo,
 		salaryService: salaryService,
 		authClient:    authClient,
+		entRepo:       entRepo,
+		notifClient:   notifClient,
 	}
 }
 
@@ -28,7 +39,7 @@ func (s *EmployeeService) ListByEnterprise(ctx context.Context, enterpriseID str
 	return s.repo.FindByEnterprise(ctx, enterpriseID)
 }
 
-// InviteEmployee (Point 2): Adds employee & Sends notification (mocked here)
+// InviteEmployee (Point 2): Adds employee & Sends notification
 func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employee) error {
 	// 1. Calculate initial salary
 	s.salaryService.CalculateNetSalary(&emp.SalaryConfig)
@@ -37,9 +48,23 @@ func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employ
 	emp.Status = models.EmployeeStatusPending
 	emp.InvitedAt = time.Now()
 	
-	// TODO: Send Notification (Email/SMS)
+	// 3. Create employee record
+	if err := s.repo.Create(ctx, emp); err != nil {
+		return err
+	}
 	
-	return s.repo.Create(ctx, emp)
+	// 4. Send Notification to employee (if they have a user account)
+	if emp.UserID != "" && s.notifClient != nil && s.entRepo != nil {
+		// Fetch enterprise name for notification
+		ent, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
+		if err == nil {
+			if err := s.notifClient.NotifyEmployeeInvitation(ctx, emp.UserID, ent.Name); err != nil {
+				log.Printf("Failed to send invitation notification: %v", err)
+			}
+		}
+	}
+	
+	return nil
 }
 
 // ConfirmEmployee (Point 2): Validates PIN and activates
@@ -54,15 +79,13 @@ func (s *EmployeeService) ConfirmEmployee(ctx context.Context, employeeID string
 	}
 
 	// Verify PIN with Auth Service
-	// We need UserID. Assuming the employee has already been linked to a UserID via invite or claims.
-	// If UserID is empty, we cannot verify global PIN.
 	if emp.UserID == "" {
 		return errors.New("employee record has no associated user account")
 	}
 
-	valid, err := s.authClient.VerifyPin(emp.UserID, pin, "") // Token passed as empty for now, or need to propagate
+	valid, err := s.authClient.VerifyPin(emp.UserID, pin, "")
 	if err != nil {
-		return err // "PIN verification failed" or service error
+		return err
 	}
 	if !valid {
 		return errors.New("invalid security PIN")
@@ -71,7 +94,22 @@ func (s *EmployeeService) ConfirmEmployee(ctx context.Context, employeeID string
 	emp.Status = models.EmployeeStatusActive
 	emp.AcceptedAt = time.Now()
 	
-	return s.repo.Update(ctx, emp)
+	if err := s.repo.Update(ctx, emp); err != nil {
+		return err
+	}
+	
+	// Send notification to enterprise owner
+	if s.notifClient != nil && s.entRepo != nil {
+		ent, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
+		if err == nil {
+			employeeName := emp.FirstName + " " + emp.LastName
+			if err := s.notifClient.NotifyEmployeeAcceptance(ctx, ent.OwnerID, employeeName, ent.Name); err != nil {
+				log.Printf("Failed to send acceptance notification: %v", err)
+			}
+		}
+	}
+	
+	return nil
 }
 
 // PromoteEmployee (Point 4): Updates position/salary and Logs History
@@ -100,3 +138,29 @@ func (s *EmployeeService) PromoteEmployee(ctx context.Context, employeeID string
 
 	return s.repo.Update(ctx, emp)
 }
+
+// TerminateEmployee (Point 4): Terminates employee and stops payments
+func (s *EmployeeService) TerminateEmployee(ctx context.Context, enterpriseID, employeeID string) error {
+	emp, err := s.repo.FindByID(ctx, employeeID)
+	if err != nil {
+		return err
+	}
+
+	if emp.EnterpriseID.Hex() != enterpriseID {
+		return errors.New("employee does not belong to this enterprise")
+	}
+
+	// Log termination event
+	historyEvent := models.CareerEvent{
+		Date:        time.Now(),
+		Type:        "TERMINATION",
+		Description: "Employee terminated",
+		Previous:    map[string]interface{}{"status": emp.Status},
+		New:         map[string]interface{}{"status": models.EmployeeStatusTerminated},
+	}
+	emp.History = append(emp.History, historyEvent)
+	emp.Status = models.EmployeeStatusTerminated
+
+	return s.repo.Update(ctx, emp)
+}
+

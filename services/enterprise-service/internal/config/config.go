@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -18,6 +19,9 @@ type Config struct {
 	MinioBucket    string
 	MinioUseSSL    bool
 	PublicURL      string
+	
+	// Kafka Config
+	KafkaBrokers []string
 }
 
 func Load() *Config {
@@ -34,6 +38,8 @@ func Load() *Config {
 		MinioBucket:    getEnv("MINIO_BUCKET", "finance-app-assets"),
 		MinioUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
 		PublicURL:      getEnv("PUBLIC_URL", getEnv("MINIO_PUBLIC_URL", "http://localhost:9000")),
+		
+		KafkaBrokers:   strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
 	}
 }
 
@@ -43,3 +49,4 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+

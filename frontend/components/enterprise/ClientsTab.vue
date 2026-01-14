@@ -94,15 +94,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { UserGroupIcon, PlusIcon, ArrowDownTrayIcon, UsersIcon } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
+import { usePin } from '@/composables/usePin'
 
 const props = defineProps({
   enterprise: { type: Object, required: true }
 })
 
+const { requirePin, checkPinStatus } = usePin()
+
 const clients = ref([])
 const isLoading = ref(true)
 const selectedService = ref('')
 const showAddModal = ref(false)
+
+// Check PIN status on mount
+onMounted(async () => {
+  await checkPinStatus()
+  fetchClients()
+})
 
 const allServices = computed(() => {
   return (props.enterprise.service_groups || []).flatMap(g => g.services || [])
@@ -145,21 +154,23 @@ const downloadExport = () => {
   a.click()
 }
 
+// 🔒 Cancel subscription with PIN verification
 const confirmCancel = async (sub) => {
-  if (confirm(`Résilier l'abonnement de ${sub.client_name} ?`)) {
+  if (!confirm(`Résilier l'abonnement de ${sub.client_name} ?`)) return
+  
+  await requirePin(async () => {
     try {
       await enterpriseAPI.cancelSubscription(props.enterprise.id, sub.id)
       fetchClients()
+      alert('Abonnement résilié avec succès')
     } catch (e) {
       alert('Erreur: ' + e.message)
     }
-  }
+  })
 }
 
 const handleClientAdded = () => {
   showAddModal.value = false
   fetchClients()
 }
-
-onMounted(fetchClients)
 </script>

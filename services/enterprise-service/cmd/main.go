@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/handlers"
@@ -30,13 +31,30 @@ func main() {
 	}()
 	log.Println("Connected to MongoDB")
 
-	// 3. Setup Gin
+	// 3. Initialize Kafka Client for Notifications
+	var kafkaClient *messaging.KafkaClient
+	var notificationClient *services.NotificationClient
+	
+	if len(cfg.KafkaBrokers) > 0 && cfg.KafkaBrokers[0] != "" {
+		kafkaClient = messaging.NewKafkaClient(cfg.KafkaBrokers, "enterprise-service-group")
+		notificationClient = services.NewNotificationClient(kafkaClient)
+		log.Println("Kafka client initialized for notifications")
+		
+		defer func() {
+			if kafkaClient != nil {
+				kafkaClient.Close()
+			}
+		}()
+	} else {
+		log.Println("Warning: Kafka not configured, notifications will be disabled")
+	}
+
+	// 4. Setup Gin
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	router := gin.Default()
 
-	// CORS configuration (Matching Wallet Service)
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"https://app.maximeetundi.store", "http://localhost:3000"},
@@ -52,7 +70,7 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "service": "enterprise-service"})
 	})
 
-	// 4. Initialize Components
+	// 5. Initialize Components
 	entRepo := repository.NewEnterpriseRepository(mongoClient.Database(cfg.DBName))
 	empRepo := repository.NewEmployeeRepository(mongoClient.Database(cfg.DBName))
 	payRepo := repository.NewPayrollRepository(mongoClient.Database(cfg.DBName))
@@ -71,14 +89,15 @@ func main() {
 	)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize storage service: %v", err)
-		// Proceeding without storage, but upload will fail if used
 	}
 
 	salaryService := services.NewSalaryService()
 	authClient := services.NewAuthClient()
-	empService := services.NewEmployeeService(empRepo, salaryService, authClient)
-	payService := services.NewPayrollService(payRepo, empRepo, salaryService)
-	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo)
+	
+	// Initialize services with notification client
+	empService := services.NewEmployeeService(empRepo, salaryService, authClient, entRepo, notificationClient)
+	payService := services.NewPayrollService(payRepo, empRepo, salaryService, entRepo, notificationClient)
+	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo, notificationClient)
 
 	entHandler := handlers.NewEnterpriseHandler(entRepo, storageService)
 	empHandler := handlers.NewEmployeeHandler(empService)
@@ -86,16 +105,17 @@ func main() {
 	billHandler := handlers.NewBillingHandler(billService)
 
 	api := router.Group("/api/v1")
-	// Apply JWT Auth Middleware using configuration secret
+	// Apply JWT Auth Middleware
 	api.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
 		// Enterprise Routes
 		api.GET("/enterprises", entHandler.ListEnterprises)
 		api.POST("/enterprises", entHandler.CreateEnterprise)
-		api.POST("/enterprises/logo", entHandler.UploadLogo) // New Logo Upload Route
+		api.POST("/enterprises/logo", entHandler.UploadLogo)
 		api.PUT("/enterprises/:id", entHandler.UpdateEnterprise)
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
+		api.DELETE("/enterprises/:id/employees/:employeeId", empHandler.TerminateEmployee)
 
 		// Employee Routes
 		api.POST("/employees/invite", empHandler.InviteEmployee)
@@ -105,18 +125,17 @@ func main() {
 		// Payroll Routes
 		api.POST("/enterprises/:id/payroll/preview", payHandler.PreviewPayroll)
 		api.POST("/enterprises/:id/payroll/execute", payHandler.ExecutePayroll)
+		api.GET("/enterprises/:id/payroll/runs", payHandler.ListPayrollRuns) // New endpoint
 
 		// Billing Routes
 		api.POST("/invoices", billHandler.CreateInvoice)
 		api.POST("/enterprises/:id/invoices/import", billHandler.ImportInvoices)
-		api.POST("/enterprises/:id/invoices/batches", billHandler.CreateBatchInvoices) // Manual Entry
+		api.POST("/enterprises/:id/invoices/batches", billHandler.CreateBatchInvoices)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/validate", billHandler.ValidateBatch)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
 		
-		// Subscription Routes
-
 		// QR Code Routes
-		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store", entRepo) // Using prod URL base
+		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store", entRepo)
 		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
 		api.GET("/enterprises/:id/services/:serviceId/qrcode", qrHandler.GenerateServiceQR)
 		api.GET("/enterprises/:id/groups/:groupId/qrcode", qrHandler.GenerateServiceGroupQR)
@@ -124,10 +143,10 @@ func main() {
 		// Subscription Routes
 		subHandler := handlers.NewSubscriptionHandler(subRepo)
 		api.GET("/enterprises/:id/subscriptions", subHandler.ListSubscriptions)
-		api.POST("/enterprises/:id/subscriptions", subHandler.CreateSubscription) // Point 2 Priority
+		api.POST("/enterprises/:id/subscriptions", subHandler.CreateSubscription)
 	}
 
-	// 4. Start Server
+	// 6. Start Server
 	port := cfg.Port
 	if port == "" {
 		port = "8097"
@@ -137,3 +156,4 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+

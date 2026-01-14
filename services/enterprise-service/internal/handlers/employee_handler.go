@@ -81,3 +81,17 @@ func (h *EmployeeHandler) ListEmployees(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, employees)
 }
+
+// TerminateEmployee (Point 4)
+func (h *EmployeeHandler) TerminateEmployee(c *gin.Context) {
+	enterpriseID := c.Param("id")
+	employeeID := c.Param("employeeId")
+	
+	if err := h.service.TerminateEmployee(c.Request.Context(), enterpriseID, employeeID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to terminate employee", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Employee terminated successfully"})
+}
+

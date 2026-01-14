@@ -154,6 +154,7 @@ import {
   EyeIcon, CurrencyDollarIcon, XCircleIcon
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
+import { usePin } from '@/composables/usePin'
 
 const props = defineProps({
   enterpriseId: {
@@ -164,12 +165,20 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh'])
 
+const { requirePin, checkPinStatus } = usePin()
+
 const employees = ref([])
 const isLoading = ref(true)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const showInviteModal = ref(false)
 const selectedEmployee = ref(null)
+
+// Check PIN status on mount
+onMounted(async () => {
+  await checkPinStatus()
+  fetchEmployees()
+})
 
 // Computed
 const filteredEmployees = computed(() => {
@@ -233,15 +242,24 @@ const editSalary = (emp) => {
   selectedEmployee.value = { ...emp, _editingSalary: true }
 }
 
+// 🔒 Terminate with PIN verification
 const confirmTerminate = async (emp) => {
-  if (confirm(`Êtes-vous sûr de vouloir licencier ${emp.first_name} ${emp.last_name} ?`)) {
+  if (!confirm(`Êtes-vous sûr de vouloir licencier ${emp.first_name} ${emp.last_name} ?`)) return
+  
+  // Require PIN before proceeding
+  const verified = await requirePin(async () => {
     try {
-      // TODO: Call API to terminate
-      // await enterpriseAPI.terminateEmployee(props.enterpriseId, emp.id)
+      await enterpriseAPI.terminateEmployee(props.enterpriseId, emp.id)
       await fetchEmployees()
+      alert('Employé licencié avec succès')
     } catch (e) {
+      console.error(e)
       alert('Erreur lors du licenciement')
     }
+  })
+  
+  if (!verified) {
+    console.log('Action annulée - PIN non vérifié')
   }
 }
 

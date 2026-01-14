@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
@@ -10,16 +12,26 @@ import (
 )
 
 type PayrollService struct {
-	payrollRepo  *repository.PayrollRepository
-	empRepo      *repository.EmployeeRepository
+	payrollRepo   *repository.PayrollRepository
+	empRepo       *repository.EmployeeRepository
 	salaryService *SalaryService
+	entRepo       *repository.EnterpriseRepository
+	notifClient   *NotificationClient
 }
 
-func NewPayrollService(pRepo *repository.PayrollRepository, eRepo *repository.EmployeeRepository, sService *SalaryService) *PayrollService {
+func NewPayrollService(
+	pRepo *repository.PayrollRepository, 
+	eRepo *repository.EmployeeRepository, 
+	sService *SalaryService,
+	entRepo *repository.EnterpriseRepository,
+	notifClient *NotificationClient,
+) *PayrollService {
 	return &PayrollService{
 		payrollRepo:   pRepo,
 		empRepo:       eRepo,
 		salaryService: sService,
+		entRepo:       entRepo,
+		notifClient:   notifClient,
 	}
 }
 
@@ -70,7 +82,7 @@ func (s *PayrollService) PreparePayroll(ctx context.Context, enterpriseID string
 	return run, nil
 }
 
-// ExecutePayroll (Step 2): Save run and Trigger Payment (Mocked for MVP)
+// ExecutePayroll (Step 2): Save run and Trigger Payment with Notifications
 func (s *PayrollService) ExecutePayroll(ctx context.Context, run *models.PayrollRun) error {
 	run.Status = models.PayrollStatusProcessing
 	run.ExecutedAt = time.Now()
@@ -80,8 +92,7 @@ func (s *PayrollService) ExecutePayroll(ctx context.Context, run *models.Payroll
 		return err
 	}
 
-	// 2. Call Transfer Service (Simulated)
-	// In real impl: POST request to transfer-service/bulk
+	// 2. Call Transfer Service (Simulated - TODO: connect to transfer-service)
 	transactionID := "TX_MOCK_" + primitive.NewObjectID().Hex()
 	success := true 
 
@@ -91,19 +102,60 @@ func (s *PayrollService) ExecutePayroll(ctx context.Context, run *models.Payroll
 		for i := range run.Details {
 			run.Details[i].Status = "SUCCESS"
 		}
-		// TODO: Notify Users
+		
+		// 3. Send Notifications
+		s.sendPayrollNotifications(ctx, run)
 	} else {
 		run.Status = models.PayrollStatusFailed
 	}
-
-	// 3. Update Record
-	// Note: Repo needs an Update method, or we rely on Create for log-only for now if immutable.
-	// We'll simplisticly assume for this MVP we just created it with the status. 
-	// To be strict, we really should update.
-	
-	// For MVP simplicity, we assume successful execution happens synchronously before final save if local, 
-	// or we'd update it properly. Let's just return nil as we saved it in Valid state already if we swapped the order.
-	// Actually, let's just re-save. Since repo doesn't have Update yet, we will skip re-saving in MVP step or add Update.
 	
 	return nil
 }
+
+// sendPayrollNotifications sends notifications to owner and employees
+func (s *PayrollService) sendPayrollNotifications(ctx context.Context, run *models.PayrollRun) {
+	if s.notifClient == nil || s.entRepo == nil {
+		return
+	}
+	
+	// Get enterprise info
+	ent, err := s.entRepo.FindByID(ctx, run.EnterpriseID.Hex())
+	if err != nil {
+		log.Printf("Failed to get enterprise for notifications: %v", err)
+		return
+	}
+	
+	period := fmt.Sprintf("%02d/%d", run.PeriodMonth, run.PeriodYear)
+	
+	// Notify owner
+	if err := s.notifClient.NotifyPayrollExecution(ctx, ent.OwnerID, run.TotalAmount, run.TotalEmployees, period); err != nil {
+		log.Printf("Failed to send payroll notification to owner: %v", err)
+	}
+	
+	// Notify each employee
+	employees, err := s.empRepo.FindByEnterprise(ctx, run.EnterpriseID.Hex())
+	if err != nil {
+		log.Printf("Failed to get employees for notifications: %v", err)
+		return
+	}
+	
+	// Create map of employee payments
+	paymentMap := make(map[string]float64)
+	for _, detail := range run.Details {
+		paymentMap[detail.EmployeeID.Hex()] = detail.NetPay
+	}
+	
+	for _, emp := range employees {
+		if netPay, ok := paymentMap[emp.ID.Hex()]; ok && emp.UserID != "" {
+			if err := s.notifClient.NotifySalaryPayment(ctx, emp.UserID, ent.Name, netPay, period); err != nil {
+				log.Printf("Failed to send salary notification to %s: %v", emp.Email, err)
+			}
+		}
+	}
+}
+
+// ListPayrollRuns returns payroll history for an enterprise
+func (s *PayrollService) ListPayrollRuns(ctx context.Context, enterpriseID string, year int) ([]models.PayrollRun, error) {
+	return s.payrollRepo.FindByEnterpriseAndYear(ctx, enterpriseID, year)
+}
+
