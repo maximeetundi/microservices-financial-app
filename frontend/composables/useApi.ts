@@ -692,7 +692,7 @@ export const enterpriseAPI = {
 }
 
 export const useApi = () => {
-    return {
+    const apiObject = {
         authApi: authAPI,
         userApi: userAPI,
         walletApi: walletAPI,
@@ -712,6 +712,8 @@ export const useApi = () => {
         donationApi: donationAPI,
         enterpriseApi: enterpriseAPI,
     }
+    console.log('useApi returned keys:', Object.keys(apiObject))
+    return apiObject
 }
 
 // Default export for direct api access (used by stores)
