@@ -54,12 +54,17 @@ type Subscription struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	EnterpriseID  primitive.ObjectID `bson:"enterprise_id" json:"enterprise_id"`
 	ClientID      string             `bson:"client_id" json:"client_id"` // Must be a registered User for Auto-Debit
+	ClientName    string             `bson:"client_name" json:"client_name"` // Snapshot for display
+	ExternalID    string             `bson:"external_id" json:"external_id"` // Matricule, Compteur, Ref
 	
 	ServiceID     string             `bson:"service_id" json:"service_id"` // e.g. "transport_monthly", "school_tranche"
 	
 	// Specialized Config (Polymorphic-ish)
 	TransportDetails *TransportDetails `bson:"transport_details,omitempty" json:"transport_details,omitempty"`
 	SchoolDetails    *SchoolDetails    `bson:"school_details,omitempty" json:"school_details,omitempty"`
+	
+	// Dynamic Form Data (Section 8: "Formulaire personnalisé")
+	FormData     map[string]interface{} `bson:"form_data,omitempty" json:"form_data,omitempty"`
 	
 	Metadata     map[string]string   `bson:"metadata,omitempty" json:"metadata,omitempty"`
 	

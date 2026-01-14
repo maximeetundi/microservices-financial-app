@@ -64,7 +64,7 @@ func main() {
 	authClient := services.NewAuthClient()
 	empService := services.NewEmployeeService(empRepo, salaryService, authClient)
 	payService := services.NewPayrollService(payRepo, empRepo, salaryService)
-	billService := services.NewBillingService(subRepo, invRepo, batchRepo)
+	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo)
 
 	entHandler := handlers.NewEnterpriseHandler(entRepo)
 	empHandler := handlers.NewEmployeeHandler(empService)
@@ -78,6 +78,7 @@ func main() {
 		// Enterprise Routes
 		api.GET("/enterprises", entHandler.ListEnterprises)
 		api.POST("/enterprises", entHandler.CreateEnterprise)
+		api.PUT("/enterprises/:id", entHandler.UpdateEnterprise)
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
 
@@ -93,8 +94,14 @@ func main() {
 		// Billing Routes
 		api.POST("/invoices", billHandler.CreateInvoice)
 		api.POST("/enterprises/:id/invoices/import", billHandler.ImportInvoices)
+		api.POST("/enterprises/:id/invoices/batches", billHandler.CreateBatchInvoices) // Manual Entry
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/validate", billHandler.ValidateBatch)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
+		
+		// Subscription Routes
+		subHandler := handlers.NewSubscriptionHandler(subRepo)
+		api.GET("/enterprises/:id/subscriptions", subHandler.ListSubscriptions)
+		api.POST("/enterprises/:id/subscriptions", subHandler.CreateSubscription) // Point 2 Priority
 	}
 
 	// 4. Start Server

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/api_service.dart';
+import 'settings/enterprise_settings_page.dart';
 
 class EnterprisePage extends StatefulWidget {
   const EnterprisePage({Key? key}) : super(key: key);
@@ -147,8 +148,21 @@ class _EnterprisePageState extends State<EnterprisePage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: InkWell(
-                      onTap: () {
-                         // TODO: Navigation
+                      onTap: () async {
+                         if (action['title'] == 'Manage Business') {
+                           if (_enterprise == null) return;
+                           final result = await Navigator.push(
+                             context,
+                             MaterialPageRoute(
+                               builder: (context) => EnterpriseSettingsPage(enterprise: _enterprise!),
+                             ),
+                           );
+                           if (result == true) {
+                             _fetchEnterpriseData(); // Refresh if settings changed
+                           }
+                         } else {
+                           // Navigate to other routes as needed
+                         }
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: Column(

@@ -60,11 +60,12 @@ func (h *BillingHandler) ImportInvoices(c *gin.Context) {
 		ColumnMap: map[string]string{
 			"client_identifier": c.PostForm("col_client_idx"),
 			"amount":            c.PostForm("col_amount_idx"),
+			"consumption":       c.PostForm("col_consumption_idx"),
 		},
 	}
 
 	// 3. Process
-	invoices, err := h.service.ParseAndGenerateInvoices(req)
+	invoices, err := h.service.ParseAndGenerateInvoices(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -117,4 +118,47 @@ func (h *BillingHandler) ScheduleBatch(c *gin.Context) {
 	// Simply call schedule
 	// h.service.ScheduleBatch(...)
     c.JSON(http.StatusOK, gin.H{"message": "Batch scheduled (Mock)"})
+}
+
+// BatchInvoiceRequest for Manual Entry
+type BatchInvoiceRequest struct {
+	Items []BatchInvoiceItem `json:"items" binding:"required"`
+}
+
+type BatchInvoiceItem struct {
+	SubscriptionID string  `json:"subscription_id" binding:"required"`
+	Amount         float64 `json:"amount"`      // For Fixed override
+	Consumption    float64 `json:"consumption"` // For Usage
+}
+
+func (h *BillingHandler) CreateBatchInvoices(c *gin.Context) {
+	enterpriseID := c.Param("id")
+	var req BatchInvoiceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+    // Map to Service Model
+    // We cannot import services.ManualInvoiceItem if services imports handlers (cycle).
+    // Services generally shouldn't import handlers.
+    // If services handles model definition, we can use it.
+    // Wait, I defined ManualInvoiceItem in services package. So I can import it here.
+    // handler -> service IS allowed. Service -> handler is NOT.
+    
+    var items []services.ManualInvoiceItem
+    for _, item := range req.Items {
+        items = append(items, services.ManualInvoiceItem{
+            SubscriptionID: item.SubscriptionID,
+            Amount:         item.Amount,
+            Consumption:    item.Consumption,
+        })
+    }
+
+    if err := h.service.GenerateBatchFromManualEntry(c.Request.Context(), enterpriseID, items); err != nil {
+         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate batch", "details": err.Error()})
+         return
+    }
+
+	c.JSON(http.StatusOK, gin.H{"message": "Invoices generated successfully"})
 }

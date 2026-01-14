@@ -671,6 +671,7 @@ export const enterpriseAPI = {
     create: (data: any) => api.post('/enterprise-service/api/v1/enterprises', data),
     list: () => api.get('/enterprise-service/api/v1/enterprises'),
     get: (id: string) => api.get(`/enterprise-service/api/v1/enterprises/${id}`),
+    update: (id: string, data: any) => api.put(`/enterprise-service/api/v1/enterprises/${id}`, data),
 
     // Employee Management
     listEmployees: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/employees`),
@@ -689,6 +690,11 @@ export const enterpriseAPI = {
     }),
     validateBatch: (entId: string, batchId: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches/${batchId}/validate`),
     scheduleBatch: (entId: string, batchId: string, scheduledAt: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches/${batchId}/schedule`, { scheduled_at: scheduledAt }),
+
+    // Subscriptions & Manual Entry
+    getSubscriptions: (entId: string, serviceId?: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions`, { params: { service_id: serviceId } }),
+    createSubscription: (entId: string, data: any) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions`, data),
+    createBatchInvoices: (entId: string, items: Array<{ subscription_id: string, amount: number, consumption: number }>) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches`, { items }),
 }
 
 export const useApi = () => {

@@ -17,6 +17,10 @@ class EnterpriseApiService extends BaseApiService {
     return get('$_basePath/enterprises');
   }
 
+  Future<dynamic> updateEnterprise(String id, Map<String, dynamic> data) async {
+    return put('$_basePath/enterprises/$id', data: data);
+  }
+
   // Employee
   Future<dynamic> inviteEmployee(Map<String, dynamic> data) async {
     return post('$_basePath/employees/invite', data: data);

@@ -11,6 +11,10 @@ import '../../features/portfolio/presentation/bloc/portfolio_bloc.dart';
 import '../../features/transfer/presentation/bloc/transfer_bloc.dart';
 import '../../features/transfer/domain/usecases/send_transfer_usecase.dart';
 import '../../features/transfer/domain/usecases/get_transfer_history_usecase.dart';
+import '../services/subscription_api_service.dart';
+import '../../features/subscriptions/data/repositories/subscription_repository.dart';
+
+final sl = GetIt.instance;
 
 final sl = GetIt.instance;
 
@@ -63,5 +67,9 @@ Future<void> init() async {
       getTransferHistoryUseCase: sl<GetTransferHistoryUseCase>(),
     ),
   );
+
+  // Subscriptions & Enterprise (Client)
+  sl.registerLazySingleton<SubscriptionApiService>(() => SubscriptionApiService());
+  sl.registerLazySingleton<SubscriptionRepository>(() => SubscriptionRepository(sl<SubscriptionApiService>()));
 }
 

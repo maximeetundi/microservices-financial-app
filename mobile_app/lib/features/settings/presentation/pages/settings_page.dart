@@ -123,6 +123,14 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: () => context.go('/events'),
           isDark: isDark,
         ),
+        _buildSettingsCard(
+          emoji: '📃',
+          title: 'Mes Abonnements',
+          subtitle: 'Écoles, factures, services',
+          color: const Color(0xFF8B5CF6),
+          onTap: () => context.go('/more/subscriptions'),
+          isDark: isDark,
+        ),
         const SizedBox(height: 16),
         
         // === Account Section ===

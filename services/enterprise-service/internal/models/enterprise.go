@@ -48,8 +48,28 @@ type ServiceDefinition struct {
 	BasePrice float64 `bson:"base_price" json:"base_price"`
 	
 	// Dynamic Frequency Config
-	BillingFrequency string `bson:"billing_frequency" json:"billing_frequency"` // DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
-	CustomInterval   int    `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // If CUSTOM, e.g., every 15 days
+	BillingType      string  `bson:"billing_type" json:"billing_type"` // FIXED, USAGE
+	BillingFrequency string  `bson:"billing_frequency" json:"billing_frequency"` // DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
+	CustomInterval   int     `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // If CUSTOM, e.g., every 15 days
+    PaymentSchedule  []PaymentScheduleItem `bson:"payment_schedule,omitempty" json:"payment_schedule,omitempty"` // If CUSTOM, specific periods
+    
+    // Custom Form for Subscription (Client side)
+    FormSchema       []ReqFormField        `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
+}
+
+type ReqFormField struct {
+    Key      string `bson:"key" json:"key"`       // "student_name"
+    Label    string `bson:"label" json:"label"`   // "Nom de l'enfant"
+    Type     string `bson:"type" json:"type"`     // "text", "number", "date", "select"
+    Required bool   `bson:"required" json:"required"`
+    Options  []string `bson:"options,omitempty" json:"options,omitempty"` // For select
+}
+
+type PaymentScheduleItem struct {
+    Name      string    `bson:"name" json:"name"` // "Period 1", "Janvier"
+    StartDate time.Time `bson:"start_date" json:"start_date"`
+    EndDate   time.Time `bson:"end_date" json:"end_date"`
+    Amount    float64   `bson:"amount" json:"amount"`
 }
 
 // TransportConfig (Point 7a: Lignes, Zones, Tarifs)

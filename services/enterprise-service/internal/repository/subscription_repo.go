@@ -73,3 +73,8 @@ func (r *SubscriptionRepository) FindByID(ctx context.Context, id string) (*mode
 	}
 	return &sub, nil
 }
+
+func (r *SubscriptionRepository) Update(ctx context.Context, sub *models.Subscription) error {
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": sub.ID}, bson.M{"$set": sub})
+	return err
+}
