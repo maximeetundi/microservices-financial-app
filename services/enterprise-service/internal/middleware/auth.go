@@ -3,12 +3,9 @@ package middleware
 import (
 	"net/http"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/time/rate"
 )
 
 type Claims struct {
@@ -18,12 +15,6 @@ type Claims struct {
 	KYCLevel int    `json:"kyc_level"`
 	jwt.RegisteredClaims
 }
-
-// Rate limiter per IP
-var (
-	rateLimiters = make(map[string]*rate.Limiter)
-	mu           sync.RWMutex
-)
 
 // JWTAuth - Simplified copy from auth-service for now
 func JWTAuth(secret string) gin.HandlerFunc {
