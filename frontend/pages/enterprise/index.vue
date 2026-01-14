@@ -97,6 +97,8 @@
 </template>
 
 <script setup>
+import { enterpriseAPI } from '@/composables/useApi'
+
 const tabs = ['Overview', 'Employees', 'Payroll', 'Billing', 'Settings']
 const currentTab = ref('Overview')
 const currentEnterprise = ref(null)
@@ -107,7 +109,8 @@ const isLoading = ref(true)
 
 const fetchEnterprises = async () => {
    try {
-      const { data } = await useApi().enterpriseApi.list()
+      console.log('Fetching enterprises...')
+      const { data } = await enterpriseAPI.list()
       enterprises.value = data
    } catch (error) {
       console.error('Failed to fetch enterprises', error)
@@ -128,7 +131,7 @@ const selectEnterprise = (ent) => {
 const fetchEmployees = async () => {
    if (!currentEnterprise.value) return
    try {
-      const { data } = await useApi().enterpriseApi.listEmployees(currentEnterprise.value.id)
+      const { data } = await enterpriseAPI.listEmployees(currentEnterprise.value.id)
       employees.value = data
    } catch (error) {
       console.error('Failed to fetch employees', error)
