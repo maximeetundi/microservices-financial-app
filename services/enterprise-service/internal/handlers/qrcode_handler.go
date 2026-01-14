@@ -1,19 +1,25 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
+	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
 	"github.com/gin-gonic/gin"
 	qrcode "github.com/skip2/go-qrcode"
 )
 
 type QRCodeHandler struct {
 	BaseURL string
+	EntRepo *repository.EnterpriseRepository
 }
 
-func NewQRCodeHandler(baseURL string) *QRCodeHandler {
-	return &QRCodeHandler{BaseURL: baseURL}
+func NewQRCodeHandler(baseURL string, entRepo *repository.EnterpriseRepository) *QRCodeHandler {
+	return &QRCodeHandler{
+		BaseURL: baseURL,
+		EntRepo: entRepo,
+	}
 }
 
 // GenerateEnterpriseQR returns a QR code for the Enterprise Profile
@@ -25,9 +31,8 @@ func (h *QRCodeHandler) GenerateEnterpriseQR(c *gin.Context) {
 		return
 	}
 
-	// URL to the Enterprise Public Profile (or deeply linked app url)
-	// Example: https://app.maximeetundi.store/enterprises/:id
-	url := fmt.Sprintf("%s/enterprises/%s", h.BaseURL, id)
+	// URL to the Enterprise Public Profile
+	url := fmt.Sprintf("%s/enterprises/%s/subscribe", h.BaseURL, id)
 
 	png, err := qrcode.Encode(url, qrcode.Medium, 256)
 	if err != nil {
@@ -49,8 +54,43 @@ func (h *QRCodeHandler) GenerateServiceQR(c *gin.Context) {
 		return
 	}
 
+	// Verify Service Privacy
+	ent, err := h.EntRepo.FindByID(context.Background(), entId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Enterprise not found"})
+		return
+	}
+
+	isPrivate := false
+	found := false
+
+	for _, group := range ent.ServiceGroups {
+		for _, svc := range group.Services {
+			if svc.ID == svcId {
+				found = true
+				if group.IsPrivate {
+					isPrivate = true
+				}
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
+		return
+	}
+
+	if isPrivate {
+		// Strict Requirement: Private services cannot have public QR codes generated via API
+		c.JSON(http.StatusForbidden, gin.H{"error": "QR Code generation is disabled for private services"})
+		return
+	}
+
 	// URL to the Service Subscription Form
-	// Example: https://app.maximeetundi.store/enterprises/:id/subscribe?service_id=:svcId
 	url := fmt.Sprintf("%s/enterprises/%s/subscribe?service_id=%s", h.BaseURL, entId, svcId)
 
 	png, err := qrcode.Encode(url, qrcode.Medium, 256)

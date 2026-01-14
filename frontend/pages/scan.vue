@@ -344,6 +344,28 @@ const handleScanResult = (data) => {
     navigateTo(`/pay/${paymentId}`)
     return
   }
+
+  // 5. ENTERPRISE PROFILE / SUBSCRIPTION
+  // URL Format: .../enterprises/:id or .../enterprises/:id/subscribe?service_id=...
+  if (code.includes('/enterprises/')) {
+      // Extract path after /enterprises/
+      const path = code.split('/enterprises/')[1] // "123" or "123/subscribe?..."
+      // Basic validation: ensure it has an ID
+      if (path) {
+          console.log('Detected: ENTERPRISE URL -', path)
+          // Navigate to absolute path to ensure we hit the right page
+          navigateTo(`/enterprises/${path}`)
+          return
+      }
+  }
+
+  // Code Format: "ENT-XXXXX"
+  if (code.startsWith('ENT-')) {
+      const entId = code.replace('ENT-', '')
+      console.log('Detected: ENTERPRISE CODE -', entId)
+      navigateTo(`/enterprises/${entId}/subscribe`) // Default to subscribe page
+      return
+  }
   
   // 6. EVENT CODE FORMAT: "EVT-XXXXX" (direct event code, may contain dashes)
   if (code.match(/^EVT-[A-Z0-9_-]+$/i)) {

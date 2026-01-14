@@ -28,7 +28,8 @@ type Enterprise struct {
 	Settings  EnterpriseSettings `bson:"settings" json:"settings"`
 	
 	// Dynamic Service Definitions (Section 7)
-	CustomServices []ServiceDefinition `bson:"custom_services" json:"custom_services"`
+	// OLD: CustomServices []ServiceDefinition
+	ServiceGroups []ServiceGroup `bson:"service_groups" json:"service_groups"`
 
 	// Specialized Modules Config (Section 7a, 7b)
 	TransportConfig *TransportConfig `bson:"transport_config,omitempty" json:"transport_config,omitempty"`
@@ -38,8 +39,16 @@ type Enterprise struct {
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
+type ServiceGroup struct {
+	ID        string              `bson:"id" json:"id"`
+	Name      string              `bson:"name" json:"name"` // e.g. "Pension 6ème"
+	IsPrivate bool                `bson:"is_private" json:"is_private"` // If true, hidden from QR scan
+	Currency  string              `bson:"currency" json:"currency"`     // Specific currency for this group
+	Services  []ServiceDefinition `bson:"services" json:"services"`
+}
+
 type EnterpriseSettings struct {
-	Currency        string `bson:"currency" json:"currency"`
+	// Currency        string `bson:"currency" json:"currency"` // Moved to ServiceGroup
 	PayrollDate     int    `bson:"payroll_date" json:"payroll_date"` // e.g., 25th of month
 	AutoPaySalaries bool   `bson:"auto_pay_salaries" json:"auto_pay_salaries"`
 }
@@ -55,10 +64,24 @@ type ServiceDefinition struct {
 	BillingType      string  `bson:"billing_type" json:"billing_type"` // FIXED, USAGE
 	BillingFrequency string  `bson:"billing_frequency" json:"billing_frequency"` // DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
 	CustomInterval   int     `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // If CUSTOM, e.g., every 15 days
+    
+    // Category removed, now using ServiceGroup structure
+    
     PaymentSchedule  []PaymentScheduleItem `bson:"payment_schedule,omitempty" json:"payment_schedule,omitempty"` // If CUSTOM, specific periods
     
     // Custom Form for Subscription (Client side)
     FormSchema       []ReqFormField        `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
+    
+    // Late Payment Penalty Configuration
+    PenaltyConfig    *PenaltyConfig        `bson:"penalty_config,omitempty" json:"penalty_config,omitempty"`
+}
+
+type PenaltyConfig struct {
+    Type        string  `bson:"type" json:"type"`         // FIXED, PERCENTAGE, HYBRID
+    Value       float64 `bson:"value" json:"value"`       // Amount or Percentage (e.g., 5.0 for 5%)
+    ValueFixed  float64 `bson:"value_fixed,omitempty" json:"value_fixed,omitempty"` // For HYBRID: Percentage + Fixed
+    Frequency   string  `bson:"frequency" json:"frequency"` // DAILY, WEEKLY, MONTHLY, ONETIME
+    GracePeriod int     `bson:"grace_period" json:"grace_period"` // Days before penalty applies
 }
 
 type ReqFormField struct {

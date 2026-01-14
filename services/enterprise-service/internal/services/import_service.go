@@ -50,12 +50,17 @@ func (s *BillingService) parseCSV(ctx context.Context, req ImportInvoiceRequest)
 	serviceName := "Service"
 
 	foundService := false
-	for _, svc := range ent.CustomServices {
-		if svc.ID == req.ServiceID {
-			unitPrice = svc.BasePrice
-			billingType = svc.BillingType
-			serviceName = svc.Name
-			foundService = true
+	for _, group := range ent.ServiceGroups {
+		for _, svc := range group.Services {
+			if svc.ID == req.ServiceID {
+				unitPrice = svc.BasePrice
+				billingType = svc.BillingType
+				serviceName = svc.Name
+				foundService = true
+				break
+			}
+		}
+		if foundService {
 			break
 		}
 	}

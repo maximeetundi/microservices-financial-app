@@ -120,10 +120,12 @@ func (s *BillingService) GenerateBatchFromManualEntry(ctx context.Context, enter
 			
 			// Find Service Def
 			var unitPrice float64
-			for _, svc := range ent.CustomServices {
-				if svc.ID == sub.ServiceID {
-					unitPrice = svc.BasePrice
-					break
+			for _, group := range ent.ServiceGroups {
+				for _, svc := range group.Services {
+					if svc.ID == sub.ServiceID {
+						unitPrice = svc.BasePrice
+						break
+					}
 				}
 			}
 			finalAmount = c * unitPrice

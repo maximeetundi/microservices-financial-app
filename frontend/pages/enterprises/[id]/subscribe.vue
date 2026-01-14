@@ -50,14 +50,20 @@
                     <select v-model="selectedServiceId" :disabled="isServiceLocked" 
                         class="appearance-none block w-full pl-4 pr-10 py-3 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-xl transition-shadow shadow-sm hover:shadow-md">
                         <option value="">-- Sélectionner un service --</option>
-                        <option v-for="svc in enterprise.custom_services" :key="svc.id" :value="svc.id">
-                            {{ svc.name }}
-                        </option>
+                        <optgroup v-for="group in displayedGroups" :key="group.id" :label="group.name">
+                            <option v-for="svc in group.services" :key="svc.id" :value="svc.id">
+                                {{ svc.name }}
+                            </option>
+                        </optgroup>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                         <ChevronUpDownIcon class="h-5 w-5" aria-hidden="true" />
                     </div>
                 </div>
+            </div>
+            
+            <div v-if="!displayedGroups.length && !isLoading" class="p-4 bg-yellow-50 text-yellow-700 rounded-lg text-sm">
+                Aucun service public disponible pour le moment.
             </div>
 
             <!-- Selected Service Card -->
@@ -73,7 +79,7 @@
                             <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Coût</p>
                             <div class="flex items-baseline gap-1">
                                 <span class="text-3xl font-bold text-primary-600 dark:text-primary-400">{{ selectedService.base_price }}</span>
-                                <span class="text-sm font-medium text-gray-500">{{ enterprise.settings?.currency }}</span>
+                                <span class="text-sm font-medium text-gray-500">{{ getServiceCurrency(selectedService) }}</span>
                             </div>
                          </div>
                          <div>
@@ -213,10 +219,47 @@ const isServiceLocked = ref(!!serviceIdQuery) // Lock if provided in URL
 const formData = ref({})
 const externalId = ref('')
 
+// Compute displayed groups based on visibility and URL params
+const displayedGroups = computed(() => {
+   if (!enterprise.value?.service_groups) return []
+   return enterprise.value.service_groups.map(g => {
+       // Filter services within group
+       // Deep copy to avoid side effects
+       const groupServices = g.services || []
+       
+       if (g.is_private) {
+           // For private groups, only show if specific service matches URL param
+           if (!serviceIdQuery) return null // Hide entire group if no direct link
+           
+           const matchedService = groupServices.find(s => s.id === serviceIdQuery)
+           if (matchedService) {
+               return { ...g, services: [matchedService] }
+           }
+           return null // No match in this private group
+       }
+       
+       // Public group: show all
+       return { ...g, services: groupServices }
+   }).filter(g => g !== null && g.services.length > 0)
+})
+
+// Flatten for easier lookup of selected
 const selectedService = computed(() => {
     if (!enterprise.value || !selectedServiceId.value) return null
-    return enterprise.value.custom_services.find(s => s.id === selectedServiceId.value)
+    
+    // Search in groups
+    for (const group of enterprise.value.service_groups || []) {
+        const found = group.services?.find(s => s.id === selectedServiceId.value)
+        if (found) return found
+    }
+    return null
 })
+
+const getServiceCurrency = (svc) => {
+    if (!enterprise.value || !svc) return 'XOF'
+    const group = enterprise.value.service_groups.find(g => g.services.some(s => s.id === svc.id))
+    return group ? group.currency : 'XOF'
+}
 
 const formatFrequency = (freq) => {
     const map = {

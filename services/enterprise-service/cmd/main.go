@@ -114,8 +114,9 @@ func main() {
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
 		
 		// Subscription Routes
+
 		// QR Code Routes
-		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store") // Using prod URL base
+		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store", entRepo) // Using prod URL base
 		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
 		api.GET("/enterprises/:id/services/:serviceId/qrcode", qrHandler.GenerateServiceQR)
 
