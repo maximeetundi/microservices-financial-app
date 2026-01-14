@@ -973,17 +973,7 @@ const getTabIcon = (tab) => {
     }
 }
 
-// Quick Actions Helper
-const goToSettingsAndAddService = () => {
-    currentTab.value = 'Settings'
-    // Scroll to custom services section if possible, or just open modal logic if existed
-    // For now, we switch tabs. In a perfect world, we'd scroll or expand the section.
-    // Let's trigger a timeout to ensure tab renders then scroll
-    setTimeout(() => {
-        // Optimistically, we could just rely on the user seeing the section
-        // Or adding a query param/ref
-    }, 100)
-}
+
 
 // ... Tabs ...
 
