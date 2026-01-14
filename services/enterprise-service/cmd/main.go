@@ -119,6 +119,7 @@ func main() {
 		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store", entRepo) // Using prod URL base
 		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
 		api.GET("/enterprises/:id/services/:serviceId/qrcode", qrHandler.GenerateServiceQR)
+		api.GET("/enterprises/:id/groups/:groupId/qrcode", qrHandler.GenerateServiceGroupQR)
 
 		// Subscription Routes
 		subHandler := handlers.NewSubscriptionHandler(subRepo)

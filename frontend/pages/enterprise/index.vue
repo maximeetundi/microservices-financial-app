@@ -749,51 +749,103 @@
              </div>
 
              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <!-- Enterprise Profile -->
-                 <div class="flex flex-col items-center p-6 bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
-                     <h3 class="font-bold text-lg mb-2 dark:text-white">Profil Entreprise</h3>
-                     <p class="text-xs text-gray-500 mb-4 text-center">Scanner pour voir tous les services</p>
-                     
-                     <div class="bg-white p-2 rounded-lg border border-gray-200 shadow-inner mb-4">
-                        <img :src="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/qrcode`" alt="QR Entreprise" class="w-48 h-48 object-contain">
-                     </div>
-                     
-                     <div class="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg mb-3">
-                        <span class="font-mono text-sm font-bold text-gray-700 dark:text-gray-300">ENT-{{ currentEnterprise.id }}</span>
-                        <button @click="copyCode(`ENT-${currentEnterprise.id}`)" class="text-xs text-primary-600 hover:text-primary-700 font-medium">Copier</button>
-                     </div>
-
-                     <a :href="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/qrcode`" download="qr_profile.png" class="flex items-center gap-2 text-primary-600 text-sm font-medium hover:underline">
-                        <ArrowDownTrayIcon class="w-4 h-4" />
-                        Télécharger
-                     </a>
-                 </div>
-
-                 <!-- Custom Services (Grouped) -->
-                 <template v-for="group in currentEnterprise.service_groups" :key="group.id">
-                    <template v-if="!group.is_private">
-                         <div v-for="svc in group.services" :key="svc.id" class="flex flex-col items-center p-6 bg-white dark:bg-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
-                             <h3 class="font-bold text-lg mb-2 dark:text-white">{{ svc.name }}</h3>
-                             <p class="text-xs text-gray-400 mb-1">{{ group.name }}</p>
-                             <p class="text-xs text-gray-500 mb-4 text-center">Abonnement Public</p>
-                             
-                             <div class="bg-white p-2 rounded-lg border border-gray-200 shadow-inner mb-4">
-                                <img :src="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/services/${svc.id}/qrcode`" :alt="svc.name" class="w-48 h-48 object-contain">
-                             </div>
-                             
-                             <a :href="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/services/${svc.id}/qrcode`" :download="`qr_${svc.name}.png`" class="flex items-center gap-2 text-primary-600 text-sm font-medium hover:underline">
-                                <ArrowDownTrayIcon class="w-4 h-4" />
-                                Télécharger
-                             </a>
-                         </div>
-                    </template>
-                 </template>
-
-                 <div v-if="!currentEnterprise.service_groups?.some(g => !g.is_private && g.services.length > 0)" class="col-span-full text-center text-gray-500 py-4">
-                     Aucun service public configuré pour afficher des QR codes spécifiques.
+                 <div class="col-span-full bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl">
+                    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-2">QR Codes & Paiements</h3>
+                            <p class="text-gray-300 max-w-lg">
+                                Générez et téléchargez les codes QR pour votre entreprise, vos groupes de services ou des services spécifiques. 
+                                Permettez à vos clients de s'abonner et de payer instantanément.
+                            </p>
+                        </div>
+                        <button @click="showQRModal = true" class="px-6 py-3 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 shadow-lg">
+                            <QrCodeIcon class="w-6 h-6" />
+                            Afficher les Codes QR
+                        </button>
+                    </div>
+                    <!-- Background decoration -->
+                    <div class="absolute -right-20 -bottom-20 w-64 h-64 bg-primary-500/20 rounded-full blur-3xl"></div>
                  </div>
              </div>
         </div>
+      </div>
+
+      <!-- Sophisticated QR Modal -->
+      <div v-if="showQRModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div class="bg-gray-900 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col md:flex-row border border-gray-700">
+              
+              <!-- Sidebar / Controls -->
+              <div class="w-full md:w-1/3 bg-gray-800 p-6 flex flex-col gap-6 border-r border-gray-700">
+                  <div>
+                      <h3 class="text-xl font-bold text-white mb-4">Type de Code</h3>
+                      <div class="space-y-2">
+                          <button @click="qrTab = 'ENTERPRISE'" :class="{'bg-primary-600 text-white': qrTab === 'ENTERPRISE', 'bg-gray-700 text-gray-300 hover:bg-gray-600': qrTab !== 'ENTERPRISE'}" class="w-full text-left px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-3">
+                              <BuildingOfficeIcon class="w-5 h-5" /> Entreprise (Global)
+                          </button>
+                          <button @click="qrTab = 'GROUP'" :class="{'bg-primary-600 text-white': qrTab === 'GROUP', 'bg-gray-700 text-gray-300 hover:bg-gray-600': qrTab !== 'GROUP'}" class="w-full text-left px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-3">
+                              <FolderIcon class="w-5 h-5" /> Groupe de Services
+                          </button>
+                          <button @click="qrTab = 'SERVICE'" :class="{'bg-primary-600 text-white': qrTab === 'SERVICE', 'bg-gray-700 text-gray-300 hover:bg-gray-600': qrTab !== 'SERVICE'}" class="w-full text-left px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-3">
+                              <TagIcon class="w-5 h-5" /> Service Spécifique
+                          </button>
+                      </div>
+                  </div>
+
+                  <!-- Filters -->
+                  <div v-if="qrTab === 'GROUP' || qrTab === 'SERVICE'" class="space-y-4 animate-fadeIn">
+                       <div>
+                           <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Choisir un Groupe</label>
+                           <select v-model="selectedQRGroup" class="w-full bg-gray-700 border-none rounded-lg text-white px-3 py-2 focus:ring-2 focus:ring-primary-500">
+                               <option v-for="grp in currentEnterprise.service_groups.filter(g => !g.is_private)" :key="grp.id" :value="grp.id">
+                                   {{ grp.name }}
+                               </option>
+                           </select>
+                       </div>
+                       
+                       <div v-if="qrTab === 'SERVICE' && selectedQRGroup">
+                           <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Choisir un Service</label>
+                           <select v-model="selectedQRService" class="w-full bg-gray-700 border-none rounded-lg text-white px-3 py-2 focus:ring-2 focus:ring-primary-500">
+                               <option v-for="svc in currentEnterprise.service_groups.find(g => g.id === selectedQRGroup)?.services" :key="svc.id" :value="svc.id">
+                                   {{ svc.name }}
+                               </option>
+                           </select>
+                       </div>
+                  </div>
+
+                  <div class="mt-auto">
+                      <button @click="showQRModal = false" class="text-gray-400 hover:text-white text-sm flex items-center gap-2">
+                          <ArrowLeftIcon class="w-4 h-4" /> Retour au tableau de bord
+                      </button>
+                  </div>
+              </div>
+
+              <!-- Preview Area -->
+              <div class="w-full md:w-2/3 p-8 flex flex-col items-center justify-center bg-gray-900 relative">
+                  <!-- QR Content -->
+                  <div class="bg-white p-4 rounded-2xl shadow-2xl transform transition-all hover:scale-105 duration-300">
+                      <img :src="getCurrentQRLink()" alt="QR Code" class="w-64 h-64 object-contain">
+                  </div>
+                  
+                  <div class="mt-8 text-center space-y-2">
+                       <h2 class="text-2xl font-bold text-white">{{ getQRTitle() }}</h2>
+                       <p class="text-gray-400 max-w-md mx-auto">{{ getQRDescription() }}</p>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex gap-4 mt-8">
+                       <a :href="getCurrentQRLink()" :download="`qr_${qrTab.toLowerCase()}.png`" class="px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-500 transition-colors flex items-center gap-2 shadow-lg shadow-primary-900/50">
+                           <ArrowDownTrayIcon class="w-5 h-5" />
+                           Télécharger PNG
+                       </a>
+                       <div class="bg-gray-800 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-700">
+                           <span class="font-mono text-primary-400 font-bold tracking-wider">{{ getQRLabel() }}</span>
+                           <button @click="copyCode(getQRLabel())" class="text-gray-400 hover:text-white">
+                               <DocumentDuplicateIcon class="w-5 h-5" />
+                           </button>
+                       </div>
+                  </div>
+              </div>
+          </div>
       </div>
 
       <!-- Add Service Modal -->
@@ -922,7 +974,13 @@ import {
     BoltIcon,
     UserPlusIcon,
     EllipsisHorizontalIcon,
-    ArrowDownTrayIcon
+    ArrowDownTrayIcon,
+    TrashIcon,
+    BuildingOfficeIcon,
+    FolderIcon,
+    TagIcon,
+    ArrowLeftIcon,
+    DocumentDuplicateIcon
 } from '@heroicons/vue/24/outline'
 
 const { authApi } = useApi()
@@ -1526,6 +1584,68 @@ const confirmAddService = () => {
     alert('Service ajouté ! N\'oubliez pas d\'enregistrer les modifications.')
     currentTab.value = 'Settings' // Go to settings so they can save
 }
+
+// QR Modal Logic
+const qrTab = ref('ENTERPRISE') // 'ENTERPRISE' | 'GROUP' | 'SERVICE'
+const selectedQRGroup = ref('')
+const selectedQRService = ref('')
+
+const getCurrentQRLink = () => {
+    if (!currentEnterprise.value) return ''
+    const baseUrl = `/enterprise-service/api/v1/enterprises/${currentEnterprise.value.id}`
+    
+    if (qrTab.value === 'ENTERPRISE') {
+        return `${baseUrl}/qrcode`
+    } else if (qrTab.value === 'GROUP') {
+        if (!selectedQRGroup.value) return ''
+        return `${baseUrl}/groups/${selectedQRGroup.value}/qrcode`
+    } else if (qrTab.value === 'SERVICE') {
+        if (!selectedQRService.value) return ''
+        return `${baseUrl}/services/${selectedQRService.value}/qrcode`
+    }
+    return ''
+}
+
+const getQRTitle = () => {
+    if (qrTab.value === 'ENTERPRISE') return currentEnterprise.value?.name
+    if (qrTab.value === 'GROUP') {
+        return currentEnterprise.value?.service_groups?.find(g => g.id === selectedQRGroup.value)?.name || 'Sélectionner un groupe'
+    }
+    if (qrTab.value === 'SERVICE') {
+         const group = currentEnterprise.value?.service_groups?.find(g => g.id === selectedQRGroup.value)
+         return group?.services?.find(s => s.id === selectedQRService.value)?.name || 'Sélectionner un service'
+    }
+    return ''
+}
+
+const getQRDescription = () => {
+    if (qrTab.value === 'ENTERPRISE') return "Code QR principal de l'entreprise. Scannez pour voir tous les services publics."
+    if (qrTab.value === 'GROUP') return "Code QR pour ce groupe de services. Scannez pour voir uniquement les services de cette catégorie."
+    if (qrTab.value === 'SERVICE') return "Code QR direct pour ce service. Scannez pour souscrire directement."
+    return ''
+}
+
+const getQRLabel = () => {
+    if (qrTab.value === 'ENTERPRISE') return `ENT-${currentEnterprise.value?.id}`
+    if (qrTab.value === 'GROUP') return `GRP-${selectedQRGroup.value?.substring(0,8)}`
+    if (qrTab.value === 'SERVICE') return `SVC-${selectedQRService.value}`
+    return 'CODE'
+}
+
+watch(qrTab, () => { 
+    // Reset selections on tab change if needed, or keep for convenience
+    if (qrTab.value === 'GROUP' && !selectedQRGroup.value) {
+        // Auto select first public group
+        const grp = currentEnterprise.value.service_groups.find(g => !g.is_private)
+        if (grp) selectedQRGroup.value = grp.id
+    }
+})
+
+watch(selectedQRGroup, () => {
+     if (qrTab.value === 'SERVICE') {
+         selectedQRService.value = '' // Reset service when group changes
+     }
+})
 
 // Watchers moved to end to avoid initialization issues
 watch(currentTab, (newTab) => {

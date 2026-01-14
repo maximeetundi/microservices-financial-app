@@ -101,3 +101,55 @@ func (h *QRCodeHandler) GenerateServiceQR(c *gin.Context) {
 
 	c.Data(http.StatusOK, "image/png", png)
 }
+
+// GenerateServiceGroupQR returns a QR code for a specific Service Group
+// GET /enterprises/:id/groups/:groupId/qrcode
+func (h *QRCodeHandler) GenerateServiceGroupQR(c *gin.Context) {
+	entId := c.Param("id")
+	groupId := c.Param("groupId")
+
+	if entId == "" || groupId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Enterprise ID and Group ID are required"})
+		return
+	}
+
+	ent, err := h.EntRepo.FindByID(context.Background(), entId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Enterprise not found"})
+		return
+	}
+
+	found := false
+	isPrivate := false
+
+	for _, group := range ent.ServiceGroups {
+		if group.ID == groupId {
+			found = true
+			if group.IsPrivate {
+				isPrivate = true
+			}
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Service Group not found"})
+		return
+	}
+
+	if isPrivate {
+		c.JSON(http.StatusForbidden, gin.H{"error": "QR Code generation is disabled for private groups"})
+		return
+	}
+
+	// URL to filtered Service Group view
+	url := fmt.Sprintf("%s/enterprises/%s/subscribe?group_id=%s", h.BaseURL, entId, groupId)
+
+	png, err := qrcode.Encode(url, qrcode.Medium, 256)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate QR code"})
+		return
+	}
+
+	c.Data(http.StatusOK, "image/png", png)
+}
