@@ -37,12 +37,14 @@ func main() {
 	router := gin.Default()
 
 	// CORS configuration (Matching Wallet Service)
+	// CORS configuration
 	router.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
+		AllowOrigins:     []string{"https://app.maximeetundi.store", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
 		AllowCredentials: true,
+		MaxAge:           12 * 3600,
 	}))
 
 	// Health Check
