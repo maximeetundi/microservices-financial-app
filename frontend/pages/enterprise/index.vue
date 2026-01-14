@@ -760,18 +760,7 @@ const fetchEmployees = async () => {
    }
 }
 
-watch(currentTab, (newTab) => {
-   if (newTab === 'Employees') {
-      fetchEmployees()
-   }
-})
 
-// Initial fetch if already on tab
-watch(currentEnterprise, (newEnt) => {
-   if (newEnt && currentTab.value === 'Employees') {
-      fetchEmployees()
-   }
-})
 
 const openCreateModal = () => {
   showCreateModal.value = true
@@ -955,4 +944,24 @@ const uploadInvoiceFile = async () => {
          alert("Erreur lors de l'import: " + (error.response?.data?.error || error.message))
     }
 }
+
+// Watchers moved to end to avoid initialization issues
+watch(currentTab, (newTab) => {
+   if (newTab === 'Employees') {
+      fetchEmployees()
+   }
+   if (newTab === 'Clients') {
+      fetchClients()
+   }
+})
+
+// Initial fetch if already on tab
+watch(currentEnterprise, (newEnt) => {
+   if (newEnt && currentTab.value === 'Employees') {
+      fetchEmployees()
+   }
+   if (newEnt && currentTab.value === 'Clients') {
+       fetchClients()
+   }
+})
 </script>
