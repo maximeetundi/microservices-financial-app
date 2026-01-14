@@ -6,6 +6,7 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type BillingService struct {
@@ -129,12 +130,13 @@ func (s *BillingService) GenerateBatchFromManualEntry(ctx context.Context, enter
 		}
 		
 		// Fallback to Base Price if still 0 (e.g. Fixed service manual trigger)
-		if finalAmount == 0 {
-             finalAmount = sub.Amount
+			finalAmount = sub.Amount
         }
-
+        
+		entID, _ := primitive.ObjectIDFromHex(enterpriseID)
+		
 		inv := models.Invoice{
-			EnterpriseID:  enterpriseID,
+			EnterpriseID:  entID,
 			ClientID:      sub.ClientID,
 			ClientName:    "Subscriber", // Fetch name if possible, or leave generic
 			ServiceID:     sub.ServiceID,

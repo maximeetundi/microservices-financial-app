@@ -32,6 +32,7 @@ type Invoice struct {
 	SubscriptionID primitive.ObjectID `bson:"subscription_id,omitempty" json:"subscription_id,omitempty"`
 	
 	Amount        float64            `bson:"amount" json:"amount"`
+	Consumption   *float64           `bson:"consumption,omitempty" json:"consumption,omitempty"` // For Usage Billing
 	Currency      string             `bson:"currency" json:"currency"`
 	Description   string             `bson:"description" json:"description"`
 	Type          string             `bson:"type" json:"type"` // e.g., "TUITION", "TRANSPORT"
@@ -73,6 +74,7 @@ type Subscription struct {
 	// Billing Logic
 	BillingFrequency string          `bson:"billing_frequency" json:"billing_frequency"` // Copied from ServiceDef or Overridden
 	Amount        float64            `bson:"amount" json:"amount"`
+	CustomInterval int               `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // For CUSTOM frequency
 	
 	LastBillingAt *time.Time         `bson:"last_billing_at,omitempty" json:"last_billing_at,omitempty"`
 	NextBillingAt time.Time          `bson:"next_billing_at" json:"next_billing_at"`
