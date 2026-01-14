@@ -529,6 +529,38 @@
          </div>
       </div>
       
+      <!-- QR Code Modal -->
+      <div v-if="showQRModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+             <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold dark:text-white">Codes QR - {{ currentEnterprise?.name }}</h2>
+                <button @click="showQRModal = false" class="text-gray-500 hover:text-gray-700">✕</button>
+             </div>
+
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <!-- Enterprise Profile -->
+                 <div class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                     <h3 class="font-semibold mb-2 dark:text-gray-200">Profil Entreprise</h3>
+                     <p class="text-xs text-gray-500 mb-4 text-center">Permet de voir tous les services</p>
+                     <img :src="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/qrcode`" alt="QR Entreprise" class="w-48 h-48 border bg-white">
+                     <a :href="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/qrcode`" download="qr_profile.png" class="mt-4 text-primary-600 text-sm hover:underline">Télécharger</a>
+                 </div>
+
+                 <!-- Custom Services -->
+                 <div v-for="svc in currentEnterprise.custom_services" :key="svc.id" class="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                     <h3 class="font-semibold mb-2 dark:text-gray-200">{{ svc.name }}</h3>
+                     <p class="text-xs text-gray-500 mb-4 text-center">Formulaire d'abonnement direct</p>
+                     <img :src="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/services/${svc.id}/qrcode`" :alt="svc.name" class="w-48 h-48 border bg-white">
+                     <a :href="`/enterprise-service/api/v1/enterprises/${currentEnterprise.id}/services/${svc.id}/qrcode`" :download="`qr_${svc.name}.png`" class="mt-4 text-primary-600 text-sm hover:underline">Télécharger</a>
+                 </div>
+
+                 <div v-if="(!currentEnterprise.custom_services || currentEnterprise.custom_services.length === 0)" class="col-span-full text-center text-gray-500 py-4">
+                     Aucun service configuré pour afficher des QR codes spécifiques.
+                 </div>
+             </div>
+        </div>
+      </div>
+
       <!-- Create Enterprise Modal -->
       <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
         <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-6 space-y-4">
