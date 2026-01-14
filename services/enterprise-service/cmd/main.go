@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/database"
