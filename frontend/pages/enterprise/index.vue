@@ -917,23 +917,6 @@ const submitManualBatch = async () => {
         isGeneratingManual.value = false
     }
 }
-    try {
-        await enterpriseAPI.update(currentEnterprise.value.id, currentEnterprise.value)
-        
-        // Update local list with new values
-        const idx = enterprises.value.findIndex(e => e.id === currentEnterprise.value.id)
-        if (idx !== -1) {
-            enterprises.value[idx] = JSON.parse(JSON.stringify(currentEnterprise.value))
-        }
-        
-        alert('Modifications enregistrées avec succès !')
-    } catch (error) {
-        console.error('Failed to update enterprise', error)
-        alert("Erreur lors de l'enregistrement")
-    } finally {
-        isSaving.value = false
-    }
-}
 
 const addCustomService = () => {
     if (!currentEnterprise.value.custom_services) currentEnterprise.value.custom_services = []
