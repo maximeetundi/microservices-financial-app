@@ -4,11 +4,11 @@
       <!-- Build Header -->
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Enterprise Portal</h1>
-          <p class="text-gray-500 dark:text-gray-400">Manage your business, employees, and billing</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Portail Entreprise</h1>
+          <p class="text-gray-500 dark:text-gray-400">Gérez votre entreprise, vos employés et la facturation</p>
         </div>
         <button @click="openCreateModal" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
-          Create New Enterprise
+          Créer une nouvelle entreprise
         </button>
       </div>
 
@@ -27,16 +27,21 @@
              </div>
           </div>
           <div class="flex justify-between text-sm text-gray-500">
-             <span>{{ ent.employees_count || 0 }} Employees</span>
-             <span>Status: Active</span>
+             <span>{{ ent.employees_count || 0 }} Employés</span>
+             <span>Statut: Actif</span>
           </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div v-if="enterprises.length === 0 && !isLoading" class="col-span-full text-center py-12">
+            <p class="text-gray-500">Aucune entreprise trouvée.</p>
         </div>
       </div>
 
       <!-- Details View (Once selected) -->
       <div v-else class="space-y-6">
          <button @click="currentEnterprise = null" class="text-sm text-gray-500 hover:text-gray-700 underline mb-4">
-            &larr; Back to List
+            &larr; Retour à la liste
          </button>
 
          <!-- Tabs -->
@@ -44,23 +49,23 @@
             <button v-for="tab in tabs" :key="tab" @click="currentTab = tab"
                :class="['px-4 py-2 rounded-md text-sm font-medium transition-all', 
                         currentTab === tab ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700']">
-              {{ tab }}
+              {{ tabLabels[tab] }}
             </button>
          </div>
 
          <!-- Employee Tab -->
          <div v-if="currentTab === 'Employees'" class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
             <div class="flex justify-between mb-4">
-               <h3 class="font-semibold text-lg dark:text-white">Employees</h3>
-               <button class="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Invite Employee</button>
+               <h3 class="font-semibold text-lg dark:text-white">Employés</h3>
+               <button class="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Inviter un employé</button>
             </div>
             <!-- Mock Table -->
              <table class="w-full text-left text-sm text-gray-500">
                <thead class="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                   <tr>
-                     <th class="px-4 py-3">Name</th>
-                     <th class="px-4 py-3">Role</th>
-                     <th class="px-4 py-3">Status</th>
+                     <th class="px-4 py-3">Nom</th>
+                     <th class="px-4 py-3">Rôle</th>
+                     <th class="px-4 py-3">Statut</th>
                      <th class="px-4 py-3">Actions</th>
                   </tr>
                </thead>
@@ -76,7 +81,7 @@
                      <td class="px-4 py-3">...</td>
                   </tr>
                   <tr v-if="employees.length === 0">
-                     <td colspan="4" class="px-4 py-8 text-center text-gray-400">No employees found.</td>
+                     <td colspan="4" class="px-4 py-8 text-center text-gray-400">Aucun employé trouvé.</td>
                   </tr>
                </tbody>
             </table>
@@ -84,12 +89,49 @@
 
          <!-- Billing Tab -->
          <div v-if="currentTab === 'Billing'" class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-            <h3 class="font-semibold text-lg dark:text-white mb-4">Bulk Invoicing</h3>
+            <h3 class="font-semibold text-lg dark:text-white mb-4">Facturation en masse</h3>
             <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-               <p class="text-gray-500">Drag and drop your CSV/Excel file here to generate invoices</p>
-               <button class="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm">Upload File</button>
+               <p class="text-gray-500">Glissez-déposez votre fichier CSV/Excel ici pour générer des factures</p>
+               <button class="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm">Télécharger un fichier</button>
             </div>
          </div>
+      </div>
+      
+      <!-- Create Enterprise Modal -->
+      <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-6 space-y-4">
+            <h2 class="text-xl font-bold dark:text-white">Créer une nouvelle entreprise</h2>
+            
+            <form @submit.prevent="handleCreateEnterprise" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nom de l'entreprise</label>
+                    <input v-model="newEnterprise.name" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Numéro d'enregistrement (NIF/RCCM)</label>
+                    <input v-model="newEnterprise.registration_number" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                </div>
+                
+                <div>
+                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+                   <select v-model="newEnterprise.type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                       <option value="SME">PME (Petite/Moyenne Entreprise)</option>
+                       <option value="LARGE">Grande Entreprise</option>
+                       <option value="STARTUP">Startup</option>
+                   </select>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                        Annuler
+                    </button>
+                    <button type="submit" :disabled="isCreating" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+                        {{ isCreating ? 'Création...' : 'Créer' }}
+                    </button>
+                </div>
+            </form>
+        </div>
       </div>
 
     </div>
@@ -97,15 +139,33 @@
 </template>
 
 <script setup>
+import { ref, onMounted, watch } from 'vue' // Explicit imports
 import { enterpriseAPI } from '@/composables/useApi'
 
 const tabs = ['Overview', 'Employees', 'Payroll', 'Billing', 'Settings']
+const tabLabels = {
+    'Overview': 'Aperçu',
+    'Employees': 'Employés',
+    'Payroll': 'Paie',
+    'Billing': 'Facturation',
+    'Settings': 'Paramètres'
+}
+
 const currentTab = ref('Overview')
 const currentEnterprise = ref(null)
 
 const enterprises = ref([])
 const employees = ref([])
 const isLoading = ref(true)
+
+// Create Modal State
+const showCreateModal = ref(false)
+const isCreating = ref(false)
+const newEnterprise = ref({
+    name: '',
+    registration_number: '',
+    type: 'SME'
+})
 
 const fetchEnterprises = async () => {
    try {
@@ -114,7 +174,7 @@ const fetchEnterprises = async () => {
       enterprises.value = data
    } catch (error) {
       console.error('Failed to fetch enterprises', error)
-      // Fallback empty or error state
+      enterprises.value = []
    } finally {
       isLoading.value = false
    }
@@ -153,6 +213,22 @@ watch(currentEnterprise, (newEnt) => {
 })
 
 const openCreateModal = () => {
-  // Logic to open modal
+  showCreateModal.value = true
+  newEnterprise.value = { name: '', registration_number: '', type: 'SME' }
+}
+
+const handleCreateEnterprise = async () => {
+    isCreating.value = true
+    try {
+        await enterpriseAPI.create(newEnterprise.value)
+        showCreateModal.value = false
+        // Refresh list
+        await fetchEnterprises()
+    } catch (error) {
+        console.error('Failed to create', error)
+        alert('Erreur lors de la création')
+    } finally {
+        isCreating.value = false
+    }
 }
 </script>
