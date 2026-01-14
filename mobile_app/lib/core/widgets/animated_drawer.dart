@@ -98,6 +98,9 @@ class AnimatedDrawerState extends State<AnimatedDrawer>
                         _buildNavItem('👛', 'Portefeuilles', '/wallet', isDark),
                         _buildNavItem('💳', 'Mes Cartes', '/more/cards', isDark),
                         
+                        _buildSectionTitle('Professionnel', isDark),
+                        _buildNavItem('🏢', 'Entreprise', '/enterprise', isDark),
+                        
                         _buildSectionTitle('Échange', isDark),
                         _buildNavItem('₿', 'Crypto', '/exchange', isDark),
                         _buildNavItem('💱', 'Fiat', '/exchange', isDark),

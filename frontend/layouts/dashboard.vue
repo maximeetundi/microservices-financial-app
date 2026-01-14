@@ -55,6 +55,15 @@
         </NuxtLink>
 
         <div class="pt-4 pb-2">
+          <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Professionnel</p>
+        </div>
+
+        <NuxtLink to="/enterprise" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">🏢</span>
+          <span>Entreprise</span>
+        </NuxtLink>
+
+        <div class="pt-4 pb-2">
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Échange</p>
         </div>
 
