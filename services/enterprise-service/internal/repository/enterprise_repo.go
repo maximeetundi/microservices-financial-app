@@ -49,3 +49,22 @@ func (r *EnterpriseRepository) Update(ctx context.Context, ent *models.Enterpris
 	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": ent.ID}, ent)
 	return err
 }
+
+func (r *EnterpriseRepository) FindAll(ctx context.Context) ([]*models.Enterprise, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var enterprises []*models.Enterprise
+	if err := cursor.All(ctx, &enterprises); err != nil {
+		return nil, err
+	}
+	
+	if enterprises == nil {
+		enterprises = []*models.Enterprise{}
+	}
+	
+	return enterprises, nil
+}

@@ -45,3 +45,12 @@ func (h *EnterpriseHandler) GetEnterprise(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, ent)
 }
+
+func (h *EnterpriseHandler) ListEnterprises(c *gin.Context) {
+	enterprises, err := h.repo.FindAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list enterprises", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, enterprises)
+}

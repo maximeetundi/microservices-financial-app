@@ -71,6 +71,7 @@ func main() {
 	api := router.Group("/api/v1")
 	{
 		// Enterprise Routes
+		api.GET("/enterprises", entHandler.ListEnterprises)
 		api.POST("/enterprises", entHandler.CreateEnterprise)
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
