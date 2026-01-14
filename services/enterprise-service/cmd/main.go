@@ -35,12 +35,12 @@ func main() {
 	}
 	router := gin.Default()
 
-	// CORS
+	// CORS configuration (Matching Wallet Service)
 	router.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length", "Authorization"},
 		AllowCredentials: true,
 	}))
 
