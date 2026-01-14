@@ -707,6 +707,10 @@ const employees = ref([])
 const isLoading = ref(true)
 const isSaving = ref(false)
 
+// Import State
+const selectedImportService = ref('')
+const importFile = ref(null)
+
 // Create Modal State
 const showCreateModal = ref(false)
 const isCreating = ref(false)
