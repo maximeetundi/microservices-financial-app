@@ -7,6 +7,7 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/handlers"
+	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/services"
 	"github.com/gin-contrib/cors"
