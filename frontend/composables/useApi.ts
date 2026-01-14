@@ -673,6 +673,11 @@ export const enterpriseAPI = {
     get: (id: string) => api.get(`/enterprise-service/api/v1/enterprises/${id}`),
     update: (id: string, data: any) => api.put(`/enterprise-service/api/v1/enterprises/${id}`, data),
 
+    // Logo Upload
+    uploadLogo: (formData: FormData) => api.post('/enterprise-service/api/v1/enterprises/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
     // Employee Management
     listEmployees: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/employees`),
     inviteEmployee: (data: any) => api.post('/enterprise-service/api/v1/employees/invite', data),

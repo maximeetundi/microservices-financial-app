@@ -60,13 +60,27 @@ func main() {
 	invRepo := repository.NewInvoiceRepository(mongoClient.Database(cfg.DBName))
 	batchRepo := repository.NewBatchRepository(mongoClient.Database(cfg.DBName))
 	
+	// Initialize Storage Service
+	storageService, err := services.NewStorageService(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucket,
+		cfg.MinioUseSSL,
+		cfg.PublicURL,
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize storage service: %v", err)
+		// Proceeding without storage, but upload will fail if used
+	}
+
 	salaryService := services.NewSalaryService()
 	authClient := services.NewAuthClient()
 	empService := services.NewEmployeeService(empRepo, salaryService, authClient)
 	payService := services.NewPayrollService(payRepo, empRepo, salaryService)
 	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo)
 
-	entHandler := handlers.NewEnterpriseHandler(entRepo)
+	entHandler := handlers.NewEnterpriseHandler(entRepo, storageService)
 	empHandler := handlers.NewEmployeeHandler(empService)
 	payHandler := handlers.NewPayrollHandler(payService)
 	billHandler := handlers.NewBillingHandler(billService)
@@ -78,6 +92,7 @@ func main() {
 		// Enterprise Routes
 		api.GET("/enterprises", entHandler.ListEnterprises)
 		api.POST("/enterprises", entHandler.CreateEnterprise)
+		api.POST("/enterprises/logo", entHandler.UploadLogo) // New Logo Upload Route
 		api.PUT("/enterprises/:id", entHandler.UpdateEnterprise)
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
@@ -98,6 +113,12 @@ func main() {
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/validate", billHandler.ValidateBatch)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
 		
+		// Subscription Routes
+		// QR Code Routes
+		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store") // Using prod URL base
+		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
+		api.GET("/enterprises/:id/services/:serviceId/qrcode", qrHandler.GenerateServiceQR)
+
 		// Subscription Routes
 		subHandler := handlers.NewSubscriptionHandler(subRepo)
 		api.GET("/enterprises/:id/subscriptions", subHandler.ListSubscriptions)

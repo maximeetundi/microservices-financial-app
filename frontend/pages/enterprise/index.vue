@@ -7,9 +7,14 @@
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Portail Entreprise</h1>
           <p class="text-gray-500 dark:text-gray-400">Gérez votre entreprise, vos employés et la facturation</p>
         </div>
-        <button @click="openCreateModal" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
-          Créer une nouvelle entreprise
-        </button>
+        <div class="flex gap-3">
+            <button v-if="currentEnterprise" @click="showQRModal = true" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2">
+                <span>📱</span> Codes QR
+            </button>
+            <button @click="openCreateModal" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
+            Créer une nouvelle entreprise
+            </button>
+        </div>
       </div>
 
       <!-- Enterprise List (Selection) -->
@@ -532,22 +537,30 @@
             <form @submit.prevent="handleCreateEnterprise" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nom de l'entreprise</label>
-                    <input v-model="newEnterprise.name" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                    <input v-model="newEnterprise.name" type="text" required placeholder="Ex: Ma Super École" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Numéro d'enregistrement (NIF/RCCM)</label>
-                    <input v-model="newEnterprise.registration_number" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Logo de l'entreprise</label>
+                     <div class="mt-1 flex items-center gap-4">
+                        <div v-if="newEnterprise.logoPreview" class="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600">
+                           <img :src="newEnterprise.logoPreview" alt="Logo" class="w-full h-full object-cover">
+                        </div>
+                        <div v-else class="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 border border-dashed border-gray-300 dark:border-gray-600">
+                           📷
+                        </div>
+                        <input type="file" @change="handleLogoUpload" accept="image/*" class="text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-gray-700 dark:file:text-white">
+                     </div>
                 </div>
-                
+
                 <div>
-                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-                   <select v-model="newEnterprise.type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
-                       <option value="SME">PME (Petite/Moyenne Entreprise)</option>
-                       <option value="LARGE">Grande Entreprise</option>
-                       <option value="STARTUP">Startup</option>
-                       <option value="SCHOOL">École / Éducation</option>
-                       <option value="TRANSPORT">Transport</option>
+                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre moyen d'employés</label>
+                   <select v-model="newEnterprise.employee_count_range" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 border">
+                       <option value="1-10">1 - 10 employés</option>
+                       <option value="11-50">11 - 50 employés</option>
+                       <option value="51-200">51 - 200 employés</option>
+                       <option value="201-500">201 - 500 employés</option>
+                       <option value="500+">Plus de 500 employés</option>
                    </select>
                 </div>
 
@@ -583,6 +596,7 @@ const selectedClientFilterService = ref('')
 const clientSearchQuery = ref('')
 const foundUser = ref(null)
 const isSearchingUser = ref(false)
+const showQRModal = ref(false)
 const newSubscription = ref({
     service_id: '',
     student_name: '',
@@ -621,7 +635,7 @@ const fetchClients = async () => {
         isLoading.value = true
         const { data } = await enterpriseAPI.getSubscriptions(currentEnterprise.value.id, selectedClientFilterService.value)
         // Default Sort by Name
-        clientSubscriptions.value = data.sort((a, b) => (a.client_name || '').localeCompare(b.client_name || ''))
+        clientSubscriptions.value = (data || []).sort((a, b) => (a.client_name || '').localeCompare(b.client_name || ''))
     } catch (e) {
         console.error('Failed to fetch clients', e)
     } finally {
@@ -724,7 +738,7 @@ const fetchEnterprises = async () => {
    try {
       console.log('Fetching enterprises...')
       const { data } = await enterpriseAPI.list()
-      enterprises.value = data
+      enterprises.value = data || []
    } catch (error) {
       console.error('Failed to fetch enterprises', error)
       enterprises.value = []
@@ -753,7 +767,7 @@ const fetchEmployees = async () => {
    if (!currentEnterprise.value) return
    try {
       const { data } = await enterpriseAPI.listEmployees(currentEnterprise.value.id)
-      employees.value = data
+      employees.value = data || []
    } catch (error) {
       console.error('Failed to fetch employees', error)
       employees.value = []
@@ -764,13 +778,40 @@ const fetchEmployees = async () => {
 
 const openCreateModal = () => {
   showCreateModal.value = true
-  newEnterprise.value = { name: '', registration_number: '', type: 'SME' }
+  newEnterprise.value = { 
+      name: '', 
+      employee_count_range: '1-10',
+      logo: null,
+      logoPreview: null
+  }
+}
+
+const handleLogoUpload = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+        newEnterprise.value.logo = file
+        newEnterprise.value.logoPreview = URL.createObjectURL(file)
+    }
 }
 
 const handleCreateEnterprise = async () => {
     isCreating.value = true
     try {
-        await enterpriseAPI.create(newEnterprise.value)
+        let logoUrl = ''
+        if (newEnterprise.value.logo && newEnterprise.value.logo instanceof File) {
+            const formData = new FormData()
+            formData.append('file', newEnterprise.value.logo)
+            const { data } = await enterpriseAPI.uploadLogo(formData)
+            logoUrl = data.url
+        }
+
+        const payload = {
+            name: newEnterprise.value.name,
+            employee_count_range: newEnterprise.value.employee_count_range,
+            logo: logoUrl
+        }
+
+        await enterpriseAPI.create(payload)
         showCreateModal.value = false
         await fetchEnterprises()
     } catch (error) {

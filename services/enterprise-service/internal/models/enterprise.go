@@ -19,7 +19,11 @@ const (
 type Enterprise struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name      string             `bson:"name" json:"name"`
-	Type      EnterpriseType     `bson:"type" json:"type"`
+	Type      EnterpriseType     `bson:"type" json:"type"` // Default: SERVICE
+	Logo      string             `bson:"logo,omitempty" json:"logo,omitempty"`
+	EmployeeCountRange string    `bson:"employee_count_range" json:"employee_count_range"` // "1-10", "11-50", etc.
+	RegistrationNumber string    `bson:"registration_number,omitempty" json:"registration_number,omitempty"` // Asked later
+	
 	OwnerID   string             `bson:"owner_id" json:"owner_id"` // Link to User ID
 	Settings  EnterpriseSettings `bson:"settings" json:"settings"`
 	

@@ -9,11 +9,40 @@ import (
 )
 
 type EnterpriseHandler struct {
-	repo *repository.EnterpriseRepository
+	repo    *repository.EnterpriseRepository
+	storage *services.StorageService
 }
 
-func NewEnterpriseHandler(repo *repository.EnterpriseRepository) *EnterpriseHandler {
-	return &EnterpriseHandler{repo: repo}
+func NewEnterpriseHandler(repo *repository.EnterpriseRepository, storage *services.StorageService) *EnterpriseHandler {
+	return &EnterpriseHandler{repo: repo, storage: storage}
+}
+
+// UploadLogo handles logo upload
+func (h *EnterpriseHandler) UploadLogo(c *gin.Context) {
+	// Get file from form
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file provided"})
+		return
+	}
+	defer file.Close()
+
+	// Validate file type
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+
+	// Upload to MinIO (folder "enterprises")
+	url, err := h.storage.UploadFile(c.Request.Context(), file, header.Filename, header.Size, contentType, "enterprises")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"url": url,
+	})
 }
 
 // CreateEnterprise (Point 1)
@@ -27,6 +56,11 @@ func (h *EnterpriseHandler) CreateEnterprise(c *gin.Context) {
 	// Set OwnerID from JWT (assuming middleware sets "user_id")
 	userID, _ := c.Get("user_id")
 	req.OwnerID, _ = userID.(string)
+
+	// Set Default Type if missing
+	if req.Type == "" {
+		req.Type = models.EnterpriseTypeService
+	}
 
 	if err := h.repo.Create(c.Request.Context(), &req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create enterprise", "details": err.Error()})
