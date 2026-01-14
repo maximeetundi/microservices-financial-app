@@ -33,7 +33,7 @@ func Load() *Config {
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucket:    getEnv("MINIO_BUCKET", "finance-app-assets"),
 		MinioUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
-		PublicURL:      getEnv("PUBLIC_URL", "http://localhost:9000"),
+		PublicURL:      getEnv("PUBLIC_URL", getEnv("MINIO_PUBLIC_URL", "http://localhost:9000")),
 	}
 }
 

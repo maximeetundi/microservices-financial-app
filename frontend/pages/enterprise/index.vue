@@ -796,6 +796,62 @@
         </div>
       </div>
 
+      <!-- Add Service Modal -->
+      <div v-if="showAddServiceModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6 space-y-4">
+              <h3 class="font-bold text-lg dark:text-white">Nouveau Service</h3>
+              
+              <div>
+                  <label class="block text-sm font-medium mb-1 dark:text-gray-300">Groupe de Service</label>
+                  <select v-model="newService.group_id" class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2">
+                      <option v-for="grp in currentEnterprise.service_groups" :key="grp.id" :value="grp.id">
+                          {{ grp.name }}
+                      </option>
+                  </select>
+              </div>
+
+              <div>
+                  <label class="block text-sm font-medium mb-1 dark:text-gray-300">Nom du Service</label>
+                  <input v-model="newService.name" placeholder="ex: Frais de scolarité, Cantine" class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2">
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                  <div>
+                      <label class="block text-sm font-medium mb-1 dark:text-gray-300">Type</label>
+                      <select v-model="newService.billing_type" class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 text-sm">
+                           <option value="FIXED">Fixe</option>
+                           <option value="USAGE">Usage</option>
+                      </select>
+                  </div>
+                  <div>
+                      <label class="block text-sm font-medium mb-1 dark:text-gray-300">Fréquence</label>
+                      <select v-model="newService.billing_frequency" class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 text-sm">
+                           <option value="DAILY">Journalier</option>
+                           <option value="WEEKLY">Hebdo</option>
+                           <option value="MONTHLY">Mensuel</option>
+                           <option value="ANNUALLY">Annuel</option>
+                           <option value="ONETIME">Unique</option>
+                      </select>
+                  </div>
+              </div>
+
+              <div>
+                  <label class="block text-sm font-medium mb-1 dark:text-gray-300">Prix de base</label>
+                  <div class="relative">
+                       <input v-model.number="newService.base_price" type="number" class="w-full rounded-lg border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white pl-3 pr-12 py-2">
+                       <span class="absolute right-3 top-2 text-gray-500 text-sm">
+                           {{ currentEnterprise.service_groups?.find(g => g.id === newService.group_id)?.currency || 'XOF' }}
+                       </span>
+                  </div>
+              </div>
+
+              <div class="flex justify-end gap-3 pt-4">
+                  <button @click="showAddServiceModal = false" class="px-4 py-2 text-gray-500 hover:text-gray-700">Annuler</button>
+                  <button @click="confirmAddService" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Créer</button>
+              </div>
+          </div>
+      </div>
+
       <!-- Create Enterprise Modal -->
       <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
         <div class="bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-6 space-y-4">
@@ -1422,6 +1478,63 @@ const uploadInvoiceFile = async () => {
          console.error('Upload failed', error)
          alert("Erreur lors de l'import: " + (error.response?.data?.error || error.message))
     }
+}
+
+// Add Service Modal Logic
+const showAddServiceModal = ref(false)
+const newService = ref({
+    group_id: '',
+    name: '',
+    billing_type: 'FIXED', 
+    billing_frequency: 'MONTHLY', 
+    base_price: 0, 
+    unit: ''
+})
+
+const goToSettingsAndAddService = () => {
+    // If no groups, user must create one first
+    if (!currentEnterprise.value.service_groups || currentEnterprise.value.service_groups.length === 0) {
+        alert("Veuillez d'abord créer un groupe de services (ex: 'Scolarité', 'Transport') dans l'onglet Paramètres.")
+        currentTab.value = 'Settings'
+        return
+    }
+    
+    // Open Modal
+    newService.value = {
+        group_id: currentEnterprise.value.service_groups[0].id, // Default to first
+        name: '',
+        billing_type: 'FIXED', 
+        billing_frequency: 'MONTHLY', 
+        base_price: 0, 
+        unit: ''
+    }
+    showAddServiceModal.value = true
+}
+
+const confirmAddService = () => {
+    if (!newService.value.group_id || !newService.value.name) {
+        alert('Veuillez remplir le nom et choisir un groupe')
+        return
+    }
+    
+    const group = currentEnterprise.value.service_groups.find(g => g.id === newService.value.group_id)
+    if (!group) return
+    
+    if (!group.services) group.services = []
+    
+    group.services.push({
+        id: newService.value.name.toLowerCase().replace(/\s+/g, '_'), 
+        name: newService.value.name,
+        billing_type: newService.value.billing_type,
+        billing_frequency: newService.value.billing_frequency,
+        base_price: newService.value.base_price,
+        unit: newService.value.unit,
+        uid: Date.now()
+    })
+    
+    showAddServiceModal.value = false
+    alert('Service ajouté ! N\'oubliez pas d\'enregistrer les modifications.')
+    currentTab.value = 'Settings' // Go to settings so they can save
 }
 
 // Watchers moved to end to avoid initialization issues
