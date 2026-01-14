@@ -5,6 +5,7 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
