@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // EnterpriseService handles business logic for enterprise management
@@ -153,7 +153,7 @@ func (s *EnterpriseService) SetEmployeeAsAdmin(ctx context.Context, enterpriseID
 	}
 	
 	if emp.EnterpriseID.Hex() != enterpriseID {
-		return primitive.ErrNilDocument
+		return errors.New("employee does not belong to this enterprise")
 	}
 	
 	// Add career event
@@ -177,11 +177,11 @@ func (s *EnterpriseService) RemoveAdminRole(ctx context.Context, enterpriseID, e
 	}
 	
 	if emp.EnterpriseID.Hex() != enterpriseID {
-		return primitive.ErrNilDocument
+		return errors.New("employee does not belong to this enterprise")
 	}
 	
 	if emp.Role == models.EmployeeRoleOwner {
-		return primitive.ErrNilDocument // Cannot remove owner role
+		return errors.New("cannot remove owner role")
 	}
 	
 	// Add career event
