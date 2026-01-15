@@ -95,7 +95,7 @@ type EnterpriseSettings struct {
 type ServiceDefinition struct {
 	ID        string  `bson:"id" json:"id"` // slug, e.g., "gym_membership"
 	Name      string  `bson:"name" json:"name"`
-	Unit      string  `bson:"unit" json:"unit"` // e.g., "Month", "Session"
+	Unit      string  `bson:"unit" json:"unit"` // e.g., "kWh", "m³", "Session"
 	BasePrice float64 `bson:"base_price" json:"base_price"`
 	
 	// Dynamic Frequency Config
@@ -103,17 +103,36 @@ type ServiceDefinition struct {
 	BillingFrequency string  `bson:"billing_frequency" json:"billing_frequency"` // DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM
 	CustomInterval   int     `bson:"custom_interval,omitempty" json:"custom_interval,omitempty"` // If CUSTOM, e.g., every 15 days
     
+	// Dynamic Pricing Config (for USAGE billing type)
+	PricingMode    string         `bson:"pricing_mode,omitempty" json:"pricing_mode,omitempty"` // FIXED, TIERED, THRESHOLD
+	PricingTiers   []PricingTier  `bson:"pricing_tiers,omitempty" json:"pricing_tiers,omitempty"` // For TIERED/THRESHOLD mode
+    
     PaymentSchedule  []PaymentScheduleItem `bson:"payment_schedule,omitempty" json:"payment_schedule,omitempty"`
     FormSchema       []ReqFormField        `bson:"form_schema,omitempty" json:"form_schema,omitempty"`
     PenaltyConfig    *PenaltyConfig        `bson:"penalty_config,omitempty" json:"penalty_config,omitempty"`
 }
 
+// PricingTier defines a consumption tier with optional bonuses
+// Used for tiered pricing (electricity, water, etc.)
+type PricingTier struct {
+	MinConsumption float64 `bson:"min_consumption" json:"min_consumption"` // e.g., 0, 100, 500
+	MaxConsumption float64 `bson:"max_consumption" json:"max_consumption"` // e.g., 100, 500, -1 (unlimited)
+	PricePerUnit   float64 `bson:"price_per_unit" json:"price_per_unit"`   // Base price for units in this tier
+	FixedBonus     float64 `bson:"fixed_bonus,omitempty" json:"fixed_bonus,omitempty"`     // Fixed amount added when consumption enters this tier
+	PercentBonus   float64 `bson:"percent_bonus,omitempty" json:"percent_bonus,omitempty"` // Percentage of tier total added as bonus
+	Label          string  `bson:"label,omitempty" json:"label,omitempty"` // e.g., "Palier 1", "Tranche sociale"
+}
+
+
 type PenaltyConfig struct {
     Type        string  `bson:"type" json:"type"`                                   // FIXED, PERCENTAGE, HYBRID
     Value       float64 `bson:"value" json:"value"`                                 // Fixed amount (for FIXED and HYBRID)
     Percentage  float64 `bson:"percentage,omitempty" json:"percentage,omitempty"`   // Percentage (for PERCENTAGE and HYBRID)
-    Frequency   string  `bson:"frequency" json:"frequency"`                         // ONETIME, DAILY, WEEKLY
-    GracePeriod int     `bson:"grace_period" json:"grace_period"`                   // Days before penalty applies
+    Frequency   string  `bson:"frequency" json:"frequency"`                         // DAILY, WEEKLY, MONTHLY, QUARTERLY, SEMIANNUAL, ANNUAL
+    GracePeriod int     `bson:"grace_period" json:"grace_period"`                   // Grace period value
+    GraceUnit   string  `bson:"grace_unit,omitempty" json:"grace_unit,omitempty"`   // DAYS, WEEKS, MONTHS (default: DAYS)
+    MaxPenaltyMonths int `bson:"max_penalty_months,omitempty" json:"max_penalty_months,omitempty"` // Max months to apply penalty (default: 6, 0 = forever)
+    MaxPenaltyAmount float64 `bson:"max_penalty_amount,omitempty" json:"max_penalty_amount,omitempty"` // Max penalty amount (0 = no limit)
 }
 
 type ReqFormField struct {

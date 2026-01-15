@@ -68,8 +68,21 @@
             class="w-16 border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0" />
         </div>
 
-        <!-- Price -->
-        <div class="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 px-3 py-2 rounded-xl border border-primary-200 dark:border-primary-700">
+        <!-- Pricing Mode (for USAGE) -->
+        <div v-if="localService.billing_type === 'USAGE'" 
+          class="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+          <span class="text-xs text-gray-500 dark:text-gray-400">Tarif:</span>
+          <select v-model="localService.pricing_mode" 
+            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer">
+            <option value="FIXED" class="bg-white dark:bg-gray-800">Fixe</option>
+            <option value="TIERED" class="bg-white dark:bg-gray-800">Par palier</option>
+            <option value="THRESHOLD" class="bg-white dark:bg-gray-800">Par seuil</option>
+          </select>
+        </div>
+
+        <!-- Price (only show for FIXED pricing or non-USAGE) -->
+        <div v-if="localService.pricing_mode !== 'TIERED' && localService.pricing_mode !== 'THRESHOLD'" 
+          class="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 px-3 py-2 rounded-xl border border-primary-200 dark:border-primary-700">
           <span class="text-xs text-primary-600 dark:text-primary-400">{{ localService.billing_type === 'USAGE' ? 'Prix/unité:' : (hasPaymentSchedule ? 'Total:' : 'Montant:') }}</span>
           <!-- Editable when no schedule, readonly when schedule exists -->
           <input v-if="!hasPaymentSchedule" 
@@ -79,6 +92,76 @@
             class="w-24 border-0 bg-transparent text-sm font-bold text-primary-700 dark:text-primary-300 focus:ring-0 p-0 text-right" />
           <span v-else class="text-sm font-bold text-primary-700 dark:text-primary-300">{{ scheduleTotalAmount }}</span>
           <span class="text-xs font-bold text-primary-600 dark:text-primary-400">{{ currency }}</span>
+        </div>
+      </div>
+
+      <!-- Pricing Tiers Builder (for TIERED or THRESHOLD mode) -->
+      <div v-if="localService.billing_type === 'USAGE' && (localService.pricing_mode === 'TIERED' || localService.pricing_mode === 'THRESHOLD')"
+        class="mt-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold text-indigo-800 dark:text-indigo-200">
+            {{ localService.pricing_mode === 'TIERED' ? 'Paliers de prix' : 'Seuils de facturation' }}
+          </span>
+          <button @click="addPricingTier" 
+            class="text-xs px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            + Ajouter
+          </button>
+        </div>
+
+        <div v-if="!localService.pricing_tiers?.length" class="text-sm text-gray-500 italic text-center py-2">
+          Aucun palier configuré
+        </div>
+
+        <div v-else class="space-y-2">
+          <div v-for="(tier, idx) in localService.pricing_tiers" :key="idx"
+            class="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Tier Label -->
+              <input v-model="tier.label" 
+                placeholder="Palier 1..." 
+                class="w-24 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs" />
+              
+              <!-- Min -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-500">De:</span>
+                <input v-model.number="tier.min_consumption" type="number" 
+                  class="w-16 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs text-right" />
+              </div>
+              
+              <!-- Max -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-500">À:</span>
+                <input v-model.number="tier.max_consumption" type="number" placeholder="-1=∞"
+                  class="w-16 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs text-right" />
+              </div>
+              
+              <!-- Price/Unit -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-500">Prix:</span>
+                <input v-model.number="tier.price_per_unit" type="number" step="0.01"
+                  class="w-16 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs text-right" />
+              </div>
+
+              <!-- Fixed Bonus -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-500">+Fixe:</span>
+                <input v-model.number="tier.fixed_bonus" type="number" step="0.01" placeholder="0"
+                  class="w-14 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs text-right" />
+              </div>
+
+              <!-- Percent Bonus -->
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-500">+%:</span>
+                <input v-model.number="tier.percent_bonus" type="number" step="0.1" placeholder="0"
+                  class="w-12 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-xs text-right" />
+              </div>
+
+              <!-- Delete -->
+              <button @click="removePricingTier(idx)" class="p-1 text-red-400 hover:text-red-600">
+                <XMarkIcon class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -188,41 +271,70 @@
             </button>
           </div>
 
-          <div v-if="hasPenalty" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Type</label>
-              <select v-model="localService.penalty_config.type" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
-                <option value="FIXED" class="dark:bg-gray-800">Montant fixe</option>
-                <option value="PERCENTAGE" class="dark:bg-gray-800">Pourcentage</option>
-                <option value="HYBRID" class="dark:bg-gray-800">Hybride</option>
-              </select>
+          <div v-if="hasPenalty" class="space-y-3">
+            <!-- Row 1: Type, Amounts -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Type</label>
+                <select v-model="localService.penalty_config.type" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
+                  <option value="FIXED" class="dark:bg-gray-800">Montant fixe</option>
+                  <option value="PERCENTAGE" class="dark:bg-gray-800">Pourcentage</option>
+                  <option value="HYBRID" class="dark:bg-gray-800">Hybride</option>
+                </select>
+              </div>
+              
+              <!-- Amount field (for FIXED and HYBRID) -->
+              <div v-if="localService.penalty_config?.type === 'FIXED' || localService.penalty_config?.type === 'HYBRID'">
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Montant</label>
+                <input v-model.number="localService.penalty_config.value" type="number" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+              </div>
+              
+              <!-- Percentage field (for PERCENTAGE and HYBRID) -->
+              <div v-if="localService.penalty_config?.type === 'PERCENTAGE' || localService.penalty_config?.type === 'HYBRID'">
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Pourcentage (%)</label>
+                <input v-model.number="localService.penalty_config.percentage" type="number" step="0.1" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+              </div>
+              
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Fréquence d'application</label>
+                <select v-model="localService.penalty_config.frequency" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
+                  <option value="DAILY" class="dark:bg-gray-800">Par jour</option>
+                  <option value="WEEKLY" class="dark:bg-gray-800">Par semaine</option>
+                  <option value="MONTHLY" class="dark:bg-gray-800">Par mois</option>
+                  <option value="QUARTERLY" class="dark:bg-gray-800">Par trimestre</option>
+                  <option value="SEMIANNUAL" class="dark:bg-gray-800">Par semestre</option>
+                  <option value="ANNUAL" class="dark:bg-gray-800">Par an</option>
+                </select>
+              </div>
             </div>
-            
-            <!-- Amount field (for FIXED and HYBRID) -->
-            <div v-if="localService.penalty_config?.type === 'FIXED' || localService.penalty_config?.type === 'HYBRID'">
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Montant</label>
-              <input v-model.number="localService.penalty_config.value" type="number" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
-            </div>
-            
-            <!-- Percentage field (for PERCENTAGE and HYBRID) -->
-            <div v-if="localService.penalty_config?.type === 'PERCENTAGE' || localService.penalty_config?.type === 'HYBRID'">
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Pourcentage (%)</label>
-              <input v-model.number="localService.penalty_config.percentage" type="number" step="0.1" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
-            </div>
-            
-            <div>
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Fréquence</label>
-              <select v-model="localService.penalty_config.frequency" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
-                <option value="ONETIME" class="dark:bg-gray-800">Une fois</option>
-                <option value="DAILY" class="dark:bg-gray-800">Par jour</option>
-                <option value="WEEKLY" class="dark:bg-gray-800">Par semaine</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Délai de grâce</label>
-              <div class="flex items-center gap-1">
-                <input v-model.number="localService.penalty_config.grace_period" type="number" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
-                <span class="text-xs text-gray-500 dark:text-gray-400">jours</span>
+
+            <!-- Row 2: Grace Period & Max Penalty Date -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Délai de grâce</label>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="localService.penalty_config.grace_period" type="number" class="w-16 px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+                  <select v-model="localService.penalty_config.grace_unit" class="flex-1 px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
+                    <option value="DAYS" class="dark:bg-gray-800">jours</option>
+                    <option value="WEEKS" class="dark:bg-gray-800">semaines</option>
+                    <option value="MONTHS" class="dark:bg-gray-800">mois</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Limite des pénalités</label>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="localService.penalty_config.max_penalty_months" type="number" class="w-16 px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+                  <span class="text-xs text-gray-500 dark:text-gray-400">mois max</span>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Plafond montant</label>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="localService.penalty_config.max_penalty_amount" type="number" placeholder="∞" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+                </div>
               </div>
             </div>
           </div>
@@ -259,7 +371,9 @@ const getInitialService = (svc) => {
     payment_schedule: svc.payment_schedule || [],
     custom_interval: svc.custom_interval || 30,
     form_schema: svc.form_schema || [],
-    penalty_config: svc.penalty_config || null
+    penalty_config: svc.penalty_config || null,
+    pricing_mode: svc.pricing_mode || 'FIXED',
+    pricing_tiers: svc.pricing_tiers || []
   }
 }
 
@@ -318,8 +432,11 @@ const togglePenalty = () => {
       type: 'PERCENTAGE',
       value: 0,
       percentage: 10,
-      frequency: 'ONETIME',
-      grace_period: 5
+      frequency: 'MONTHLY',
+      grace_period: 5,
+      grace_unit: 'DAYS',
+      max_penalty_months: 6, // Default 6 months max
+      max_penalty_amount: 0 // 0 = no limit
     }
   }
 }
@@ -350,6 +467,26 @@ const addScheduleItem = () => {
 
 const removeScheduleItem = (idx) => {
   localService.value.payment_schedule.splice(idx, 1)
+}
+
+// Pricing Tier Helpers
+const addPricingTier = () => {
+  if (!localService.value.pricing_tiers) localService.value.pricing_tiers = []
+  const tierCount = localService.value.pricing_tiers.length
+  const lastMax = tierCount > 0 ? localService.value.pricing_tiers[tierCount - 1].max_consumption : 0
+  
+  localService.value.pricing_tiers.push({
+    label: `Palier ${tierCount + 1}`,
+    min_consumption: lastMax > 0 ? lastMax : 0,
+    max_consumption: -1, // -1 means unlimited
+    price_per_unit: localService.value.base_price || 0,
+    fixed_bonus: 0,
+    percent_bonus: 0
+  })
+}
+
+const removePricingTier = (idx) => {
+  localService.value.pricing_tiers.splice(idx, 1)
 }
 
 // Auto-open advanced options when selecting CUSTOM frequency
