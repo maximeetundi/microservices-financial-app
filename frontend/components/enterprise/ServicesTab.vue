@@ -23,7 +23,10 @@
     </div>
 
     <!-- Service Groups Manager -->  
-    <ServiceGroupsManager v-model="serviceGroups" />
+    <ServiceGroupsManager 
+      v-model="serviceGroups" 
+      :available-wallets="wallets"
+    />
     
     <!-- Save Button -->
     <div class="flex justify-end">
@@ -39,9 +42,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { FolderIcon, PlusIcon } from '@heroicons/vue/24/outline'
-import { enterpriseAPI } from '@/composables/useApi'
+import { enterpriseAPI, walletAPI } from '@/composables/useApi'
 import ServiceGroupsManager from './ServiceGroupsManager.vue'
 
 const props = defineProps({
@@ -55,6 +58,7 @@ const emit = defineEmits(['update'])
 
 const isSaving = ref(false)
 const serviceGroups = ref([])
+const wallets = ref([])
 
 // Initialize with enterprise data
 watch(() => props.enterprise, (ent) => {
@@ -62,6 +66,16 @@ watch(() => props.enterprise, (ent) => {
     serviceGroups.value = JSON.parse(JSON.stringify(ent.service_groups))
   }
 }, { immediate: true })
+
+onMounted(async () => {
+  try {
+    // Fetch user's wallets to use as payment destinations
+    const res = await walletAPI.getMyWallets()
+    wallets.value = res.data
+  } catch (error) {
+    console.error('Failed to fetch wallets:', error)
+  }
+})
 
 const addGroup = () => {
   serviceGroups.value.push({

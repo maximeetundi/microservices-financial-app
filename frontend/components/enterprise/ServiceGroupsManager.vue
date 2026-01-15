@@ -63,6 +63,18 @@
                 </select>
               </div>
 
+              <!-- Wallet Destination -->
+              <div class="w-48">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Wallet destination</label>
+                <select v-model="group.wallet_id" 
+                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
+                  <option value="" class="bg-white dark:bg-gray-800 dark:text-white">-- Wallet par défaut --</option>
+                  <option v-for="wallet in availableWallets" :key="wallet.id" :value="wallet.id" class="bg-white dark:bg-gray-800 dark:text-white">
+                    {{ wallet.currency }} - {{ wallet.label || 'Principal' }}
+                  </option>
+                </select>
+              </div>
+
               <!-- Private Toggle -->
               <div class="flex items-center">
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -148,6 +160,10 @@ import ServiceCard from './ServiceCard.vue'
 
 const props = defineProps({
   modelValue: {
+    type: Array,
+    default: () => []
+  },
+  availableWallets: {
     type: Array,
     default: () => []
   }

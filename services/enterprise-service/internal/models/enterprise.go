@@ -82,6 +82,7 @@ type ServiceGroup struct {
 	Name      string              `bson:"name" json:"name"` // e.g. "Pension 6ème"
 	IsPrivate bool                `bson:"is_private" json:"is_private"` // If true, hidden from QR scan
 	Currency  string              `bson:"currency" json:"currency"`     // Specific currency for this group
+	WalletID  string              `bson:"wallet_id,omitempty" json:"wallet_id,omitempty"` // Destination wallet for payments
 	Services  []ServiceDefinition `bson:"services" json:"services"`
 }
 
@@ -144,10 +145,10 @@ type ReqFormField struct {
 }
 
 type PaymentScheduleItem struct {
-    Name      string    `bson:"name" json:"name"`
-    StartDate time.Time `bson:"start_date" json:"start_date"`
-    EndDate   time.Time `bson:"end_date" json:"end_date"`
-    Amount    float64   `bson:"amount" json:"amount"`
+    Name      string  `bson:"name" json:"name"`
+    StartDate string  `bson:"start_date" json:"start_date"` // Format: YYYY-MM-DD
+    EndDate   string  `bson:"end_date" json:"end_date"`     // Format: YYYY-MM-DD
+    Amount    float64 `bson:"amount" json:"amount"`
 }
 
 // TransportConfig (Point 7a: Lignes, Zones, Tarifs)
