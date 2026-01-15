@@ -50,8 +50,41 @@ type Employee struct {
 	// Section 4: Historique & Évolution
 	History []CareerEvent `bson:"history" json:"history"`
 
+	// Position & Seniority
+	PositionID string    `bson:"position_id,omitempty" json:"position_id,omitempty"` // Reference to JobPosition
+	HireDate   time.Time `bson:"hire_date,omitempty" json:"hire_date,omitempty"`
+	
+	// Admin-specific permissions (only applies if Role is ADMIN or OWNER)
+	Permissions AdminPermission `bson:"permissions,omitempty" json:"permissions,omitempty"`
+
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+// AdminPermission defines what an admin can INITIATE (security rules define who APPROVES)
+type AdminPermission struct {
+	CanInviteEmployees    bool `bson:"can_invite_employees" json:"can_invite_employees"`
+	CanTerminateEmployees bool `bson:"can_terminate_employees" json:"can_terminate_employees"`
+	CanManagePayroll      bool `bson:"can_manage_payroll" json:"can_manage_payroll"`
+	CanManageServices     bool `bson:"can_manage_services" json:"can_manage_services"`
+	CanManageSettings     bool `bson:"can_manage_settings" json:"can_manage_settings"`
+	CanManageWallets      bool `bson:"can_manage_wallets" json:"can_manage_wallets"`
+	CanApproveActions     bool `bson:"can_approve_actions" json:"can_approve_actions"`
+	CanManageAdmins       bool `bson:"can_manage_admins" json:"can_manage_admins"` // Super-admin only
+}
+
+// GetDefaultOwnerPermissions returns full permissions for enterprise owner
+func GetDefaultOwnerPermissions() AdminPermission {
+	return AdminPermission{
+		CanInviteEmployees:    true,
+		CanTerminateEmployees: true,
+		CanManagePayroll:      true,
+		CanManageServices:     true,
+		CanManageSettings:     true,
+		CanManageWallets:      true,
+		CanApproveActions:     true,
+		CanManageAdmins:       true,
+	}
 }
 
 type SalaryConfig struct {
@@ -82,3 +115,35 @@ type CareerEvent struct {
 func (e *Employee) IsAdmin() bool {
 	return e.Role == EmployeeRoleAdmin || e.Role == EmployeeRoleOwner
 }
+
+// HasPermission checks if admin has specific permission
+func (e *Employee) HasPermission(permission string) bool {
+	if !e.IsAdmin() {
+		return false
+	}
+	// Owner always has all permissions
+	if e.Role == EmployeeRoleOwner {
+		return true
+	}
+	switch permission {
+	case "invite_employees":
+		return e.Permissions.CanInviteEmployees
+	case "terminate_employees":
+		return e.Permissions.CanTerminateEmployees
+	case "manage_payroll":
+		return e.Permissions.CanManagePayroll
+	case "manage_services":
+		return e.Permissions.CanManageServices
+	case "manage_settings":
+		return e.Permissions.CanManageSettings
+	case "manage_wallets":
+		return e.Permissions.CanManageWallets
+	case "approve_actions":
+		return e.Permissions.CanApproveActions
+	case "manage_admins":
+		return e.Permissions.CanManageAdmins
+	default:
+		return false
+	}
+}
+

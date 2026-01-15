@@ -34,6 +34,9 @@ type Enterprise struct {
 	// === Security Policies (Dynamic Multi-Approval) ===
 	SecurityPolicies []SecurityPolicy `bson:"security_policies" json:"security_policies"`
 	
+	// === Job Positions (Postes avec salaires par défaut) ===
+	JobPositions []JobPosition `bson:"job_positions" json:"job_positions"`
+	
 	// Dynamic Service Definitions (Section 7)
 	ServiceGroups []ServiceGroup `bson:"service_groups" json:"service_groups"`
 
@@ -46,6 +49,16 @@ type Enterprise struct {
 
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+// JobPosition defines a job/role with default salary in the enterprise
+type JobPosition struct {
+	ID            string  `bson:"id" json:"id"`
+	Name          string  `bson:"name" json:"name"`                     // Ex: "Enseignant", "Comptable"
+	Description   string  `bson:"description" json:"description"`
+	Department    string  `bson:"department" json:"department"`         // "Finance", "Pédagogie", "IT"
+	DefaultSalary float64 `bson:"default_salary" json:"default_salary"` // Salaire de base
+	Currency      string  `bson:"currency" json:"currency"`             // XOF, EUR, etc.
 }
 
 // SecurityPolicy defines approval rules for specific actions

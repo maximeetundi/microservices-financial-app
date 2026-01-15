@@ -143,7 +143,8 @@
     <!-- Invite Modal -->
     <InviteEmployeeModal 
       v-if="showInviteModal" 
-      :enterprise-id="enterpriseId"
+      :enterprise-id="enterprise.id"
+      :job-positions="enterprise.job_positions || []"
       @close="showInviteModal = false"
       @invited="handleInvited" />
 
@@ -166,8 +167,8 @@ import { enterpriseAPI } from '@/composables/useApi'
 import { usePin } from '@/composables/usePin'
 
 const props = defineProps({
-  enterpriseId: {
-    type: String,
+  enterprise: {
+    type: Object,
     required: true
   }
 })
@@ -211,7 +212,7 @@ const totalMasseSalariale = computed(() =>
 const fetchEmployees = async () => {
   isLoading.value = true
   try {
-    const { data } = await enterpriseAPI.listEmployees(props.enterpriseId)
+    const { data } = await enterpriseAPI.listEmployees(props.enterprise.id)
     employees.value = data || []
   } catch (e) {
     console.error('Failed to fetch employees', e)

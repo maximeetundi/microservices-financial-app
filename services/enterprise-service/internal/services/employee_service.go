@@ -129,7 +129,7 @@ func (s *EmployeeService) ConfirmEmployee(ctx context.Context, employeeID string
 }
 
 // PromoteEmployee (Point 4): Updates position/salary and Logs History
-func (s *EmployeeService) PromoteEmployee(ctx context.Context, employeeID string, newRole string, newSalary *models.SalaryConfig) error {
+func (s *EmployeeService) PromoteEmployee(ctx context.Context, employeeID string, newRole string, newSalary *models.SalaryConfig, permissions *models.AdminPermission) error {
 	emp, err := s.repo.FindByID(ctx, employeeID)
 	if err != nil {
 		return err
@@ -141,12 +141,23 @@ func (s *EmployeeService) PromoteEmployee(ctx context.Context, employeeID string
 		Type:        "PROMOTION",
 		Description: "Promoted from " + emp.Profession + " to " + newRole,
 		Previous:    map[string]interface{}{"role": emp.Profession, "salary": emp.SalaryConfig},
-		New:         map[string]interface{}{"role": newRole, "salary": newSalary},
+		New:         map[string]interface{}{"role": newRole, "salary": newSalary, "permissions": permissions},
 	}
 	emp.History = append(emp.History, historyEvent)
 
 	// 2. Apply new state
-	emp.Profession = newRole
+    if newRole != "" {
+	    emp.Profession = newRole
+        if newRole == "ADMIN" {
+            emp.Role = models.EmployeeRoleAdmin
+        }
+    }
+    
+    // Apply permissions if provided
+    if permissions != nil {
+        emp.Permissions = *permissions
+    }
+    
 	if newSalary != nil {
 		s.salaryService.CalculateNetSalary(newSalary)
 		emp.SalaryConfig = *newSalary

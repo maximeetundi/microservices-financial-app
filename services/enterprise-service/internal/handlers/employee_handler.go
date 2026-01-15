@@ -55,15 +55,16 @@ func (h *EmployeeHandler) AcceptInvitation(c *gin.Context) {
 func (h *EmployeeHandler) PromoteEmployee(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
-		NewRole   string              `json:"new_role"`
-		NewSalary *models.SalaryConfig `json:"new_salary"`
+		NewRole    string                  `json:"new_role"`
+		NewSalary  *models.SalaryConfig    `json:"new_salary"`
+		Permissions *models.AdminPermission `json:"permissions"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.PromoteEmployee(c.Request.Context(), id, req.NewRole, req.NewSalary); err != nil {
+	if err := h.service.PromoteEmployee(c.Request.Context(), id, req.NewRole, req.NewSalary, req.Permissions); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to promote employee"})
 		return
 	}

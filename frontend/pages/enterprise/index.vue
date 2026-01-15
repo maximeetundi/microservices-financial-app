@@ -130,6 +130,13 @@
           :enterprise="currentEnterprise"
           @update="handleEnterpriseUpdate" />
 
+        <OrganisationTab 
+          v-if="currentTab === 'Organisation'" 
+          :enterprise="currentEnterprise"
+          :employees="enterpriseEmployees"
+          @update="handleEnterpriseUpdate"
+          @save="saveSettings" />
+
         <EnterpriseSettings 
           v-if="currentTab === 'Settings'" 
           v-model="currentEnterprise"
@@ -183,6 +190,7 @@ const PayrollTab = defineAsyncComponent(() => import('@/components/enterprise/Pa
 const BillingTab = defineAsyncComponent(() => import('@/components/enterprise/BillingTab.vue'))
 const WalletsTab = defineAsyncComponent(() => import('@/components/enterprise/WalletsTab.vue'))
 const SecurityTab = defineAsyncComponent(() => import('@/components/enterprise/SecurityTab.vue'))
+const OrganisationTab = defineAsyncComponent(() => import('@/components/enterprise/OrganisationTab.vue'))
 const CreateEnterpriseModal = defineAsyncComponent(() => import('@/components/enterprise/CreateEnterpriseModal.vue'))
 
 // State
@@ -195,7 +203,7 @@ const showQRModal = ref(false)
 const showCreateModal = ref(false)
 
 // Tabs configuration
-const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Settings']
+const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
 const tabLabels = {
   'Overview': 'Aperçu',
   'Employees': 'Employés',
@@ -205,6 +213,7 @@ const tabLabels = {
   'Payroll': 'Paie',
   'Billing': 'Facturation',
   'Security': 'Sécurité',
+  'Organisation': 'Organisation',
   'Settings': 'Paramètres'
 }
 

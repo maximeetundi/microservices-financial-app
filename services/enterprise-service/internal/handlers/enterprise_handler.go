@@ -75,7 +75,7 @@ func (h *EnterpriseHandler) CreateEnterprise(c *gin.Context) {
 		return
 	}
 
-	// Auto-create owner as admin employee
+	// Auto-create owner as admin employee with full permissions
 	if h.empRepo != nil && req.OwnerID != "" {
 		ownerEmployee := &models.Employee{
 			EnterpriseID: req.ID,
@@ -83,8 +83,10 @@ func (h *EnterpriseHandler) CreateEnterprise(c *gin.Context) {
 			FirstName:    "Administrateur",
 			LastName:     "Principal",
 			Profession:   "Propriétaire",
-			Role:         models.EmployeeRoleAdmin,
+			Role:         models.EmployeeRoleOwner, // Owner role = all permissions
 			Status:       models.EmployeeStatusActive,
+			Permissions:  models.GetDefaultOwnerPermissions(), // Full permissions
+			HireDate:     time.Now(),
 			InvitedAt:    time.Now(),
 			AcceptedAt:   time.Now(),
 		}

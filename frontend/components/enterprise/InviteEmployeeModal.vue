@@ -3,7 +3,7 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="$emit('close')"></div>
       
-      <div class="relative bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div class="relative bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <button @click="$emit('close')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon class="w-5 h-5" />
         </button>
@@ -19,7 +19,7 @@
             <InformationCircleIcon class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div class="text-sm text-blue-700 dark:text-blue-300">
               <p class="font-medium mb-1">Processus avec consentement</p>
-              <p class="text-blue-600 dark:text-blue-400">L'employé recevra une notification et devra accepter l'invitation avec son code PIN.</p>
+              <p class="text-blue-600 dark:text-blue-400">L'employé recevra une notification pour rejoindre l'entreprise.</p>
             </div>
           </div>
         </div>
@@ -38,20 +38,41 @@
             </div>
           </div>
 
+          <!-- Position Selection -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Poste / Profession</label>
-            <input v-model="form.profession" type="text" placeholder="ex: Comptable, Enseignant..."
-              class="w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Poste / Métier</label>
+            <div class="relative">
+              <select v-model="selectedPositionId" @change="handlePositionChange"
+                class="w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 appearance-none">
+                <option value="">Sélectionner ou saisir manuellement...</option>
+                <option v-for="pos in jobPositions" :key="pos.id" :value="pos.id">
+                  {{ pos.name }} ({{ pos.department }})
+                </option>
+              </select>
+              <BriefcaseIcon class="w-5 h-5 text-gray-400 absolute right-3 top-2.5 pointer-events-none" />
+            </div>
+            
+            <!-- Manual input if no position selected -->
+            <input v-if="!selectedPositionId" v-model="form.profession" type="text" placeholder="Saisir l'intitulé du poste..."
+              class="mt-2 w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
           </div>
 
+          <!-- Contact -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email ou Téléphone *</label>
             <input v-model="form.contact" type="text" required placeholder="email@example.com ou +221..."
               class="w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
-            <p class="text-xs text-gray-500 mt-1">L'employé doit avoir un compte dans l'application</p>
           </div>
 
-          <!-- Salary Setup (Optional) -->
+          <!-- Hire Date -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date d'embauche</label>
+            <input v-model="form.hire_date" type="date" required
+              class="w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+            <p class="text-xs text-gray-500 mt-1">Utilisé pour calculer l'ancienneté</p>
+          </div>
+
+          <!-- Salary Setup -->
           <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
             <div class="flex items-center justify-between mb-3">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Configuration salaire</span>
@@ -67,7 +88,7 @@
                 <div class="flex items-center gap-2">
                   <input v-model.number="form.salary_config.base_amount" type="number"
                     class="flex-1 px-3 py-2 rounded-lg border-gray-200 dark:border-gray-600 dark:bg-gray-600 text-sm" />
-                  <span class="text-sm text-gray-500">XOF</span>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ form.salary_config.currency || 'XOF' }}</span>
                 </div>
               </div>
               <div>
@@ -98,33 +119,51 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { UserPlusIcon, XMarkIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
+import { ref, reactive, watch } from 'vue'
+import { UserPlusIcon, XMarkIcon, InformationCircleIcon, BriefcaseIcon } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 
 const props = defineProps({
-  enterpriseId: {
-    type: String,
-    required: true
-  }
+  enterpriseId: { type: String, required: true },
+  jobPositions: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['close', 'invited'])
 
 const isLoading = ref(false)
 const showSalary = ref(false)
+const selectedPositionId = ref('')
+
 const form = reactive({
   first_name: '',
   last_name: '',
   profession: '',
   contact: '',
+  hire_date: new Date().toISOString().split('T')[0],
   salary_config: {
     base_amount: 0,
     frequency: 'MONTHLY',
+    currency: 'XOF', // Default
     deductions: [],
     bonuses: []
   }
 })
+
+// Auto-fill when position changes
+const handlePositionChange = () => {
+  if (!selectedPositionId.value) {
+    form.profession = ''
+    return
+  }
+  
+  const position = props.jobPositions.find(p => p.id === selectedPositionId.value)
+  if (position) {
+    form.profession = position.name
+    form.salary_config.base_amount = position.default_salary
+    form.salary_config.currency = position.currency || 'XOF'
+    showSalary.value = true
+  }
+}
 
 const sendInvite = async () => {
   isLoading.value = true
@@ -133,6 +172,8 @@ const sendInvite = async () => {
       first_name: form.first_name,
       last_name: form.last_name,
       profession: form.profession,
+      position_id: selectedPositionId.value || undefined, // Send position ID if selected
+      hire_date: new Date(form.hire_date).toISOString(), // Send hire date
       email: form.contact.includes('@') ? form.contact : '',
       phone_number: !form.contact.includes('@') ? form.contact : '',
       salary_config: showSalary.value ? form.salary_config : undefined
