@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -127,14 +126,14 @@ func (h *ApprovalHandler) ApproveAction(c *gin.Context) {
 	}
 
 	// Get employee
-	employee, err := h.employeeService.GetEmployeeByUserAndEnterprise(c.Request.Context(), userID, approval.EnterpriseID)
+	employee, err := h.employeeService.GetEmployeeByUserAndEnterprise(c.Request.Context(), userID, approval.EnterpriseID.Hex())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authorized for this enterprise"})
 		return
 	}
 
 	// Check if employee is admin
-	if !employee.IsAdmin {
+	if !employee.IsAdmin() {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Only administrators can approve actions"})
 		return
 	}
@@ -180,14 +179,14 @@ func (h *ApprovalHandler) RejectAction(c *gin.Context) {
 	}
 
 	// Get employee
-	employee, err := h.employeeService.GetEmployeeByUserAndEnterprise(c.Request.Context(), userID, approval.EnterpriseID)
+	employee, err := h.employeeService.GetEmployeeByUserAndEnterprise(c.Request.Context(), userID, approval.EnterpriseID.Hex())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authorized for this enterprise"})
 		return
 	}
 
 	// Check if employee is admin
-	if !employee.IsAdmin {
+	if !employee.IsAdmin() {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Only administrators can reject actions"})
 		return
 	}

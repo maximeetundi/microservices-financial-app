@@ -39,6 +39,22 @@ func (s *EmployeeService) ListByEnterprise(ctx context.Context, enterpriseID str
 	return s.repo.FindByEnterprise(ctx, enterpriseID)
 }
 
+// GetEmployeeByUserAndEnterprise finds an employee by user ID and enterprise ID
+func (s *EmployeeService) GetEmployeeByUserAndEnterprise(ctx context.Context, userID, enterpriseID string) (*models.Employee, error) {
+	employees, err := s.repo.FindByEnterprise(ctx, enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	
+	for _, emp := range employees {
+		if emp.UserID == userID && emp.Status == models.EmployeeStatusActive {
+			return &emp, nil
+		}
+	}
+	
+	return nil, errors.New("employee not found for this user in this enterprise")
+}
+
 // InviteEmployee (Point 2): Adds employee & Sends notification
 func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employee) error {
 	// 1. Calculate initial salary
