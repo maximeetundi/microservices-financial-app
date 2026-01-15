@@ -35,41 +35,41 @@
       <!-- Basic Options Row -->
       <div class="flex flex-wrap items-center gap-3 mt-3">
         <!-- Billing Type -->
-        <div class="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
-          <span class="text-xs text-gray-500">Type:</span>
+        <div class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+          <span class="text-xs text-gray-500 dark:text-gray-400">Type:</span>
           <select v-model="localService.billing_type" 
-            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6">
-            <option value="FIXED">Forfait fixe</option>
-            <option value="USAGE">À la consommation</option>
+            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer dark:bg-gray-700">
+            <option value="FIXED" class="dark:bg-gray-800 dark:text-white">Forfait fixe</option>
+            <option value="USAGE" class="dark:bg-gray-800 dark:text-white">À la consommation</option>
           </select>
         </div>
 
         <!-- Frequency -->
-        <div class="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
-          <span class="text-xs text-gray-500">Fréquence:</span>
-          <select v-model="localService.billing_frequency" 
-            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6">
-            <option value="DAILY">Journalier</option>
-            <option value="WEEKLY">Hebdomadaire</option>
-            <option value="MONTHLY">Mensuel</option>
-            <option value="QUARTERLY">Trimestriel</option>
-            <option value="ANNUALLY">Annuel</option>
-            <option value="ONETIME">Paiement unique</option>
-            <option value="CUSTOM">Personnalisé</option>
+        <div class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+          <span class="text-xs text-gray-500 dark:text-gray-400">Fréquence:</span>
+          <select v-model="localService.billing_frequency" @change="onFrequencyChange"
+            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer dark:bg-gray-700">
+            <option value="DAILY" class="dark:bg-gray-800 dark:text-white">Journalier</option>
+            <option value="WEEKLY" class="dark:bg-gray-800 dark:text-white">Hebdomadaire</option>
+            <option value="MONTHLY" class="dark:bg-gray-800 dark:text-white">Mensuel</option>
+            <option value="QUARTERLY" class="dark:bg-gray-800 dark:text-white">Trimestriel</option>
+            <option value="ANNUALLY" class="dark:bg-gray-800 dark:text-white">Annuel</option>
+            <option value="ONETIME" class="dark:bg-gray-800 dark:text-white">Paiement unique</option>
+            <option value="CUSTOM" class="dark:bg-gray-800 dark:text-white">Personnalisé</option>
           </select>
         </div>
 
         <!-- Unit (for USAGE) -->
         <div v-if="localService.billing_type === 'USAGE'" 
-          class="flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
-          <span class="text-xs text-gray-500">Unité:</span>
+          class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+          <span class="text-xs text-gray-500 dark:text-gray-400">Unité:</span>
           <input v-model="localService.unit" 
             placeholder="kWh, m³..." 
             class="w-16 border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0" />
         </div>
 
         <!-- Price -->
-        <div class="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/20 px-3 py-1.5 rounded-lg border border-primary-200 dark:border-primary-700">
+        <div class="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 px-3 py-2 rounded-xl border border-primary-200 dark:border-primary-700">
           <span class="text-xs text-primary-600 dark:text-primary-400">{{ localService.billing_type === 'USAGE' ? 'Prix/unité:' : 'Montant:' }}</span>
           <input v-model.number="localService.base_price" 
             type="number" 
@@ -292,6 +292,21 @@ const addScheduleItem = () => {
 
 const removeScheduleItem = (idx) => {
   localService.value.payment_schedule.splice(idx, 1)
+}
+
+// Auto-open advanced options when selecting CUSTOM frequency
+const onFrequencyChange = () => {
+  if (localService.value.billing_frequency === 'CUSTOM') {
+    showAdvanced.value = true
+    // Initialize payment_schedule if not exists
+    if (!localService.value.payment_schedule) {
+      localService.value.payment_schedule = []
+    }
+    // Initialize custom_interval if not exists
+    if (!localService.value.custom_interval) {
+      localService.value.custom_interval = 30
+    }
+  }
 }
 </script>
 
