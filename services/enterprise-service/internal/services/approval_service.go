@@ -225,6 +225,11 @@ func (s *ApprovalService) GetPendingApprovals(ctx context.Context, enterpriseID 
 	return s.approvalRepo.FindPendingByEnterprise(ctx, enterpriseID)
 }
 
+// GetApprovalByID returns a single approval by ID
+func (s *ApprovalService) GetApprovalByID(ctx context.Context, approvalID string) (*models.ActionApproval, error) {
+	return s.approvalRepo.FindByID(ctx, approvalID)
+}
+
 // MarkAsExecuted marks an approved action as executed
 func (s *ApprovalService) MarkAsExecuted(ctx context.Context, approvalID string) error {
 	return s.approvalRepo.UpdateStatus(ctx, approvalID, models.ApprovalStatusExecuted)

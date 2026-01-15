@@ -700,6 +700,15 @@ export const enterpriseAPI = {
     getSubscriptions: (entId: string, serviceId?: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions`, { params: { service_id: serviceId } }),
     createSubscription: (entId: string, data: any) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions`, data),
     createBatchInvoices: (entId: string, items: Array<{ subscription_id: string, amount: number, consumption: number }>) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/invoices/batches`, { items }),
+
+    // Multi-Approval System
+    getPendingApprovals: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/approvals`),
+    approveAction: (approvalId: string, data: { pin: string }) =>
+        api.post(`/enterprise-service/api/v1/approvals/${approvalId}/approve`, data),
+    rejectAction: (approvalId: string, data: { pin: string, reason?: string }) =>
+        api.post(`/enterprise-service/api/v1/approvals/${approvalId}/reject`, data),
+    initiateAction: (entId: string, data: { action_type: string, action_name: string, description: string, payload: any, amount?: number, currency?: string }) =>
+        api.post(`/enterprise-service/api/v1/enterprises/${entId}/actions`, data),
 }
 
 export const useApi = () => {

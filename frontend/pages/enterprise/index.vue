@@ -120,6 +120,16 @@
           v-if="currentTab === 'Billing'" 
           :enterprise="currentEnterprise" />
 
+        <WalletsTab 
+          v-if="currentTab === 'Wallets'" 
+          :enterprise="currentEnterprise"
+          @update="handleEnterpriseUpdate" />
+
+        <SecurityTab 
+          v-if="currentTab === 'Security'" 
+          :enterprise="currentEnterprise"
+          @update="handleEnterpriseUpdate" />
+
         <EnterpriseSettings 
           v-if="currentTab === 'Settings'" 
           v-model="currentEnterprise"
@@ -157,7 +167,7 @@ import {
   Squares2X2Icon, UsersIcon, UserGroupIcon, BanknotesIcon, 
   DocumentTextIcon, Cog6ToothIcon, ChevronRightIcon, QrCodeIcon, 
   PlusIcon, ArrowRightCircleIcon, CheckCircleIcon, BuildingOffice2Icon,
-  FolderIcon
+  FolderIcon, WalletIcon, ShieldCheckIcon
 } from '@heroicons/vue/24/outline'
 
 // Components
@@ -171,6 +181,8 @@ const ClientsTab = defineAsyncComponent(() => import('@/components/enterprise/Cl
 const ServicesTab = defineAsyncComponent(() => import('@/components/enterprise/ServicesTab.vue'))
 const PayrollTab = defineAsyncComponent(() => import('@/components/enterprise/PayrollTab.vue'))
 const BillingTab = defineAsyncComponent(() => import('@/components/enterprise/BillingTab.vue'))
+const WalletsTab = defineAsyncComponent(() => import('@/components/enterprise/WalletsTab.vue'))
+const SecurityTab = defineAsyncComponent(() => import('@/components/enterprise/SecurityTab.vue'))
 const CreateEnterpriseModal = defineAsyncComponent(() => import('@/components/enterprise/CreateEnterpriseModal.vue'))
 
 // State
@@ -183,14 +195,16 @@ const showQRModal = ref(false)
 const showCreateModal = ref(false)
 
 // Tabs configuration
-const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Payroll', 'Billing', 'Settings']
+const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Settings']
 const tabLabels = {
   'Overview': 'Aperçu',
   'Employees': 'Employés',
   'Clients': 'Abonnés',
   'Services': 'Services',
+  'Wallets': 'Portefeuilles',
   'Payroll': 'Paie',
   'Billing': 'Facturation',
+  'Security': 'Sécurité',
   'Settings': 'Paramètres'
 }
 
@@ -200,8 +214,10 @@ const getTabIcon = (tab) => {
     case 'Employees': return UsersIcon
     case 'Clients': return UserGroupIcon
     case 'Services': return FolderIcon
+    case 'Wallets': return WalletIcon
     case 'Payroll': return BanknotesIcon
     case 'Billing': return DocumentTextIcon
+    case 'Security': return ShieldCheckIcon
     case 'Settings': return Cog6ToothIcon
     default: return Squares2X2Icon
   }

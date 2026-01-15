@@ -144,6 +144,15 @@ func main() {
 		subHandler := handlers.NewSubscriptionHandler(subRepo)
 		api.GET("/enterprises/:id/subscriptions", subHandler.ListSubscriptions)
 		api.POST("/enterprises/:id/subscriptions", subHandler.CreateSubscription)
+
+		// Multi-Approval System Routes
+		approvalRepo := repository.NewApprovalRepository(mongoClient.Database(cfg.DBName))
+		approvalService := services.NewApprovalService(approvalRepo, empRepo, entRepo, notificationClient)
+		approvalHandler := handlers.NewApprovalHandler(approvalService, empService)
+		api.GET("/enterprises/:id/approvals", approvalHandler.GetPendingApprovals)
+		api.POST("/enterprises/:id/actions", approvalHandler.InitiateAction)
+		api.POST("/approvals/:id/approve", approvalHandler.ApproveAction)
+		api.POST("/approvals/:id/reject", approvalHandler.RejectAction)
 	}
 
 	// 6. Start Server
