@@ -2,7 +2,7 @@
   <div class="space-y-8">
     <!-- Enterprise Profile Section -->
     <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div class="p-6 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-750">
+      <div class="p-6 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <BuildingOffice2Icon class="w-5 h-5 text-primary-500" />
           Profil de l'entreprise
@@ -145,7 +145,7 @@
 
         <div v-else class="space-y-4">
           <div v-for="(cls, idx) in enterprise.school_config.classes" :key="idx" 
-            class="bg-gray-50 dark:bg-gray-750 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             
             <div class="flex flex-wrap gap-4 items-center mb-4">
               <div class="flex-1 min-w-[150px]">
@@ -211,7 +211,7 @@
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div v-for="(route, idx) in enterprise.transport_config.routes" :key="idx" 
-            class="bg-gray-50 dark:bg-gray-750 rounded-xl p-4 border border-gray-200 dark:border-gray-700 flex items-center gap-4">
+            class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 flex items-center justify-center font-bold">
               {{ idx + 1 }}
             </div>

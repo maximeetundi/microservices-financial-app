@@ -91,7 +91,7 @@
           </div>
 
           <!-- Preview Area -->
-          <div class="flex-1 p-8 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-850 relative overflow-hidden">
+          <div class="flex-1 p-8 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 relative overflow-hidden">
             <!-- Background Pattern -->
             <div class="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjZmZmIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjIiLz48L2c+PC9zdmc+')]"></div>
             

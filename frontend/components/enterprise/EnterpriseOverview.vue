@@ -149,7 +149,7 @@
           </button>
         </div>
         <div class="w-24 h-24 bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex-shrink-0">
-          <img v-if="qrCodeUrl" :src="qrCodeUrl" class="w-full h-full object-contain" />
+          <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" class="w-full h-full object-contain" />
           <div v-else class="w-full h-full flex items-center justify-center">
             <QrCodeIcon class="w-12 h-12 text-gray-300" />
           </div>
@@ -160,11 +160,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { 
   UsersIcon, UserGroupIcon, BoltIcon, BanknotesIcon, UserPlusIcon,
   DocumentTextIcon, ChartBarIcon, QrCodeIcon, ArrowRightIcon, Cog6ToothIcon
 } from '@heroicons/vue/24/outline'
+import QRCode from 'qrcode'
 
 const props = defineProps({
   enterprise: {
@@ -179,13 +180,47 @@ const props = defineProps({
 
 const emit = defineEmits(['navigate', 'show-qr'])
 
+const qrCodeDataUrl = ref('')
+
 const totalServices = computed(() => {
   return (props.enterprise.service_groups || []).reduce((sum, g) => sum + (g.services?.length || 0), 0)
 })
 
-const qrCodeUrl = computed(() => {
+const subscriptionLink = computed(() => {
   if (!props.enterprise?.id) return ''
-  return `/enterprise-service/api/v1/enterprises/${props.enterprise.id}/qrcode`
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.maximeetundi.store'
+  return `${origin}/subscribe/${props.enterprise.id}`
+})
+
+// Generate QR code client-side
+const generateQRCode = async () => {
+  if (!props.enterprise?.id) {
+    qrCodeDataUrl.value = ''
+    return
+  }
+  
+  try {
+    qrCodeDataUrl.value = await QRCode.toDataURL(subscriptionLink.value, {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+  } catch (err) {
+    console.error('Failed to generate QR code:', err)
+    qrCodeDataUrl.value = ''
+  }
+}
+
+// Watch for enterprise changes and regenerate QR
+watch(() => props.enterprise?.id, () => {
+  generateQRCode()
+}, { immediate: true })
+
+onMounted(() => {
+  generateQRCode()
 })
 
 const formatCurrency = (amount) => {

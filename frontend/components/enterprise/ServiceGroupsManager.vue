@@ -39,7 +39,7 @@
           class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg">
           
           <!-- Group Header -->
-          <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-750">
+          <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
             <div class="flex flex-wrap items-center gap-4">
               <!-- Group Name -->
               <div class="flex-1 min-w-[200px]">
@@ -48,7 +48,7 @@
                   <FolderIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input v-model="group.name" 
                     placeholder="ex: Scolarité" 
-                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
                 </div>
               </div>
 
@@ -56,8 +56,8 @@
               <div class="w-40">
                 <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Devise</label>
                 <select v-model="group.currency" 
-                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
-                  <option v-for="curr in currencies" :key="curr.code" :value="curr.code" class="dark:bg-gray-800 dark:text-white">
+                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
+                  <option v-for="curr in currencies" :key="curr.code" :value="curr.code" class="bg-white dark:bg-gray-800 dark:text-white">
                     {{ curr.code }} - {{ curr.symbol }}
                   </option>
                 </select>

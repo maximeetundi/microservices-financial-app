@@ -1,20 +1,20 @@
 <template>
   <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md">
     <!-- Service Header -->
-    <div class="p-4 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
+    <div class="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
       <div class="flex flex-wrap items-center gap-3">
         <!-- Service ID -->
         <div class="w-32">
           <input v-model="localService.id" 
             placeholder="ID unique" 
-            class="w-full px-3 py-2 rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
 
         <!-- Service Name -->
         <div class="flex-1 min-w-[180px]">
           <input v-model="localService.name" 
             placeholder="Nom du service (ex: Inscription)" 
-            class="w-full px-3 py-2 rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
 
         <!-- Actions -->
@@ -35,33 +35,33 @@
       <!-- Basic Options Row -->
       <div class="flex flex-wrap items-center gap-3 mt-3">
         <!-- Billing Type -->
-        <div class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+        <div class="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
           <span class="text-xs text-gray-500 dark:text-gray-400">Type:</span>
           <select v-model="localService.billing_type" 
-            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer dark:bg-gray-700">
-            <option value="FIXED" class="dark:bg-gray-800 dark:text-white">Forfait fixe</option>
-            <option value="USAGE" class="dark:bg-gray-800 dark:text-white">À la consommation</option>
+            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer">
+            <option value="FIXED" class="bg-white dark:bg-gray-800 dark:text-white">Forfait fixe</option>
+            <option value="USAGE" class="bg-white dark:bg-gray-800 dark:text-white">À la consommation</option>
           </select>
         </div>
 
         <!-- Frequency -->
-        <div class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+        <div class="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
           <span class="text-xs text-gray-500 dark:text-gray-400">Fréquence:</span>
           <select v-model="localService.billing_frequency" @change="onFrequencyChange"
-            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer dark:bg-gray-700">
-            <option value="DAILY" class="dark:bg-gray-800 dark:text-white">Journalier</option>
-            <option value="WEEKLY" class="dark:bg-gray-800 dark:text-white">Hebdomadaire</option>
-            <option value="MONTHLY" class="dark:bg-gray-800 dark:text-white">Mensuel</option>
-            <option value="QUARTERLY" class="dark:bg-gray-800 dark:text-white">Trimestriel</option>
-            <option value="ANNUALLY" class="dark:bg-gray-800 dark:text-white">Annuel</option>
-            <option value="ONETIME" class="dark:bg-gray-800 dark:text-white">Paiement unique</option>
-            <option value="CUSTOM" class="dark:bg-gray-800 dark:text-white">Personnalisé</option>
+            class="border-0 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:ring-0 p-0 pr-6 cursor-pointer">
+            <option value="DAILY" class="bg-white dark:bg-gray-800 dark:text-white">Journalier</option>
+            <option value="WEEKLY" class="bg-white dark:bg-gray-800 dark:text-white">Hebdomadaire</option>
+            <option value="MONTHLY" class="bg-white dark:bg-gray-800 dark:text-white">Mensuel</option>
+            <option value="QUARTERLY" class="bg-white dark:bg-gray-800 dark:text-white">Trimestriel</option>
+            <option value="ANNUALLY" class="bg-white dark:bg-gray-800 dark:text-white">Annuel</option>
+            <option value="ONETIME" class="bg-white dark:bg-gray-800 dark:text-white">Paiement unique</option>
+            <option value="CUSTOM" class="bg-white dark:bg-gray-800 dark:text-white">Personnalisé</option>
           </select>
         </div>
 
         <!-- Unit (for USAGE) -->
         <div v-if="localService.billing_type === 'USAGE'" 
-          class="flex items-center gap-2 bg-white dark:bg-gray-700/80 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+          class="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
           <span class="text-xs text-gray-500 dark:text-gray-400">Unité:</span>
           <input v-model="localService.unit" 
             placeholder="kWh, m³..." 
@@ -82,7 +82,7 @@
 
     <!-- Advanced Options (Collapsible) -->
     <Transition name="slide">
-      <div v-if="showAdvanced" class="p-4 bg-gray-50/50 dark:bg-gray-850 space-y-4">
+      <div v-if="showAdvanced" class="p-4 bg-gray-50/50 dark:bg-gray-900 space-y-4">
         
         <!-- Custom Interval -->
         <div v-if="localService.billing_frequency === 'CUSTOM'" 
@@ -220,7 +220,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { 
   TrashIcon, AdjustmentsHorizontalIcon, CalendarIcon, DocumentTextIcon,
   PlusIcon, XMarkIcon, ExclamationTriangleIcon
@@ -256,12 +256,25 @@ const scheduleMode = ref(props.service.payment_schedule?.length ? 'schedule' : '
 
 const hasPenalty = computed(() => !!localService.value.penalty_config)
 
+// Prevent infinite loop: only emit if actually changed by user
+let isUpdatingFromProps = false
+
 watch(localService, (val) => {
-  emit('update', val)
+  if (!isUpdatingFromProps) {
+    emit('update', val)
+  }
 }, { deep: true })
 
 watch(() => props.service, (val) => {
-  localService.value = getInitialService(val)
+  // Only update if the external prop actually changed
+  if (JSON.stringify(val) !== JSON.stringify(localService.value)) {
+    isUpdatingFromProps = true
+    localService.value = getInitialService(val)
+    // Reset flag after Vue's next tick to allow future user changes
+    nextTick(() => {
+      isUpdatingFromProps = false
+    })
+  }
 }, { deep: true })
 
 const togglePenalty = () => {
