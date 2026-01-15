@@ -115,7 +115,7 @@
 
           <!-- Payment Schedule -->
           <div v-else class="space-y-3">
-            <div v-for="(item, idx) in localService.payment_schedule" :key="idx" 
+            <div v-for="(item, idx) in (localService.payment_schedule || [])" :key="idx" 
               class="flex items-center gap-2 bg-white dark:bg-gray-800 p-3 rounded-lg">
               <input v-model="item.name" placeholder="Période" class="flex-1 px-2 py-1.5 rounded border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-sm" />
               <input v-model="item.start_date" type="date" class="px-2 py-1.5 rounded border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-sm" />
@@ -149,16 +149,16 @@
           </div>
 
           <div v-else class="space-y-2">
-            <div v-for="(field, idx) in localService.form_schema" :key="idx" 
+            <div v-for="(field, idx) in (localService.form_schema || [])" :key="idx" 
               class="flex items-center gap-2 bg-white dark:bg-gray-800 p-2 rounded-lg">
-              <input v-model="field.label" placeholder="Libellé" class="flex-1 px-2 py-1.5 rounded border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-sm" />
-              <select v-model="field.type" class="px-2 py-1.5 rounded border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-sm">
-                <option value="text">Texte</option>
-                <option value="number">Nombre</option>
-                <option value="date">Date</option>
-                <option value="email">Email</option>
-                <option value="tel">Téléphone</option>
-                <option value="select">Liste déroulante</option>
+              <input v-model="field.label" placeholder="Libellé" class="flex-1 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm" />
+              <select v-model="field.type" class="px-2 py-1.5 rounded border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                <option value="text" class="dark:bg-gray-800">Texte</option>
+                <option value="number" class="dark:bg-gray-800">Nombre</option>
+                <option value="date" class="dark:bg-gray-800">Date</option>
+                <option value="email" class="dark:bg-gray-800">Email</option>
+                <option value="tel" class="dark:bg-gray-800">Téléphone</option>
+                <option value="select" class="dark:bg-gray-800">Liste déroulante</option>
               </select>
               <label class="flex items-center gap-1 text-xs text-gray-500">
                 <input type="checkbox" v-model="field.required" class="rounded border-gray-300 text-primary-600" />
@@ -239,7 +239,18 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'remove'])
 
-const localService = ref({ ...props.service })
+// Initialize with safe defaults
+const getInitialService = (svc) => {
+  return {
+    ...svc,
+    payment_schedule: svc.payment_schedule || [],
+    custom_interval: svc.custom_interval || 30,
+    form_schema: svc.form_schema || [],
+    penalty_config: svc.penalty_config || null
+  }
+}
+
+const localService = ref(getInitialService(props.service))
 const showAdvanced = ref(false)
 const scheduleMode = ref(props.service.payment_schedule?.length ? 'schedule' : 'interval')
 
@@ -250,7 +261,7 @@ watch(localService, (val) => {
 }, { deep: true })
 
 watch(() => props.service, (val) => {
-  localService.value = { ...val }
+  localService.value = getInitialService(val)
 }, { deep: true })
 
 const togglePenalty = () => {

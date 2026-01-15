@@ -107,7 +107,10 @@
                 <div class="relative inline-block">
                   <div class="absolute -inset-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-3xl blur-xl opacity-30 animate-pulse"></div>
                   <div class="relative bg-white p-4 rounded-2xl shadow-2xl transform transition-all hover:scale-105 duration-300">
-                    <img :src="qrCodeUrl" alt="QR Code" class="w-56 h-56 md:w-64 md:h-64 object-contain" />
+                    <div v-if="isGenerating" class="w-56 h-56 md:w-64 md:h-64 flex items-center justify-center">
+                      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                    </div>
+                    <img v-else-if="qrCodeDataUrl" :src="qrCodeDataUrl" alt="QR Code" class="w-56 h-56 md:w-64 md:h-64 object-contain" />
                   </div>
                 </div>
 
@@ -129,12 +132,11 @@
 
                 <!-- Actions -->
                 <div class="flex justify-center gap-4 mt-8">
-                  <a :href="qrCodeUrl" 
-                    :download="`qr_${qrType.toLowerCase()}_${displayCode}.png`" 
+                  <button @click="downloadQR"
                     class="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold hover:from-primary-500 hover:to-primary-600 transition-all flex items-center gap-2 shadow-lg shadow-primary-900/50">
                     <ArrowDownTrayIcon class="w-5 h-5" />
                     Télécharger PNG
-                  </a>
+                  </button>
                   <button @click="copyLink" 
                     class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition-all flex items-center gap-2">
                     <LinkIcon class="w-5 h-5" />
@@ -151,11 +153,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { 
   BuildingOfficeIcon, FolderIcon, TagIcon, ArrowLeftIcon,
   QrCodeIcon, DocumentDuplicateIcon, ArrowDownTrayIcon, LinkIcon
 } from '@heroicons/vue/24/outline'
+import QRCode from 'qrcode'
 
 const props = defineProps({
   isOpen: {
@@ -177,6 +180,8 @@ const emit = defineEmits(['close'])
 const qrType = ref('ENTERPRISE')
 const selectedGroup = ref('')
 const selectedService = ref('')
+const qrCodeDataUrl = ref('')
+const isGenerating = ref(false)
 
 // Computed
 const publicGroups = computed(() => {
@@ -196,24 +201,10 @@ const canShowQR = computed(() => {
   return false
 })
 
-const qrCodeUrl = computed(() => {
-  if (!props.enterprise?.id) return ''
-  const base = `/enterprise-service/api/v1/enterprises/${props.enterprise.id}`
-  
-  if (qrType.value === 'ENTERPRISE') {
-    return `${base}/qrcode`
-  } else if (qrType.value === 'GROUP' && selectedGroup.value) {
-    return `${base}/groups/${selectedGroup.value}/qrcode`
-  } else if (qrType.value === 'SERVICE' && selectedService.value) {
-    return `${base}/services/${selectedService.value}/qrcode`
-  }
-  return ''
-})
-
 const subscriptionLink = computed(() => {
   if (!props.enterprise?.id) return ''
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  let url = `${origin}/enterprises/${props.enterprise.id}/subscribe`
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.maximeetundi.store'
+  let url = `${origin}/subscribe/${props.enterprise.id}`
   
   if (qrType.value === 'SERVICE' && selectedService.value) {
     url += `?service_id=${selectedService.value}`
@@ -258,6 +249,32 @@ const displayCode = computed(() => {
   return 'CODE'
 })
 
+// Generate QR code client-side
+const generateQRCode = async () => {
+  if (!canShowQR.value) {
+    qrCodeDataUrl.value = ''
+    return
+  }
+  
+  isGenerating.value = true
+  try {
+    const url = subscriptionLink.value
+    qrCodeDataUrl.value = await QRCode.toDataURL(url, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+  } catch (err) {
+    console.error('Failed to generate QR code:', err)
+    qrCodeDataUrl.value = ''
+  } finally {
+    isGenerating.value = false
+  }
+}
+
 // Methods
 const copyCode = () => {
   navigator.clipboard.writeText(displayCode.value)
@@ -269,7 +286,21 @@ const copyLink = () => {
   alert('Lien copié !')
 }
 
+const downloadQR = () => {
+  if (!qrCodeDataUrl.value) return
+  const link = document.createElement('a')
+  link.download = `qr_${qrType.value.toLowerCase()}_${displayCode.value}.png`
+  link.href = qrCodeDataUrl.value
+  link.click()
+}
+
 // Watchers
+watch([qrType, selectedGroup, selectedService, () => props.isOpen], () => {
+  if (props.isOpen) {
+    generateQRCode()
+  }
+}, { immediate: true })
+
 watch(qrType, () => {
   if (qrType.value === 'ENTERPRISE') {
     selectedGroup.value = ''
