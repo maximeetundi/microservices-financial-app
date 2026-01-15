@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/enterprise-service/internal/repository"
@@ -11,11 +12,12 @@ import (
 
 type EnterpriseHandler struct {
 	repo    *repository.EnterpriseRepository
+	empRepo *repository.EmployeeRepository
 	storage *services.StorageService
 }
 
-func NewEnterpriseHandler(repo *repository.EnterpriseRepository, storage *services.StorageService) *EnterpriseHandler {
-	return &EnterpriseHandler{repo: repo, storage: storage}
+func NewEnterpriseHandler(repo *repository.EnterpriseRepository, empRepo *repository.EmployeeRepository, storage *services.StorageService) *EnterpriseHandler {
+	return &EnterpriseHandler{repo: repo, empRepo: empRepo, storage: storage}
 }
 
 // UploadLogo handles logo upload
@@ -63,12 +65,106 @@ func (h *EnterpriseHandler) CreateEnterprise(c *gin.Context) {
 		req.Type = models.EnterpriseTypeService
 	}
 
+	// Add default security policies if none provided
+	if len(req.SecurityPolicies) == 0 {
+		req.SecurityPolicies = getDefaultSecurityPolicies()
+	}
+
 	if err := h.repo.Create(c.Request.Context(), &req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create enterprise", "details": err.Error()})
 		return
 	}
 
+	// Auto-create owner as admin employee
+	if h.empRepo != nil && req.OwnerID != "" {
+		ownerEmployee := &models.Employee{
+			EnterpriseID: req.ID,
+			UserID:       req.OwnerID,
+			FirstName:    "Administrateur",
+			LastName:     "Principal",
+			Profession:   "Propriétaire",
+			Role:         models.EmployeeRoleAdmin,
+			Status:       models.EmployeeStatusActive,
+			InvitedAt:    time.Now(),
+			AcceptedAt:   time.Now(),
+		}
+		// Ignore error - enterprise creation should still succeed
+		_ = h.empRepo.Create(c.Request.Context(), ownerEmployee)
+	}
+
 	c.JSON(http.StatusCreated, req)
+}
+
+// getDefaultSecurityPolicies returns default security policies for a new enterprise
+func getDefaultSecurityPolicies() []models.SecurityPolicy {
+	return []models.SecurityPolicy{
+		{
+			ID:               "default_transaction",
+			Name:             "Transactions importantes",
+			ActionType:       models.ActionTypeTransaction,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  false,
+			RequireAllAdmins: true,
+			ThresholdAmount:  100000, // 100,000 XOF threshold
+			ExpirationHours:  24,
+		},
+		{
+			ID:               "default_payroll",
+			Name:             "Paiement des salaires",
+			ActionType:       models.ActionTypePayroll,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  false,
+			RequireAllAdmins: true,
+			ThresholdAmount:  0, // Always requires approval
+			ExpirationHours:  48,
+		},
+		{
+			ID:               "default_admin_change",
+			Name:             "Modification des administrateurs",
+			ActionType:       models.ActionTypeAdminChange,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  false,
+			RequireAllAdmins: true,
+			ThresholdAmount:  0,
+			ExpirationHours:  24,
+		},
+		{
+			ID:               "default_settings",
+			Name:             "Modification des paramètres",
+			ActionType:       models.ActionTypeSettingsChange,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  false,
+			RequireAllAdmins: true,
+			ThresholdAmount:  0,
+			ExpirationHours:  24,
+		},
+		{
+			ID:               "default_employee_terminate",
+			Name:             "Licenciement d'employé",
+			ActionType:       models.ActionTypeEmployeeTerminate,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  true, // Majority for hiring/firing
+			RequireAllAdmins: false,
+			ThresholdAmount:  0,
+			ExpirationHours:  48,
+		},
+		{
+			ID:               "default_enterprise_delete",
+			Name:             "Suppression de l'entreprise",
+			ActionType:       models.ActionTypeEnterpriseDelete,
+			Enabled:          true,
+			MinApprovals:     1,
+			RequireMajority:  false,
+			RequireAllAdmins: true, // ALL admins must approve deletion
+			ThresholdAmount:  0,
+			ExpirationHours:  72, // 3 days to decide
+		},
+	}
 }
 
 func (h *EnterpriseHandler) GetEnterprise(c *gin.Context) {

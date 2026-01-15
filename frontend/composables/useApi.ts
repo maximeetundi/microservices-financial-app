@@ -709,6 +709,10 @@ export const enterpriseAPI = {
         api.post(`/enterprise-service/api/v1/approvals/${approvalId}/reject`, data),
     initiateAction: (entId: string, data: { action_type: string, action_name: string, description: string, payload: any, amount?: number, currency?: string }) =>
         api.post(`/enterprise-service/api/v1/enterprises/${entId}/actions`, data),
+
+    // Data Export (required before deletion)
+    exportData: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export`, { responseType: 'blob' }),
+    getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
 }
 
 export const useApi = () => {

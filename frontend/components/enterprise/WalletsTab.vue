@@ -81,6 +81,7 @@
       <div v-if="!wallets.length" class="col-span-full text-center py-12">
         <WalletIcon class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
         <p class="text-gray-500 dark:text-gray-400">Aucun portefeuille trouvé</p>
+        <p class="text-sm text-gray-400 mt-2">Créez un nouveau portefeuille pour commencer</p>
       </div>
     </div>
 
@@ -167,11 +168,17 @@ const loadWallets = async () => {
   try {
     // Load wallets by IDs stored in enterprise
     const walletIds = [props.enterprise.default_wallet_id, ...(props.enterprise.wallet_ids || [])].filter(Boolean)
-    const walletPromises = walletIds.map(id => walletAPI.get(id).catch(() => null))
-    const results = await Promise.all(walletPromises)
-    wallets.value = results.filter(r => r?.data).map(r => r.data)
+    
+    if (walletIds.length > 0) {
+      const walletPromises = walletIds.map(id => walletAPI.get(id).catch(() => null))
+      const results = await Promise.all(walletPromises)
+      wallets.value = results.filter(r => r?.data).map(r => r.data)
+    } else {
+      wallets.value = []
+    }
   } catch (error) {
     console.error('Failed to load wallets:', error)
+    wallets.value = []
   } finally {
     isLoading.value = false
   }
@@ -180,20 +187,28 @@ const loadWallets = async () => {
 const createWallet = async () => {
   isCreating.value = true
   try {
+    // Create wallet with enterprise_id to mark it as an enterprise wallet
     const { data } = await walletAPI.create({
       currency: newWallet.value.currency,
       wallet_type: 'business',
-      name: newWallet.value.name || `Portefeuille ${newWallet.value.currency}`
+      name: newWallet.value.name || `${props.enterprise.name} - ${newWallet.value.currency}`
     })
     
     // Add wallet ID to enterprise
     const updatedWalletIds = [...(props.enterprise.wallet_ids || []), data.id]
-    await enterpriseAPI.update(props.enterprise.id, {
+    const updates = {
       ...props.enterprise,
       wallet_ids: updatedWalletIds
-    })
+    }
     
-    emit('update', { ...props.enterprise, wallet_ids: updatedWalletIds })
+    // If first wallet, set as default
+    if (!props.enterprise.default_wallet_id) {
+      updates.default_wallet_id = data.id
+    }
+    
+    await enterpriseAPI.update(props.enterprise.id, updates)
+    
+    emit('update', updates)
     showCreateWallet.value = false
     newWallet.value = { currency: 'XOF', name: '' }
     await loadWallets()

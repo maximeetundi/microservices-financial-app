@@ -109,6 +109,7 @@
                     <option value="ADMIN_CHANGE">Changement admin</option>
                     <option value="SERVICE_CREATE">Création service</option>
                     <option value="INVOICE_BATCH">Factures en lot</option>
+                    <option value="ENTERPRISE_DELETE">⚠️ Suppression entreprise</option>
                   </select>
                 </div>
 

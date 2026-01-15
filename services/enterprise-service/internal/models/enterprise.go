@@ -41,6 +41,9 @@ type Enterprise struct {
 	TransportConfig *TransportConfig `bson:"transport_config,omitempty" json:"transport_config,omitempty"`
 	SchoolConfig    *SchoolConfig    `bson:"school_config,omitempty" json:"school_config,omitempty"`
 
+	// Data Export Tracking (required before deletion)
+	LastExportedAt time.Time `bson:"last_exported_at,omitempty" json:"last_exported_at,omitempty"`
+
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
@@ -66,15 +69,16 @@ type SecurityPolicy struct {
 
 // Action types that can require multi-approval
 const (
-	ActionTypeTransaction       = "TRANSACTION"        // Transferts, retraits
-	ActionTypePayroll           = "PAYROLL"            // Paiement des salaires
-	ActionTypeEmployeeTerminate = "EMPLOYEE_TERMINATE" // Licenciement
-	ActionTypeEmployeePromote   = "EMPLOYEE_PROMOTE"   // Promotion
-	ActionTypeSettingsChange    = "SETTINGS_CHANGE"    // Modification des paramètres
-	ActionTypeWalletCreate      = "WALLET_CREATE"      // Création de wallet
-	ActionTypeAdminChange       = "ADMIN_CHANGE"       // Ajout/retrait d'admin
-	ActionTypeServiceCreate     = "SERVICE_CREATE"     // Création de service
-	ActionTypeInvoiceBatch      = "INVOICE_BATCH"      // Envoi de factures en lot
+	ActionTypeTransaction        = "TRANSACTION"         // Transferts, retraits
+	ActionTypePayroll            = "PAYROLL"             // Paiement des salaires
+	ActionTypeEmployeeTerminate  = "EMPLOYEE_TERMINATE"  // Licenciement
+	ActionTypeEmployeePromote    = "EMPLOYEE_PROMOTE"    // Promotion
+	ActionTypeSettingsChange     = "SETTINGS_CHANGE"     // Modification des paramètres
+	ActionTypeWalletCreate       = "WALLET_CREATE"       // Création de wallet
+	ActionTypeAdminChange        = "ADMIN_CHANGE"        // Ajout/retrait d'admin
+	ActionTypeServiceCreate      = "SERVICE_CREATE"      // Création de service
+	ActionTypeInvoiceBatch       = "INVOICE_BATCH"       // Envoi de factures en lot
+	ActionTypeEnterpriseDelete   = "ENTERPRISE_DELETE"   // Suppression d'entreprise (export requis)
 )
 
 type ServiceGroup struct {

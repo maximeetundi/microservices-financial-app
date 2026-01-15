@@ -232,14 +232,67 @@
         </div>
       </div>
     </section>
+
+    <!-- Danger Zone -->
+    <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden">
+      <div class="p-6 border-b border-red-100 dark:border-red-900/50 bg-gradient-to-r from-red-50 to-white dark:from-red-900/20 dark:to-gray-800">
+        <h3 class="text-lg font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+          <ExclamationTriangleIcon class="w-5 h-5" />
+          Zone Dangereuse
+        </h3>
+        <p class="text-sm text-red-600/70 dark:text-red-400/70 mt-1">
+          Ces actions sont irréversibles. Procédez avec prudence.
+        </p>
+      </div>
+      
+      <div class="p-6 space-y-6">
+        <!-- Export Data Section -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <div>
+            <h4 class="font-medium text-blue-800 dark:text-blue-300">Exporter les données</h4>
+            <p class="text-sm text-blue-600 dark:text-blue-400 mt-0.5">
+              Téléchargez toutes les données de l'entreprise (employés, services, factures, etc.)
+            </p>
+            <p v-if="enterprise.last_exported_at" class="text-xs text-blue-500 mt-1">
+              Dernier export: {{ formatDate(enterprise.last_exported_at) }}
+            </p>
+          </div>
+          <button @click="exportData" :disabled="isExporting"
+            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50">
+            <ArrowDownTrayIcon class="w-5 h-5" />
+            {{ isExporting ? 'Export...' : 'Exporter (JSON)' }}
+          </button>
+        </div>
+
+        <!-- Delete Enterprise Section -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <div>
+            <h4 class="font-medium text-red-800 dark:text-red-300">Supprimer l'entreprise</h4>
+            <p class="text-sm text-red-600 dark:text-red-400 mt-0.5">
+              Supprime définitivement l'entreprise et toutes ses données.
+            </p>
+            <p v-if="!canDelete" class="text-xs text-amber-600 dark:text-amber-400 mt-1 font-medium">
+              ⚠️ Exportez vos données avant de pouvoir supprimer l'entreprise
+            </p>
+          </div>
+          <button @click="initiateDelete" :disabled="!canDelete"
+            class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <TrashIcon class="w-5 h-5" />
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { 
   BuildingOffice2Icon, CameraIcon, BanknotesIcon, AcademicCapIcon, 
-  TruckIcon, PlusIcon, TrashIcon, XMarkIcon
+  TruckIcon, PlusIcon, TrashIcon, XMarkIcon, ExclamationTriangleIcon, ArrowDownTrayIcon
 } from '@heroicons/vue/24/outline'
+import { enterpriseAPI } from '@/composables/useApi'
 
 const props = defineProps({
   modelValue: {
@@ -261,6 +314,68 @@ if (!enterprise.value.settings) {
 }
 if (!enterprise.value.service_groups) {
   enterprise.value.service_groups = []
+}
+
+// Export state
+const isExporting = ref(false)
+
+// Check if can delete (requires recent export within 30 days)
+const canDelete = computed(() => {
+  if (!enterprise.value.last_exported_at) return false
+  const exportDate = new Date(enterprise.value.last_exported_at)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  return exportDate > thirtyDaysAgo
+})
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+// Export enterprise data
+const exportData = async () => {
+  isExporting.value = true
+  try {
+    const response = await enterpriseAPI.exportData(enterprise.value.id)
+    const blob = new Blob([response.data], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${enterprise.value.name}_export_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+    enterprise.value.last_exported_at = new Date().toISOString()
+    alert('✅ Données exportées avec succès !')
+  } catch (error) {
+    console.error('Export failed:', error)
+    alert('Erreur lors de l\'export')
+  } finally {
+    isExporting.value = false
+  }
+}
+
+// Initiate delete (triggers multi-approval flow)
+const initiateDelete = async () => {
+  if (!canDelete.value) {
+    alert('⚠️ Exportez vos données d\'abord')
+    return
+  }
+  if (!confirm('⚠️ Cette action initiera une demande de suppression. Tous les admins devront approuver. Continuer ?')) return
+  
+  try {
+    await enterpriseAPI.initiateAction(enterprise.value.id, {
+      action_type: 'ENTERPRISE_DELETE',
+      action_name: 'Suppression de l\'entreprise',
+      description: `Demande de suppression de "${enterprise.value.name}"`,
+      payload: { enterprise_id: enterprise.value.id }
+    })
+    alert('✅ Demande envoyée. Les admins doivent approuver dans l\'onglet Sécurité.')
+  } catch (error) {
+    alert('Erreur: ' + (error.response?.data?.error || error.message))
+  }
 }
 
 // Logo handlers

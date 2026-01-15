@@ -99,7 +99,7 @@ func main() {
 	payService := services.NewPayrollService(payRepo, empRepo, salaryService, entRepo, notificationClient)
 	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo, notificationClient)
 
-	entHandler := handlers.NewEnterpriseHandler(entRepo, storageService)
+	entHandler := handlers.NewEnterpriseHandler(entRepo, empRepo, storageService)
 	empHandler := handlers.NewEmployeeHandler(empService)
 	payHandler := handlers.NewPayrollHandler(payService)
 	billHandler := handlers.NewBillingHandler(billService)
@@ -116,6 +116,11 @@ func main() {
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
 		api.DELETE("/enterprises/:id/employees/:employeeId", empHandler.TerminateEmployee)
+
+		// Enterprise Data Export Routes (required before deletion)
+		exportHandler := handlers.NewExportHandler(entRepo, empRepo, subRepo, invRepo, payRepo)
+		api.GET("/enterprises/:id/export", exportHandler.ExportEnterpriseData)
+		api.GET("/enterprises/:id/export/status", exportHandler.CheckExportStatus)
 
 		// Employee Routes
 		api.POST("/employees/invite", empHandler.InviteEmployee)
