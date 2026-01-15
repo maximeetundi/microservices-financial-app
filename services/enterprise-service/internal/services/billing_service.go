@@ -120,6 +120,47 @@ type ManualInvoiceItem struct {
 	Consumption    float64
 }
 
+// CalculatePenalty calculates the penalty amount based on the penalty config
+// For HYBRID: returns fixed amount + percentage of period amount
+// For FIXED: returns the fixed value
+// For PERCENTAGE: returns percentage of the period amount
+func CalculatePenalty(config *models.PenaltyConfig, periodAmount float64, daysOverdue int) float64 {
+	if config == nil || daysOverdue <= config.GracePeriod {
+		return 0
+	}
+
+	var penaltyAmount float64
+	effectiveDays := daysOverdue - config.GracePeriod
+
+	switch config.Type {
+	case "FIXED":
+		penaltyAmount = config.Value
+	case "PERCENTAGE":
+		penaltyAmount = periodAmount * (config.Percentage / 100)
+	case "HYBRID":
+		// Hybrid = fixed amount + percentage of period amount
+		penaltyAmount = config.Value + (periodAmount * (config.Percentage / 100))
+	default:
+		return 0
+	}
+
+	// Apply frequency multiplier
+	switch config.Frequency {
+	case "DAILY":
+		penaltyAmount = penaltyAmount * float64(effectiveDays)
+	case "WEEKLY":
+		weeks := effectiveDays / 7
+		if weeks < 1 {
+			weeks = 1
+		}
+		penaltyAmount = penaltyAmount * float64(weeks)
+	case "ONETIME":
+		// Keep as is, applied once
+	}
+
+	return penaltyAmount
+}
+
 func (s *BillingService) GenerateBatchFromManualEntry(ctx context.Context, enterpriseID string, items []ManualInvoiceItem) error {
 	ent, err := s.entRepo.FindByID(ctx, enterpriseID)
 	if err != nil {

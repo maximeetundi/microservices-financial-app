@@ -70,11 +70,14 @@
 
         <!-- Price -->
         <div class="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 px-3 py-2 rounded-xl border border-primary-200 dark:border-primary-700">
-          <span class="text-xs text-primary-600 dark:text-primary-400">{{ localService.billing_type === 'USAGE' ? 'Prix/unité:' : 'Montant:' }}</span>
-          <input v-model.number="localService.base_price" 
+          <span class="text-xs text-primary-600 dark:text-primary-400">{{ localService.billing_type === 'USAGE' ? 'Prix/unité:' : (hasPaymentSchedule ? 'Total:' : 'Montant:') }}</span>
+          <!-- Editable when no schedule, readonly when schedule exists -->
+          <input v-if="!hasPaymentSchedule" 
+            v-model.number="localService.base_price" 
             type="number" 
             step="0.01"
             class="w-24 border-0 bg-transparent text-sm font-bold text-primary-700 dark:text-primary-300 focus:ring-0 p-0 text-right" />
+          <span v-else class="text-sm font-bold text-primary-700 dark:text-primary-300">{{ scheduleTotalAmount }}</span>
           <span class="text-xs font-bold text-primary-600 dark:text-primary-400">{{ currency }}</span>
         </div>
       </div>
@@ -158,6 +161,7 @@
                 <option value="date" class="dark:bg-gray-800">Date</option>
                 <option value="email" class="dark:bg-gray-800">Email</option>
                 <option value="tel" class="dark:bg-gray-800">Téléphone</option>
+                <option value="checkbox" class="dark:bg-gray-800">Case à cocher</option>
                 <option value="select" class="dark:bg-gray-800">Liste déroulante</option>
               </select>
               <label class="flex items-center gap-1 text-xs text-gray-500">
@@ -186,30 +190,39 @@
 
           <div v-if="hasPenalty" class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
-              <label class="block text-xs text-gray-500 mb-1">Type</label>
-              <select v-model="localService.penalty_config.type" class="w-full px-2 py-1.5 rounded border-gray-200 dark:bg-gray-700 dark:border-gray-600 text-sm">
-                <option value="FIXED">Montant fixe</option>
-                <option value="PERCENTAGE">Pourcentage</option>
-                <option value="HYBRID">Hybride</option>
+              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Type</label>
+              <select v-model="localService.penalty_config.type" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
+                <option value="FIXED" class="dark:bg-gray-800">Montant fixe</option>
+                <option value="PERCENTAGE" class="dark:bg-gray-800">Pourcentage</option>
+                <option value="HYBRID" class="dark:bg-gray-800">Hybride</option>
+              </select>
+            </div>
+            
+            <!-- Amount field (for FIXED and HYBRID) -->
+            <div v-if="localService.penalty_config?.type === 'FIXED' || localService.penalty_config?.type === 'HYBRID'">
+              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Montant</label>
+              <input v-model.number="localService.penalty_config.value" type="number" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+            </div>
+            
+            <!-- Percentage field (for PERCENTAGE and HYBRID) -->
+            <div v-if="localService.penalty_config?.type === 'PERCENTAGE' || localService.penalty_config?.type === 'HYBRID'">
+              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Pourcentage (%)</label>
+              <input v-model.number="localService.penalty_config.percentage" type="number" step="0.1" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+            </div>
+            
+            <div>
+              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Fréquence</label>
+              <select v-model="localService.penalty_config.frequency" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm">
+                <option value="ONETIME" class="dark:bg-gray-800">Une fois</option>
+                <option value="DAILY" class="dark:bg-gray-800">Par jour</option>
+                <option value="WEEKLY" class="dark:bg-gray-800">Par semaine</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs text-gray-500 mb-1">{{ localService.penalty_config?.type === 'PERCENTAGE' ? 'Pourcentage' : 'Montant' }}</label>
-              <input v-model.number="localService.penalty_config.value" type="number" class="w-full px-2 py-1.5 rounded border-gray-200 dark:bg-gray-700 dark:border-gray-600 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Fréquence</label>
-              <select v-model="localService.penalty_config.frequency" class="w-full px-2 py-1.5 rounded border-gray-200 dark:bg-gray-700 dark:border-gray-600 text-sm">
-                <option value="ONETIME">Une fois</option>
-                <option value="DAILY">Par jour</option>
-                <option value="WEEKLY">Par semaine</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Délai de grâce</label>
+              <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Délai de grâce</label>
               <div class="flex items-center gap-1">
-                <input v-model.number="localService.penalty_config.grace_period" type="number" class="w-full px-2 py-1.5 rounded border-gray-200 dark:bg-gray-700 dark:border-gray-600 text-sm" />
-                <span class="text-xs text-gray-500">jours</span>
+                <input v-model.number="localService.penalty_config.grace_period" type="number" class="w-full px-2 py-1.5 rounded border border-gray-200 dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
+                <span class="text-xs text-gray-500 dark:text-gray-400">jours</span>
               </div>
             </div>
           </div>
@@ -256,6 +269,26 @@ const scheduleMode = ref(props.service.payment_schedule?.length ? 'schedule' : '
 
 const hasPenalty = computed(() => !!localService.value.penalty_config)
 
+// Check if using payment schedule with periods
+const hasPaymentSchedule = computed(() => {
+  return localService.value.billing_frequency === 'CUSTOM' && 
+         scheduleMode.value === 'schedule' && 
+         localService.value.payment_schedule?.length > 0
+})
+
+// Calculate total amount from all periods
+const scheduleTotalAmount = computed(() => {
+  if (!hasPaymentSchedule.value) return 0
+  return (localService.value.payment_schedule || []).reduce((sum, item) => sum + (item.amount || 0), 0)
+})
+
+// Auto-update base_price when schedule changes
+watch(scheduleTotalAmount, (newTotal) => {
+  if (hasPaymentSchedule.value && newTotal > 0) {
+    localService.value.base_price = newTotal
+  }
+})
+
 // Prevent infinite loop: only emit if actually changed by user
 let isUpdatingFromProps = false
 
@@ -283,7 +316,8 @@ const togglePenalty = () => {
   } else {
     localService.value.penalty_config = {
       type: 'PERCENTAGE',
-      value: 10,
+      value: 0,
+      percentage: 10,
       frequency: 'ONETIME',
       grace_period: 5
     }

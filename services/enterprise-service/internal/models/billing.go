@@ -31,11 +31,19 @@ type Invoice struct {
 	ServiceName   string             `bson:"service_name" json:"service_name"`
 	SubscriptionID primitive.ObjectID `bson:"subscription_id,omitempty" json:"subscription_id,omitempty"`
 	
+	// Amount Details
 	Amount        float64            `bson:"amount" json:"amount"`
+	BaseAmount    float64            `bson:"base_amount,omitempty" json:"base_amount,omitempty"` // Original amount before penalties
+	PenaltyAmount float64            `bson:"penalty_amount,omitempty" json:"penalty_amount,omitempty"` // Total penalty applied
 	Consumption   *float64           `bson:"consumption,omitempty" json:"consumption,omitempty"` // For Usage Billing
 	Currency      string             `bson:"currency" json:"currency"`
 	Description   string             `bson:"description" json:"description"`
 	Type          string             `bson:"type" json:"type"` // e.g., "TUITION", "TRANSPORT"
+	
+	// Period Info (for multi-period billing)
+	PeriodName    string             `bson:"period_name,omitempty" json:"period_name,omitempty"` // e.g., "Premiere Tranche"
+	PeriodIndex   int                `bson:"period_index,omitempty" json:"period_index,omitempty"` // 0, 1, 2...
+	
 	Metadata      map[string]string  `bson:"metadata,omitempty" json:"metadata,omitempty"`
 	
 	// Dates

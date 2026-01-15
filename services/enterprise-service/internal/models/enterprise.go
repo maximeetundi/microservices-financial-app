@@ -109,11 +109,11 @@ type ServiceDefinition struct {
 }
 
 type PenaltyConfig struct {
-    Type        string  `bson:"type" json:"type"`
-    Value       float64 `bson:"value" json:"value"`
-    ValueFixed  float64 `bson:"value_fixed,omitempty" json:"value_fixed,omitempty"`
-    Frequency   string  `bson:"frequency" json:"frequency"`
-    GracePeriod int     `bson:"grace_period" json:"grace_period"`
+    Type        string  `bson:"type" json:"type"`                                   // FIXED, PERCENTAGE, HYBRID
+    Value       float64 `bson:"value" json:"value"`                                 // Fixed amount (for FIXED and HYBRID)
+    Percentage  float64 `bson:"percentage,omitempty" json:"percentage,omitempty"`   // Percentage (for PERCENTAGE and HYBRID)
+    Frequency   string  `bson:"frequency" json:"frequency"`                         // ONETIME, DAILY, WEEKLY
+    GracePeriod int     `bson:"grace_period" json:"grace_period"`                   // Days before penalty applies
 }
 
 type ReqFormField struct {
