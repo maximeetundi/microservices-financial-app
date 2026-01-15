@@ -204,7 +204,7 @@ const canShowQR = computed(() => {
 const subscriptionLink = computed(() => {
   if (!props.enterprise?.id) return ''
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.maximeetundi.store'
-  let url = `${origin}/subscribe/${props.enterprise.id}`
+  let url = `${origin}/enterprises/${props.enterprise.id}/subscribe`
   
   if (qrType.value === 'SERVICE' && selectedService.value) {
     url += `?service_id=${selectedService.value}`
@@ -243,9 +243,9 @@ const displayDescription = computed(() => {
 })
 
 const displayCode = computed(() => {
-  if (qrType.value === 'ENTERPRISE') return `ENT-${props.enterprise?.id?.substring(0, 8)}`
-  if (qrType.value === 'GROUP') return `GRP-${selectedGroup.value?.substring(0, 8)}`
-  if (qrType.value === 'SERVICE') return `SVC-${selectedService.value?.substring(0, 8)}`
+  if (qrType.value === 'ENTERPRISE') return `ENT-${props.enterprise?.id}`
+  if (qrType.value === 'GROUP') return `GRP-${selectedGroup.value}`
+  if (qrType.value === 'SERVICE') return `SVC-${selectedService.value}`
   return 'CODE'
 })
 
