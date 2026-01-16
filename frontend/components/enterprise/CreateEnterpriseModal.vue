@@ -99,12 +99,67 @@ const form = reactive({
   logoPreview: null
 })
 
-const handleLogoUpload = (event) => {
+const handleLogoUpload = async (event) => {
   const file = event.target.files[0]
-  if (file) {
+  if (!file) return
+  
+  // Compress image before storing
+  try {
+    const compressedFile = await compressImage(file, 500, 500, 0.8)
+    form.logo = compressedFile
+    form.logoPreview = URL.createObjectURL(compressedFile)
+    console.log(`Logo compressed: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`)
+  } catch (error) {
+    console.error('Failed to compress image:', error)
+    // Fallback to original file if compression fails
     form.logo = file
     form.logoPreview = URL.createObjectURL(file)
   }
+}
+
+// Compress image using canvas
+const compressImage = (file, maxWidth, maxHeight, quality) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        // Calculate new dimensions
+        let width = img.width
+        let height = img.height
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            })
+            resolve(compressedFile)
+          } else {
+            reject(new Error('Failed to create blob'))
+          }
+        }, 'image/jpeg', quality)
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 const createEnterprise = async () => {
@@ -130,7 +185,16 @@ const createEnterprise = async () => {
     emit('created')
   } catch (e) {
     console.error(e)
-    alert('Erreur: ' + (e.response?.data?.error || e.message))
+    // Handle specific error types
+    let errorMsg = 'Erreur inconnue'
+    if (e.response?.status === 413) {
+      errorMsg = 'Le fichier logo est trop volumineux. Veuillez utiliser une image de moins de 5 MB.'
+    } else if (e.message === 'Network Error') {
+      errorMsg = 'Erreur réseau. Vérifiez votre connexion ou réduisez la taille du logo.'
+    } else {
+      errorMsg = e.response?.data?.error || e.message
+    }
+    alert('Erreur: ' + errorMsg)
   } finally {
     isCreating.value = false
   }
