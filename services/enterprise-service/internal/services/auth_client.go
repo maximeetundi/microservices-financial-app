@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -103,7 +106,19 @@ func (c *AuthClient) FindUserByContact(email, phone string) (string, error) {
 }
 
 func (c *AuthClient) lookupUser(field, value string) (string, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/users/lookup?%s=%s", c.baseURL, field, value), nil)
+	// Proper URL construction with encoding
+	baseURL, err := url.Parse(fmt.Sprintf("%s/api/v1/users/lookup", c.baseURL))
+	if err != nil {
+		return "", err
+	}
+	params := url.Values{}
+	params.Add(field, value)
+	baseURL.RawQuery = params.Encode()
+	
+	fullURL := baseURL.String()
+	log.Printf("AuthClient: Looking up user via %s", fullURL)
+
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -111,18 +126,29 @@ func (c *AuthClient) lookupUser(field, value string) (string, error) {
 	
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		log.Printf("AuthClient: Network error: %v", err)
 		return "", err
 	}
 	defer resp.Body.Close()
 	
+	log.Printf("AuthClient: Response Status: %d", resp.StatusCode)
+	
 	if resp.StatusCode != http.StatusOK {
-		return "", nil // Not found
+		// Log body if not 200
+		var bodyBytes []byte
+		if resp.Body != nil {
+			bodyBytes, _ = io.ReadAll(resp.Body)
+		}
+		log.Printf("AuthClient: Error response body: %s", string(bodyBytes))
+		return "", nil // Not found (or other error treated as not found for now)
 	}
 	
 	var user UserInfo
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		log.Printf("AuthClient: Failed to decode response: %v", err)
 		return "", err
 	}
 	
+	log.Printf("AuthClient: Found user ID: %s", user.ID)
 	return user.ID, nil
 }
