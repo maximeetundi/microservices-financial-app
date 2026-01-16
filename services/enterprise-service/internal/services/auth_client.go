@@ -70,3 +70,59 @@ func (c *AuthClient) VerifyPin(userID, pin, token string) (bool, error) {
 
 	return pinResp.Valid, nil
 }
+
+// UserInfo represents user data from auth-service
+type UserInfo struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+}
+
+// FindUserByContact searches for a user by email or phone number
+// Returns the user ID if found, empty string if not found
+func (c *AuthClient) FindUserByContact(email, phone string) (string, error) {
+	// Try by email first
+	if email != "" {
+		userID, err := c.lookupUser("email", email)
+		if err == nil && userID != "" {
+			return userID, nil
+		}
+	}
+	
+	// Try by phone
+	if phone != "" {
+		userID, err := c.lookupUser("phone", phone)
+		if err == nil && userID != "" {
+			return userID, nil
+		}
+	}
+	
+	return "", nil // User not found (not an error - they may not have an account yet)
+}
+
+func (c *AuthClient) lookupUser(field, value string) (string, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/users/lookup?%s=%s", c.baseURL, field, value), nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return "", nil // Not found
+	}
+	
+	var user UserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return "", err
+	}
+	
+	return user.ID, nil
+}

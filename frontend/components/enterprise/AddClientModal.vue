@@ -89,15 +89,13 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { UserPlusIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
-import { enterpriseAPI, useApi } from '@/composables/useApi'
+import { enterpriseAPI, authAPI } from '@/composables/useApi'
 
 const props = defineProps({
   enterprise: { type: Object, required: true }
 })
 
 const emit = defineEmits(['close', 'added'])
-
-const { authApi } = useApi()
 
 const searchQuery = ref('')
 const foundUser = ref(null)
@@ -125,10 +123,23 @@ const searchUser = async () => {
   isSearching.value = true
   foundUser.value = null
   try {
-    const { data } = await authApi.lookup(searchQuery.value)
-    if (data) foundUser.value = data
-    else alert('Utilisateur non trouvé')
+    // Detect if input is email or phone
+    const isEmail = searchQuery.value.includes('@')
+    const params = isEmail 
+      ? { email: searchQuery.value } 
+      : { phone: searchQuery.value }
+    
+    const { data } = await authAPI.lookup(params)
+    if (data) {
+      foundUser.value = {
+        id: data.id,
+        name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || data.email || data.phone_number
+      }
+    } else {
+      alert('Utilisateur non trouvé')
+    }
   } catch (e) {
+    console.error('User lookup failed:', e)
     alert('Utilisateur non trouvé')
   } finally {
     isSearching.value = false

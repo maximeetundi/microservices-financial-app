@@ -23,7 +23,10 @@ func NewEmployeeRepository(db *mongo.Database) *EmployeeRepository {
 func (r *EmployeeRepository) Create(ctx context.Context, emp *models.Employee) error {
 	emp.CreatedAt = time.Now()
 	emp.UpdatedAt = time.Now()
-	emp.Status = models.EmployeeStatusPending // Default to Pending Invite
+	// Only set default status if not already set (owner is created with ACTIVE)
+	if emp.Status == "" {
+		emp.Status = models.EmployeeStatusPending
+	}
 	res, err := r.collection.InsertOne(ctx, emp)
 	if err != nil {
 		return err

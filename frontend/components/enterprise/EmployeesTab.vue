@@ -142,7 +142,7 @@
 
     <!-- Invite Modal -->
     <InviteEmployeeModal 
-      v-if="showInviteModal" 
+      v-if="showInviteModal && enterprise" 
       :enterprise-id="enterprise.id"
       :job-positions="enterprise.job_positions || []"
       @close="showInviteModal = false"

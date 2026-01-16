@@ -52,27 +52,24 @@
                 </div>
               </div>
 
-              <!-- Currency -->
-              <div class="w-40">
-                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Devise</label>
-                <select v-model="group.currency" 
-                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
-                  <option v-for="curr in currencies" :key="curr.code" :value="curr.code" class="bg-white dark:bg-gray-800 dark:text-white">
-                    {{ curr.code }} - {{ curr.symbol }}
+              <!-- Wallet Destination -->
+              <div class="w-48">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Wallet destination</label>
+                <select v-model="group.wallet_id" @change="onWalletChange(group)"
+                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
+                  <option value="" class="bg-white dark:bg-gray-800 dark:text-white">-- Choisir un wallet --</option>
+                  <option v-for="wallet in availableWallets" :key="wallet.id" :value="wallet.id" class="bg-white dark:bg-gray-800 dark:text-white">
+                    {{ wallet.currency }} - {{ wallet.name || wallet.label || 'Principal' }}
                   </option>
                 </select>
               </div>
 
-              <!-- Wallet Destination -->
-              <div class="w-48">
-                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Wallet destination</label>
-                <select v-model="group.wallet_id" 
-                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer">
-                  <option value="" class="bg-white dark:bg-gray-800 dark:text-white">-- Wallet par défaut --</option>
-                  <option v-for="wallet in availableWallets" :key="wallet.id" :value="wallet.id" class="bg-white dark:bg-gray-800 dark:text-white">
-                    {{ wallet.currency }} - {{ wallet.label || 'Principal' }}
-                  </option>
-                </select>
+              <!-- Currency Display (Read-only, from wallet) -->
+              <div class="w-28">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Devise</label>
+                <div class="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-mono font-medium text-center">
+                  {{ group.currency || '---' }}
+                </div>
               </div>
 
               <!-- Private Toggle -->
@@ -193,12 +190,23 @@ const currencies = [
   { code: 'GNF', symbol: 'GNF', name: 'Franc Guinéen' },
 ]
 
+// Auto-set currency when wallet changes
+const onWalletChange = (group) => {
+  const wallet = props.availableWallets.find(w => w.id === group.wallet_id)
+  if (wallet) {
+    group.currency = wallet.currency
+  } else {
+    group.currency = ''
+  }
+}
+
 const addGroup = () => {
   const newGroup = {
     id: crypto.randomUUID(),
     name: '',
     is_private: false,
-    currency: 'XOF',
+    wallet_id: '',
+    currency: '', // Will be set when wallet is selected
     services: [],
     _collapsed: false
   }

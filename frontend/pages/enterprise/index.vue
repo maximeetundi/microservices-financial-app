@@ -101,7 +101,7 @@
 
         <EmployeesTab 
           v-if="currentTab === 'Employees'" 
-          :enterprise-id="currentEnterprise.id" />
+          :enterprise="currentEnterprise" />
 
         <ClientsTab 
           v-if="currentTab === 'Clients'" 

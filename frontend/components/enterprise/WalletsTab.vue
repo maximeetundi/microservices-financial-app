@@ -166,16 +166,31 @@ const formatAmount = (amount, currency) => {
 const loadWallets = async () => {
   isLoading.value = true
   try {
-    // Load wallets by IDs stored in enterprise
+    // Try to get all wallets and filter for this enterprise
+    const { data } = await walletAPI.getAll()
+    console.log('Wallets response:', data)
+    
+    // Handle different response formats
+    let allWallets = []
+    if (Array.isArray(data)) {
+      allWallets = data
+    } else if (data?.wallets && Array.isArray(data.wallets)) {
+      allWallets = data.wallets
+    }
+    
+    // If enterprise has wallet_ids, filter by those
     const walletIds = [props.enterprise.default_wallet_id, ...(props.enterprise.wallet_ids || [])].filter(Boolean)
     
     if (walletIds.length > 0) {
-      const walletPromises = walletIds.map(id => walletAPI.get(id).catch(() => null))
-      const results = await Promise.all(walletPromises)
-      wallets.value = results.filter(r => r?.data).map(r => r.data)
+      // Filter wallets by enterprise wallet IDs
+      wallets.value = allWallets.filter(w => walletIds.includes(w.id))
     } else {
-      wallets.value = []
+      // No wallet IDs stored, but maybe wallets exist with user_id matching owner
+      // Show all business-type wallets
+      wallets.value = allWallets.filter(w => w.wallet_type === 'business' || w.wallet_type === 'BUSINESS')
     }
+    
+    console.log('Filtered wallets:', wallets.value)
   } catch (error) {
     console.error('Failed to load wallets:', error)
     wallets.value = []
@@ -187,10 +202,10 @@ const loadWallets = async () => {
 const createWallet = async () => {
   isCreating.value = true
   try {
-    // Create wallet with enterprise_id to mark it as an enterprise wallet
+    // Create wallet - use 'fiat' type (backend only accepts 'fiat' or 'crypto')
     const { data } = await walletAPI.create({
       currency: newWallet.value.currency,
-      wallet_type: 'business',
+      wallet_type: 'fiat', // Backend only accepts 'fiat' or 'crypto'
       name: newWallet.value.name || `${props.enterprise.name} - ${newWallet.value.currency}`
     })
     
@@ -214,7 +229,9 @@ const createWallet = async () => {
     await loadWallets()
   } catch (error) {
     console.error('Failed to create wallet:', error)
-    alert('Erreur lors de la création du portefeuille')
+    // Show detailed error message
+    const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Erreur inconnue'
+    alert(`Erreur lors de la création du portefeuille:\n${errorMsg}`)
   } finally {
     isCreating.value = false
   }

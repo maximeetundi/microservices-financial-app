@@ -60,24 +60,37 @@ func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employ
 	// 1. Calculate initial salary
 	s.salaryService.CalculateNetSalary(&emp.SalaryConfig)
 	
-	// 2. Set as Pending
+	// 2. Try to find the user by email or phone to link accounts
+	if emp.UserID == "" && s.authClient != nil {
+		userID, err := s.authClient.FindUserByContact(emp.Email, emp.PhoneNumber)
+		if err == nil && userID != "" {
+			emp.UserID = userID
+			log.Printf("Found existing user %s for employee %s %s", userID, emp.FirstName, emp.LastName)
+		}
+	}
+	
+	// 3. Set as Pending
 	emp.Status = models.EmployeeStatusPending
 	emp.InvitedAt = time.Now()
 	
-	// 3. Create employee record
+	// 4. Create employee record
 	if err := s.repo.Create(ctx, emp); err != nil {
 		return err
 	}
 	
-	// 4. Send Notification to employee (if they have a user account)
+	// 5. Send Notification to employee (if they have a user account)
 	if emp.UserID != "" && s.notifClient != nil && s.entRepo != nil {
 		// Fetch enterprise name for notification
 		ent, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
 		if err == nil {
 			if err := s.notifClient.NotifyEmployeeInvitation(ctx, emp.UserID, ent.Name); err != nil {
 				log.Printf("Failed to send invitation notification: %v", err)
+			} else {
+				log.Printf("Sent invitation notification to user %s for enterprise %s", emp.UserID, ent.Name)
 			}
 		}
+	} else {
+		log.Printf("No user account found for employee %s - notification not sent", emp.Email)
 	}
 	
 	return nil
