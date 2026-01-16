@@ -201,12 +201,13 @@ func main() {
 		api.GET("/users/search", userHandler.SearchUsers)
 		// Get user by ID (public - needed for conversation participant info)
 		api.GET("/users/:id", userHandler.GetUserByID)
+		// User lookup by email/phone (public - needed for service-to-service calls)
+		api.GET("/users/lookup", authHandler.LookupUser)
 		
 		// Protected user routes
 		users := api.Group("/users")
 		users.Use(middleware.JWTAuth(cfg.JWTSecret)) 
 		{
-             users.GET("/lookup", authHandler.LookupUser)
              users.GET("/profile", authHandler.GetProfile)
              users.PUT("/profile", authHandler.UpdateProfile)
              users.POST("/change-password", authHandler.ChangePassword)
