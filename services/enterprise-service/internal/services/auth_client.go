@@ -19,7 +19,7 @@ type AuthClient struct {
 func NewAuthClient() *AuthClient {
 	authURL := os.Getenv("AUTH_SERVICE_URL")
 	if authURL == "" {
-		authURL = "http://auth-service:8080"
+		authURL = "http://auth-service:8081"
 	}
 	return &AuthClient{
 		baseURL:    authURL,
