@@ -165,6 +165,8 @@ import {
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 import { usePin } from '@/composables/usePin'
+import InviteEmployeeModal from './InviteEmployeeModal.vue'
+import EmployeeDetailModal from './EmployeeDetailModal.vue'
 
 const props = defineProps({
   enterprise: {

@@ -95,6 +95,7 @@ import { ref, computed, onMounted } from 'vue'
 import { UserGroupIcon, PlusIcon, ArrowDownTrayIcon, UsersIcon } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 import { usePin } from '@/composables/usePin'
+import AddClientModal from './AddClientModal.vue'
 
 const props = defineProps({
   enterprise: { type: Object, required: true }

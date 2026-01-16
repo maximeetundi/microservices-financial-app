@@ -185,9 +185,9 @@ const loadWallets = async () => {
       // Filter wallets by enterprise wallet IDs
       wallets.value = allWallets.filter(w => walletIds.includes(w.id))
     } else {
-      // No wallet IDs stored, but maybe wallets exist with user_id matching owner
-      // Show all business-type wallets
-      wallets.value = allWallets.filter(w => w.wallet_type === 'business' || w.wallet_type === 'BUSINESS')
+      // No wallet IDs stored - show all fiat wallets (enterprise wallets use 'fiat' type)
+      // Backend only supports 'fiat' and 'crypto' types
+      wallets.value = allWallets.filter(w => w.wallet_type === 'fiat')
     }
     
     console.log('Filtered wallets:', wallets.value)
