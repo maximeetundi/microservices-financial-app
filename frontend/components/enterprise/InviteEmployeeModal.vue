@@ -24,6 +24,20 @@
           </div>
         </div>
 
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <div class="flex gap-3">
+            <XMarkIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div class="text-sm text-red-700 dark:text-red-300">
+              <p class="font-medium mb-1">Erreur</p>
+              <p class="text-red-600 dark:text-red-400">{{ errorMessage }}</p>
+            </div>
+            <button @click="errorMessage = ''" class="ml-auto text-red-500 hover:text-red-700">
+              <XMarkIcon class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
         <form @submit.prevent="sendInvite" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -133,6 +147,7 @@ const emit = defineEmits(['close', 'invited'])
 const isLoading = ref(false)
 const showSalary = ref(false)
 const selectedPositionId = ref('')
+const errorMessage = ref('')
 
 const form = reactive({
   first_name: '',
@@ -167,13 +182,26 @@ const handlePositionChange = () => {
 
 const sendInvite = async () => {
   isLoading.value = true
+  errorMessage.value = ''
   try {
+    // Validate required fields
+    if (!form.first_name || !form.last_name) {
+      errorMessage.value = 'Le prénom et le nom sont requis.'
+      isLoading.value = false
+      return
+    }
+    if (!form.contact) {
+      errorMessage.value = 'L\'email ou le téléphone est requis.'
+      isLoading.value = false
+      return
+    }
+    
     const payload = {
       first_name: form.first_name,
       last_name: form.last_name,
       profession: form.profession,
-      position_id: selectedPositionId.value || undefined, // Send position ID if selected
-      hire_date: new Date(form.hire_date).toISOString(), // Send hire date
+      position_id: selectedPositionId.value || undefined,
+      hire_date: new Date(form.hire_date).toISOString(),
       email: form.contact.includes('@') ? form.contact : '',
       phone_number: !form.contact.includes('@') ? form.contact : '',
       salary_config: showSalary.value ? form.salary_config : undefined
@@ -182,8 +210,19 @@ const sendInvite = async () => {
     await enterpriseAPI.inviteEmployee(props.enterpriseId, payload)
     emit('invited')
   } catch (e) {
-    console.error(e)
-    alert('Erreur: ' + (e.response?.data?.error || e.message))
+    console.error('Invite failed:', e)
+    // Parse different error formats
+    let msg = 'Erreur inconnue'
+    if (e.response?.data?.error) {
+      msg = e.response.data.error
+    } else if (e.response?.data?.message) {
+      msg = e.response.data.message
+    } else if (e.message === 'Network Error') {
+      msg = 'Erreur réseau. Vérifiez votre connexion.'
+    } else if (e.message) {
+      msg = e.message
+    }
+    errorMessage.value = msg
   } finally {
     isLoading.value = false
   }

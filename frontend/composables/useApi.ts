@@ -680,7 +680,7 @@ export const enterpriseAPI = {
 
     // Employee Management
     listEmployees: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/employees`),
-    inviteEmployee: (data: any) => api.post('/enterprise-service/api/v1/employees/invite', data),
+    inviteEmployee: (entId: string, data: any) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/employees`, data),
     acceptInvitation: (data: { pin: string, token: string }) => api.post('/enterprise-service/api/v1/employees/accept', data),
     promoteEmployee: (id: string, data: any) => api.put(`/enterprise-service/api/v1/employees/${id}/promote`, data),
 
