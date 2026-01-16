@@ -69,3 +69,36 @@ func (r *EmployeeRepository) Update(ctx context.Context, emp *models.Employee) e
 	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": emp.ID}, emp)
 	return err
 }
+
+// FindByEnterpriseAndContact checks if an employee with given email or phone already exists in the enterprise
+func (r *EmployeeRepository) FindByEnterpriseAndContact(ctx context.Context, enterpriseID, email, phone string) (*models.Employee, error) {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Build OR filter for email or phone
+	var orFilters []bson.M
+	if email != "" {
+		orFilters = append(orFilters, bson.M{"email": email})
+	}
+	if phone != "" {
+		orFilters = append(orFilters, bson.M{"phone_number": phone})
+	}
+	
+	if len(orFilters) == 0 {
+		return nil, nil // No email or phone to check
+	}
+	
+	filter := bson.M{
+		"enterprise_id": oid,
+		"$or":           orFilters,
+	}
+	
+	var emp models.Employee
+	err = r.collection.FindOne(ctx, filter).Decode(&emp)
+	if err != nil {
+		return nil, err // Not found or error
+	}
+	return &emp, nil
+}

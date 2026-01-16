@@ -56,30 +56,46 @@ func (s *EmployeeService) GetEmployeeByUserAndEnterprise(ctx context.Context, us
 }
 
 // InviteEmployee (Point 2): Adds employee & Sends notification
+// IMPORTANT: User must exist in the system to be invited as employee
 func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employee) error {
-	// 1. Calculate initial salary
-	s.salaryService.CalculateNetSalary(&emp.SalaryConfig)
-	
-	// 2. Try to find the user by email or phone to link accounts
-	if emp.UserID == "" && s.authClient != nil {
-		userID, err := s.authClient.FindUserByContact(emp.Email, emp.PhoneNumber)
-		if err == nil && userID != "" {
-			emp.UserID = userID
-			log.Printf("Found existing user %s for employee %s %s", userID, emp.FirstName, emp.LastName)
-		}
+	// 1. REQUIRED: Find the user by email or phone - user MUST exist
+	if s.authClient == nil {
+		return errors.New("auth client not configured")
 	}
 	
-	// 3. Set as Pending
+	userID, err := s.authClient.FindUserByContact(emp.Email, emp.PhoneNumber)
+	if err != nil {
+		log.Printf("Error looking up user by contact: %v", err)
+		return errors.New("impossible de vérifier l'utilisateur - réessayez plus tard")
+	}
+	if userID == "" {
+		log.Printf("User not found for email=%s phone=%s", emp.Email, emp.PhoneNumber)
+		return errors.New("aucun compte utilisateur trouvé avec cet email/téléphone - l'utilisateur doit d'abord créer un compte")
+	}
+	emp.UserID = userID
+	log.Printf("Found existing user %s for employee %s %s", userID, emp.FirstName, emp.LastName)
+	
+	// 2. Check for duplicate: same email/phone already in this enterprise
+	existingEmp, err := s.repo.FindByEnterpriseAndContact(ctx, emp.EnterpriseID.Hex(), emp.Email, emp.PhoneNumber)
+	if err == nil && existingEmp != nil {
+		log.Printf("Duplicate employee: %s already exists in enterprise %s", emp.Email, emp.EnterpriseID.Hex())
+		return errors.New("cet utilisateur est déjà employé ou invité dans cette entreprise")
+	}
+	
+	// 3. Calculate initial salary
+	s.salaryService.CalculateNetSalary(&emp.SalaryConfig)
+	
+	// 4. Set as Pending
 	emp.Status = models.EmployeeStatusPending
 	emp.InvitedAt = time.Now()
 	
-	// 4. Create employee record
+	// 5. Create employee record
 	if err := s.repo.Create(ctx, emp); err != nil {
 		return err
 	}
 	
-	// 5. Send Notification to employee (if they have a user account)
-	if emp.UserID != "" && s.notifClient != nil && s.entRepo != nil {
+	// 6. Send Notification to employee
+	if s.notifClient != nil && s.entRepo != nil {
 		// Fetch enterprise name for notification
 		ent, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
 		if err == nil {
@@ -89,8 +105,6 @@ func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employ
 				log.Printf("Sent invitation notification to user %s for enterprise %s", emp.UserID, ent.Name)
 			}
 		}
-	} else {
-		log.Printf("No user account found for employee %s - notification not sent", emp.Email)
 	}
 	
 	return nil

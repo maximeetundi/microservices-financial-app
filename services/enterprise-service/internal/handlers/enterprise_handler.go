@@ -180,7 +180,14 @@ func (h *EnterpriseHandler) GetEnterprise(c *gin.Context) {
 }
 
 func (h *EnterpriseHandler) ListEnterprises(c *gin.Context) {
-	enterprises, err := h.repo.FindAll(c.Request.Context())
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	
+	// Get enterprises where user is owner OR is an active employee
+	enterprises, err := h.repo.FindByUserAccess(c.Request.Context(), userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list enterprises", "details": err.Error()})
 		return

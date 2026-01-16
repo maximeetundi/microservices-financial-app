@@ -68,3 +68,79 @@ func (r *EnterpriseRepository) FindAll(ctx context.Context) ([]*models.Enterpris
 	
 	return enterprises, nil
 }
+
+// FindByUserAccess returns enterprises where user is owner OR is an employee
+func (r *EnterpriseRepository) FindByUserAccess(ctx context.Context, userID string) ([]*models.Enterprise, error) {
+	// Get enterprises where user is owner
+	ownerFilter := bson.M{"owner_id": userID}
+	
+	cursor, err := r.collection.Find(ctx, ownerFilter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var ownedEnterprises []*models.Enterprise
+	if err := cursor.All(ctx, &ownedEnterprises); err != nil {
+		return nil, err
+	}
+	
+	// Get enterprises where user is an employee
+	// Query employees collection for this user
+	employeesCol := r.collection.Database().Collection("employees")
+	empCursor, err := employeesCol.Find(ctx, bson.M{
+		"user_id": userID,
+		"status": bson.M{"$in": []string{"ACTIVE", "PENDING", "PENDING_INVITE"}},
+	})
+	if err != nil {
+		// If employees query fails, just return owned enterprises
+		if ownedEnterprises == nil {
+			ownedEnterprises = []*models.Enterprise{}
+		}
+		return ownedEnterprises, nil
+	}
+	defer empCursor.Close(ctx)
+	
+	// Collect enterprise IDs from employee records
+	enterpriseIDSet := make(map[string]bool)
+	for _, ent := range ownedEnterprises {
+		enterpriseIDSet[ent.ID.Hex()] = true
+	}
+	
+	for empCursor.Next(ctx) {
+		var emp struct {
+			EnterpriseID primitive.ObjectID `bson:"enterprise_id"`
+		}
+		if empCursor.Decode(&emp) == nil {
+			enterpriseIDSet[emp.EnterpriseID.Hex()] = true
+		}
+	}
+	
+	// If user has employee records in other enterprises, fetch those too
+	var additionalIDs []primitive.ObjectID
+	for _, ent := range ownedEnterprises {
+		delete(enterpriseIDSet, ent.ID.Hex()) // Already have these
+	}
+	for idHex := range enterpriseIDSet {
+		if oid, err := primitive.ObjectIDFromHex(idHex); err == nil {
+			additionalIDs = append(additionalIDs, oid)
+		}
+	}
+	
+	if len(additionalIDs) > 0 {
+		addCursor, err := r.collection.Find(ctx, bson.M{"_id": bson.M{"$in": additionalIDs}})
+		if err == nil {
+			defer addCursor.Close(ctx)
+			var additionalEnterprises []*models.Enterprise
+			if addCursor.All(ctx, &additionalEnterprises) == nil {
+				ownedEnterprises = append(ownedEnterprises, additionalEnterprises...)
+			}
+		}
+	}
+	
+	if ownedEnterprises == nil {
+		ownedEnterprises = []*models.Enterprise{}
+	}
+	
+	return ownedEnterprises, nil
+}
