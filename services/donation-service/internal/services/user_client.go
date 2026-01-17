@@ -30,7 +30,7 @@ func NewUserClient() *UserClient {
 
 // VerifyPin calls auth-service to verify the PIN
 func (c *UserClient) VerifyPin(userID, pin, token string) error {
-	url := fmt.Sprintf("%s/api/v1/users/pin/verify", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/internal/users/pin/verify", c.baseURL)
 
 	reqBody := map[string]string{
 		"pin": pin,

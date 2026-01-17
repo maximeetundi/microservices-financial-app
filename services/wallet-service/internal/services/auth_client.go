@@ -42,7 +42,7 @@ func (c *AuthClient) VerifyPin(userID, pin, token string) (bool, error) {
 
 	jsonData, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/users/pin/verify", c.baseURL), bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/internal/users/pin/verify", c.baseURL), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return false, fmt.Errorf("failed to create request: %w", err)
 	}

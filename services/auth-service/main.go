@@ -203,8 +203,8 @@ func main() {
 		api.GET("/users/:id", userHandler.GetUserByID)
 		// User lookup by email/phone (public - needed for service-to-service calls)
 		api.GET("/users/lookup", authHandler.LookupUser)
-		// Internal PIN verify (for service-to-service calls, uses X-User-ID header)
-		api.POST("/users/pin/verify", authHandler.VerifyPin)
+		// INTERNAL PIN verify (for service-to-service calls ONLY, uses X-User-ID header)
+		api.POST("/internal/users/pin/verify", authHandler.VerifyPin)
 		
 		// Protected user routes
 		users := api.Group("/users")
@@ -222,7 +222,7 @@ func main() {
              // PIN routes (5-digit transaction security PIN)
              users.GET("/pin/status", authHandler.CheckPinStatus)
              users.POST("/pin/setup", authHandler.SetPin)
-             // Note: /pin/verify is now in public routes for service-to-service calls
+             users.POST("/pin/verify", authHandler.VerifyPin) // For frontend (JWT)
              users.POST("/pin/change", authHandler.ChangePin)
 
              // User Preferences
