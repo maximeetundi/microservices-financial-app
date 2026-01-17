@@ -54,9 +54,15 @@
             <div class="notif-title">{{ notif.title }}</div>
             <div class="notif-msg">{{ notif.message }}</div>
             <div class="notif-time">{{ formatTime(notif.created_at) }}</div>
+            
+            <!-- Prominent action button for ANY notification with action_url -->
+            <button v-if="notif.action_url" 
+              @click.stop="navigateTo(notif.action_url)" 
+              class="action-btn-primary">
+              {{ getActionLabel(notif) }} →
+            </button>
           </div>
           <div class="notif-actions">
-             <button v-if="notif.action_url" @click.stop="navigateTo(notif.action_url)" class="action-view" title="Voir les détails">👁️</button>
             <button v-if="!notif.is_read" @click.stop="markAsRead(notif.id)" class="action-mark" title="Marquer comme lu">✓</button>
             <button @click.stop="deleteNotification(notif.id)" class="action-delete" title="Supprimer">✕</button>
           </div>
@@ -263,6 +269,16 @@ const formatFullDate = (date) => {
 const getTypeLabel = (type) => {
   const labels = { transfer: 'Transfert', card: 'Carte', security: 'Sécurité', wallet: 'Portefeuille', kyc: 'Vérification' }
   return labels[type] || 'Notification'
+}
+
+// Action label based on notification type
+const getActionLabel = (notif) => {
+  if (notif.meta?.action === 'accept_invitation') return '✅ Accepter l\'invitation'
+  if (notif.type === 'transfer') return '📋 Voir la transaction'
+  if (notif.type === 'card') return '💳 Voir la carte'
+  if (notif.type === 'wallet') return '👛 Voir le portefeuille'
+  if (notif.type === 'kyc') return '✅ Voir le statut'
+  return '👁️ Voir les détails'
 }
 
 const openNotificationDetail = (notification) => {
@@ -478,6 +494,25 @@ definePageMeta({
   font-size: 0.625rem;
   color: #666;
   margin-top: 0.25rem;
+}
+
+.action-btn-primary {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.action-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .notif-actions {

@@ -24,18 +24,6 @@
           </div>
         </div>
 
-        <!-- Error Message -->
-        <div v-if="errorMessage" class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
-          <div class="flex gap-3">
-            <XMarkIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div class="text-sm text-red-700 dark:text-red-300">
-              <p class="font-medium mb-1">Erreur</p>
-              <p class="text-red-600 dark:text-red-400">{{ errorMessage }}</p>
-            </div>
-            <button @click="errorMessage = ''" class="ml-auto text-red-500 hover:text-red-700">
-              <XMarkIcon class="w-4 h-4" />
-            </button>
-          </div>
         </div>
 
         <form @submit.prevent="sendInvite" class="space-y-4">
@@ -116,6 +104,27 @@
             </div>
           </div>
 
+          <!-- Messages (Error/Success) - BOTTOM of form for visibility -->
+          <div v-if="errorMessage" class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+            <div class="flex gap-3">
+              <XCircleIcon class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div class="text-sm text-red-700 dark:text-red-300 flex-1">
+                <p class="font-medium mb-1">Échec de l'invitation</p>
+                <p class="text-red-600 dark:text-red-400">{{ errorMessage }}</p>
+              </div>
+              <button @click="errorMessage = ''" class="text-red-400 hover:text-red-600">
+                <XMarkIcon class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div v-if="successMessage" class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+            <div class="flex gap-3">
+              <CheckCircleIcon class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+              <p class="text-sm text-green-700 dark:text-green-300">{{ successMessage }}</p>
+            </div>
+          </div>
+
           <div class="flex gap-3 pt-4">
             <button type="button" @click="$emit('close')"
               class="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -134,7 +143,7 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue'
-import { UserPlusIcon, XMarkIcon, InformationCircleIcon, BriefcaseIcon } from '@heroicons/vue/24/outline'
+import { UserPlusIcon, XMarkIcon, InformationCircleIcon, BriefcaseIcon, XCircleIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 
 const props = defineProps({
@@ -148,6 +157,7 @@ const isLoading = ref(false)
 const showSalary = ref(false)
 const selectedPositionId = ref('')
 const errorMessage = ref('')
+const successMessage = ref('')
 
 const form = reactive({
   first_name: '',
