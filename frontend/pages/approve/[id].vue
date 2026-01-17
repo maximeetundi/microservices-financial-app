@@ -112,7 +112,7 @@
               class="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors disabled:opacity-50">
               Refuser
             </button>
-            <button @click="handleAccept" :disabled="isProcessing"
+            <button @click="showPinModal = true" :disabled="isProcessing"
               class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 font-medium shadow-lg shadow-green-500/25 disabled:opacity-50 flex items-center justify-center gap-2">
               <div v-if="isProcessing" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
               <CheckIcon v-else class="w-5 h-5" />
@@ -123,8 +123,15 @@
       </div>
     </div>
     
-    <!-- Global PIN Verification Modal (from usePin) -->
-    <PinVerifyModal />
+    <!-- Secure Visual PIN Modal with encrypted keyboard -->
+    <PinModal 
+      :isOpen="showPinModal"
+      title="Confirmation requise"
+      description="Entrez votre PIN pour accepter cette invitation"
+      @update:isOpen="showPinModal = $event"
+      @success="onPinSuccess"
+      @close="showPinModal = false"
+    />
   </div>
 </template>
 
@@ -136,12 +143,10 @@ import {
   InformationCircleIcon, CheckIcon
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
-import { usePin } from '@/composables/usePin'
-import PinVerifyModal from '@/components/PinVerifyModal.vue'
+import PinModal from '@/components/common/PinModal.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { checkPinStatus, requirePin } = usePin()
 
 const invitation = ref(null)
 const isLoading = ref(true)
@@ -149,6 +154,7 @@ const isProcessing = ref(false)
 const error = ref('')
 const actionError = ref('')
 const accepted = ref(false)
+const showPinModal = ref(false)
 
 // Format date
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('fr-FR', {
@@ -168,9 +174,6 @@ onMounted(async () => {
   }
 
   try {
-    // Check PIN status first
-    await checkPinStatus()
-    
     // Fetch real invitation details from backend
     const { data } = await enterpriseAPI.getInvitationDetails(employeeId)
     invitation.value = {
@@ -190,28 +193,21 @@ onMounted(async () => {
   }
 })
 
-// Handle accept - uses requirePin which shows the global PIN modal
-const handleAccept = async () => {
+// Called when PIN is verified via secure modal
+const onPinSuccess = async (encryptedPin) => {
+  showPinModal.value = false
+  isProcessing.value = true
   actionError.value = ''
   
-  // requirePin shows the modal and calls the callback after verification
-  const verified = await requirePin(async () => {
-    isProcessing.value = true
-    try {
-      await enterpriseAPI.acceptInvitation({
-        employee_id: invitation.value.id
-      })
-      accepted.value = true
-    } catch (e) {
-      actionError.value = e.response?.data?.details || e.response?.data?.error || 'Erreur lors de l\'acceptation'
-      throw e // Re-throw to prevent success state
-    } finally {
-      isProcessing.value = false
-    }
-  })
-  
-  if (!verified) {
-    console.log('PIN verification cancelled')
+  try {
+    await enterpriseAPI.acceptInvitation({
+      employee_id: invitation.value.id
+    })
+    accepted.value = true
+  } catch (e) {
+    actionError.value = e.response?.data?.details || e.response?.data?.error || 'Erreur lors de l\'acceptation'
+  } finally {
+    isProcessing.value = false
   }
 }
 
