@@ -496,7 +496,7 @@ const viewDetails = (ticket: any) => {
 // PIN & Refund Logic
 const showRefundModal = ref(false)
 const showPinModal = ref(false)
-const pinCode = ref('')
+const encryptedPin = ref('') // Store encrypted PIN from modal
 const verifyingPin = ref(false)
 const ticketToRefund = ref<any>(null)
 const refundReason = ref('')
@@ -521,12 +521,13 @@ const openPinForCancel = () => {
     showPinModal.value = true
 }
 
-const onPinVerified = async () => {
+const onPinVerified = async (pin: string) => {
     showPinModal.value = false
+    encryptedPin.value = pin // Store the encrypted PIN from modal
     if (pinAction.value === 'refund') {
-        await executeRefund()
+        await executeRefund(pin)
     } else if (pinAction.value === 'cancel_event') {
-        await processCancelEvent()
+        await processCancelEvent(pin)
     }
 }
 
@@ -535,10 +536,11 @@ const showRefundSuccessModal = ref(false)
 
 // ... (existing functions)
 
-const executeRefund = async () => {
+const executeRefund = async (pin: string) => {
     if (!ticketToRefund.value) return
     try {
-        await ticketAPI.refundTicket(ticketToRefund.value.id, refundReason.value)
+        // Send encrypted PIN to backend for internal re-verification
+        await ticketAPI.refundTicket(ticketToRefund.value.id, refundReason.value, pin)
         
         // Optimistic update
         const t = tickets.value.find(t => t.id === ticketToRefund.value.id)
@@ -567,9 +569,10 @@ const openCancelModal = () => {
     confirmCancelCheck.value = false
     cancelReason.value = ''
 }
-const processCancelEvent = async () => {
+const processCancelEvent = async (pin: string) => {
     try {
-        await ticketAPI.cancelEvent(eventId.value, cancelReason.value)
+        // Send encrypted PIN to backend for internal re-verification
+        await ticketAPI.cancelEvent(eventId.value, cancelReason.value, pin)
         showCancelModal.value = false
         alert('Événement annulé et remboursements initiés.')
         loadData()

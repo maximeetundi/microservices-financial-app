@@ -539,8 +539,15 @@ func (s *TicketService) GetEventStats(eventID string) (*models.TicketStats, erro
 
 // === Refund Operations ===
 
-// RefundTicket refunds a ticket
-func (s *TicketService) RefundTicket(ticketID, organizerID, reason string) error {
+// RefundTicket refunds a ticket (with PIN re-verification for security)
+func (s *TicketService) RefundTicket(ticketID, organizerID, reason, pin, token string) error {
+	// 1. Verify PIN internally for security (protects against Evilginx-style attacks)
+	if pin != "" {
+		if err := s.userClient.VerifyPin(organizerID, pin, token); err != nil {
+			return fmt.Errorf("security check failed: %w", err)
+		}
+	}
+	
 	ticket, err := s.ticketRepo.GetByID(ticketID)
 	if err != nil {
 		return fmt.Errorf("ticket not found")
@@ -646,7 +653,14 @@ func (s *TicketService) RefundTicket(ticketID, organizerID, reason string) error
 	return s.ticketRepo.UpdateStatus(ticketID, models.TicketStatusRefunded)
 }
 
-func (s *TicketService) CancelAndRefundEvent(eventID, organizerID, reason string) error {
+func (s *TicketService) CancelAndRefundEvent(eventID, organizerID, reason, pin, token string) error {
+	// 1. Verify PIN internally for security (only once at the start)
+	if pin != "" {
+		if err := s.userClient.VerifyPin(organizerID, pin, token); err != nil {
+			return fmt.Errorf("security check failed: %w", err)
+		}
+	}
+	
 	// Verify ownership
 	event, err := s.eventRepo.GetByID(eventID)
 	if err != nil {
@@ -669,9 +683,9 @@ func (s *TicketService) CancelAndRefundEvent(eventID, organizerID, reason string
 
 	for _, ticket := range tickets {
 		if ticket.Status == models.TicketStatusPaid {
-			// Trigger refund for each with default reason
-			if err := s.RefundTicket(ticket.ID, organizerID, reason); err != nil {
-				// Log error but continue with others?
+			// Trigger refund for each (PIN already verified, pass empty)
+			if err := s.RefundTicket(ticket.ID, organizerID, reason, "", ""); err != nil {
+				// Log error but continue with others
 				fmt.Printf("Failed to refund ticket %s: %v\n", ticket.ID, err)
 			}
 		}

@@ -3,84 +3,92 @@
     <Transition name="modal">
       <div 
         v-if="showVerifyModal" 
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        class="pin-overlay focus-trap"
         @click.self="handleClose"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
         
         <!-- Modal Content -->
-        <div class="relative bg-surface rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <div class="pin-modal animate-in fade-in zoom-in duration-200" :class="{ 'shake': errorMessage }">
           <!-- Close Button -->
           <button 
             @click="handleClose"
-            class="absolute top-4 right-4 p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+            class="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
           >
-            <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
 
           <!-- Header -->
-          <div class="text-center mb-6">
-            <div class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-4">
-              <span class="text-3xl">🔒</span>
-            </div>
-            <h3 class="text-xl font-bold text-base">Vérification PIN</h3>
-            <p class="text-muted mt-2">
-              Entrez votre code PIN pour continuer
-            </p>
-          </div>
+          <div class="pin-icon mb-4 text-5xl">🔒</div>
+          <h2 class="text-2xl font-bold mb-2 text-white">Vérification PIN</h2>
+          <p class="text-sm mb-2 text-gray-400">
+               Entrez votre code PIN pour continuer
+               <br><span class="text-xs text-indigo-400 mt-1 block">🛡️ Clavier sécurisé anti-keylogger activé</span>
+          </p>
 
           <!-- Error/Lock Message -->
-          <div v-if="errorMessage" class="mb-4 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm text-center">
+          <div v-if="errorMessage" class="mb-4 p-3 rounded-lg bg-red-500/10 text-red-400 text-sm text-center border border-red-500/20">
             {{ errorMessage }}
             <span v-if="attemptsLeft !== null && attemptsLeft > 0" class="block mt-1">
               {{ attemptsLeft }} tentative(s) restante(s)
             </span>
           </div>
 
-          <div v-if="isLocked" class="mb-4 p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm text-center">
+          <div v-if="isLocked" class="mb-4 p-3 rounded-lg bg-yellow-500/10 text-yellow-400 text-sm text-center border border-yellow-500/20">
             ⏳ PIN temporairement bloqué. Réessayez dans quelques minutes.
           </div>
           
-          <!-- PIN Input -->
-          <div class="mb-6">
-            <div class="flex justify-center gap-2">
-              <input 
-                v-for="(_, index) in 5" 
-                :key="index"
-                ref="pinInputs"
-                type="password"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength="1"
-                :value="pin[index] || ''"
-                :disabled="isLocked"
-                @input="(e) => handlePinInput(e, index)"
-                @keydown="(e) => handlePinKeydown(e, index)"
-                @paste="handlePaste"
-                class="w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 border-secondary-200 dark:border-secondary-700 bg-surface focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+          <!-- PIN Display -->
+          <div class="pin-input-container flex gap-2 sm:gap-3 justify-center mb-6">
+            <div
+              v-for="(digit, i) in 5"
+              :key="i"
+              class="w-10 sm:w-12 h-12 sm:h-14 border-2 rounded-xl text-2xl flex items-center justify-center transition-all duration-200"
+              :class="[
+                  digit ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-500',
+                  currentLength === i ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#1a1a2e] border-indigo-500' : ''
+              ]"
+            >
+              <span class="transition-opacity duration-200" :class="digit ? 'opacity-100' : 'opacity-0'">•</span>
             </div>
+          </div>
+
+          <!-- Randomized Keypad -->
+          <div class="grid grid-cols-3 gap-3 mb-6 max-w-[280px] mx-auto select-none">
+              <button v-for="key in shuffledKeys" :key="key"
+                      @click="handleKeyPress(key)"
+                      :disabled="isLocked"
+                      class="h-14 rounded-xl bg-white/5 hover:bg-white/10 active:bg-indigo-600 active:scale-95 transition-all text-xl font-bold text-white border border-white/10 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                  {{ key }}
+              </button>
+              <button @click="handleClear" :disabled="isLocked" class="h-14 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold border border-red-500/20 flex items-center justify-center disabled:opacity-50">
+                  C
+              </button>
+              <button @click="handleBackspace" :disabled="isLocked" class="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold border border-white/10 flex items-center justify-center disabled:opacity-50">
+                  ⌫
+              </button>
           </div>
 
           <!-- Submit Button -->
           <button 
             @click="handleSubmit"
-            :disabled="pin.length !== 5 || isLoading || isLocked"
-            class="w-full py-3 px-4 rounded-xl font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            :disabled="currentLength < 5 || isLoading || isLocked"
+            class="w-full p-4 rounded-xl border-none text-base font-semibold cursor-pointer mb-4 text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20"
           >
-            <svg v-if="isLoading" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>{{ isLoading ? 'Vérification...' : 'Vérifier' }}</span>
+            <span v-if="isLoading" class="flex items-center justify-center gap-2">
+              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Vérification...
+            </span>
+            <span v-else>🔓 Vérifier</span>
           </button>
 
           <!-- Forgot PIN -->
-          <p class="text-xs text-muted text-center mt-4">
-            <a href="#" class="text-primary-600 hover:text-primary-700 dark:text-primary-400">
+          <p class="text-xs text-gray-500 text-center">
+            <a href="#" class="text-indigo-400 hover:text-indigo-300">
               PIN oublié ?
             </a>
           </p>
@@ -91,92 +99,126 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { usePin } from '~/composables/usePin'
 
 const { showVerifyModal, isLoading, verifyPin, closeModals, executePendingAction } = usePin()
 
-const pin = ref('')
+const pinDigits = ref(['', '', '', '', ''])
 const errorMessage = ref('')
 const attemptsLeft = ref<number | null>(null)
 const isLocked = ref(false)
-const pinInputs = ref<HTMLInputElement[]>([])
+const shuffledKeys = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+
+const currentLength = computed(() => pinDigits.value.filter(d => d !== '').length)
+
+// Shuffle keys (Fisher-Yates)
+const shuffleKeys = () => {
+    const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for (let i = keys.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [keys[i], keys[j]] = [keys[j], keys[i]];
+    }
+    shuffledKeys.value = keys
+}
 
 // Reset when modal opens
 watch(() => showVerifyModal.value, (isOpen) => {
   if (isOpen) {
-    pin.value = ''
+    pinDigits.value = ['', '', '', '', '']
     errorMessage.value = ''
     attemptsLeft.value = null
     isLocked.value = false
-    nextTick(() => {
-      pinInputs.value[0]?.focus()
-    })
+    shuffleKeys()
   }
 })
 
-const handlePinInput = (event: Event, index: number) => {
-  const target = event.target as HTMLInputElement
-  const value = target.value.replace(/\D/g, '')
-  
-  if (value) {
-    pin.value = pin.value.slice(0, index) + value + pin.value.slice(index + 1)
-    if (index < 4) {
-      nextTick(() => pinInputs.value[index + 1]?.focus())
+const handleKeyPress = (key: number) => {
+    if (currentLength.value < 5 && !isLocked.value) {
+        pinDigits.value[currentLength.value] = key.toString()
+        errorMessage.value = ''
     }
-  }
 }
 
-const handlePinKeydown = (event: KeyboardEvent, index: number) => {
-  if (event.key === 'Backspace' && !pin.value[index] && index > 0) {
-    pin.value = pin.value.slice(0, index - 1) + pin.value.slice(index)
-    nextTick(() => pinInputs.value[index - 1]?.focus())
-  }
+const handleBackspace = () => {
+    if (currentLength.value > 0 && !isLocked.value) {
+        pinDigits.value[currentLength.value - 1] = ''
+        errorMessage.value = ''
+    }
+}
+
+const handleClear = () => {
+    if (!isLocked.value) {
+        pinDigits.value = ['', '', '', '', '']
+        errorMessage.value = ''
+    }
+}
+
+const handleSubmit = async () => {
+  const pin = pinDigits.value.join('')
+  if (pin.length !== 5 || isLocked.value) return
   
-  // Submit on Enter when PIN is complete
-  if (event.key === 'Enter' && pin.value.length === 5) {
-    handleSubmit()
-  }
-}
-
-const handlePaste = async (event: ClipboardEvent) => {
-  event.preventDefault()
-  const pastedData = event.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 5)
-  if (pastedData) {
-    pin.value = pastedData
+  const result = await verifyPin(pin)
+  
+  if (result.success) {
+    executePendingAction()
+  } else {
+    errorMessage.value = result.message
+    
+    if (result.attemptsLeft !== undefined) {
+      attemptsLeft.value = result.attemptsLeft
+    }
+    
+    if (result.locked) {
+      isLocked.value = true
+    }
+    
+    // Clear and reshuffle for security
+    handleClear()
+    shuffleKeys()
   }
 }
 
 const handleClose = () => {
   closeModals()
 }
-
-const handleSubmit = async () => {
-  errorMessage.value = ''
-  
-  const result = await verifyPin(pin.value)
-  
-  if (result.valid) {
-    executePendingAction()
-  } else {
-    errorMessage.value = result.message || 'PIN incorrect'
-    attemptsLeft.value = result.attemptsLeft ?? null
-    
-    // Check if locked
-    if (attemptsLeft.value === 0) {
-      isLocked.value = true
-    }
-    
-    // Clear PIN and refocus
-    pin.value = ''
-    nextTick(() => {
-      pinInputs.value[0]?.focus()
-    })
-  }
-}
 </script>
 
 <style scoped>
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(8px);
+}
+
+.pin-modal {
+  position: relative;
+  background: #1a1a2e;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+  max-width: 24rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
 .modal-enter-active,
 .modal-leave-active {
   transition: all 0.3s ease;
@@ -187,8 +229,8 @@ const handleSubmit = async () => {
   opacity: 0;
 }
 
-.modal-enter-from > div:last-child,
-.modal-leave-to > div:last-child {
+.modal-enter-from .pin-modal,
+.modal-leave-to .pin-modal {
   transform: scale(0.9) translateY(20px);
 }
 </style>

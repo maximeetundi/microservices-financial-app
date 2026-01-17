@@ -222,7 +222,7 @@ func main() {
              // PIN routes (5-digit transaction security PIN)
              users.GET("/pin/status", authHandler.CheckPinStatus)
              users.POST("/pin/setup", authHandler.SetPin)
-             users.POST("/pin/verify", authHandler.VerifyPin)
+             // Note: /pin/verify is now in public routes for service-to-service calls
              users.POST("/pin/change", authHandler.ChangePin)
 
              // User Preferences

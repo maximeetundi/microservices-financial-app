@@ -74,6 +74,7 @@ type VerifyTicketResponse struct {
 // RefundTicketRequest represents the request to refund a ticket
 type RefundTicketRequest struct {
 	Reason string `json:"reason" binding:"required"`
+	PIN    string `json:"pin"` // Encrypted PIN for internal re-verification
 }
 
 // TicketStats represents statistics for an event

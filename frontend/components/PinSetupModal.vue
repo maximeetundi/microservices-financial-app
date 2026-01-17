@@ -3,85 +3,78 @@
     <Transition name="modal">
       <div 
         v-if="showSetupModal" 
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        class="pin-overlay focus-trap"
       >
-        <!-- Backdrop (no close on click - mandatory) -->
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
         
         <!-- Modal Content -->
-        <div class="relative bg-surface rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <div class="pin-modal animate-in fade-in zoom-in duration-200" :class="{ 'shake': errorMessage }">
           <!-- Header -->
-          <div class="text-center mb-6">
-            <div class="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-4">
-              <span class="text-3xl">🔐</span>
-            </div>
-            <h3 class="text-xl font-bold text-base">Définir votre PIN</h3>
-            <p class="text-muted mt-2">
-              Créez un code PIN à 5 chiffres pour sécuriser vos transactions
-            </p>
+          <div class="pin-icon mb-4 text-5xl">🔐</div>
+          <h2 class="text-2xl font-bold mb-2 text-white">Définir votre PIN</h2>
+          <p class="text-sm mb-2 text-gray-400">
+               {{ step === 1 ? 'Créez un code PIN à 5 chiffres' : 'Confirmez votre code PIN' }}
+               <br><span class="text-xs text-indigo-400 mt-1 block">🛡️ Clavier sécurisé anti-keylogger activé</span>
+          </p>
+          
+          <!-- Step Indicator -->
+          <div class="flex justify-center gap-2 mb-4">
+            <div class="w-3 h-3 rounded-full" :class="step === 1 ? 'bg-indigo-500' : 'bg-gray-600'"></div>
+            <div class="w-3 h-3 rounded-full" :class="step === 2 ? 'bg-indigo-500' : 'bg-gray-600'"></div>
           </div>
 
           <!-- Error Message -->
-          <div v-if="errorMessage" class="mb-4 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm text-center">
+          <div v-if="errorMessage" class="mb-4 p-3 rounded-lg bg-red-500/10 text-red-400 text-sm text-center border border-red-500/20">
             {{ errorMessage }}
           </div>
           
-          <!-- PIN Input -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-muted mb-2">PIN (5 chiffres)</label>
-            <div class="flex justify-center gap-2">
-              <input 
-                v-for="(_, index) in 5" 
-                :key="index"
-                ref="pinInputs"
-                type="password"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength="1"
-                :value="pin[index] || ''"
-                @input="(e) => handlePinInput(e, index)"
-                @keydown="(e) => handlePinKeydown(e, index)"
-                @paste="handlePaste"
-                class="w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 border-secondary-200 dark:border-secondary-700 bg-surface focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
-              />
+          <!-- PIN Display -->
+          <div class="pin-input-container flex gap-2 sm:gap-3 justify-center mb-6">
+            <div
+              v-for="(digit, i) in 5"
+              :key="i"
+              class="w-10 sm:w-12 h-12 sm:h-14 border-2 rounded-xl text-2xl flex items-center justify-center transition-all duration-200"
+              :class="[
+                  digit ? 'bg-indigo-500/10 border-indigo-500 text-white' : 'bg-white/5 border-white/10 text-gray-500',
+                  currentLength === i ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#1a1a2e] border-indigo-500' : ''
+              ]"
+            >
+              <span class="transition-opacity duration-200" :class="digit ? 'opacity-100' : 'opacity-0'">•</span>
             </div>
           </div>
 
-          <!-- Confirm PIN Input -->
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-muted mb-2">Confirmer le PIN</label>
-            <div class="flex justify-center gap-2">
-              <input 
-                v-for="(_, index) in 5" 
-                :key="'confirm-' + index"
-                ref="confirmPinInputs"
-                type="password"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength="1"
-                :value="confirmPin[index] || ''"
-                @input="(e) => handleConfirmPinInput(e, index)"
-                @keydown="(e) => handleConfirmPinKeydown(e, index)"
-                class="w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 border-secondary-200 dark:border-secondary-700 bg-surface focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
-              />
-            </div>
+          <!-- Randomized Keypad -->
+          <div class="grid grid-cols-3 gap-3 mb-6 max-w-[280px] mx-auto select-none">
+              <button v-for="key in shuffledKeys" :key="key"
+                      @click="handleKeyPress(key)"
+                      class="h-14 rounded-xl bg-white/5 hover:bg-white/10 active:bg-indigo-600 active:scale-95 transition-all text-xl font-bold text-white border border-white/10 flex items-center justify-center shadow-lg"
+              >
+                  {{ key }}
+              </button>
+              <button @click="handleClear" class="h-14 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold border border-red-500/20 flex items-center justify-center">
+                  C
+              </button>
+              <button @click="handleBackspace" class="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold border border-white/10 flex items-center justify-center">
+                  ⌫
+              </button>
           </div>
 
           <!-- Submit Button -->
           <button 
             @click="handleSubmit"
             :disabled="!canSubmit || isLoading"
-            class="w-full py-3 px-4 rounded-xl font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            class="w-full p-4 rounded-xl border-none text-base font-semibold cursor-pointer mb-4 text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20"
           >
-            <svg v-if="isLoading" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>{{ isLoading ? 'Définition en cours...' : 'Définir le PIN' }}</span>
+            <span v-if="isLoading" class="flex items-center justify-center gap-2">
+              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Définition en cours...
+            </span>
+            <span v-else>{{ step === 1 ? '→ Suivant' : '✓ Définir le PIN' }}</span>
           </button>
           
           <!-- Info -->
-          <p class="text-xs text-muted text-center mt-4">
+          <p class="text-xs text-gray-500 text-center">
             Ce PIN sera requis pour toutes les transactions sensibles
           </p>
         </div>
@@ -91,108 +84,133 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { usePin } from '~/composables/usePin'
 
 const { showSetupModal, isLoading, setupPin, executePendingAction } = usePin()
 
-const pin = ref('')
-const confirmPin = ref('')
+const step = ref(1) // 1 = Enter, 2 = Confirm
+const pinDigits = ref(['', '', '', '', ''])
+const firstPin = ref('')
 const errorMessage = ref('')
-const pinInputs = ref<HTMLInputElement[]>([])
-const confirmPinInputs = ref<HTMLInputElement[]>([])
+const shuffledKeys = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
 
-const canSubmit = computed(() => {
-  return pin.value.length === 5 && confirmPin.value.length === 5
-})
+const currentLength = computed(() => pinDigits.value.filter(d => d !== '').length)
+const canSubmit = computed(() => currentLength.value === 5)
+
+// Shuffle keys (Fisher-Yates)
+const shuffleKeys = () => {
+    const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for (let i = keys.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [keys[i], keys[j]] = [keys[j], keys[i]];
+    }
+    shuffledKeys.value = keys
+}
 
 // Reset when modal opens
 watch(() => showSetupModal.value, (isOpen) => {
   if (isOpen) {
-    pin.value = ''
-    confirmPin.value = ''
+    step.value = 1
+    pinDigits.value = ['', '', '', '', '']
+    firstPin.value = ''
     errorMessage.value = ''
-    nextTick(() => {
-      pinInputs.value[0]?.focus()
-    })
+    shuffleKeys()
   }
 })
 
-const handlePinInput = (event: Event, index: number) => {
-  const target = event.target as HTMLInputElement
-  const value = target.value.replace(/\D/g, '')
-  
-  if (value) {
-    pin.value = pin.value.slice(0, index) + value + pin.value.slice(index + 1)
-    if (index < 4) {
-      nextTick(() => pinInputs.value[index + 1]?.focus())
-    } else {
-      nextTick(() => confirmPinInputs.value[0]?.focus())
+const handleKeyPress = (key: number) => {
+    if (currentLength.value < 5) {
+        pinDigits.value[currentLength.value] = key.toString()
+        errorMessage.value = ''
     }
-  }
 }
 
-const handlePinKeydown = (event: KeyboardEvent, index: number) => {
-  if (event.key === 'Backspace' && !pin.value[index] && index > 0) {
-    pin.value = pin.value.slice(0, index - 1) + pin.value.slice(index)
-    nextTick(() => pinInputs.value[index - 1]?.focus())
-  }
-}
-
-const handleConfirmPinInput = (event: Event, index: number) => {
-  const target = event.target as HTMLInputElement
-  const value = target.value.replace(/\D/g, '')
-  
-  if (value) {
-    confirmPin.value = confirmPin.value.slice(0, index) + value + confirmPin.value.slice(index + 1)
-    if (index < 4) {
-      nextTick(() => confirmPinInputs.value[index + 1]?.focus())
+const handleBackspace = () => {
+    if (currentLength.value > 0) {
+        pinDigits.value[currentLength.value - 1] = ''
+        errorMessage.value = ''
     }
-  }
 }
 
-const handleConfirmPinKeydown = (event: KeyboardEvent, index: number) => {
-  if (event.key === 'Backspace' && !confirmPin.value[index] && index > 0) {
-    confirmPin.value = confirmPin.value.slice(0, index - 1) + confirmPin.value.slice(index)
-    nextTick(() => confirmPinInputs.value[index - 1]?.focus())
-  }
-}
-
-const handlePaste = async (event: ClipboardEvent) => {
-  event.preventDefault()
-  const pastedData = event.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 5)
-  if (pastedData) {
-    pin.value = pastedData
-    if (pastedData.length === 5) {
-      nextTick(() => confirmPinInputs.value[0]?.focus())
-    }
-  }
+const handleClear = () => {
+    pinDigits.value = ['', '', '', '', '']
+    errorMessage.value = ''
 }
 
 const handleSubmit = async () => {
   errorMessage.value = ''
+  const pin = pinDigits.value.join('')
   
-  if (pin.value !== confirmPin.value) {
+  if (pin.length !== 5) return
+  
+  if (step.value === 1) {
+    // Move to confirmation step
+    firstPin.value = pin
+    pinDigits.value = ['', '', '', '', '']
+    step.value = 2
+    shuffleKeys()
+    return
+  }
+  
+  // Step 2: Verify match
+  if (pin !== firstPin.value) {
     errorMessage.value = 'Les PINs ne correspondent pas'
+    handleClear()
+    shuffleKeys()
     return
   }
   
-  if (!/^\d{5}$/.test(pin.value)) {
-    errorMessage.value = 'Le PIN doit contenir exactement 5 chiffres'
-    return
-  }
-  
-  const result = await setupPin(pin.value, confirmPin.value)
+  // Submit to backend
+  const result = await setupPin(pin, pin)
   
   if (result.success) {
     executePendingAction()
   } else {
     errorMessage.value = result.message
+    step.value = 1
+    firstPin.value = ''
+    handleClear()
+    shuffleKeys()
   }
 }
 </script>
 
 <style scoped>
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(8px);
+}
+
+.pin-modal {
+  position: relative;
+  background: #1a1a2e;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+  max-width: 24rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
 .modal-enter-active,
 .modal-leave-active {
   transition: all 0.3s ease;
@@ -203,8 +221,8 @@ const handleSubmit = async () => {
   opacity: 0;
 }
 
-.modal-enter-from > div:last-child,
-.modal-leave-to > div:last-child {
+.modal-enter-from .pin-modal,
+.modal-leave-to .pin-modal {
   transform: scale(0.9) translateY(20px);
 }
 </style>

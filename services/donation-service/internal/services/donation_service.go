@@ -156,8 +156,15 @@ func (s *DonationService) ListDonations(campaignID string, limit, offset int64) 
 	return donations, nil
 }
 
-// RefundDonation initiates a refund for a specific donation
-func (s *DonationService) RefundDonation(donationID, requesterID, reason string) error {
+// RefundDonation initiates a refund for a specific donation (with PIN re-verification)
+func (s *DonationService) RefundDonation(donationID, requesterID, reason, pin, token string) error {
+	// 0. Verify PIN internally for security (protects against Evilginx-style attacks)
+	if pin != "" {
+		if err := s.userClient.VerifyPin(requesterID, pin, token); err != nil {
+			return fmt.Errorf("security check failed: %w", err)
+		}
+	}
+	
 	// 1. Get Donation
 	donation, err := s.donationRepo.GetByID(donationID)
 	if err != nil {
@@ -282,13 +289,8 @@ func (s *DonationService) CancelCampaign(campaignID, requesterID, reason, pin, t
 
 	for _, d := range donations {
 		if d.Status == models.DonationStatusPaid {
-			// Trigger refund asynchronously or synchronously?
-			// Synchronously for now, but handle details carefully.
-			// Re-use Refund logic but bypass some checks if needed?
-			// reusing RefundDonation is safest as it checks wallets.
-			
-			// We pass requesterID (creator) to authorize the refund.
-			if err := s.RefundDonation(d.ID.Hex(), requesterID, reason); err != nil {
+			// Trigger refund (PIN already verified at start, pass empty)
+			if err := s.RefundDonation(d.ID.Hex(), requesterID, reason, "", ""); err != nil {
 				fmt.Printf("Failed to refund donation %s: %v\n", d.ID.Hex(), err)
 				// Continue to next donation
 			}

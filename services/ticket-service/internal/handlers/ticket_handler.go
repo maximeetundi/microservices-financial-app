@@ -315,6 +315,7 @@ func (h *TicketHandler) RefundTicket(c *gin.Context) {
 	}
 
 	ticketID := c.Param("id")
+	token := c.GetHeader("Authorization")
 
 	var req models.RefundTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -322,7 +323,8 @@ func (h *TicketHandler) RefundTicket(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.RefundTicket(ticketID, userID, req.Reason); err != nil {
+	// Pass PIN and token for internal re-verification
+	if err := h.service.RefundTicket(ticketID, userID, req.Reason, req.PIN, token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -339,16 +341,19 @@ func (h *TicketHandler) CancelEvent(c *gin.Context) {
 	}
 
 	eventID := c.Param("id")
+	token := c.GetHeader("Authorization")
 
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
+		PIN    string `json:"pin"` // Encrypted PIN for internal re-verification
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
 		return
 	}
 
-	if err := h.service.CancelAndRefundEvent(eventID, userID, req.Reason); err != nil {
+	// Pass PIN and token for internal re-verification
+	if err := h.service.CancelAndRefundEvent(eventID, userID, req.Reason, req.PIN, token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

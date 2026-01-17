@@ -287,52 +287,13 @@
         </div>
       </div>
 
-      <!-- Setup PIN Modal -->
-      <div v-if="showSetupPinModal" class="modal-overlay" @click="showSetupPinModal = false">
-        <div class="modal-content" @click.stop>
-          <h3>🔢 Configurer votre PIN</h3>
-          <p>Créez un PIN à 5 chiffres pour sécuriser les opérations sensibles.</p>
-          
-          <div class="pin-form">
-            <label>Nouveau PIN</label>
-            <div class="pin-inputs" ref="newPinInputs">
-              <input
-                v-for="(_, i) in 5"
-                :key="'new-'+i"
-                type="password"
-                maxlength="1"
-                inputmode="numeric"
-                :value="newPin[i] || ''"
-                @input="handleNewPinInput($event, i)"
-                @keydown="handlePinKeydown($event, i, 'new')"
-              >
-            </div>
-            
-            <label>Confirmer le PIN</label>
-            <div class="pin-inputs" ref="confirmPinInputs">
-              <input
-                v-for="(_, i) in 5"
-                :key="'confirm-'+i"
-                type="password"
-                maxlength="1"
-                inputmode="numeric"
-                :value="confirmPin[i] || ''"
-                @input="handleConfirmPinInput($event, i)"
-                @keydown="handlePinKeydown($event, i, 'confirm')"
-              >
-            </div>
-          </div>
-
-          <p v-if="pinError" class="error">{{ pinError }}</p>
-
-          <div class="modal-actions">
-            <button @click="showSetupPinModal = false" class="btn-cancel">Annuler</button>
-            <button @click="setupPin" :disabled="settingPin" class="btn-confirm">
-              {{ settingPin ? 'Configuration...' : 'Configurer' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Secure PIN Setup Modal -->
+      <SecurePinSetupModal
+        :isOpen="showSetupPinModal"
+        @update:isOpen="showSetupPinModal = $event"
+        @success="onPinSetupSuccess"
+        @close="showSetupPinModal = false"
+      />
     </div>
   </NuxtLayout>
 </template>
@@ -340,6 +301,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { userAPI } from '~/composables/useApi'
+import SecurePinSetupModal from '~/components/common/SecurePinSetupModal.vue'
 
 // Security Status
 const hasPin = ref(false)
@@ -524,32 +486,10 @@ async function changePassword() {
   }
 }
 
-async function setupPin() {
-  pinError.value = ''
-  
-  if (newPin.value.length !== 5 || confirmPin.value.length !== 5) {
-    pinError.value = 'Le PIN doit contenir 5 chiffres'
-    return
-  }
-  
-  if (newPin.value !== confirmPin.value) {
-    pinError.value = 'Les PINs ne correspondent pas'
-    return
-  }
-
-  settingPin.value = true
-  try {
-    await userAPI.setupPin({ pin: newPin.value, confirm_pin: confirmPin.value })
-    hasPin.value = true
-    showSetupPinModal.value = false
-    newPin.value = ''
-    confirmPin.value = ''
-    alert('PIN configuré avec succès!')
-  } catch (e) {
-    pinError.value = e.response?.data?.error || 'Erreur lors de la configuration'
-  } finally {
-    settingPin.value = false
-  }
+// PIN Setup Success Handler (called by SecurePinSetupModal)
+function onPinSetupSuccess() {
+  hasPin.value = true
+  alert('PIN configuré avec succès!')
 }
 
 async function start2FASetup() {

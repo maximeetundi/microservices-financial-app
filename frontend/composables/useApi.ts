@@ -613,9 +613,9 @@ export const ticketAPI = {
         })
     },
 
-    // Refund and Cancellation
-    refundTicket: (id: string, reason: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`, { reason }),
-    cancelEvent: (id: string, reason: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`, { reason }),
+    // Refund and Cancellation (PIN required for internal re-verification)
+    refundTicket: (id: string, reason: string, pin?: string) => api.post(`/ticket-service/api/v1/tickets/${id}/refund`, { reason, pin }),
+    cancelEvent: (id: string, reason: string, pin?: string) => api.post(`/ticket-service/api/v1/events/${id}/cancel`, { reason, pin }),
 }
 
 // ========== Donations ==========
@@ -630,7 +630,7 @@ export const donationAPI = {
 
     // Donations
     initiateDonation: (data: any) => api.post('/donation-service/api/v1/donations', data),
-    refundDonation: (id: string, reason: string) => api.post(`/donation-service/api/v1/donations/${id}/refund`, { reason }),
+    refundDonation: (id: string, reason: string, pin?: string) => api.post(`/donation-service/api/v1/donations/${id}/refund`, { reason, pin }),
     getDonations: (campaignID: string, limit = 20, offset = 0) =>
         api.get(`/donation-service/api/v1/donations?campaign_id=${campaignID}&limit=${limit}&offset=${offset}`),
 

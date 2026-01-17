@@ -202,12 +202,23 @@
             </div>
         </div>
     </div>
+
+    <!-- PIN Modal for Secure Refund -->
+    <PinModal 
+      :isOpen="showPinModal"
+      title="Sécurité"
+      description="Entrez votre code PIN pour confirmer le remboursement."
+      @update:isOpen="showPinModal = $event"
+      @success="onPinSuccess"
+      @close="showPinModal = false"
+    />
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
 import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
+import PinModal from '~/components/common/PinModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -277,6 +288,8 @@ const tierStats = computed(() => {
 const refundModalOpen = ref(false)
 const selectedRefundDonation = ref<any>(null)
 const refundReason = ref('')
+const showPinModal = ref(false)
+const encryptedPin = ref('')
 
 const openRefundModal = (donation: any) => {
     selectedRefundDonation.value = donation
@@ -292,14 +305,24 @@ const closeRefundModal = () => {
 const submitRefund = async () => {
     if (!selectedRefundDonation.value || !refundReason.value) return
     
+    // Close reason modal and open PIN modal
+    refundModalOpen.value = false
+    showPinModal.value = true
+}
+
+const onPinSuccess = async (pin: string) => {
+    showPinModal.value = false
+    encryptedPin.value = pin
+    
     try {
-        await donationApi.refundDonation(selectedRefundDonation.value.id, refundReason.value)
+        // Send encrypted PIN to backend for internal re-verification
+        await donationApi.refundDonation(selectedRefundDonation.value.id, refundReason.value, pin)
         
         // Update local state
         const idx = donations.value.findIndex(d => d.id === selectedRefundDonation.value.id)
         if(idx !== -1) donations.value[idx].status = 'refunding' // Optimistic update
         
-        closeRefundModal()
+        selectedRefundDonation.value = null
         // Ideally show toast here
         alert('Remboursement initié avec succès.')
     } catch (e: any) {
