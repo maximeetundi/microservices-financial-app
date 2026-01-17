@@ -218,3 +218,48 @@ func (s *EmployeeService) TerminateEmployee(ctx context.Context, enterpriseID, e
 	return s.repo.Update(ctx, emp)
 }
 
+// InvitationDetails contains invitation info for the accept page
+type InvitationDetails struct {
+	EmployeeID     string    `json:"employee_id"`
+	EnterpriseName string    `json:"enterprise_name"`
+	EnterpriseLogo string    `json:"enterprise_logo"`
+	EnterpriseType string    `json:"enterprise_type"`
+	Profession     string    `json:"profession"`
+	Role           string    `json:"role"`
+	Status         string    `json:"status"`
+	InvitedAt      time.Time `json:"invited_at"`
+	InviterName    string    `json:"inviter_name,omitempty"`
+}
+
+// GetInvitationDetails returns details for displaying on the accept page
+func (s *EmployeeService) GetInvitationDetails(ctx context.Context, employeeID string) (*InvitationDetails, error) {
+	// Get employee record
+	emp, err := s.repo.FindByID(ctx, employeeID)
+	if err != nil {
+		return nil, errors.New("invitation not found")
+	}
+	
+	// Check if still pending
+	if emp.Status != models.EmployeeStatusPending {
+		return nil, errors.New("invitation already processed")
+	}
+	
+	// Get enterprise details
+	enterprise, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
+	if err != nil {
+		log.Printf("Failed to fetch enterprise for invitation: %v", err)
+		return nil, errors.New("enterprise not found")
+	}
+	
+	return &InvitationDetails{
+		EmployeeID:     emp.ID.Hex(),
+		EnterpriseName: enterprise.Name,
+		EnterpriseLogo: enterprise.Logo,
+		EnterpriseType: enterprise.Type,
+		Profession:     emp.Profession,
+		Role:           string(emp.Role),
+		Status:         string(emp.Status),
+		InvitedAt:      emp.CreatedAt,
+	}, nil
+}
+

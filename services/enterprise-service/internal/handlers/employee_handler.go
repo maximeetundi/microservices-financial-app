@@ -120,3 +120,22 @@ func (h *EmployeeHandler) GetMyEmployee(c *gin.Context) {
 	c.JSON(http.StatusOK, employee)
 }
 
+// GetInvitationDetails returns invitation details for the accept page
+// This is a PUBLIC endpoint (no auth required) - just returns basic info
+func (h *EmployeeHandler) GetInvitationDetails(c *gin.Context) {
+	employeeID := c.Param("id")
+	if employeeID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "employee ID required"})
+		return
+	}
+	
+	// Get invitation details with enterprise info
+	details, err := h.service.GetInvitationDetails(c.Request.Context(), employeeID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Invitation not found", "details": err.Error()})
+		return
+	}
+	
+	c.JSON(http.StatusOK, details)
+}
+

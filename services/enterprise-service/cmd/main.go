@@ -105,7 +105,11 @@ func main() {
 	billHandler := handlers.NewBillingHandler(billService)
 
 	api := router.Group("/api/v1")
-	// Apply JWT Auth Middleware
+	
+	// Public routes (no auth required)
+	api.GET("/invitations/:id", empHandler.GetInvitationDetails) // Get invitation details for accept page
+	
+	// Apply JWT Auth Middleware to protected routes
 	api.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
 		// Enterprise Routes

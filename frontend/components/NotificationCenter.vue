@@ -174,7 +174,9 @@ const processNotifications = (list) => {
           break
         case 'enterprise':
           if (meta.action === 'accept_invitation' && meta.employee_id) {
-            url = `/enterprise/accept?id=${meta.employee_id}`
+            url = `/approve/${meta.employee_id}?type=invitation`
+          } else if (meta.action === 'approve_action' && meta.approval_id) {
+            url = `/approve/${meta.approval_id}?type=approval`
           } else {
             url = '/enterprise'
           }
@@ -182,7 +184,9 @@ const processNotifications = (list) => {
         default:
           // Check for special actions
           if (meta.action === 'accept_invitation' && meta.employee_id) {
-            url = `/enterprise/accept?id=${meta.employee_id}`
+            url = `/approve/${meta.employee_id}?type=invitation`
+          } else if (meta.action === 'approve_action' && meta.approval_id) {
+            url = `/approve/${meta.approval_id}?type=approval`
           }
           break
       }
