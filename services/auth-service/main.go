@@ -203,6 +203,8 @@ func main() {
 		api.GET("/users/:id", userHandler.GetUserByID)
 		// User lookup by email/phone (public - needed for service-to-service calls)
 		api.GET("/users/lookup", authHandler.LookupUser)
+		// Internal PIN verify (for service-to-service calls, uses X-User-ID header)
+		api.POST("/users/pin/verify", authHandler.VerifyPin)
 		
 		// Protected user routes
 		users := api.Group("/users")
