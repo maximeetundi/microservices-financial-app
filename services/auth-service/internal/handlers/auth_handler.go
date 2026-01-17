@@ -655,8 +655,17 @@ func (h *AuthHandler) SetPin(c *gin.Context) {
 
 // VerifyPin - Verify the PIN for sensitive actions
 func (h *AuthHandler) VerifyPin(c *gin.Context) {
+	// Try to get user_id from JWT context first
 	userID, exists := c.Get("user_id")
 	if !exists {
+		// Fallback: read X-User-ID header for internal service-to-service calls
+		headerUserID := c.GetHeader("X-User-ID")
+		if headerUserID != "" {
+			userID = headerUserID
+			exists = true
+		}
+	}
+	if !exists || userID == nil || userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
