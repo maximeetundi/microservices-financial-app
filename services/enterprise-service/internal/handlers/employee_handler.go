@@ -96,3 +96,27 @@ func (h *EmployeeHandler) TerminateEmployee(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Employee terminated successfully"})
 }
 
+// GetMyEmployee returns the current user's employee record for a specific enterprise
+// This is used for permission-based UI filtering
+func (h *EmployeeHandler) GetMyEmployee(c *gin.Context) {
+	enterpriseID := c.Query("enterprise_id")
+	if enterpriseID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enterprise_id query parameter required"})
+		return
+	}
+	
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	
+	employee, err := h.service.GetEmployeeByUserID(c.Request.Context(), enterpriseID, userID.(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Employee not found in this enterprise"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, employee)
+}
+

@@ -120,6 +120,8 @@ import {
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 import { usePin } from '@/composables/usePin'
+import PayrollDetailModal from './PayrollDetailModal.vue'
+import RunPayrollModal from './RunPayrollModal.vue'
 
 const props = defineProps({
   enterpriseId: { type: String, required: true }

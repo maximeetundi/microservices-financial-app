@@ -126,6 +126,7 @@ func main() {
 		api.POST("/employees/invite", empHandler.InviteEmployee)
 		api.POST("/employees/accept", empHandler.AcceptInvitation)
 		api.PUT("/employees/:id/promote", empHandler.PromoteEmployee)
+		api.GET("/employees/me", empHandler.GetMyEmployee) // Get current user's employee record for RBAC
 
 		// Payroll Routes
 		api.POST("/enterprises/:id/payroll/preview", payHandler.PreviewPayroll)

@@ -211,9 +211,11 @@ const sendInvite = async () => {
     emit('invited')
   } catch (e) {
     console.error('Invite failed:', e)
-    // Parse different error formats
+    // Parse different error formats - prioritize 'details' which contains the real error message
     let msg = 'Erreur inconnue'
-    if (e.response?.data?.error) {
+    if (e.response?.data?.details) {
+      msg = e.response.data.details
+    } else if (e.response?.data?.error && e.response.data.error !== 'Failed to invite employee') {
       msg = e.response.data.error
     } else if (e.response?.data?.message) {
       msg = e.response.data.message

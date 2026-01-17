@@ -128,6 +128,11 @@
                   title="Configurer salaire">
                   <CurrencyDollarIcon class="w-4 h-4" />
                 </button>
+                <button v-if="emp.role === 'STANDARD' && emp.status === 'ACTIVE'" @click="initiatePromotion(emp)" 
+                  class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg"
+                  title="Promouvoir Admin">
+                  <ShieldCheckIcon class="w-4 h-4" />
+                </button>
                 <button v-if="emp.status === 'ACTIVE'" @click="confirmTerminate(emp)" 
                   class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                   title="Licencier">
@@ -154,6 +159,14 @@
       :employee="selectedEmployee"
       @close="selectedEmployee = null"
       @updated="handleEmployeeUpdated" />
+
+    <!-- Promote Admin Modal -->
+    <PromoteAdminModal 
+      v-if="showPromoteModal && employeeToPromote" 
+      :employee="employeeToPromote"
+      :enterprise-id="enterprise.id || enterprise._id"
+      @close="showPromoteModal = false; employeeToPromote = null"
+      @promoted="handlePromoted" />
   </div>
 </template>
 
@@ -161,12 +174,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { 
   UsersIcon, UserPlusIcon, UserGroupIcon, MagnifyingGlassIcon,
-  EyeIcon, CurrencyDollarIcon, XCircleIcon
+  EyeIcon, CurrencyDollarIcon, XCircleIcon, ShieldCheckIcon
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 import { usePin } from '@/composables/usePin'
 import InviteEmployeeModal from './InviteEmployeeModal.vue'
 import EmployeeDetailModal from './EmployeeDetailModal.vue'
+import PromoteAdminModal from './PromoteAdminModal.vue'
 
 const props = defineProps({
   enterprise: {
@@ -185,6 +199,8 @@ const searchQuery = ref('')
 const statusFilter = ref('')
 const showInviteModal = ref(false)
 const selectedEmployee = ref(null)
+const showPromoteModal = ref(false)
+const employeeToPromote = ref(null)
 
 // Check PIN status on mount
 onMounted(async () => {
@@ -282,6 +298,17 @@ const handleInvited = () => {
 
 const handleEmployeeUpdated = () => {
   selectedEmployee.value = null
+  fetchEmployees()
+}
+
+const initiatePromotion = (emp) => {
+  employeeToPromote.value = emp
+  showPromoteModal.value = true
+}
+
+const handlePromoted = () => {
+  showPromoteModal.value = false
+  employeeToPromote.value = null
   fetchEmployees()
 }
 

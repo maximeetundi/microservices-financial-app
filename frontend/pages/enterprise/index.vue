@@ -201,9 +201,26 @@ const isLoading = ref(true)
 const isSaving = ref(false)
 const showQRModal = ref(false)
 const showCreateModal = ref(false)
+const employeesCount = ref(0)
+const clientsCount = ref(0)
+const myEmployee = ref(null) // Current user's employee record for permission checks
+const enterpriseEmployees = ref([]) // All employees list for OrganisationTab
 
-// Tabs configuration
-const tabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
+// Role-based tab access
+const adminOnlyTabs = ['Security', 'Organisation', 'Settings', 'Payroll']
+const allTabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
+
+// Visible tabs based on role
+const tabs = computed(() => {
+  if (!myEmployee.value) return allTabs // Default to all for owner
+  const role = myEmployee.value.role
+  if (role === 'OWNER' || role === 'ADMIN') {
+    return allTabs
+  }
+  // STANDARD employees: limited access
+  return allTabs.filter(tab => !adminOnlyTabs.includes(tab))
+})
+
 const tabLabels = {
   'Overview': 'Aperçu',
   'Employees': 'Employés',
@@ -240,8 +257,8 @@ const enterpriseStats = computed(() => {
     .reduce((sum, g) => sum + (g.services?.length || 0), 0)
   
   return {
-    employees: currentEnterprise.value.employees_count || 0,
-    clients: currentEnterprise.value.clients_count || 0,
+    employees: employeesCount.value,
+    clients: clientsCount.value,
     services: totalServices,
     revenue: 0 // TODO: Fetch from API
   }
@@ -271,7 +288,7 @@ const fetchEnterprises = async () => {
   }
 }
 
-const selectEnterprise = (ent) => {
+const selectEnterprise = async (ent) => {
   // Ensure nested objects exist
   if (!ent.settings) ent.settings = { payroll_date: 25, auto_pay_salaries: false }
   if (ent.type === 'SCHOOL' && !ent.school_config) ent.school_config = { classes: [] }
@@ -279,6 +296,35 @@ const selectEnterprise = (ent) => {
   if (!ent.service_groups) ent.service_groups = []
   
   currentEnterprise.value = JSON.parse(JSON.stringify(ent))
+  
+  // Fetch current user's employee record for role-based access
+  try {
+    const { data: empData } = await enterpriseAPI.getMyEmployee(ent.id || ent._id)
+    myEmployee.value = empData
+  } catch (e) {
+    console.error('Failed to fetch my employee record:', e)
+    myEmployee.value = null // Default to full access if can't fetch (owner might not have employee record)
+  }
+  
+  // Fetch employees list (for count and OrganisationTab)
+  try {
+    const { data: employees } = await enterpriseAPI.listEmployees(ent.id || ent._id)
+    enterpriseEmployees.value = employees || []
+    employeesCount.value = employees?.length || 0
+  } catch (e) {
+    console.error('Failed to fetch employees:', e)
+    enterpriseEmployees.value = []
+    employeesCount.value = 0
+  }
+  
+  // Fetch clients count (clients are subscriptions in the backend)
+  try {
+    const { data: clients } = await enterpriseAPI.getSubscriptions(ent.id || ent._id)
+    clientsCount.value = clients?.length || 0
+  } catch (e) {
+    console.error('Failed to fetch clients count:', e)
+    clientsCount.value = 0
+  }
 }
 
 const handleLogoUpload = async (file) => {

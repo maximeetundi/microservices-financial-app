@@ -99,7 +99,7 @@ func (s *EmployeeService) InviteEmployee(ctx context.Context, emp *models.Employ
 		// Fetch enterprise name for notification
 		ent, err := s.entRepo.FindByID(ctx, emp.EnterpriseID.Hex())
 		if err == nil {
-			if err := s.notifClient.NotifyEmployeeInvitation(ctx, emp.UserID, ent.Name); err != nil {
+			if err := s.notifClient.NotifyEmployeeInvitation(ctx, emp.UserID, emp.ID.Hex(), ent.Name); err != nil {
 				log.Printf("Failed to send invitation notification: %v", err)
 			} else {
 				log.Printf("Sent invitation notification to user %s for enterprise %s", emp.UserID, ent.Name)

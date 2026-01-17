@@ -59,13 +59,15 @@ func (n *NotificationClient) NotifyUser(ctx context.Context, userID string, noti
 // === Convenience Methods ===
 
 // NotifyEmployeeInvitation sends invitation notification to employee
-func (n *NotificationClient) NotifyEmployeeInvitation(ctx context.Context, employeeUserID, enterpriseName string) error {
+func (n *NotificationClient) NotifyEmployeeInvitation(ctx context.Context, employeeUserID, employeeID, enterpriseName string) error {
 	return n.NotifyUser(ctx, employeeUserID, string(NotifyEmployeeInvited),
 		"Invitation d'emploi",
 		fmt.Sprintf("Vous avez reçu une invitation pour rejoindre %s. Ouvrez l'app pour accepter.", enterpriseName),
 		map[string]interface{}{
 			"enterprise_name": enterpriseName,
+			"employee_id":     employeeID,
 			"action":          "accept_invitation",
+			"link":            fmt.Sprintf("/enterprise/accept?id=%s", employeeID),
 		},
 	)
 }

@@ -134,9 +134,13 @@ const processNotifications = (list) => {
         }
         
         // Determine Action URL
-        let url = n.action_url || null
+        let url = n.action_url || meta.link || null
         if (!url && n.type === 'transfer' && (meta.transfer_id || meta.reference)) {
             url = `/transactions?ref=${meta.transfer_id || meta.reference}`
+        }
+        // Handle enterprise invitations
+        if (!url && meta.action === 'accept_invitation' && meta.employee_id) {
+            url = `/enterprise/accept?id=${meta.employee_id}`
         }
         
         return {
