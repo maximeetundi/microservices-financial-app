@@ -24,8 +24,6 @@
           </div>
         </div>
 
-        </div>
-
         <form @submit.prevent="sendInvite" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
