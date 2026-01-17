@@ -255,7 +255,7 @@ func (s *EmployeeService) GetInvitationDetails(ctx context.Context, employeeID s
 		EmployeeID:     emp.ID.Hex(),
 		EnterpriseName: enterprise.Name,
 		EnterpriseLogo: enterprise.Logo,
-		EnterpriseType: enterprise.Type,
+		EnterpriseType: string(enterprise.Type),
 		Profession:     emp.Profession,
 		Role:           string(emp.Role),
 		Status:         string(emp.Status),
