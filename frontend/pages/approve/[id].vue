@@ -200,8 +200,10 @@ const onPinSuccess = async (encryptedPin) => {
   actionError.value = ''
   
   try {
+    // Send encrypted PIN to backend for internal re-verification
     await enterpriseAPI.acceptInvitation({
-      employee_id: invitation.value.id
+      employee_id: invitation.value.id,
+      pin: encryptedPin  // Backend will re-verify PIN internally
     })
     accepted.value = true
   } catch (e) {
