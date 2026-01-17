@@ -60,17 +60,25 @@
               <div 
                 v-for="notif in notifications" 
                 :key="notif.id"
-                @click="handleClick(notif)"
                 class="notification-item"
                 :class="{ 'unread': !notif.is_read }"
               >
                 <div class="notification-icon" :class="getIconClass(notif.type)">
                   {{ getIcon(notif.type) }}
                 </div>
-                <div class="notification-content">
+                <div class="notification-content" @click="handleClick(notif)">
                   <p class="notification-title">{{ notif.title }}</p>
                   <p class="notification-message">{{ notif.message }}</p>
                   <p class="notification-time">{{ formatTime(notif.created_at) }}</p>
+                  
+                  <!-- Action Button for notifications with action_url -->
+                  <button 
+                    v-if="notif.action_url" 
+                    @click.stop="navigateToAction(notif)"
+                    class="action-button"
+                  >
+                    {{ getActionLabel(notif) }} →
+                  </button>
                 </div>
                 <div v-if="!notif.is_read" class="unread-dot"></div>
               </div>
@@ -120,11 +128,108 @@ const fetchNotifications = async () => {
   loading.value = true
   try {
     const res = await notificationAPI.getAll(10, 0)
-    notifications.value = res.data?.notifications || []
+    notifications.value = processNotifications(res.data?.notifications || [])
   } catch (e) {
     console.error('Failed to fetch notifications:', e)
   } finally {
     loading.value = false
+  }
+}
+
+// Process notifications to extract action_url from data
+const processNotifications = (list) => {
+  return list.map(n => {
+    let meta = {}
+    try {
+      if (n.data) {
+        meta = typeof n.data === 'string' ? JSON.parse(n.data) : n.data
+      }
+    } catch (e) {
+      console.warn('Failed to parse notification data', e)
+    }
+    
+    // Start with existing action_url or link from meta
+    let url = n.action_url || meta.link || null
+    
+    // Generate action_url based on notification type if not already set
+    if (!url) {
+      const type = n.type?.toLowerCase() || ''
+      const refId = meta.transfer_id || meta.reference || meta.reference_id || meta.id
+      
+      switch (type) {
+        case 'transfer':
+        case 'transaction':
+        case 'payment':
+          url = refId ? `/transactions?ref=${refId}` : '/transactions'
+          break
+        case 'wallet':
+          url = '/wallet'
+          break
+        case 'card':
+          url = '/cards'
+          break
+        case 'security':
+        case 'kyc':
+          url = '/settings'
+          break
+        case 'enterprise':
+          if (meta.action === 'accept_invitation' && meta.employee_id) {
+            url = `/enterprise/accept?id=${meta.employee_id}`
+          } else {
+            url = '/enterprise'
+          }
+          break
+        default:
+          // Check for special actions
+          if (meta.action === 'accept_invitation' && meta.employee_id) {
+            url = `/enterprise/accept?id=${meta.employee_id}`
+          }
+          break
+      }
+    }
+    
+    return { ...n, meta, action_url: url }
+  })
+}
+
+// Get action label based on notification type
+const getActionLabel = (notif) => {
+  if (notif.meta?.action === 'accept_invitation') return '✅ Accepter'
+  const type = notif.type?.toLowerCase() || ''
+  switch (type) {
+    case 'transfer':
+    case 'transaction':
+    case 'payment':
+      return '📋 Voir transaction'
+    case 'wallet':
+      return '👛 Voir portefeuille'
+    case 'card':
+      return '💳 Voir carte'
+    case 'security':
+      return '🔐 Paramètres'
+    case 'kyc':
+      return '✅ Vérification'
+    case 'enterprise':
+      return '🏢 Entreprise'
+    default:
+      return '👁️ Voir détails'
+  }
+}
+
+// Navigate to action URL
+const navigateToAction = async (notif) => {
+  if (!notif.is_read) {
+    try {
+      await notificationAPI.markAsRead(notif.id)
+      notif.is_read = true
+      unreadCount.value = Math.max(0, unreadCount.value - 1)
+    } catch (e) {
+      console.error('Failed to mark as read:', e)
+    }
+  }
+  isOpen.value = false
+  if (notif.action_url) {
+    router.push(notif.action_url)
   }
 }
 
@@ -537,6 +642,25 @@ onUnmounted(() => {
   font-size: 11px;
   color: #666;
   margin-top: 4px;
+}
+
+.action-button {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+.action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
 }
 
 .unread-dot {

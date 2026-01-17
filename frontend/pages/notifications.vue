@@ -139,14 +139,44 @@ const processNotifications = (list) => {
             console.warn('Failed to parse notification data', e)
         }
         
-        // Determine Action URL
+        // Start with existing action_url or link from meta
         let url = n.action_url || meta.link || null
-        if (!url && n.type === 'transfer' && (meta.transfer_id || meta.reference)) {
-            url = `/transactions?ref=${meta.transfer_id || meta.reference}`
-        }
-        // Handle enterprise invitations
-        if (!url && meta.action === 'accept_invitation' && meta.employee_id) {
-            url = `/enterprise/accept?id=${meta.employee_id}`
+        
+        // Generate action_url based on notification type if not already set
+        if (!url) {
+          const type = n.type?.toLowerCase() || ''
+          const refId = meta.transfer_id || meta.reference || meta.reference_id || meta.id
+          
+          switch (type) {
+            case 'transfer':
+            case 'transaction':
+            case 'payment':
+              url = refId ? `/transactions?ref=${refId}` : '/transactions'
+              break
+            case 'wallet':
+              url = '/wallet'
+              break
+            case 'card':
+              url = '/cards'
+              break
+            case 'security':
+            case 'kyc':
+              url = '/settings'
+              break
+            case 'enterprise':
+              if (meta.action === 'accept_invitation' && meta.employee_id) {
+                url = `/enterprise/accept?id=${meta.employee_id}`
+              } else {
+                url = '/enterprise'
+              }
+              break
+            default:
+              // Check for special actions
+              if (meta.action === 'accept_invitation' && meta.employee_id) {
+                url = `/enterprise/accept?id=${meta.employee_id}`
+              }
+              break
+          }
         }
         
         return {
@@ -274,11 +304,25 @@ const getTypeLabel = (type) => {
 // Action label based on notification type
 const getActionLabel = (notif) => {
   if (notif.meta?.action === 'accept_invitation') return '✅ Accepter l\'invitation'
-  if (notif.type === 'transfer') return '📋 Voir la transaction'
-  if (notif.type === 'card') return '💳 Voir la carte'
-  if (notif.type === 'wallet') return '👛 Voir le portefeuille'
-  if (notif.type === 'kyc') return '✅ Voir le statut'
-  return '👁️ Voir les détails'
+  const type = notif.type?.toLowerCase() || ''
+  switch (type) {
+    case 'transfer':
+    case 'transaction':
+    case 'payment':
+      return '📋 Voir transaction'
+    case 'wallet':
+      return '👛 Voir portefeuille'
+    case 'card':
+      return '💳 Voir carte'
+    case 'security':
+      return '🔐 Paramètres'
+    case 'kyc':
+      return '✅ Vérification'
+    case 'enterprise':
+      return '🏢 Entreprise'
+    default:
+      return '👁️ Voir détails'
+  }
 }
 
 const openNotificationDetail = (notification) => {
