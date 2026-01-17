@@ -111,7 +111,7 @@ func (h *EmployeeHandler) GetMyEmployee(c *gin.Context) {
 		return
 	}
 	
-	employee, err := h.service.GetEmployeeByUserID(c.Request.Context(), enterpriseID, userID.(string))
+	employee, err := h.service.GetEmployeeByUserAndEnterprise(c.Request.Context(), userID.(string), enterpriseID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Employee not found in this enterprise"})
 		return
