@@ -164,6 +164,11 @@ func main() {
 		api.GET("/approvals/:id", approvalHandler.GetApproval)
 		api.POST("/approvals/:id/approve", approvalHandler.ApproveAction)
 		api.POST("/approvals/:id/reject", approvalHandler.RejectAction)
+
+		// Admin Routes (for admin dashboard)
+		api.GET("/admin/enterprises", entHandler.AdminListAll)
+		api.PUT("/admin/enterprises/:id/status", entHandler.AdminUpdateStatus)
+		api.DELETE("/admin/enterprises/:id", entHandler.AdminDelete)
 	}
 
 	// 6. Start Server

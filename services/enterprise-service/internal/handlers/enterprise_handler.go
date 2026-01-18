@@ -232,3 +232,105 @@ func (h *EnterpriseHandler) UpdateEnterprise(c *gin.Context) {
 
 	c.JSON(http.StatusOK, req)
 }
+
+// ========== ADMIN ENDPOINTS ==========
+
+// AdminListAll returns all enterprises for admin dashboard
+// GET /admin/enterprises
+func (h *EnterpriseHandler) AdminListAll(c *gin.Context) {
+	enterprises, err := h.repo.FindAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch enterprises"})
+		return
+	}
+	
+	// Add employee counts
+	result := make([]map[string]interface{}, len(enterprises))
+	for i, ent := range enterprises {
+		empCount, _ := h.empRepo.CountByEnterprise(c.Request.Context(), ent.ID.Hex())
+		result[i] = map[string]interface{}{
+			"id":              ent.ID.Hex(),
+			"name":            ent.Name,
+			"type":            ent.Type,
+			"status":          ent.Status,
+			"owner_id":        ent.OwnerID,
+			"logo":            ent.Logo,
+			"description":     ent.Description,
+			"employees_count": empCount,
+			"created_at":      ent.CreatedAt,
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"enterprises": result})
+}
+
+// AdminUpdateStatus changes an enterprise status (activate/suspend)
+// PUT /admin/enterprises/:id/status
+func (h *EnterpriseHandler) AdminUpdateStatus(c *gin.Context) {
+	id := c.Param("id")
+	
+	var req struct {
+		Status string `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	
+	// Validate status
+	validStatuses := []string{"ACTIVE", "SUSPENDED", "PENDING"}
+	valid := false
+	for _, s := range validStatuses {
+		if req.Status == s {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status. Must be ACTIVE, SUSPENDED, or PENDING"})
+		return
+	}
+	
+	// Get enterprise
+	enterprise, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Enterprise not found"})
+		return
+	}
+	
+	// Update status
+	enterprise.Status = req.Status
+	if err := h.repo.Update(c.Request.Context(), enterprise); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "status": req.Status})
+}
+
+// AdminDelete deletes an enterprise and all related data
+// DELETE /admin/enterprises/:id
+func (h *EnterpriseHandler) AdminDelete(c *gin.Context) {
+	id := c.Param("id")
+	
+	// Get enterprise first to confirm it exists
+	_, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Enterprise not found"})
+		return
+	}
+	
+	// Delete employees first
+	if h.empRepo != nil {
+		h.empRepo.DeleteByEnterprise(c.Request.Context(), id)
+	}
+	
+	// Delete enterprise
+	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete enterprise"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "Enterprise deleted"})
+}
+

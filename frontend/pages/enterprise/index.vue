@@ -80,15 +80,18 @@
       <div v-else class="space-y-6 animate-fade-in">
         
         <!-- Navigation Tabs -->
-        <div class="bg-white dark:bg-gray-800 p-1.5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 inline-flex overflow-x-auto max-w-full">
-          <button v-for="tab in tabs" :key="tab" @click="currentTab = tab"
-            :class="['px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2', 
-              currentTab === tab 
-                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800' 
-                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50']">
-            <component :is="getTabIcon(tab)" class="w-4 h-4" />
-            {{ tabLabels[tab] }}
-          </button>
+        <div class="overflow-x-auto -mx-4 px-4 pb-2">
+          <div class="bg-white dark:bg-gray-800 p-1.5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 inline-flex min-w-max">
+            <button v-for="tab in tabs" :key="tab" @click="currentTab = tab"
+              :class="['px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2', 
+                currentTab === tab 
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800' 
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50']">
+              <component :is="getTabIcon(tab)" class="w-4 h-4" />
+              <span class="hidden sm:inline">{{ tabLabels[tab] }}</span>
+              <span class="sm:hidden">{{ tabLabels[tab].substring(0, 4) }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- Tab Content -->

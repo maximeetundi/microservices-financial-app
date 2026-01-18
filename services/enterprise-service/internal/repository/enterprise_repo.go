@@ -144,3 +144,14 @@ func (r *EnterpriseRepository) FindByUserAccess(ctx context.Context, userID stri
 	
 	return ownedEnterprises, nil
 }
+
+// Delete removes an enterprise by ID
+func (r *EnterpriseRepository) Delete(ctx context.Context, id string) error {
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": objectID})
+	return err
+}
+

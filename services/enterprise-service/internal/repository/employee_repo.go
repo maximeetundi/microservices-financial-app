@@ -102,3 +102,27 @@ func (r *EmployeeRepository) FindByEnterpriseAndContact(ctx context.Context, ent
 	}
 	return &emp, nil
 }
+
+// CountByEnterprise returns the count of employees for an enterprise
+func (r *EmployeeRepository) CountByEnterprise(ctx context.Context, enterpriseID string) (int64, error) {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := r.collection.CountDocuments(ctx, bson.M{"enterprise_id": oid})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// DeleteByEnterprise deletes all employees for an enterprise
+func (r *EmployeeRepository) DeleteByEnterprise(ctx context.Context, enterpriseID string) error {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.DeleteMany(ctx, bson.M{"enterprise_id": oid})
+	return err
+}
+
