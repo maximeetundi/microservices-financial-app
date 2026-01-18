@@ -71,9 +71,12 @@ onMounted(async () => {
   try {
     // Fetch user's wallets to use as payment destinations
     const res = await walletAPI.getMyWallets()
-    wallets.value = res.data
+    // Handle different response formats (array or object with wallets property)
+    const data = res.data
+    wallets.value = Array.isArray(data) ? data : (data?.wallets || [])
   } catch (error) {
     console.error('Failed to fetch wallets:', error)
+    wallets.value = [] // Ensure it's always an array
   }
 })
 

@@ -33,6 +33,20 @@ func (h *ApprovalHandler) GetPendingApprovals(c *gin.Context) {
 	c.JSON(http.StatusOK, approvals)
 }
 
+// GetApproval returns a single approval by ID
+// GET /approvals/:id
+func (h *ApprovalHandler) GetApproval(c *gin.Context) {
+	approvalID := c.Param("id")
+
+	approval, err := h.approvalService.GetApprovalByID(c.Request.Context(), approvalID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Approval not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, approval)
+}
+
 // InitiateAction creates a new action that requires multi-approval
 // POST /enterprises/:id/actions
 func (h *ApprovalHandler) InitiateAction(c *gin.Context) {

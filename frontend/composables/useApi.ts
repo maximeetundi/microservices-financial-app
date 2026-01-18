@@ -705,6 +705,7 @@ export const enterpriseAPI = {
 
     // Multi-Approval System
     getPendingApprovals: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/approvals`),
+    getApprovalById: (approvalId: string) => api.get(`/enterprise-service/api/v1/approvals/${approvalId}`),
     approveAction: (approvalId: string, data: { pin: string }) =>
         api.post(`/enterprise-service/api/v1/approvals/${approvalId}/approve`, data),
     rejectAction: (approvalId: string, data: { pin: string, reason?: string }) =>

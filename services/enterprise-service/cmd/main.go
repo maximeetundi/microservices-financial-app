@@ -161,6 +161,7 @@ func main() {
 		approvalHandler := handlers.NewApprovalHandler(approvalService, empService)
 		api.GET("/enterprises/:id/approvals", approvalHandler.GetPendingApprovals)
 		api.POST("/enterprises/:id/actions", approvalHandler.InitiateAction)
+		api.GET("/approvals/:id", approvalHandler.GetApproval)
 		api.POST("/approvals/:id/approve", approvalHandler.ApproveAction)
 		api.POST("/approvals/:id/reject", approvalHandler.RejectAction)
 	}

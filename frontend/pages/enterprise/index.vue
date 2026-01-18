@@ -206,8 +206,8 @@ const clientsCount = ref(0)
 const myEmployee = ref(null) // Current user's employee record for permission checks
 const enterpriseEmployees = ref([]) // All employees list for OrganisationTab
 
-// Role-based tab access
-const adminOnlyTabs = ['Security', 'Organisation', 'Settings', 'Payroll']
+// Role-based tab access - Wallets and Services require admin permission
+const adminOnlyTabs = ['Security', 'Organisation', 'Settings', 'Payroll', 'Wallets', 'Services']
 const allTabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
 
 // Visible tabs based on role

@@ -192,7 +192,9 @@ const currencies = [
 
 // Auto-set currency when wallet changes
 const onWalletChange = (group) => {
-  const wallet = props.availableWallets.find(w => w.id === group.wallet_id)
+  // Defensive check - availableWallets might not be an array
+  const wallets = Array.isArray(props.availableWallets) ? props.availableWallets : []
+  const wallet = wallets.find(w => w.id === group.wallet_id)
   if (wallet) {
     group.currency = wallet.currency
   } else {
