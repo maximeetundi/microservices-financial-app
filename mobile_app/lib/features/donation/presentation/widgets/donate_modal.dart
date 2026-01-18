@@ -1,4 +1,7 @@
-import '../../features/auth/presentation/pages/pin_verify_dialog.dart';
+import 'package:flutter/material.dart';
+import '../../../../features/auth/presentation/pages/pin_verify_dialog.dart';
+import '../../../../core/services/wallet_api_service.dart';
+import '../../../../core/services/donation_api_service.dart';
 
 class DonateModal extends StatefulWidget {
   final String campaignId;

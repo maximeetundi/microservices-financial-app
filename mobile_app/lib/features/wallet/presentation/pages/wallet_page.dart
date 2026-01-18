@@ -6,7 +6,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/loading_widget.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../bloc/wallet_bloc.dart';

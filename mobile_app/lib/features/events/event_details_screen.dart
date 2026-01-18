@@ -92,7 +92,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         }
       }
     }
-    }
   }
 
   Future<void> _confirmCancel(Map<String, dynamic> event) async {
@@ -195,6 +194,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             icon: const Icon(Icons.arrow_back),
           ),
           actions: widget.isOwner
+              ? [
                   IconButton(
                     onPressed: () => _editEvent(event),
                     icon: const Icon(Icons.edit),
@@ -672,10 +672,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-        ],
-      ),
-    );
-  }
+
 
   void _openTicketScanner(Map<String, dynamic> event) {
     Navigator.push(

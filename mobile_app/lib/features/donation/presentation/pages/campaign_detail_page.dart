@@ -22,7 +22,6 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
   
   Map<String, dynamic>? _campaign;
   List<dynamic> _donations = [];
-  List<dynamic> _donations = [];
   bool _loading = true;
   bool _isCreator = false;
 

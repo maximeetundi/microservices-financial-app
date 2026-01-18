@@ -8,8 +8,11 @@ import '../../../../core/services/biometric_service.dart';
 class PinVerifyDialog extends StatefulWidget {
   final String? title;
   final String? subtitle;
+  final bool allowBiometric;
   final bool returnEncryptedPin; 
-  final bool returnRawPin; // Add this
+  final bool returnRawPin;
+  final VoidCallback? onVerified;
+  final VoidCallback? onCancelled;
 
   const PinVerifyDialog({
     super.key,
@@ -17,7 +20,7 @@ class PinVerifyDialog extends StatefulWidget {
     this.subtitle,
     this.allowBiometric = true,
     this.returnEncryptedPin = false,
-    this.returnRawPin = false, // Default false
+    this.returnRawPin = false,
     this.onVerified,
     this.onCancelled,
   });

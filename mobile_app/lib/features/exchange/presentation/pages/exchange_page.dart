@@ -56,7 +56,7 @@ class _ExchangePageState extends State<ExchangePage>
   
   Future<void> _loadWallets() async {
     try {
-      final walletData = await ApiService().wallets.getWallets();
+      final walletData = await ApiService().wallet.getWallets();
       setState(() {
         _wallets = List<Map<String, dynamic>>.from(walletData);
       });

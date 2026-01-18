@@ -85,5 +85,27 @@ abstract class BaseApiService {
     }
     throw Exception(response.data['error'] ?? 'Request failed');
   }
+
+  /// Perform POST request with raw path (no auto-prefix)
+  Future<dynamic> post(String path, {Map<String, dynamic>? data}) async {
+    final response = await _client.post(path, data: data ?? {});
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return response.data is Map<String, dynamic> 
+          ? response.data 
+          : {'data': response.data};
+    }
+    throw Exception(response.data['error'] ?? 'Request failed');
+  }
+
+  /// Perform PUT request with raw path (no auto-prefix)
+  Future<dynamic> put(String path, {Map<String, dynamic>? data}) async {
+    final response = await _client.put(path, data: data ?? {});
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return response.data is Map<String, dynamic> 
+          ? response.data 
+          : {'data': response.data};
+    }
+    throw Exception(response.data['error'] ?? 'Request failed');
+  }
 }
 

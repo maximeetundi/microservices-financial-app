@@ -1,11 +1,11 @@
 {
-    "name": "crypto_bank_mobile",
-    "short_name": "crypto_bank_mobile",
+    "name": "Zekora",
+    "short_name": "Zekora",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1a1a2e",
+    "theme_color": "#6366f1",
+    "description": "Zekora - Votre solution bancaire digitale pour crypto et fiat",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

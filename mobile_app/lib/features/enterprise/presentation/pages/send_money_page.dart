@@ -49,7 +49,10 @@ class _SendMoneyPageState extends State<SendMoneyPage> {
           : {'phone': _recipientController.text};
       
       // Use user lookup API
-      final response = await _api.user.lookup(query);
+      final response = await _api.auth.lookupUser(
+        email: isEmail ? _recipientController.text : null,
+        phone: !isEmail ? _recipientController.text : null,
+      );
       setState(() => _recipient = response);
     } catch (e) {
       setState(() => _lookupError = 'Utilisateur introuvable');

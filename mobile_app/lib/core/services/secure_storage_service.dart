@@ -27,6 +27,19 @@ class SecureStorageService {
   static const String _biometricEnabledKey = 'biometric_enabled';
   static const String _pinCodeKey = 'pin_code';
   static const String _lastLoginKey = 'last_login';
+
+  // Generic methods for other services to use
+  Future<void> write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+  }
+
+  Future<String?> read(String key) async {
+    return await _storage.read(key: key);
+  }
+
+  Future<void> delete(String key) async {
+    await _storage.delete(key: key);
+  }
   
   // Token Management
   Future<void> saveTokens(String accessToken, String refreshToken) async {

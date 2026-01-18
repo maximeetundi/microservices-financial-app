@@ -257,9 +257,10 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
         'sale_end_date': _saleEndDate!.toIso8601String(),
         'currency': _selectedCurrency,
         'form_fields': _formFields,
-        'ticket_tiers': _tiers.asMap().entries.map((e) => {
-          ...e.value,
-          'sort_order': e.key,
+        'ticket_tiers': _tiers.asMap().entries.map((e) {
+          final tier = Map<String, dynamic>.from(e.value);
+          tier['sort_order'] = e.key;
+          return tier;
         }).toList(),
       });
 
@@ -754,16 +755,7 @@ class _CreateEventFormScreenState extends State<CreateEventFormScreen> {
     );
   }
 
-  void _addTier() {
-    setState(() => _tiers.add({
-      'name': 'Nouveau niveau',
-      'icon': '🎟️',
-      'price': 10000,
-      'quantity': -1,
-      'description': '',
-      'color': '#8b5cf6',
-    }));
-  }
+  // _addTier method is defined above
 
   void _selectIcon(int tierIndex) {
     showDialog(

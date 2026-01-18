@@ -78,7 +78,7 @@ class TransferApiService {
   /// Inverser (Rembourser) un transfert
   Future<void> reverseTransfer(String transferId, {String? reason}) async {
     final response = await _client.post(
-       '${ApiEndpoints.baseTransfer}/$transferId/reverse', // Assuming endpoint naming convention
+       ApiEndpoints.reverseTransfer(transferId),
        data: reason != null ? {'reason': reason} : {},
     );
     if (response.statusCode != 200) {

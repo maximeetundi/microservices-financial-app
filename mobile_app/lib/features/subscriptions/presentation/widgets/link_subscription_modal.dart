@@ -1,9 +1,8 @@
 
 import 'package:flutter/material.dart';
 import '../../data/repositories/subscription_repository.dart';
-import '../../data/repositories/subscription_repository.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../auth/presentation/pages/pin_verify_dialog.dart';
+import '../../../../features/auth/presentation/pages/pin_verify_dialog.dart';
 
 class LinkSubscriptionModal extends StatefulWidget {
   final VoidCallback onSuccess;

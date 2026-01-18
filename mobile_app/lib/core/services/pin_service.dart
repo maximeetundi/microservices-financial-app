@@ -12,7 +12,6 @@ class PinService {
   PinService._internal();
 
   final ApiClient _client = ApiClient();
-  final ApiClient _client = ApiClient();
   final SecureStorageService _storage = SecureStorageService();
 
   static const String _pinSetKey = 'pin_set';

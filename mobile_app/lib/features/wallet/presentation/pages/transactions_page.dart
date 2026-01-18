@@ -332,7 +332,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 ),
               ],
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -360,13 +361,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             _buildDetailRow('Type', _getTransactionTitle(tx)),
             _buildDetailRow('Montant', '${tx.isIncoming ? '+' : ''}${_formatMoney(tx.amount, tx.currency)}'),
             _buildDetailRow('Date', _formatDate(tx.createdAt)),
-            _buildDetailRow('Statut', tx.status),
-            if (tx.metadata != null && tx.metadata!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('MÉTADONNÉES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Text(tx.metadata.toString(), style: const TextStyle(fontSize: 12)),
-            ],
+            _buildDetailRow('Statut', tx.statusText),
 
             const SizedBox(height: 32),
             
@@ -480,6 +475,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ),
       );
   }
+
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

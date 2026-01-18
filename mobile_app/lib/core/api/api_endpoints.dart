@@ -51,6 +51,7 @@ class ApiEndpoints {
   static String createTransfer = transfers;
   static String transferById(String id) => '$transfers/$id';
   static String cancelTransfer(String id) => '$transfers/$id/cancel';
+  static String reverseTransfer(String id) => '$transfers/$id/reverse';
   static const String internationalTransfer = '$transfers/international';
   static const String mobileMoneyProviders = '$transfers/mobile/providers';
   static const String sendMobileMoney = '$transfers/mobile/send';

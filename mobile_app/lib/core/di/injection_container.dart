@@ -16,8 +16,6 @@ import '../../features/subscriptions/data/repositories/subscription_repository.d
 
 final sl = GetIt.instance;
 
-final sl = GetIt.instance;
-
 Future<void> init() async {
   // Core
   sl.registerLazySingleton<ApiClient>(() => ApiClient());

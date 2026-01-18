@@ -270,11 +270,10 @@ class _DonorsListPageState extends State<DonorsListPage> {
                       children: [
                          const Text('Montant du Don', style: TextStyle(color: Colors.grey, fontSize: 12)),
                          const SizedBox(height: 4),
-                         TextTheme(data: DateTime(2025)).titleLarge.copyWith(color: const Color(0xFF6366f1)) != null ?
                          Text(
                              _formatAmount((donation['amount'] ?? 0).toDouble(), donation['currency']),
                              style: const TextStyle(color: Color(0xFF6366f1), fontSize: 24, fontWeight: FontWeight.bold),
-                         ) : Container(),
+                         ),
 
                          if (donation['frequency'] != null && donation['frequency'] != 'one_time')
                             Container(
@@ -329,7 +328,6 @@ class _DonorsListPageState extends State<DonorsListPage> {
                         label: const Text('Rembourser ce don', style: TextStyle(color: Colors.red)),
                         onPressed: () {
                            Navigator.pop(context);
-                           // Wait slightly for modal to close
                            Future.delayed(const Duration(milliseconds: 200), () {
                                _refundDonation(donation['id']);
                            });
@@ -347,6 +345,7 @@ class _DonorsListPageState extends State<DonorsListPage> {
     final name = isAnon ? 'Donateur Anonyme' : (donation['donor_name'] ?? 'Bienfaiteur');
     final status = donation['status'];
 
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.transparent,
@@ -368,54 +367,53 @@ class _DonorsListPageState extends State<DonorsListPage> {
                       backgroundColor: isAnon ? Colors.grey[800] : Colors.indigo[900],
                       child: Text(isAnon ? '?' : name[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
                     ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    if (donation['message'] != null && donation['message'].isNotEmpty)
-                       Text('"${donation['message']}"', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, fontStyle: FontStyle.italic)),
-                     Text(
-                        _formatDate(donation['created_at']), 
-                        style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          if (donation['message'] != null && donation['message'].isNotEmpty)
+                             Text('"${donation['message']}"', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, fontStyle: FontStyle.italic)),
+                           Text(
+                              _formatDate(donation['created_at']), 
+                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                           ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                          Text(
+                              _formatAmount((donation['amount'] ?? 0).toDouble(), donation['currency']),
+                              style: const TextStyle(color: Color(0xFF6366f1), fontWeight: FontWeight.bold),
+                          ),
+                          if (status == 'refunded' || status == 'refunding')
+                              const Text('Remboursé', style: TextStyle(color: Colors.orange, fontSize: 10)),
+                      ],
+                    ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                    Text(
-                        _formatAmount((donation['amount'] ?? 0).toDouble(), donation['currency']),
-                        style: const TextStyle(color: Color(0xFF6366f1), fontWeight: FontWeight.bold),
-                    ),
-                    if (status == 'refunded' || status == 'refunding')
-                        const Text('Remboursé', style: TextStyle(color: Colors.orange, fontSize: 10)),
-                ],
-              ),
-            ],
+                
+                // Refund Action
+                if (_isCreator && status == 'paid') ...[
+                    const Divider(color: Colors.white12),
+                    Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                            icon: const Icon(Icons.undo, size: 16, color: Colors.red),
+                            label: const Text('Rembourser', style: TextStyle(color: Colors.red, fontSize: 12)),
+                            onPressed: () => _refundDonation(donation['id']),
+                        ),
+                    )
+                ]
+              ],
+            ),
           ),
-          
-          // Refund Action
-          if (_isCreator && status == 'paid') ...[
-              const Divider(color: Colors.white12),
-              Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                      icon: const Icon(Icons.undo, size: 16, color: Colors.red),
-                      label: const Text('Rembourser', style: TextStyle(color: Colors.red, fontSize: 12)),
-                      onPressed: () => _refundDonation(donation['id']),
-                  ),
-              )
-          ]
-        ],
+        ),
       ),
-        ],
-      ),
-    ),
-    ),
-  );
+    );
   }
 
   String _formatAmount(double amount, String? currency) {
