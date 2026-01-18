@@ -17,10 +17,12 @@ const (
 
 // Enterprise corresponds to Section 1: "Création et gestion d'une entreprise"
 type Enterprise struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name      string             `bson:"name" json:"name"`
-	Type      EnterpriseType     `bson:"type" json:"type"` // Default: SERVICE
-	Logo      string             `bson:"logo,omitempty" json:"logo,omitempty"`
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name        string             `bson:"name" json:"name"`
+	Description string             `bson:"description,omitempty" json:"description,omitempty"`
+	Type        EnterpriseType     `bson:"type" json:"type"` // Default: SERVICE
+	Status      string             `bson:"status" json:"status"` // ACTIVE, SUSPENDED, PENDING
+	Logo        string             `bson:"logo,omitempty" json:"logo,omitempty"`
 	EmployeeCountRange string    `bson:"employee_count_range" json:"employee_count_range"` // "1-10", "11-50", etc.
 	RegistrationNumber string    `bson:"registration_number,omitempty" json:"registration_number,omitempty"`
 	

@@ -15,6 +15,7 @@
         "cupertino_icons",
         "device_info_plus",
         "dio",
+        "encrypt",
         "equatable",
         "file_picker",
         "fl_chart",
@@ -41,6 +42,7 @@
         "permission_handler",
         "photo_view",
         "pinput",
+        "pointycastle",
         "provider",
         "qr_flutter",
         "record",
@@ -469,6 +471,18 @@
         "clock",
         "meta",
         "path"
+      ]
+    },
+    {
+      "name": "encrypt",
+      "version": "5.0.3",
+      "dependencies": [
+        "args",
+        "asn1lib",
+        "clock",
+        "collection",
+        "crypto",
+        "pointycastle"
       ]
     },
     {
@@ -2145,6 +2159,20 @@
         "meta",
         "path"
       ]
+    },
+    {
+      "name": "pointycastle",
+      "version": "3.9.1",
+      "dependencies": [
+        "collection",
+        "convert",
+        "js"
+      ]
+    },
+    {
+      "name": "asn1lib",
+      "version": "1.6.5",
+      "dependencies": []
     }
   ],
   "configVersion": 1
