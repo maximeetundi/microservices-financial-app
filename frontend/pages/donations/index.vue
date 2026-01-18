@@ -137,9 +137,18 @@ const loadCampaigns = async () => {
     try {
         if (!user.value?.id) return
         const res = await donationApi.getMyCampaigns(user.value.id) 
-        campaigns.value = res.data?.campaigns || res.data || []
+        // Ensure campaigns is always an array
+        const data = res.data
+        if (Array.isArray(data)) {
+            campaigns.value = data
+        } else if (data?.campaigns && Array.isArray(data.campaigns)) {
+            campaigns.value = data.campaigns
+        } else {
+            campaigns.value = []
+        }
     } catch (e) {
         console.error("Failed to load campaigns", e)
+        campaigns.value = [] // Ensure it's an array on error
     } finally {
         loading.value = false
     }
