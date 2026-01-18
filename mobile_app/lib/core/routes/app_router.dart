@@ -37,7 +37,9 @@ import '../../features/donation/presentation/pages/donation_list_page.dart';
 import '../../features/donation/presentation/pages/campaign_detail_page.dart';
 import '../../features/donation/presentation/pages/create_campaign_page.dart';
 import '../../features/donation/presentation/pages/create_campaign_page.dart';
-import '../../features/enterprise/presentation/pages/enterprise_page.dart';
+import '../../features/enterprise/presentation/pages/enterprise_dashboard_page.dart';
+import '../../features/enterprise/presentation/pages/approval_detail_page.dart';
+import '../../features/enterprise/data/models/approval_model.dart';
 import '../../features/subscriptions/presentation/pages/subscriptions_page.dart';
 
 class AppRouter {
@@ -293,7 +295,30 @@ class AppRouter {
           GoRoute(
             path: 'enterprise',
             name: 'enterprise',
-            builder: (context, state) => const EnterprisePage(),
+            builder: (context, state) => EnterpriseDashboardPage(
+              enterpriseId: state.uri.queryParameters['id'],
+            ),
+            routes: [
+              GoRoute(
+                path: 'approvals/:approvalId',
+                name: 'enterprise-approval-detail',
+                builder: (context, state) {
+                  final extra = state.extra as Map<String, dynamic>?;
+                  final approval = extra?['approval'] != null 
+                      ? ActionApproval.fromJson(extra!['approval']) 
+                      : ActionApproval(
+                          id: state.pathParameters['approvalId']!,
+                          enterpriseId: '',
+                          actionType: '',
+                          actionName: 'Chargement...',
+                          description: '',
+                          status: 'PENDING',
+                          initiatorUserId: '',
+                        );
+                  return ApprovalDetailPage(approval: approval);
+                },
+              ),
+            ],
           ),
           
           GoRoute(

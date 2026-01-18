@@ -29,11 +29,11 @@
 
     <!-- Wallets Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div v-for="wallet in wallets" :key="wallet.id"
+      <div v-for="wallet in wallets" :key="wallet?.id || wallet?._id"
         class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 relative overflow-hidden group hover:shadow-lg transition-all">
         
         <!-- Default Badge -->
-        <div v-if="wallet.id === enterprise.default_wallet_id" 
+        <div v-if="enterprise?.default_wallet_id && wallet?.id === enterprise.default_wallet_id" 
           class="absolute top-3 right-3 px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium rounded-full">
           Par défaut
         </div>
@@ -75,7 +75,7 @@
           </button>
         </div>
         <div class="flex gap-2 mt-2">
-          <button v-if="wallet.id !== enterprise.default_wallet_id" 
+          <button v-if="!enterprise?.default_wallet_id || wallet?.id !== enterprise.default_wallet_id" 
             @click="setAsDefault(wallet)"
             class="flex-1 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors">
             ⭐ Définir par défaut
@@ -172,58 +172,146 @@
       </div>
     </Teleport>
 
-    <!-- Send Money Modal -->
+    <!-- Send Money Modal (Transfer-Style) -->
     <Teleport to="body">
-      <div v-if="showSendModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
-          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            Envoyer depuis {{ selectedWallet?.currency }}
-          </h3>
-          
-          <div class="space-y-4">
+      <div v-if="showSendModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg my-8">
+          <!-- Header -->
+          <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destinataire (Email ou Téléphone)</label>
-              <input v-model="sendForm.recipient" type="text" placeholder="email@example.com ou +225..."
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                💸 Envoyer de l'argent
+              </h3>
+              <p class="text-sm text-gray-500 mt-1">Depuis le portefeuille {{ selectedWallet?.currency }}</p>
             </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Montant</label>
-              <input v-model.number="sendForm.amount" type="number" step="0.01" placeholder="0.00"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-              <input v-model="sendForm.description" type="text" placeholder="Motif du transfert"
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-          </div>
-          
-          <div v-if="sendError" class="mt-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
-            {{ sendError }}
+            <button @click="showSendModal = false" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              ✕
+            </button>
           </div>
 
-          <div class="flex justify-end gap-3 mt-6">
+          <div class="p-6 space-y-6">
+            <!-- Balance Display -->
+            <div class="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
+              <p class="text-sm text-gray-500">Solde disponible</p>
+              <p class="text-2xl font-bold text-primary-600">{{ formatAmount(selectedWallet?.balance, selectedWallet?.currency) }}</p>
+            </div>
+
+            <!-- Amount Input -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Montant à envoyer</label>
+              <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 focus-within:ring-2 focus-within:ring-primary-500">
+                <input v-model.number="sendForm.amount" type="number" step="0.01" min="0" 
+                  placeholder="0.00"
+                  class="flex-1 text-2xl font-bold bg-transparent outline-none text-gray-900 dark:text-white"
+                />
+                <span class="text-lg font-bold text-primary-600 bg-primary-100 dark:bg-primary-900/30 px-3 py-1 rounded-lg">
+                  {{ selectedWallet?.currency }}
+                </span>
+              </div>
+              <p v-if="sendForm.amount > (selectedWallet?.balance || 0)" class="text-xs text-red-500 mt-1">Solde insuffisant</p>
+              <p v-else class="text-xs text-gray-400 mt-1">Disponible: {{ formatAmount(selectedWallet?.balance, selectedWallet?.currency) }}</p>
+            </div>
+
+            <!-- Recipient Input with Lookup -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destinataire (Email ou Téléphone)</label>
+              <div class="flex gap-2">
+                <input v-model="sendForm.recipient" type="text" 
+                  placeholder="ex: ami@email.com ou +225..."
+                  class="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white"
+                  @blur="lookupRecipient"
+                />
+                <button type="button" @click="lookupRecipient" 
+                  class="px-4 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors border border-gray-200 dark:border-gray-600">
+                  <span v-if="lookupLoading" class="animate-spin">⟳</span>
+                  <span v-else>🔍</span>
+                </button>
+              </div>
+              <!-- Lookup Result -->
+              <div v-if="lookupResult" class="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold shadow-lg">
+                  {{ lookupResult.first_name?.[0] || 'U' }}
+                </div>
+                <div>
+                  <p class="font-bold text-gray-900 dark:text-white">{{ lookupResult.first_name }} {{ lookupResult.last_name }}</p>
+                  <p class="text-xs text-green-600 flex items-center gap-1">✓ Utilisateur vérifié</p>
+                </div>
+              </div>
+              <p v-if="lookupError" class="text-xs text-red-500 mt-2">{{ lookupError }}</p>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note (Optionnel)</label>
+              <input v-model="sendForm.description" type="text" placeholder="Ex: Paiement fournisseur"
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            <!-- Summary -->
+            <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+              <h4 class="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">📝 Résumé</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Montant</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ formatAmount(sendForm.amount || 0, selectedWallet?.currency) }}</span>
+                </div>
+                <div class="flex justify-between text-primary-600" v-if="estimatedFee > 0">
+                  <span>Frais estimés</span>
+                  <span class="font-medium">+ {{ formatAmount(estimatedFee, selectedWallet?.currency) }}</span>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-600 pt-2 flex justify-between">
+                  <span class="font-bold text-gray-900 dark:text-white">Total à débiter</span>
+                  <span class="font-bold text-lg text-gray-900 dark:text-white">{{ formatAmount((sendForm.amount || 0) + estimatedFee, selectedWallet?.currency) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Admin Notice -->
+            <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-300">
+              ℹ️ Cette transaction nécessitera l'approbation d'un autre administrateur avant exécution.
+            </div>
+
+            <!-- Error -->
+            <div v-if="sendError" class="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm">
+              {{ sendError }}
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="p-6 border-t border-gray-100 dark:border-gray-700 flex gap-3">
             <button @click="showSendModal = false" 
-              class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              class="flex-1 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium">
               Annuler
             </button>
-            <button @click="executeSend" :disabled="isSending || !sendForm.recipient || !sendForm.amount"
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-              {{ isSending ? 'Envoi...' : 'Envoyer' }}
+            <button @click="confirmSend" 
+              :disabled="isSending || !sendForm.recipient || !sendForm.amount || sendForm.amount > (selectedWallet?.balance || 0)"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
+              <span v-if="isSending" class="animate-spin">⟳</span>
+              {{ isSending ? 'Création...' : 'Confirmer →' }}
             </button>
           </div>
         </div>
       </div>
     </Teleport>
+
+    <!-- PIN Modal for transaction confirmation -->
+    <PinModal 
+      :isOpen="showPinModal"
+      title="Confirmer la transaction"
+      description="Entrez votre code PIN pour valider et initier le processus d'approbation."
+      @update:isOpen="showPinModal = $event"
+      @success="onPinSuccess"
+      @close="showPinModal = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { WalletIcon, PlusIcon } from '@heroicons/vue/24/outline'
-import { walletAPI, enterpriseAPI, transferAPI } from '@/composables/useApi'
+import { walletAPI, enterpriseAPI, transferAPI, userAPI } from '@/composables/useApi'
+import PinModal from '@/components/common/PinModal.vue'
 
 const props = defineProps({
   enterprise: {
@@ -259,6 +347,17 @@ const newWallet = ref({
   currency: 'XOF',
   name: ''
 })
+
+// Recipient lookup state
+const lookupLoading = ref(false)
+const lookupResult = ref(null)
+const lookupError = ref('')
+
+// PIN modal state
+const showPinModal = ref(false)
+
+// Estimated fee (0 for internal P2P transfers)
+const estimatedFee = computed(() => 0)
 
 const getCurrencySymbol = (currency) => {
   const symbols = { XOF: 'F', XAF: 'F', EUR: '€', USD: '$', GBP: '£' }
@@ -381,10 +480,43 @@ const initiateSend = (wallet) => {
   selectedWallet.value = wallet
   sendForm.value = { recipient: '', amount: 0, description: '' }
   sendError.value = ''
+  lookupResult.value = null
+  lookupError.value = ''
   showSendModal.value = true
 }
 
-const executeSend = async () => {
+// Lookup recipient user
+const lookupRecipient = async () => {
+  if (!sendForm.value.recipient || sendForm.value.recipient.length < 3) return
+  
+  lookupLoading.value = true
+  lookupError.value = ''
+  lookupResult.value = null
+  
+  try {
+    const isEmail = sendForm.value.recipient.includes('@')
+    const query = isEmail 
+      ? { email: sendForm.value.recipient } 
+      : { phone: sendForm.value.recipient }
+    const res = await userAPI.lookup(query)
+    lookupResult.value = res.data
+  } catch (e) {
+    lookupError.value = 'Utilisateur introuvable'
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+// Step 1: Show PIN modal to confirm
+const confirmSend = () => {
+  if (!selectedWallet.value || !sendForm.value.recipient || !sendForm.value.amount) return
+  showPinModal.value = true
+}
+
+// Step 2: After PIN validated, initiate the approval request
+const onPinSuccess = async (encryptedPin) => {
+  showPinModal.value = false
+  
   if (!selectedWallet.value || !sendForm.value.recipient || !sendForm.value.amount) return
   
   isSending.value = true
@@ -393,7 +525,12 @@ const executeSend = async () => {
   try {
     // Use the enterprise approval system instead of direct transfer
     // This creates a pending action that requires admin approval
-    const { data } = await enterpriseAPI.initiateAction(props.enterprise.id || props.enterprise._id, {
+    const enterpriseId = props.enterprise?.id || props.enterprise?._id
+    if (!enterpriseId) {
+      throw new Error('Enterprise ID not found')
+    }
+    
+    const { data } = await enterpriseAPI.initiateAction(enterpriseId, {
       action_type: 'TRANSACTION',
       action_name: `Transfert ${formatAmount(sendForm.value.amount, selectedWallet.value.currency)}`,
       description: sendForm.value.description || `Transfert vers ${sendForm.value.recipient}`,
@@ -403,18 +540,22 @@ const executeSend = async () => {
         recipient_identifier: sendForm.value.recipient,
         amount: sendForm.value.amount,
         currency: selectedWallet.value.currency,
-        description: sendForm.value.description || `Transfert ${props.enterprise.name}`,
-        source_wallet_id: selectedWallet.value.id
+        description: sendForm.value.description || `Transfert ${props.enterprise?.name || 'Entreprise'}`,
+        source_wallet_id: selectedWallet.value.id,
+        initiator_pin: encryptedPin // PIN of the initiator
       }
     })
     
     showSendModal.value = false
     
-    if (data.requires_approval) {
+    if (data?.requires_approval || data?.approval) {
       // Redirect to approval page - admin can approve from there
-      alert('Transaction créée! Elle nécessite l\'approbation d\'un administrateur.')
+      alert('Transaction créée! Elle nécessite l\'approbation d\'un autre administrateur.')
       // Navigate to the approval confirmation page
-      navigateTo(`/enterprise/approvals/${data.approval.id}`)
+      const approvalId = data.approval?.id || data.approval?._id
+      if (approvalId) {
+        navigateTo(`/enterprise/approvals/${approvalId}`)
+      }
     } else {
       // No approval needed - execute directly
       alert('Transfert initié avec succès!')
@@ -422,7 +563,7 @@ const executeSend = async () => {
     }
   } catch (error) {
     console.error('Failed to initiate transaction:', error)
-    sendError.value = error.response?.data?.error || error.response?.data?.message || 'Erreur lors de l\'initiation'
+    sendError.value = error.response?.data?.error || error.response?.data?.message || error.message || 'Erreur lors de l\'initiation'
   } finally {
     isSending.value = false
   }
