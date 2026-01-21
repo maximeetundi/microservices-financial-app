@@ -201,27 +201,21 @@
     },
     {
       "name": "connectivity_plus",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-4.0.2",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-6.1.5",
       "packageUri": "lib/",
-      "languageVersion": "2.18"
+      "languageVersion": "3.2"
     },
     {
       "name": "connectivity_plus_platform_interface",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus_platform_interface-1.2.4",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus_platform_interface-2.0.1",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "2.18"
     },
     {
       "name": "convert",
       "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/convert-3.1.2",
       "packageUri": "lib/",
       "languageVersion": "3.4"
-    },
-    {
-      "name": "credit_card_scanner",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/credit_card_scanner-1.0.5",
-      "packageUri": "lib/",
-      "languageVersion": "2.17"
     },
     {
       "name": "cross_file",
@@ -267,9 +261,9 @@
     },
     {
       "name": "device_info_plus",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-9.1.2",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-10.1.2",
       "packageUri": "lib/",
-      "languageVersion": "2.18"
+      "languageVersion": "3.3"
     },
     {
       "name": "device_info_plus_platform_interface",
@@ -321,9 +315,9 @@
     },
     {
       "name": "file_picker",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/file_picker-6.2.1",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/file_picker-8.3.7",
       "packageUri": "lib/",
-      "languageVersion": "2.19"
+      "languageVersion": "3.4"
     },
     {
       "name": "file_selector_linux",
@@ -747,15 +741,15 @@
     },
     {
       "name": "package_info_plus",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-4.2.0",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-8.3.1",
       "packageUri": "lib/",
-      "languageVersion": "2.18"
+      "languageVersion": "3.3"
     },
     {
       "name": "package_info_plus_platform_interface",
-      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-2.0.1",
+      "rootUri": "file:///C:/Users/D/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-3.2.1",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "2.18"
     },
     {
       "name": "page_transition",

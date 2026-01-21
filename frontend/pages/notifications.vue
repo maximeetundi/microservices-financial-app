@@ -128,6 +128,69 @@ const filteredNotifications = computed(() => {
   return notifications.value.filter(n => n.type === activeFilter.value)
 })
 
+const NOTIFICATION_TRANSLATIONS = {
+  'wallet.created': {
+    title: '🎉 Portefeuille créé',
+    message: 'Votre nouveau portefeuille a été activé avec succès.'
+  },
+  'wallet.updated': {
+    title: '👛 Portefeuille mis à jour',
+    message: 'Les informations de votre portefeuille ont été modifiées.'
+  },
+  'user.balance_updated': {
+    title: '💰 Solde mis à jour',
+    message: 'Le solde de votre compte a changé suite à une opération.'
+  },
+  'transfer.created': {
+    title: '💸 Nouveau transfert',
+    message: 'Un transfert a été initié.'
+  },
+  'transfer.completed': {
+    title: '✅ Transfert réussi',
+    message: 'Le transfert a été traité avec succès.'
+  },
+  'transfer.received': {
+    title: '📥 Fonds reçus',
+    message: 'Vous avez reçu de l\'argent sur votre compte.'
+  },
+  'transfer.failed': {
+    title: '❌ Échec du transfert',
+    message: 'Le transfert n\'a pas pu être finalisé.'
+  },
+  'security.login': {
+    title: '🔐 Nouvelle connexion',
+    message: 'Une nouvelle connexion a été détectée.'
+  },
+  'security.password_changed': {
+    title: '🔐 Mot de passe modifié',
+    message: 'Votre mot de passe a été mis à jour avec succès.'
+  },
+  'kyc.submitted': {
+    title: '📋 KYC Soumis',
+    message: 'Vos documents sont en cours d\'examen.'
+  },
+  'kyc.approved': {
+    title: '✅ Identité vérifiée',
+    message: 'Félicitations ! Votre identité a été vérifiée.'
+  },
+  'kyc.rejected': {
+    title: '⚠️ Vérification refusée',
+    message: 'Veuillez vérifier les documents requis et réessayer.'
+  },
+  'card.created': {
+    title: '💳 Carte créée',
+    message: 'Votre nouvelle carte virtuelle est prête.'
+  },
+  'card.frozen': {
+    title: '❄️ Carte gelée',
+    message: 'Votre carte a été temporairement bloquée.'
+  },
+  'card.unfrozen': {
+    title: '🔥 Carte débloquée',
+    message: 'Votre carte est à nouveau active.'
+  }
+}
+
 const processNotifications = (list) => {
     return list.map(n => {
         let meta = {}
@@ -139,7 +202,37 @@ const processNotifications = (list) => {
             console.warn('Failed to parse notification data', e)
         }
         
-        // Start with existing action_url or link from meta
+        // Translation Logic
+        let title = n.title
+        let message = n.message
+
+        // Helper to find translation
+        const getTrans = (key) => NOTIFICATION_TRANSLATIONS[key]
+        
+        // Translate Title
+        const titleTrans = getTrans(n.title)
+        if (titleTrans) {
+            title = titleTrans.title
+        } else {
+            // Fallback: prettier formatting if it looks like a key (has dots or underscores)
+            if (title && (title.includes('.') || title.includes('_'))) {
+                title = title.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            }
+        }
+
+        // Translate Message
+        const msgTrans = getTrans(n.message)
+        if (msgTrans) {
+            message = msgTrans.message
+        } else if (n.message === n.title && titleTrans) {
+            // If message is same as title (raw key repeated), use the translated message from title
+            message = titleTrans.message
+        } else if (message && (message.includes('.') && !message.includes(' '))) {
+             // Fallback for message if it looks like a key and has no translation
+             message = message.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+        }
+
+        // Action URL Logic
         let url = n.action_url || meta.link || null
         
         // Generate action_url based on notification type if not already set
@@ -185,6 +278,8 @@ const processNotifications = (list) => {
         
         return {
             ...n,
+            title,
+            message,
             meta,
             action_url: url
         }

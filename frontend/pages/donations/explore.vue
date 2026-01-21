@@ -113,7 +113,7 @@ const searchQuery = ref('')
 const filterStatus = ref('active')
 
 const filteredCampaigns = computed(() => {
-    let list = campaigns.value
+    let list = Array.isArray(campaigns.value) ? campaigns.value : []
     
     // Filter out user's own campaigns
     if (user.value?.id) {
@@ -134,10 +134,13 @@ const loadCampaigns = async () => {
     loading.value = true
     try {
         // Fetch public campaigns (limit higher for exploration)
-        const res = await donationApi.getCampaigns(100) 
-        campaigns.value = res.data?.campaigns || res.data || []
+        const res = await donationApi.getCampaigns(100)
+        // Ensure data is array (handle {campaigns: []} or [])
+        const data = res.data?.campaigns || res.data || []
+        campaigns.value = Array.isArray(data) ? data : []
     } catch (e) {
         console.error("Failed to load campaigns", e)
+        campaigns.value = [] // Reset on error
     } finally {
         loading.value = false
     }

@@ -11,7 +11,6 @@
         "audioplayers",
         "cached_network_image",
         "connectivity_plus",
-        "credit_card_scanner",
         "cupertino_icons",
         "device_info_plus",
         "dio",
@@ -246,13 +245,6 @@
       ]
     },
     {
-      "name": "credit_card_scanner",
-      "version": "1.0.5",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
       "name": "provider",
       "version": "6.1.5+1",
       "dependencies": [
@@ -345,19 +337,6 @@
       ]
     },
     {
-      "name": "file_picker",
-      "version": "6.2.1",
-      "dependencies": [
-        "ffi",
-        "flutter",
-        "flutter_plugin_android_lifecycle",
-        "flutter_web_plugins",
-        "path",
-        "plugin_platform_interface",
-        "win32"
-      ]
-    },
-    {
       "name": "cached_network_image",
       "version": "3.3.1",
       "dependencies": [
@@ -418,46 +397,6 @@
       ]
     },
     {
-      "name": "package_info_plus",
-      "version": "4.2.0",
-      "dependencies": [
-        "ffi",
-        "flutter",
-        "flutter_web_plugins",
-        "http",
-        "meta",
-        "package_info_plus_platform_interface",
-        "path",
-        "win32"
-      ]
-    },
-    {
-      "name": "device_info_plus",
-      "version": "9.1.2",
-      "dependencies": [
-        "device_info_plus_platform_interface",
-        "ffi",
-        "file",
-        "flutter",
-        "flutter_web_plugins",
-        "meta",
-        "win32",
-        "win32_registry"
-      ]
-    },
-    {
-      "name": "connectivity_plus",
-      "version": "4.0.2",
-      "dependencies": [
-        "connectivity_plus_platform_interface",
-        "flutter",
-        "flutter_web_plugins",
-        "js",
-        "meta",
-        "nm"
-      ]
-    },
-    {
       "name": "uuid",
       "version": "3.0.7",
       "dependencies": [
@@ -471,6 +410,15 @@
         "clock",
         "meta",
         "path"
+      ]
+    },
+    {
+      "name": "pointycastle",
+      "version": "3.9.1",
+      "dependencies": [
+        "collection",
+        "convert",
+        "js"
       ]
     },
     {
@@ -1489,13 +1437,6 @@
       ]
     },
     {
-      "name": "plugin_platform_interface",
-      "version": "2.1.8",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
       "name": "octo_image",
       "version": "2.1.0",
       "dependencies": [
@@ -1619,46 +1560,16 @@
       ]
     },
     {
-      "name": "package_info_plus_platform_interface",
-      "version": "2.0.1",
+      "name": "convert",
+      "version": "3.1.2",
       "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
+        "typed_data"
       ]
     },
     {
-      "name": "win32_registry",
-      "version": "1.1.5",
-      "dependencies": [
-        "ffi",
-        "win32"
-      ]
-    },
-    {
-      "name": "device_info_plus_platform_interface",
-      "version": "7.0.3",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "nm",
-      "version": "0.5.0",
-      "dependencies": [
-        "dbus"
-      ]
-    },
-    {
-      "name": "connectivity_plus_platform_interface",
-      "version": "1.2.4",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
-      ]
+      "name": "asn1lib",
+      "version": "1.6.5",
+      "dependencies": []
     },
     {
       "name": "local_auth_windows",
@@ -1931,13 +1842,6 @@
       ]
     },
     {
-      "name": "convert",
-      "version": "3.1.2",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
       "name": "_fe_analyzer_shared",
       "version": "67.0.0",
       "dependencies": [
@@ -1981,6 +1885,13 @@
       "name": "web",
       "version": "1.1.1",
       "dependencies": []
+    },
+    {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
     },
     {
       "name": "xdg_directories",
@@ -2161,18 +2072,105 @@
       ]
     },
     {
-      "name": "pointycastle",
-      "version": "3.9.1",
+      "name": "device_info_plus",
+      "version": "10.1.2",
       "dependencies": [
-        "collection",
-        "convert",
-        "js"
+        "device_info_plus_platform_interface",
+        "ffi",
+        "file",
+        "flutter",
+        "flutter_web_plugins",
+        "meta",
+        "web",
+        "win32",
+        "win32_registry"
       ]
     },
     {
-      "name": "asn1lib",
-      "version": "1.6.5",
-      "dependencies": []
+      "name": "win32_registry",
+      "version": "1.1.5",
+      "dependencies": [
+        "ffi",
+        "win32"
+      ]
+    },
+    {
+      "name": "device_info_plus_platform_interface",
+      "version": "7.0.3",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "connectivity_plus",
+      "version": "6.1.5",
+      "dependencies": [
+        "collection",
+        "connectivity_plus_platform_interface",
+        "flutter",
+        "flutter_web_plugins",
+        "meta",
+        "nm",
+        "web"
+      ]
+    },
+    {
+      "name": "nm",
+      "version": "0.5.0",
+      "dependencies": [
+        "dbus"
+      ]
+    },
+    {
+      "name": "connectivity_plus_platform_interface",
+      "version": "2.0.1",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "package_info_plus",
+      "version": "8.3.1",
+      "dependencies": [
+        "clock",
+        "ffi",
+        "flutter",
+        "flutter_web_plugins",
+        "http",
+        "meta",
+        "package_info_plus_platform_interface",
+        "path",
+        "web",
+        "win32"
+      ]
+    },
+    {
+      "name": "package_info_plus_platform_interface",
+      "version": "3.2.1",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "file_picker",
+      "version": "8.3.7",
+      "dependencies": [
+        "cross_file",
+        "ffi",
+        "flutter",
+        "flutter_plugin_android_lifecycle",
+        "flutter_web_plugins",
+        "path",
+        "plugin_platform_interface",
+        "web",
+        "win32"
+      ]
     }
   ],
   "configVersion": 1
