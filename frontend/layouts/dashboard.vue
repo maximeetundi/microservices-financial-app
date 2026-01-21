@@ -18,9 +18,7 @@
       <!-- Logo & Close Button -->
       <div class="p-6 border-b border-secondary-100 dark:border-secondary-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
-            <span class="text-2xl">🏦</span>
-          </div>
+          <img src="/logo.png" alt="Zekora Logo" class="w-10 h-10 rounded-xl shadow-lg shadow-primary-500/20 object-cover" />
           <div>
             <h1 class="text-lg font-bold bg-gradient-to-r from-secondary-900 to-secondary-600 dark:from-white dark:to-secondary-400 bg-clip-text text-transparent">Zekora</h1>
             <p class="text-xs text-muted font-medium">Premium Banking</p>
@@ -168,9 +166,7 @@
         </button>
         
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-            <span class="text-lg">🏦</span>
-          </div>
+          <img src="/logo.png" alt="Zekora Logo" class="w-8 h-8 rounded-lg object-cover" />
           <span class="font-bold text-base">Zekora</span>
         </div>
 
@@ -189,7 +185,14 @@
     </main>
 
     <!-- Floating Action Button (FAB) -->
-    <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end" @mouseenter="showFabMenu = true" @mouseleave="showFabMenu = false">
+    <!-- Backdrop to close menu when clicking outside -->
+    <div 
+      v-if="showFabMenu" 
+      class="fixed inset-0 z-40" 
+      @click="showFabMenu = false"
+    ></div>
+    
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end">
       <!-- Menu Items -->
       <transition 
         enter-active-class="transition duration-200 ease-out"
@@ -202,6 +205,7 @@
         <div v-if="showFabMenu" class="flex flex-col gap-3 items-end mb-2">
           <NuxtLink 
             to="/scan" 
+            @click="showFabMenu = false"
             class="flex items-center gap-3 px-4 py-2 bg-white dark:bg-surface text-base font-semibold rounded-full shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-secondary-200 dark:border-secondary-700"
           >
             <span class="whitespace-nowrap">Scanner QR</span>
@@ -210,6 +214,7 @@
 
           <NuxtLink 
             to="/transfer" 
+            @click="showFabMenu = false"
             class="flex items-center gap-3 px-4 py-2 bg-white dark:bg-surface text-base font-semibold rounded-full shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border border-secondary-200 dark:border-secondary-700"
           >
             <span class="whitespace-nowrap">Virement</span>
@@ -220,7 +225,7 @@
 
       <!-- Main Trigger Button -->
       <button 
-        @click="showFabMenu = !showFabMenu"
+        @click.stop="showFabMenu = !showFabMenu"
         class="w-14 h-14 rounded-full bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-xl shadow-primary-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300"
       >
         <transition mode="out-in">
