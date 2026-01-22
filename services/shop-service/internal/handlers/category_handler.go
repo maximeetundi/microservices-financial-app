@@ -18,7 +18,7 @@ func NewCategoryHandler(categoryService *services.CategoryService) *CategoryHand
 
 // ListByShop returns categories for a shop
 func (h *CategoryHandler) ListByShop(c *gin.Context) {
-	shopSlug := c.Param("slug")
+	shopSlug := c.Param("id")
 
 	categories, err := h.categoryService.ListByShop(c.Request.Context(), shopSlug)
 	if err != nil {
@@ -31,7 +31,7 @@ func (h *CategoryHandler) ListByShop(c *gin.Context) {
 
 // ListWithHierarchy returns categories with nested children
 func (h *CategoryHandler) ListWithHierarchy(c *gin.Context) {
-	shopSlug := c.Param("slug")
+	shopSlug := c.Param("id")
 
 	categories, err := h.categoryService.ListWithHierarchy(c.Request.Context(), shopSlug)
 	if err != nil {

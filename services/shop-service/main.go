@@ -137,11 +137,11 @@ func main() {
 	{
 		// Public routes
 		api.GET("/shops", shopHandler.List)
-		api.GET("/shops/:slug", shopHandler.Get)
-		api.GET("/shops/:slug/products", productHandler.ListByShop)
-		api.GET("/shops/:slug/products/:productSlug", productHandler.Get)
-		api.GET("/shops/:slug/categories", categoryHandler.ListByShop)
-		api.GET("/shops/:slug/categories/tree", categoryHandler.ListWithHierarchy)
+		api.GET("/shops/:id", shopHandler.Get)
+		api.GET("/shops/:id/products", productHandler.ListByShop)
+		api.GET("/shops/:id/products/:productSlug", productHandler.Get)
+		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
+		api.GET("/shops/:id/categories/tree", categoryHandler.ListWithHierarchy)
 
 		// Protected routes
 		protected := api.Group("/")

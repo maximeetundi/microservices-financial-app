@@ -19,7 +19,7 @@ func NewProductHandler(productService *services.ProductService) *ProductHandler 
 
 // ListByShop returns products for a shop
 func (h *ProductHandler) ListByShop(c *gin.Context) {
-	shopSlug := c.Param("slug")
+	shopSlug := c.Param("id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	categorySlug := c.Query("category")
@@ -44,7 +44,7 @@ func (h *ProductHandler) ListByShop(c *gin.Context) {
 
 // Get returns a product by slug
 func (h *ProductHandler) Get(c *gin.Context) {
-	shopSlug := c.Param("slug")
+	shopSlug := c.Param("id")
 	productSlug := c.Param("productSlug")
 
 	product, err := h.productService.GetBySlug(c.Request.Context(), shopSlug, productSlug)

@@ -41,7 +41,7 @@ func (h *ShopHandler) List(c *gin.Context) {
 
 // Get returns a shop by slug
 func (h *ShopHandler) Get(c *gin.Context) {
-	slug := c.Param("slug")
+	slug := c.Param("id")
 
 	shop, err := h.shopService.GetBySlug(c.Request.Context(), slug)
 	if err != nil {
