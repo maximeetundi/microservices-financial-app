@@ -196,7 +196,8 @@ func (s *OrderService) Create(ctx context.Context, req *models.CreateOrderReques
 	}
 	
 	if s.kafkaClient != nil {
-		if err := s.kafkaClient.PublishJSON("wallet.payment.request", paymentEvent); err != nil {
+		event := messaging.NewEventEnvelope("wallet.payment.request", "shop-service", paymentEvent)
+		if err := s.kafkaClient.Publish(ctx, "wallet.payment.request", event); err != nil {
 			log.Printf("Failed to publish payment request: %v", err)
 		}
 	}
@@ -318,15 +319,13 @@ func (s *OrderService) UpdateStatus(ctx context.Context, orderID string, req *mo
 	
 	// Send notification to buyer
 	if s.kafkaClient != nil {
-		notification := models.NotificationEvent{
-			UserID:    order.BuyerID,
-			Type:      "order_status",
-			Title:     "Mise à jour de commande",
-			Message:   fmt.Sprintf("Votre commande %s est maintenant: %s", order.OrderNumber, req.Status),
-			Data:      map[string]interface{}{"order_id": order.ID.Hex()},
-			Timestamp: time.Now(),
-		}
-		s.kafkaClient.PublishJSON("notification.send", notification)
+		event := messaging.NewEventEnvelope("order_status", "shop-service", map[string]interface{}{
+			"user_id":  order.BuyerID,
+			"title":    "Mise à jour de commande",
+			"message":  fmt.Sprintf("Votre commande %s est maintenant: %s", order.OrderNumber, req.Status),
+			"order_id": order.ID.Hex(),
+		})
+		s.kafkaClient.Publish(ctx, "notification.send", event)
 	}
 	
 	return order, nil
@@ -380,7 +379,8 @@ func (s *OrderService) Refund(ctx context.Context, orderID string, req *models.R
 	}
 	
 	if s.kafkaClient != nil {
-		if err := s.kafkaClient.PublishJSON("wallet.payment.request", refundEvent); err != nil {
+		event := messaging.NewEventEnvelope("wallet.payment.request", "shop-service", refundEvent)
+		if err := s.kafkaClient.Publish(ctx, "wallet.payment.request", event); err != nil {
 			log.Printf("Failed to publish refund request: %v", err)
 			return fmt.Errorf("failed to initiate refund")
 		}
@@ -423,15 +423,13 @@ func (s *OrderService) HandlePaymentStatus(ctx context.Context, event *models.Pa
 		
 		// Notify buyer
 		if s.kafkaClient != nil {
-			notification := models.NotificationEvent{
-				UserID:    order.BuyerID,
-				Type:      "order_paid",
-				Title:     "Paiement confirmé",
-				Message:   fmt.Sprintf("Votre paiement pour la commande %s a été confirmé", order.OrderNumber),
-				Data:      map[string]interface{}{"order_id": order.ID.Hex()},
-				Timestamp: time.Now(),
-			}
-			s.kafkaClient.PublishJSON("notification.send", notification)
+			event := messaging.NewEventEnvelope("order_paid", "shop-service", map[string]interface{}{
+				"user_id":  order.BuyerID,
+				"title":    "Paiement confirmé",
+				"message":  fmt.Sprintf("Votre paiement pour la commande %s a été confirmé", order.OrderNumber),
+				"order_id": order.ID.Hex(),
+			})
+			s.kafkaClient.Publish(context.Background(), "notification.send", event)
 		}
 	}
 	

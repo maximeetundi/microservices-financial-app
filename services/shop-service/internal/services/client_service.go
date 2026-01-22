@@ -341,21 +341,16 @@ func (s *ClientService) sendInvitationNotification(client *models.ShopClient, sh
 		return
 	}
 
-	notification := models.NotificationEvent{
-		UserID:    "", // Will be resolved by email
-		Type:      "shop_invitation",
-		Title:     "Invitation à une boutique",
-		Message:   fmt.Sprintf("Vous avez reçu une invitation pour accéder à la boutique %s", shop.Name),
-		Data: map[string]interface{}{
-			"invitation_id": client.ID.Hex(),
-			"shop_id":       shop.ID.Hex(),
-			"shop_name":     shop.Name,
-			"email":         client.Email,
-		},
-		Timestamp: time.Now(),
-	}
+	event := messaging.NewEventEnvelope("shop_invitation", "shop-service", map[string]interface{}{
+		"invitation_id": client.ID.Hex(),
+		"shop_id":       shop.ID.Hex(),
+		"shop_name":     shop.Name,
+		"email":         client.Email,
+		"title":         "Invitation à une boutique",
+		"message":       fmt.Sprintf("Vous avez reçu une invitation pour accéder à la boutique %s", shop.Name),
+	})
 
-	if err := s.kafkaClient.PublishJSON("notification.send.email", notification); err != nil {
+	if err := s.kafkaClient.Publish(context.Background(), "notification.send.email", event); err != nil {
 		log.Printf("Failed to send invitation notification: %v", err)
 	}
 }
@@ -365,19 +360,15 @@ func (s *ClientService) sendAcceptedNotification(client *models.ShopClient, user
 		return
 	}
 
-	notification := models.NotificationEvent{
-		UserID:    client.InvitedBy,
-		Type:      "shop_invitation_accepted",
-		Title:     "Invitation acceptée",
-		Message:   fmt.Sprintf("%s a accepté votre invitation", client.Email),
-		Data: map[string]interface{}{
-			"client_id": client.ID.Hex(),
-			"shop_id":   client.ShopID.Hex(),
-		},
-		Timestamp: time.Now(),
-	}
+	event := messaging.NewEventEnvelope("shop_invitation_accepted", "shop-service", map[string]interface{}{
+		"user_id":   client.InvitedBy,
+		"client_id": client.ID.Hex(),
+		"shop_id":   client.ShopID.Hex(),
+		"title":     "Invitation acceptée",
+		"message":   fmt.Sprintf("%s a accepté votre invitation", client.Email),
+	})
 
-	if err := s.kafkaClient.PublishJSON("notification.send", notification); err != nil {
+	if err := s.kafkaClient.Publish(context.Background(), "notification.send", event); err != nil {
 		log.Printf("Failed to send accepted notification: %v", err)
 	}
 }

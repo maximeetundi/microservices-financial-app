@@ -29,22 +29,28 @@ func (c *PaymentConsumer) Start() {
 
 	log.Println("Starting payment consumer...")
 	
-	handler := func(topic string, message []byte) error {
-		log.Printf("Received message on topic %s", topic)
+	handler := func(ctx context.Context, event *messaging.EventEnvelope) error {
+		log.Printf("Received message on topic wallet.payment.status")
 		
-		var event models.PaymentStatusEvent
-		if err := json.Unmarshal(message, &event); err != nil {
+		// Extract the payment status data from the event envelope
+		dataBytes, err := json.Marshal(event.Data)
+		if err != nil {
+			log.Printf("Failed to marshal event data: %v", err)
+			return nil
+		}
+		
+		var paymentEvent models.PaymentStatusEvent
+		if err := json.Unmarshal(dataBytes, &paymentEvent); err != nil {
 			log.Printf("Failed to unmarshal payment status event: %v", err)
 			return nil // Don't retry on unmarshal errors
 		}
 		
-		ctx := context.Background()
-		if err := c.orderService.HandlePaymentStatus(ctx, &event); err != nil {
+		if err := c.orderService.HandlePaymentStatus(ctx, &paymentEvent); err != nil {
 			log.Printf("Failed to handle payment status: %v", err)
 			return err
 		}
 		
-		log.Printf("Successfully processed payment status for transaction %s: %s", event.TransactionID, event.Status)
+		log.Printf("Successfully processed payment status for transaction %s: %s", paymentEvent.TransactionID, paymentEvent.Status)
 		return nil
 	}
 	
