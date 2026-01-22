@@ -149,9 +149,11 @@ services:
       mc mb myminio/kyc-documents --ignore-existing;
       mc mb myminio/support-attachments --ignore-existing;
       mc mb myminio/event-images --ignore-existing;
+      mc mb myminio/shop-assets --ignore-existing;
       mc anonymous set download myminio/support-attachments;
       mc anonymous set download myminio/event-images;
-      echo 'Buckets created. support-attachments and event-images have public read access.';
+      mc anonymous set download myminio/shop-assets;
+      echo 'Buckets created with public read access.';
       exit 0;
       "
     networks:
@@ -502,6 +504,40 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=enterprise-assets
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
+  # Shop Service (E-commerce)
+  shop-service:
+    build:
+      context: ./services
+      dockerfile: ./shop-service/Dockerfile
+    ports:
+      - "8098:8098"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/shop_service?authSource=admin
+      - MONGODB_DATABASE=shop_service
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - PORT=8098
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_GROUP_ID=shop-service-group
+      - WALLET_SERVICE_URL=http://wallet-service:8083
+      - EXCHANGE_SERVICE_URL=http://exchange-service:8085
+      - APP_URL=https://app.maximeetundi.store
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
+      - MINIO_BUCKET=shop-assets
       - MINIO_USE_SSL=false
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
     networks:

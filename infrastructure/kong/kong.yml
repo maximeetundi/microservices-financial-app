@@ -96,6 +96,14 @@ services:
           - /enterprise-service
         strip_path: true
 
+  - name: shop-service
+    url: http://shop-service:8098
+    routes:
+      - name: shop-routes
+        paths:
+          - /shop-service
+        strip_path: true
+
 plugins:
   - name: cors
     config:
