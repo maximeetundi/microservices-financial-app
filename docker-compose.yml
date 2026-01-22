@@ -540,6 +540,7 @@ services:
       - MINIO_BUCKET=shop-assets
       - MINIO_USE_SSL=false
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - AUTH_SERVICE_URL=http://auth-service:8081
     networks:
       - crypto-bank-network
     restart: unless-stopped

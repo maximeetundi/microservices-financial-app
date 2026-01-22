@@ -1,4 +1,4 @@
-import { useApi } from './useApi'
+import api from './useApi'
 
 export interface Shop {
     id: string
@@ -143,196 +143,225 @@ export interface CartItem {
     variant_id?: string
     quantity: number
     custom_values?: Record<string, string>
-    // Local UI enrichment
     product?: Product
 }
 
-export function useShopApi() {
-    const { apiCall } = useApi()
-    const baseUrl = 'shop-service/api/v1'
+const baseUrl = '/shop-service/api/v1'
 
+export const shopAPI = {
     // Shops
-    const listShops = async (page = 1, pageSize = 20, search = '') => {
+    listShops: (page = 1, pageSize = 20, search = '') => {
         const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
         if (search) params.append('search', search)
-        return apiCall<{ shops: Shop[], total: number, page: number, total_pages: number }>(`${baseUrl}/shops?${params}`)
-    }
-
-    const getShop = async (slug: string) => {
-        return apiCall<Shop>(`${baseUrl}/shops/${slug}`)
-    }
-
-    const getMyShops = async () => {
-        return apiCall<{ shops: Shop[] }>(`${baseUrl}/my-shops`)
-    }
-
-    const createShop = async (data: Partial<Shop>) => {
-        return apiCall<Shop>(`${baseUrl}/shops`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const updateShop = async (id: string, data: Partial<Shop>) => {
-        return apiCall<Shop>(`${baseUrl}/shops/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const deleteShop = async (id: string) => {
-        return apiCall(`${baseUrl}/shops/${id}`, { method: 'DELETE' })
-    }
+        return api.get(`${baseUrl}/shops?${params}`)
+    },
+    getShop: (slug: string) => api.get(`${baseUrl}/shops/${slug}`),
+    getMyShops: () => api.get(`${baseUrl}/my-shops`),
+    createShop: (data: Partial<Shop>) => api.post(`${baseUrl}/shops`, data),
+    updateShop: (id: string, data: Partial<Shop>) => api.put(`${baseUrl}/shops/${id}`, data),
+    deleteShop: (id: string) => api.delete(`${baseUrl}/shops/${id}`),
 
     // Products
-    const listProducts = async (shopSlug: string, page = 1, pageSize = 20, options: { category?: string, status?: string, search?: string } = {}) => {
+    listProducts: (shopSlug: string, page = 1, pageSize = 20, options: { category?: string, status?: string, search?: string } = {}) => {
         const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
         if (options.category) params.append('category', options.category)
         if (options.status) params.append('status', options.status)
         if (options.search) params.append('search', options.search)
-        return apiCall<{ products: Product[], total: number, page: number, total_pages: number }>(`${baseUrl}/shops/${shopSlug}/products?${params}`)
-    }
-
-    const getProduct = async (shopSlug: string, productSlug: string) => {
-        return apiCall<Product>(`${baseUrl}/shops/${shopSlug}/products/${productSlug}`)
-    }
-
-    const createProduct = async (data: Partial<Product> & { shop_id: string }) => {
-        return apiCall<Product>(`${baseUrl}/products`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const updateProduct = async (id: string, data: Partial<Product>) => {
-        return apiCall<Product>(`${baseUrl}/products/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const deleteProduct = async (id: string) => {
-        return apiCall(`${baseUrl}/products/${id}`, { method: 'DELETE' })
-    }
+        return api.get(`${baseUrl}/shops/${shopSlug}/products?${params}`)
+    },
+    getProduct: (shopSlug: string, productSlug: string) => api.get(`${baseUrl}/shops/${shopSlug}/products/${productSlug}`),
+    createProduct: (data: Partial<Product> & { shop_id: string }) => api.post(`${baseUrl}/products`, data),
+    updateProduct: (id: string, data: Partial<Product>) => api.put(`${baseUrl}/products/${id}`, data),
+    deleteProduct: (id: string) => api.delete(`${baseUrl}/products/${id}`),
 
     // Categories
-    const listCategories = async (shopSlug: string) => {
-        return apiCall<{ categories: Category[] }>(`${baseUrl}/shops/${shopSlug}/categories`)
-    }
-
-    const listCategoriesTree = async (shopSlug: string) => {
-        return apiCall<{ categories: Category[] }>(`${baseUrl}/shops/${shopSlug}/categories/tree`)
-    }
-
-    const createCategory = async (data: Partial<Category> & { shop_id: string }) => {
-        return apiCall<Category>(`${baseUrl}/categories`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const updateCategory = async (id: string, data: Partial<Category>) => {
-        return apiCall<Category>(`${baseUrl}/categories/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const deleteCategory = async (id: string) => {
-        return apiCall(`${baseUrl}/categories/${id}`, { method: 'DELETE' })
-    }
+    listCategories: (shopSlug: string) => api.get(`${baseUrl}/shops/${shopSlug}/categories`),
+    listCategoriesTree: (shopSlug: string) => api.get(`${baseUrl}/shops/${shopSlug}/categories/tree`),
+    createCategory: (data: Partial<Category> & { shop_id: string }) => api.post(`${baseUrl}/categories`, data),
+    updateCategory: (id: string, data: Partial<Category>) => api.put(`${baseUrl}/categories/${id}`, data),
+    deleteCategory: (id: string) => api.delete(`${baseUrl}/categories/${id}`),
 
     // Orders
-    const createOrder = async (data: { shop_id: string, items: CartItem[], wallet_id: string, delivery_type: string, shipping_address?: Address, notes?: string }) => {
-        return apiCall<Order>(`${baseUrl}/orders`, {
-            method: 'POST',
-            body: JSON.stringify(data),
-        })
-    }
-
-    const listMyOrders = async (page = 1, pageSize = 20) => {
+    createOrder: (data: { shop_id: string, items: CartItem[], wallet_id: string, delivery_type: string, shipping_address?: Address, notes?: string }) =>
+        api.post(`${baseUrl}/orders`, data),
+    listMyOrders: (page = 1, pageSize = 20) => {
         const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
-        return apiCall<{ orders: Order[], total: number, page: number, total_pages: number }>(`${baseUrl}/orders?${params}`)
-    }
-
-    const getOrder = async (id: string) => {
-        return apiCall<Order>(`${baseUrl}/orders/${id}`)
-    }
-
-    const listShopOrders = async (shopId: string, page = 1, pageSize = 20, status = '') => {
+        return api.get(`${baseUrl}/orders?${params}`)
+    },
+    getOrder: (id: string) => api.get(`${baseUrl}/orders/${id}`),
+    listShopOrders: (shopId: string, page = 1, pageSize = 20, status = '') => {
         const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
         if (status) params.append('status', status)
-        return apiCall<{ orders: Order[], total: number, page: number, total_pages: number }>(`${baseUrl}/shop-orders/${shopId}?${params}`)
-    }
-
-    const updateOrderStatus = async (id: string, status: string, trackingNumber = '', sellerNotes = '') => {
-        return apiCall<Order>(`${baseUrl}/orders/${id}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({ status, tracking_number: trackingNumber, seller_notes: sellerNotes }),
-        })
-    }
-
-    const refundOrder = async (id: string, reason: string) => {
-        return apiCall(`${baseUrl}/orders/${id}/refund`, {
-            method: 'POST',
-            body: JSON.stringify({ reason }),
-        })
-    }
+        return api.get(`${baseUrl}/shop-orders/${shopId}?${params}`)
+    },
+    updateOrderStatus: (id: string, status: string, trackingNumber = '', sellerNotes = '') =>
+        api.put(`${baseUrl}/orders/${id}/status`, { status, tracking_number: trackingNumber, seller_notes: sellerNotes }),
+    refundOrder: (id: string, reason: string) => api.post(`${baseUrl}/orders/${id}/refund`, { reason }),
 
     // Upload
-    const uploadMedia = async (file: File) => {
+    uploadMedia: (file: File) => {
         const formData = new FormData()
         formData.append('file', file)
-        return apiCall<{ url: string }>(`${baseUrl}/upload`, {
-            method: 'POST',
-            body: formData,
-            headers: {}, // Let browser set content-type for FormData
-        })
-    }
+        return api.post(`${baseUrl}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    },
 
     // Manager management
-    const inviteManager = async (shopId: string, email: string, role: string, permissions: string[]) => {
-        return apiCall(`${baseUrl}/shops/${shopId}/managers`, {
-            method: 'POST',
-            body: JSON.stringify({ email, role, permissions }),
-        })
-    }
+    inviteManager: (shopId: string, email: string, role: string, permissions: string[]) =>
+        api.post(`${baseUrl}/shops/${shopId}/managers`, { email, role, permissions }),
+    removeManager: (shopId: string, userId: string) => api.delete(`${baseUrl}/shops/${shopId}/managers/${userId}`),
 
-    const removeManager = async (shopId: string, userId: string) => {
-        return apiCall(`${baseUrl}/shops/${shopId}/managers/${userId}`, { method: 'DELETE' })
-    }
+    // Client Invitations (for private shops)
+    inviteClient: (shopId: string, data: { email: string, phone?: string, first_name?: string, last_name?: string, notes?: string, discount?: number }) =>
+        api.post(`${baseUrl}/shops/${shopId}/clients`, data),
+    listShopClients: (shopId: string, page = 1, pageSize = 20, status = '') => {
+        const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+        if (status) params.append('status', status)
+        return api.get(`${baseUrl}/shops/${shopId}/clients?${params}`)
+    },
+    revokeClientAccess: (shopId: string, clientId: string) => api.delete(`${baseUrl}/shops/${shopId}/clients/${clientId}`),
+    getMyInvitations: () => api.get(`${baseUrl}/my-invitations`),
+    acceptInvitation: (invitationId: string, pin: string) => api.post(`${baseUrl}/invitations/accept`, { invitation_id: invitationId, pin }),
+    declineInvitation: (invitationId: string) => api.delete(`${baseUrl}/invitations/${invitationId}`),
+    getMyPrivateShops: () => api.get(`${baseUrl}/my-private-shops`),
+}
 
+// Composable wrapper for Vue usage
+export function useShopApi() {
     return {
         // Shops
-        listShops,
-        getShop,
-        getMyShops,
-        createShop,
-        updateShop,
-        deleteShop,
+        listShops: async (page = 1, pageSize = 20, search = '') => {
+            const response = await shopAPI.listShops(page, pageSize, search)
+            return response.data
+        },
+        getShop: async (slug: string) => {
+            const response = await shopAPI.getShop(slug)
+            return response.data
+        },
+        getMyShops: async () => {
+            const response = await shopAPI.getMyShops()
+            return response.data
+        },
+        createShop: async (data: Partial<Shop>) => {
+            const response = await shopAPI.createShop(data)
+            return response.data
+        },
+        updateShop: async (id: string, data: Partial<Shop>) => {
+            const response = await shopAPI.updateShop(id, data)
+            return response.data
+        },
+        deleteShop: async (id: string) => {
+            const response = await shopAPI.deleteShop(id)
+            return response.data
+        },
         // Products
-        listProducts,
-        getProduct,
-        createProduct,
-        updateProduct,
-        deleteProduct,
+        listProducts: async (shopSlug: string, page = 1, pageSize = 20, options = {}) => {
+            const response = await shopAPI.listProducts(shopSlug, page, pageSize, options)
+            return response.data
+        },
+        getProduct: async (shopSlug: string, productSlug: string) => {
+            const response = await shopAPI.getProduct(shopSlug, productSlug)
+            return response.data
+        },
+        createProduct: async (data: Partial<Product> & { shop_id: string }) => {
+            const response = await shopAPI.createProduct(data)
+            return response.data
+        },
+        updateProduct: async (id: string, data: Partial<Product>) => {
+            const response = await shopAPI.updateProduct(id, data)
+            return response.data
+        },
+        deleteProduct: async (id: string) => {
+            const response = await shopAPI.deleteProduct(id)
+            return response.data
+        },
         // Categories
-        listCategories,
-        listCategoriesTree,
-        createCategory,
-        updateCategory,
-        deleteCategory,
+        listCategories: async (shopSlug: string) => {
+            const response = await shopAPI.listCategories(shopSlug)
+            return response.data
+        },
+        listCategoriesTree: async (shopSlug: string) => {
+            const response = await shopAPI.listCategoriesTree(shopSlug)
+            return response.data
+        },
+        createCategory: async (data: Partial<Category> & { shop_id: string }) => {
+            const response = await shopAPI.createCategory(data)
+            return response.data
+        },
+        updateCategory: async (id: string, data: Partial<Category>) => {
+            const response = await shopAPI.updateCategory(id, data)
+            return response.data
+        },
+        deleteCategory: async (id: string) => {
+            const response = await shopAPI.deleteCategory(id)
+            return response.data
+        },
         // Orders
-        createOrder,
-        listMyOrders,
-        getOrder,
-        listShopOrders,
-        updateOrderStatus,
-        refundOrder,
+        createOrder: async (data: { shop_id: string, items: CartItem[], wallet_id: string, delivery_type: string, shipping_address?: Address, notes?: string }) => {
+            const response = await shopAPI.createOrder(data)
+            return response.data
+        },
+        listMyOrders: async (page = 1, pageSize = 20) => {
+            const response = await shopAPI.listMyOrders(page, pageSize)
+            return response.data
+        },
+        getOrder: async (id: string) => {
+            const response = await shopAPI.getOrder(id)
+            return response.data
+        },
+        listShopOrders: async (shopId: string, page = 1, pageSize = 20, status = '') => {
+            const response = await shopAPI.listShopOrders(shopId, page, pageSize, status)
+            return response.data
+        },
+        updateOrderStatus: async (id: string, status: string, trackingNumber = '', sellerNotes = '') => {
+            const response = await shopAPI.updateOrderStatus(id, status, trackingNumber, sellerNotes)
+            return response.data
+        },
+        refundOrder: async (id: string, reason: string) => {
+            const response = await shopAPI.refundOrder(id, reason)
+            return response.data
+        },
         // Upload
-        uploadMedia,
+        uploadMedia: async (file: File) => {
+            const response = await shopAPI.uploadMedia(file)
+            return response.data
+        },
         // Managers
-        inviteManager,
-        removeManager,
+        inviteManager: async (shopId: string, email: string, role: string, permissions: string[]) => {
+            const response = await shopAPI.inviteManager(shopId, email, role, permissions)
+            return response.data
+        },
+        removeManager: async (shopId: string, userId: string) => {
+            const response = await shopAPI.removeManager(shopId, userId)
+            return response.data
+        },
+        // Client Invitations
+        inviteClient: async (shopId: string, data: { email: string, phone?: string, first_name?: string, last_name?: string, notes?: string, discount?: number }) => {
+            const response = await shopAPI.inviteClient(shopId, data)
+            return response.data
+        },
+        listShopClients: async (shopId: string, page = 1, pageSize = 20, status = '') => {
+            const response = await shopAPI.listShopClients(shopId, page, pageSize, status)
+            return response.data
+        },
+        revokeClientAccess: async (shopId: string, clientId: string) => {
+            const response = await shopAPI.revokeClientAccess(shopId, clientId)
+            return response.data
+        },
+        getMyInvitations: async () => {
+            const response = await shopAPI.getMyInvitations()
+            return response.data
+        },
+        acceptInvitation: async (invitationId: string, pin: string) => {
+            const response = await shopAPI.acceptInvitation(invitationId, pin)
+            return response.data
+        },
+        declineInvitation: async (invitationId: string) => {
+            const response = await shopAPI.declineInvitation(invitationId)
+            return response.data
+        },
+        getMyPrivateShops: async () => {
+            const response = await shopAPI.getMyPrivateShops()
+            return response.data
+        },
     }
 }

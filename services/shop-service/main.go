@@ -78,6 +78,7 @@ func main() {
 	productRepo := repository.NewProductRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
+	clientRepo := repository.NewClientRepository(db)
 	log.Println("Repositories initialized")
 
 	// 6. Initialize External Clients
@@ -96,6 +97,7 @@ func main() {
 	productService := services.NewProductService(productRepo, categoryRepo, shopRepo, qrService, storageService)
 	categoryService := services.NewCategoryService(categoryRepo, shopRepo, qrService, storageService)
 	orderService := services.NewOrderService(orderRepo, productRepo, shopRepo, walletClient, exchangeClient, kafkaClient)
+	clientService := services.NewClientService(clientRepo, shopRepo, kafkaClient)
 	log.Println("Services initialized")
 
 	// 8. Initialize Payment Consumer
@@ -111,6 +113,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	uploadHandler := handlers.NewUploadHandler(storageService)
+	clientHandler := handlers.NewClientHandler(clientService)
 
 	// 10. Setup Router
 	router := gin.New()
@@ -152,6 +155,15 @@ func main() {
 			protected.POST("/shops/:id/managers", shopHandler.InviteManager)
 			protected.DELETE("/shops/:id/managers/:userId", shopHandler.RemoveManager)
 
+			// Client Invitations (for private shops)
+			protected.POST("/shops/:id/clients", clientHandler.InviteClient)
+			protected.GET("/shops/:shopId/clients", clientHandler.ListShopClients)
+			protected.DELETE("/shops/:shopId/clients/:clientId", clientHandler.RevokeClientAccess)
+			protected.GET("/my-invitations", clientHandler.GetMyInvitations)
+			protected.POST("/invitations/accept", clientHandler.AcceptInvitation)
+			protected.DELETE("/invitations/:id", clientHandler.DeclineInvitation)
+			protected.GET("/my-private-shops", clientHandler.GetMyPrivateShops)
+
 			// Products
 			protected.POST("/products", productHandler.Create)
 			protected.GET("/products/:id", productHandler.GetByID)
@@ -182,3 +194,4 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+
