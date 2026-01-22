@@ -92,7 +92,7 @@ func (h *ClientHandler) DeclineInvitation(c *gin.Context) {
 // RevokeClientAccess revokes a client's access to a private shop
 func (h *ClientHandler) RevokeClientAccess(c *gin.Context) {
 	userID := c.GetString("user_id")
-	shopID := c.Param("shopId")
+	shopID := c.Param("id")
 	clientID := c.Param("clientId")
 
 	if err := h.clientService.RevokeClientAccess(c.Request.Context(), shopID, clientID, userID); err != nil {
@@ -106,7 +106,7 @@ func (h *ClientHandler) RevokeClientAccess(c *gin.Context) {
 // ListShopClients returns all clients for a shop
 func (h *ClientHandler) ListShopClients(c *gin.Context) {
 	userID := c.GetString("user_id")
-	shopID := c.Param("shopId")
+	shopID := c.Param("id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	status := c.Query("status")
