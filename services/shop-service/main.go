@@ -157,8 +157,8 @@ func main() {
 
 			// Client Invitations (for private shops)
 			protected.POST("/shops/:id/clients", clientHandler.InviteClient)
-			protected.GET("/shops/:shopId/clients", clientHandler.ListShopClients)
-			protected.DELETE("/shops/:shopId/clients/:clientId", clientHandler.RevokeClientAccess)
+			protected.GET("/shops/:id/clients", clientHandler.ListShopClients)
+			protected.DELETE("/shops/:id/clients/:clientId", clientHandler.RevokeClientAccess)
 			protected.GET("/my-invitations", clientHandler.GetMyInvitations)
 			protected.POST("/invitations/accept", clientHandler.AcceptInvitation)
 			protected.DELETE("/invitations/:id", clientHandler.DeclineInvitation)
