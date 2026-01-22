@@ -81,16 +81,18 @@ type ContactInfo struct {
 
 // CreateShopRequest is the request to create a new shop
 type CreateShopRequest struct {
-	Name        string       `json:"name" binding:"required"`
-	Description string       `json:"description"`
-	IsPublic    bool         `json:"is_public"`
-	WalletID    string       `json:"wallet_id" binding:"required"`
-	Currency    string       `json:"currency" binding:"required"`
-	Tags        []string     `json:"tags"`
-	Address     *Address     `json:"address"`
-	ContactInfo *ContactInfo `json:"contact_info"`
-	LogoURL     string       `json:"logo_url"`
-	BannerURL   string       `json:"banner_url"`
+	Name         string       `json:"name" binding:"required"`
+	Description  string       `json:"description"`
+	IsPublic     bool         `json:"is_public"`
+	WalletID     string       `json:"wallet_id" binding:"required"`
+	Currency     string       `json:"currency" binding:"required"`
+	EnterpriseID string       `json:"enterprise_id"` // Optional: if set, shop belongs to enterprise
+	OwnerType    string       `json:"owner_type"`    // "user" or "enterprise", defaults to "user"
+	Tags         []string     `json:"tags"`
+	Address      *Address     `json:"address"`
+	ContactInfo  *ContactInfo `json:"contact_info"`
+	LogoURL      string       `json:"logo_url"`
+	BannerURL    string       `json:"banner_url"`
 }
 
 // UpdateShopRequest is the request to update a shop

@@ -91,10 +91,22 @@ func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error
 }
 
 func (s *AuthService) LookupUser(identifier string) (*models.User, error) {
+	// Normalize the identifier
+	identifier = strings.TrimSpace(identifier)
+	
 	if strings.Contains(identifier, "@") {
-		return s.userRepo.GetByEmail(identifier)
+		// Email lookup - case insensitive
+		return s.userRepo.GetByEmail(strings.ToLower(identifier))
 	}
-	return s.userRepo.GetByPhone(identifier)
+	
+	// Phone lookup - normalize by removing spaces, dashes, parentheses
+	normalizedPhone := ""
+	for _, c := range identifier {
+		if c == '+' || (c >= '0' && c <= '9') {
+			normalizedPhone += string(c)
+		}
+	}
+	return s.userRepo.GetByPhone(normalizedPhone)
 }
 
 func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent string) (*models.LoginResponse, error) {

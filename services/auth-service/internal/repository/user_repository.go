@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
@@ -48,11 +49,14 @@ func (r *UserRepository) Create(user *models.RegisterRequest) (*models.User, err
 }
 
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
+	// Normalize email to lowercase for case-insensitive matching
+	email = strings.ToLower(strings.TrimSpace(email))
+	
 	query := `
 		SELECT id, email, phone, password_hash, first_name, last_name, date_of_birth, country,
 			   kyc_status, kyc_level, is_active, two_fa_enabled, two_fa_secret, email_verified,
 			   phone_verified, last_login_at, created_at, updated_at, failed_attempts, locked_until
-		FROM users WHERE email = $1
+		FROM users WHERE LOWER(email) = $1
 	`
 
 	var user models.User

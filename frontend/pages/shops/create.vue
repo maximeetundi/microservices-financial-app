@@ -45,15 +45,13 @@
               <p class="text-sm text-gray-500 mt-1">Les paiements des clients seront crédités sur ce portefeuille</p>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Devise de la boutique *</label>
-              <select v-model="form.currency" required class="w-full input-premium">
-                <option value="">Sélectionner une devise</option>
-                <option value="XOF">XOF - Franc CFA</option>
-                <option value="EUR">EUR - Euro</option>
-                <option value="USD">USD - Dollar US</option>
-                <option value="GBP">GBP - Livre Sterling</option>
-              </select>
+            <!-- Currency is now auto-filled from wallet selection -->
+            <div v-if="form.currency" class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+              <div class="flex items-center gap-2">
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold">💱 Devise de la boutique:</span>
+                <span class="text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ form.currency }}</span>
+              </div>
+              <p class="text-sm text-emerald-600/80 dark:text-emerald-500 mt-1">Basée sur votre portefeuille sélectionné</p>
             </div>
           </div>
         </div>
@@ -96,7 +94,7 @@
           <NuxtLink to="/shops" class="flex-1 py-4 text-center bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
             Annuler
           </NuxtLink>
-          <button type="submit" :disabled="loading" class="flex-1 btn-premium py-4 disabled:opacity-50">
+          <button type="submit" :disabled="loading || !form.wallet_id" class="flex-1 btn-premium py-4 disabled:opacity-50">
             {{ loading ? 'Création...' : 'Créer ma boutique' }}
           </button>
         </div>
@@ -123,9 +121,21 @@ const form = reactive({
   description: '',
   is_public: true,
   wallet_id: '',
-  currency: 'XOF',
+  currency: '',
   logo_url: '',
   banner_url: '',
+})
+
+// Watch wallet selection and auto-fill currency
+watch(() => form.wallet_id, (newWalletId) => {
+  if (newWalletId) {
+    const selectedWallet = wallets.value.find(w => w.id === newWalletId)
+    if (selectedWallet) {
+      form.currency = selectedWallet.currency
+    }
+  } else {
+    form.currency = ''
+  }
 })
 
 const formatPrice = (amount: number, currency: string) => {
@@ -140,6 +150,7 @@ const uploadLogo = async (event: Event) => {
     form.logo_url = result.url
   } catch (e) {
     console.error('Failed to upload logo', e)
+    alert('Échec de l\'upload du logo. Veuillez réessayer.')
   }
 }
 
@@ -151,20 +162,26 @@ const uploadBanner = async (event: Event) => {
     form.banner_url = result.url
   } catch (e) {
     console.error('Failed to upload banner', e)
+    alert('Échec de l\'upload de la bannière. Veuillez réessayer.')
   }
 }
 
 const createShop = async () => {
+  if (!form.wallet_id || !form.currency) {
+    alert('Veuillez sélectionner un portefeuille')
+    return
+  }
+  
   loading.value = true
   try {
     const tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
-    const shop = await shopApi.createShop({
+    const result = await shopApi.createShop({
       ...form,
       tags,
     })
-    navigateTo(`/shops/${shop.slug}`)
+    navigateTo(`/shops/${result.slug || result.id}`)
   } catch (e: any) {
-    alert(e.message || 'Échec de la création')
+    alert(e.response?.data?.error || e.message || 'Échec de la création')
   } finally {
     loading.value = false
   }
@@ -173,9 +190,10 @@ const createShop = async () => {
 onMounted(async () => {
   try {
     const result = await walletApi.getWallets()
-    wallets.value = result.wallets || []
+    wallets.value = result.data?.wallets || result.wallets || []
   } catch (e) {
     console.error('Failed to load wallets', e)
   }
 })
 </script>
+

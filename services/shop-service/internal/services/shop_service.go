@@ -42,9 +42,17 @@ func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest,
 		return nil, fmt.Errorf("wallet does not belong to user")
 	}
 	
+	ownerID := userID
+	ownerType := "user"
+
+	if req.EnterpriseID != "" && req.OwnerType == "enterprise" {
+		ownerID = req.EnterpriseID
+		ownerType = "enterprise"
+	}
+
 	shop := &models.Shop{
-		OwnerID:     userID,
-		OwnerType:   "user",
+		OwnerID:     ownerID,
+		OwnerType:   ownerType,
 		Name:        req.Name,
 		Description: req.Description,
 		IsPublic:    req.IsPublic,
