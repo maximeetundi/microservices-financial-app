@@ -193,7 +193,7 @@ export default function DashboardLayout({ children }: SidebarProps) {
             <div className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 flex items-center justify-between px-4 z-30 lg:hidden shadow-lg">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                        <SparklesIcon className="w-6 h-6 text-white" />
+                        <img src="/logo.png" alt="Zekora" className="w-6 h-6 object-contain" />
                     </div>
                     <span className="text-white font-bold text-lg">Zekora Admin</span>
                 </div>
@@ -239,7 +239,7 @@ export default function DashboardLayout({ children }: SidebarProps) {
                 <div className="p-6 border-b border-white/10">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                            <SparklesIcon className="w-7 h-7 text-white" />
+                            <img src="/logo.png" alt="Zekora" className="w-7 h-7 object-contain" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-white">Admin Panel</h1>

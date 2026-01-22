@@ -126,3 +126,23 @@ func (r *EmployeeRepository) DeleteByEnterprise(ctx context.Context, enterpriseI
 	return err
 }
 
+// IsEmployee checks if a user is an active employee (or owner) of an enterprise
+func (r *EmployeeRepository) IsEmployee(ctx context.Context, enterpriseID, userID string) (bool, error) {
+	entOID, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return false, err
+	}
+
+	filter := bson.M{
+		"enterprise_id": entOID,
+		"user_id":       userID,
+		"status":        models.EmployeeStatusActive,
+	}
+
+	count, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+

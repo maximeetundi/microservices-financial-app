@@ -233,6 +233,51 @@ func (h *EnterpriseHandler) UpdateEnterprise(c *gin.Context) {
 	c.JSON(http.StatusOK, req)
 }
 
+
+
+// GetEnterpriseNotifications fetches notifications for the enterprise
+func (h *EnterpriseHandler) GetEnterpriseNotifications(c *gin.Context) {
+	id := c.Param("id") // Enterprise ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Verify User Access (Must be an employee of the enterprise)
+	// We can check if they are an employee.
+	isEmployee, err := h.empRepo.IsEmployee(c.Request.Context(), id, userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify permissions"})
+		return
+	}
+	if !isEmployee {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	// Proxy to Notification Service
+	notificationServiceURL := os.Getenv("NOTIFICATION_SERVICE_URL")
+	if notificationServiceURL == "" {
+		notificationServiceURL = "http://notification-service:8087"
+	}
+
+	resp, err := http.Get(notificationServiceURL + "/api/v1/internal/users/" + id + "/notifications?limit=50")
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Notification service unavailable"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch notifications"})
+		return
+	}
+
+	// Stream response back
+	c.DataFromReader(http.StatusOK, resp.ContentLength, "application/json", resp.Body, nil)
+}
+
 // ========== ADMIN ENDPOINTS ==========
 
 // AdminListAll returns all enterprises for admin dashboard

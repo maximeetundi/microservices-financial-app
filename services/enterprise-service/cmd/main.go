@@ -118,6 +118,7 @@ func main() {
 		api.POST("/enterprises/logo", entHandler.UploadLogo)
 		api.PUT("/enterprises/:id", entHandler.UpdateEnterprise)
 		api.GET("/enterprises/:id", entHandler.GetEnterprise)
+		api.GET("/enterprises/:id/notifications", entHandler.GetEnterpriseNotifications) // Added notification route
 		api.GET("/enterprises/:id/employees", empHandler.ListEmployees)
 		api.DELETE("/enterprises/:id/employees/:employeeId", empHandler.TerminateEmployee)
 

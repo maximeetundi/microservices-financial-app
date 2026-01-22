@@ -129,6 +129,9 @@ func main() {
 			api.POST("/notifications/read-all", notificationHandler.MarkAllAsRead)
 			api.DELETE("/notifications/:id", notificationHandler.DeleteNotification)
 		}
+		
+		// Internal/Admin routes (protected by network/API key in real prod, public here for microservice calls)
+		router.GET("/api/v1/internal/users/:userID/notifications", notificationHandler.GetNotificationsByUserID)
 	}
 
 	port := os.Getenv("PORT")

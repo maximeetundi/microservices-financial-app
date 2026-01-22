@@ -46,6 +46,35 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	})
 }
 
+// GetNotificationsByUserID returns paginated notifications for a specific user ID (Internal/Admin)
+func (h *NotificationHandler) GetNotificationsByUserID(c *gin.Context) {
+	userID := c.Param("userID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	notifications, err := h.repo.GetByUserID(userID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch notifications"})
+		return
+	}
+
+	// Return empty array instead of null
+	if notifications == nil {
+		notifications = []models.Notification{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"notifications": notifications,
+		"limit":         limit,
+		"offset":        offset,
+	})
+}
+
 // GetUnreadCount returns the count of unread notifications
 func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 	userID := c.GetString("user_id")

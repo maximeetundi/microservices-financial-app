@@ -34,7 +34,10 @@ export default function LoginPage() {
             <div className="w-full max-w-md">
                 <div className="bg-white rounded-2xl shadow-2xl p-8">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-slate-900">💰 Admin Panel</h1>
+                        <div className="flex justify-center mb-4">
+                            <img src="/logo.png" alt="Zekora" className="w-16 h-16 object-contain" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-slate-900">Admin Panel</h1>
                         <p className="text-slate-500 mt-2">Zekora Administration</p>
                     </div>
 

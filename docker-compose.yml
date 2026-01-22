@@ -498,6 +498,7 @@ services:
       - DB_NAME=enterprise_service
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - PORT=8097
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
       - ENVIRONMENT=development
       - KAFKA_BROKERS=kafka:9092
       - MINIO_ENDPOINT=minio:9000

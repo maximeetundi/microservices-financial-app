@@ -678,6 +678,9 @@ export const enterpriseAPI = {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
 
+    // Notifications
+    getNotifications: (entId: string, limit = 20, offset = 0) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/notifications?limit=${limit}&offset=${offset}`),
+
     // Employee Management
     listEmployees: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/employees`),
     inviteEmployee: (entId: string, data: any) => api.post('/enterprise-service/api/v1/employees/invite', { ...data, enterprise_id: entId }),

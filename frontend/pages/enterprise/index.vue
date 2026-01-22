@@ -133,12 +133,17 @@
           :enterprise="currentEnterprise"
           @update="handleEnterpriseUpdate" />
 
+
         <OrganisationTab 
           v-if="currentTab === 'Organisation'" 
           :enterprise="currentEnterprise"
           :employees="enterpriseEmployees"
           @update="handleEnterpriseUpdate"
           @save="saveSettings" />
+
+        <NotificationsTab
+          v-if="currentTab === 'Notifications'"
+          :enterprise="currentEnterprise" />
 
         <EnterpriseSettings 
           v-if="currentTab === 'Settings'" 
@@ -177,7 +182,8 @@ import {
   Squares2X2Icon, UsersIcon, UserGroupIcon, BanknotesIcon, 
   DocumentTextIcon, Cog6ToothIcon, ChevronRightIcon, QrCodeIcon, 
   PlusIcon, ArrowRightCircleIcon, CheckCircleIcon, BuildingOffice2Icon,
-  FolderIcon, WalletIcon, ShieldCheckIcon
+
+  FolderIcon, WalletIcon, ShieldCheckIcon, BellIcon
 } from '@heroicons/vue/24/outline'
 
 // Components
@@ -194,6 +200,8 @@ const BillingTab = defineAsyncComponent(() => import('@/components/enterprise/Bi
 const WalletsTab = defineAsyncComponent(() => import('@/components/enterprise/WalletsTab.vue'))
 const SecurityTab = defineAsyncComponent(() => import('@/components/enterprise/SecurityTab.vue'))
 const OrganisationTab = defineAsyncComponent(() => import('@/components/enterprise/OrganisationTab.vue'))
+
+const NotificationsTab = defineAsyncComponent(() => import('@/components/enterprise/NotificationsTab.vue'))
 const CreateEnterpriseModal = defineAsyncComponent(() => import('@/components/enterprise/CreateEnterpriseModal.vue'))
 
 // State
@@ -211,7 +219,7 @@ const enterpriseEmployees = ref([]) // All employees list for OrganisationTab
 
 // Role-based tab access - Wallets and Services require admin permission
 const adminOnlyTabs = ['Security', 'Organisation', 'Settings', 'Payroll', 'Wallets', 'Services']
-const allTabs = ['Overview', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
+const allTabs = ['Overview', 'Notifications', 'Employees', 'Clients', 'Services', 'Wallets', 'Payroll', 'Billing', 'Security', 'Organisation', 'Settings']
 
 // Visible tabs based on role
 const tabs = computed(() => {
@@ -226,6 +234,7 @@ const tabs = computed(() => {
 
 const tabLabels = {
   'Overview': 'Aperçu',
+  'Notifications': 'Notifications',
   'Employees': 'Employés',
   'Clients': 'Abonnés',
   'Services': 'Services',
@@ -240,6 +249,7 @@ const tabLabels = {
 const getTabIcon = (tab) => {
   switch (tab) {
     case 'Overview': return Squares2X2Icon
+    case 'Notifications': return BellIcon
     case 'Employees': return UsersIcon
     case 'Clients': return UserGroupIcon
     case 'Services': return FolderIcon
