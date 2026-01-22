@@ -98,6 +98,11 @@
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
         </div>
 
+        <NuxtLink to="/transactions" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">📝</span>
+          <span>Historique</span>
+        </NuxtLink>
+
         <NuxtLink to="/transfer" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">💸</span>
           <span>Virements</span>

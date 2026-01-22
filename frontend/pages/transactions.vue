@@ -129,14 +129,14 @@
                </template>
 
                <!-- Transfer Actions (Cancel/Reverse) -->
-               <div v-if="selectedTx.type === 'transfer' && (selectedTx.status === 'completed' || selectedTx.status === 'pending' || selectedTx.status === 'processing')" class="mt-6 pt-6 border-t border-gray-700">
-                   <!-- Sender Cancel -->
-                   <button v-if="selectedTx.amount < 0" @click="initiateAction('cancel')" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/20 transition-colors mb-2">
-                       Annuler le transfert
+               <div v-if="selectedTx.type === 'transfer'" class="mt-6 pt-6 border-t border-gray-700">
+                   <!-- Sender Cancel (< 5 mins) -->
+                   <button v-if="selectedTx.amount < 0 && canCancel(selectedTx)" @click="initiateAction('cancel')" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/20 transition-colors mb-2">
+                       Annuler le transfert ({{ getRemainingCancelTime(selectedTx) }})
                    </button>
                    
-                   <!-- Recipient Reverse -->
-                   <button v-if="selectedTx.amount > 0 && selectedTx.status === 'completed'" @click="initiateAction('reverse')" class="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 transition-colors mb-2">
+                   <!-- Recipient Reverse (< 1 week, completed) -->
+                   <button v-if="selectedTx.amount > 0 && selectedTx.status === 'completed' && canReverse(selectedTx)" @click="initiateAction('reverse')" class="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 transition-colors mb-2">
                        Renvoyer les fonds
                    </button>
                </div>
@@ -157,8 +157,8 @@
                   </h3>
                   <p class="text-gray-400 text-sm mb-6">
                       {{ actionType === 'cancel' 
-                          ? 'Êtes-vous sûr de vouloir annuler ce transfert ? Cette action est irréversible.' 
-                          : 'Êtes-vous sûr de vouloir renvoyer les fonds reçus ?' 
+                          ? 'Les transferts peuvent être annulés uniquement dans les 5 minutes suivant l\'envoi, si le destinataire n\'a pas encore utilisé les fonds.' 
+                          : 'Vous pouvez renvoyer les fonds dans un délai de 7 jours si vous ne les avez pas utilisés.' 
                       }}
                   </p>
 
@@ -211,6 +211,33 @@ const selectedTx = ref(null)
 const loadingDetails = ref(false)
 const senderInfo = ref(null)
 const receiverInfo = ref(null)
+
+// Time Helpers
+const canCancel = (tx) => {
+    if (tx.status !== 'pending' && tx.status !== 'processing' && tx.status !== 'completed') return false
+    const now = new Date()
+    const txDate = new Date(tx.date)
+    const diffMins = (now - txDate) / 1000 / 60
+    return diffMins < 5
+}
+
+const getRemainingCancelTime = (tx) => {
+    const now = new Date()
+    const txDate = new Date(tx.date)
+    const diffSecs = (now - txDate) / 1000
+    const remaining = 300 - diffSecs // 5 mins * 60
+    if (remaining <= 0) return '0s'
+    const mins = Math.floor(remaining / 60)
+    const secs = Math.floor(remaining % 60)
+    return `${mins}m ${secs}s`
+}
+
+const canReverse = (tx) => {
+    const now = new Date()
+    const txDate = new Date(tx.date)
+    const diffHours = (now - txDate) / 1000 / 60 / 60
+    return diffHours < 168 // 7 days * 24h
+}
 
 const filteredTransactions = computed(() => {
   let result = [...transactions.value]
@@ -374,18 +401,10 @@ const loadTransferDetails = async (tx) => {
         
         if (isTransferType && tx.reference) {
             try {
-                let transferId = tx.reference
-                // Extract clean Transfer/Donation ID from reference
-                if (tx.reference.startsWith('DON-')) {
-                   transferId = tx.reference.replace('DON-', '')
-                }
-                // For refund, reference is typically REF-DON-{ID}. 
-                // Transfer ID might be REF-{ID} (RequestID).
-                // Try fetching by reference if possible, or attempt ID construction?
-                // For now, let's try passing the reference directly if it fails, or logic above.
-                // Assuming transfer-service might accept reference or we need exact ID.
+                let transferId = tx.id // Use TX ID for fetch if possible, or try reference logic
                 
                 // Fetch full transfer details (enriched by backend)
+                // Assuming API can take UUID
                 const res = await transferAPI.get(transferId)
                 const transfer = res.data
 
@@ -470,11 +489,11 @@ const closeActionModal = () => {
 }
 
 const submitAction = async () => {
-    if (!selectedTx.value || !selectedTx.value.reference) return
+    if (!selectedTx.value || !selectedTx.value.id) return
     
     actionLoading.value = true
     try {
-        const transferId = selectedTx.value.reference // Assuming reference is Transfer ID for 'transfer' type
+        const transferId = selectedTx.value.id 
         
         if (actionType.value === 'cancel') {
             await transferAPI.cancelTransfer(transferId, actionReason.value)

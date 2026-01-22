@@ -270,14 +270,15 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 	}
 
 	// 3. Check Time Conditions (Sender Cancel)
-	// - Less than 1 hour
-	// - OR More than 7 days (Inactive assumption)
+	// - Less than 5 minutes (sender cancellation)
+	// - OR More than 7 days (Inactive assumption - keep existing logic if desired, but user focused on 5m)
 	duration := time.Since(transfer.CreatedAt)
-	isRecent := duration < time.Hour
-	isOld := duration > 7*24*time.Hour
+	isRecent := duration < 5*time.Minute
+	// isOld := duration > 7*24*time.Hour // User didn't mention this, but keeping it won't hurt. 
+	// Actually user said explicitly "avant 5 minute l'emetteur peut annuler".
 
-	if !isRecent && !isOld {
-		return fmt.Errorf("cancellation allowed only within 1 hour or after 7 days of inactivity")
+	if !isRecent {
+		return fmt.Errorf("cancellation allowed only within 5 minutes")
 	}
 
 	// 4. Check Status
@@ -285,7 +286,7 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 		return fmt.Errorf("transfer already cancelled/reversed")
 	}
 
-	// 5. If Completed, Check Recipient Balance and Reversal
+	// 5. If Completed, Check Recipient Balance and usage
 	if transfer.Status == "completed" {
 		if transfer.ToWalletID == nil {
 			return fmt.Errorf("cannot reverse external completed transfer")
@@ -300,6 +301,18 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 		if toWallet.Balance < transfer.Amount {
 			return fmt.Errorf("recipient has insufficient funds for reversal")
 		}
+		
+		// Check if Recipient has used funds (Debits since transfer)
+		hasUsedFunds, err := s.transferRepo.HasDebitsSince(toWalletID, transfer.CreatedAt)
+		if err != nil {
+			return fmt.Errorf("failed to check fund usage: %w", err)
+		}
+		if hasUsedFunds {
+			return fmt.Errorf("recipient has already used the funds")
+		}
+
+		// Execute Reversal: Debit Recipient, Credit Sender
+
 
 		// Execute Reversal: Debit Recipient, Credit Sender
 		if err := s.walletRepo.UpdateBalance(toWalletID, -transfer.Amount); err != nil {
@@ -372,6 +385,15 @@ func (s *TransferService) ReverseTransfer(id, requesterID, reason string) error 
 		return fmt.Errorf("insufficient funds to return transfer")
 	}
 
+	// Check if Recipient has used funds (Debits since transfer)
+	hasUsedFunds, err := s.transferRepo.HasDebitsSince(*transfer.ToWalletID, transfer.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to check fund usage: %w", err)
+	}
+	if hasUsedFunds {
+		return fmt.Errorf("cannot return transfer: account has subsequent debit transactions")
+	}
+
 	// 6. Execute Reversal
 	// Debit Recipient
 	if err := s.walletRepo.UpdateBalance(*transfer.ToWalletID, -transfer.Amount); err != nil {
@@ -405,24 +427,62 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 		return
 	}
 
-	// Get sender name for better notification readability
+	// 1. Get Sender Details
 	senderName := actualSenderID
+	var senderEmail, senderPhone string
 	if s.walletRepo != nil {
-		if name, err := s.walletRepo.GetUserNameByID(actualSenderID); err == nil && name != "" {
-			senderName = name
+		name, email, phone, err := s.walletRepo.GetUserInfo(actualSenderID)
+		if err == nil {
+			if name != "" {
+				senderName = name
+			}
+			senderEmail = email
+			senderPhone = phone
+		}
+	}
+
+	// 2. Get Recipient Details
+	recipientName := actualRecipientID
+	var recipientEmail, recipientPhone string
+	if s.walletRepo != nil && actualRecipientID != "" {
+		name, email, phone, err := s.walletRepo.GetUserInfo(actualRecipientID)
+		if err == nil {
+			if name != "" {
+				recipientName = name
+			}
+			recipientEmail = email
+			recipientPhone = phone
+		}
+	} else {
+		// External recipient (P2P by email/phone without user account yet or external)
+		if transfer.RecipientEmail != nil {
+			recipientEmail = *transfer.RecipientEmail
+			recipientName = recipientEmail // Fallback
+		}
+		if transfer.RecipientPhone != nil {
+			recipientPhone = *transfer.RecipientPhone
+			if recipientName == actualRecipientID {
+				recipientName = recipientPhone // Fallback
+			}
 		}
 	}
 
 	eventData := map[string]interface{}{
-		"transfer_id":  transfer.ID,
-		"user_id":      targetUserID,    // The user who receives the notification
-		"sender":       actualSenderID,  // The actual sender of the money
-		"sender_name":  senderName,      // The name of the sender
-		"recipient":    actualRecipientID, // The actual recipient of the money
-		"amount":       transfer.Amount,
-		"currency":     transfer.Currency,
-		"status":       transfer.Status,
-		"reference":    transfer.Reference,
+		"transfer_id":     transfer.ID,
+		"user_id":         targetUserID,      // The user who receives the notification
+		"sender":          actualSenderID,    // The actual sender of the money
+		"sender_name":     senderName,        // The name of the sender
+		"sender_email":    senderEmail,       // Email of sender
+		"sender_phone":    senderPhone,       // Phone of sender
+		"recipient":       actualRecipientID, // The actual recipient of the money
+		"recipient_name":  recipientName,     // The name of the recipient
+		"recipient_email": recipientEmail,    // Email of recipient
+		"recipient_phone": recipientPhone,    // Phone of recipient
+		"amount":          transfer.Amount,
+		"currency":        transfer.Currency,
+		"status":          transfer.Status,
+		"reference":       transfer.Reference,
+		"type":            eventType,         // transfer.sent, transfer.received, transfer.initiated
 	}
 
 	envelope := messaging.NewEventEnvelope(eventType, "transfer-service", eventData)

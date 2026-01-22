@@ -100,6 +100,13 @@ func (r *TransferRepository) UpdateStatus(id, status string) error {
 	return err
 }
 
+func (r *TransferRepository) HasDebitsSince(walletID string, since time.Time) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM transactions WHERE from_wallet_id = $1 AND created_at > $2)`
+	var exists bool
+	err := r.db.QueryRow(query, walletID, since).Scan(&exists)
+	return exists, err
+}
+
 type WalletRepository struct {
 	db *sql.DB
 }
