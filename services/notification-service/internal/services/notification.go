@@ -203,9 +203,18 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 	case "transfer.sent":
 		amount, _ := event["amount"].(float64)
 		currency, _ := event["currency"].(string)
+		
+		recipientName, ok := event["recipient_name"].(string)
+		if !ok || recipientName == "" {
+			recipientName, _ = event["recipient"].(string)
+		}
+		if recipientName == "" {
+			recipientName = "un destinataire"
+		}
+
 		return &Notification{
 			Title:    "💸 Argent envoyé",
-			Body:     fmt.Sprintf("Vous avez envoyé %.2f %s avec succès.", amount, currency),
+			Body:     fmt.Sprintf("Vous avez envoyé %.2f %s à %s.", amount, currency, recipientName),
 			Type:     "transfer",
 			Priority: PriorityHigh,
 			Data:     event,

@@ -64,6 +64,15 @@ func (r *ShopRepository) GetBySlug(ctx context.Context, slug string) (*models.Sh
 	return &shop, nil
 }
 
+func (r *ShopRepository) GetByWalletID(ctx context.Context, walletID string) (*models.Shop, error) {
+	var shop models.Shop
+	err := r.collection.FindOne(ctx, bson.M{"wallet_id": walletID}).Decode(&shop)
+	if err != nil {
+		return nil, err
+	}
+	return &shop, nil
+}
+
 func (r *ShopRepository) GetByOwnerID(ctx context.Context, ownerID string) ([]models.Shop, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{"owner_id": ownerID})
 	if err != nil {

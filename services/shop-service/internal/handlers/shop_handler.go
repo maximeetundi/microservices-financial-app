@@ -65,6 +65,19 @@ func (h *ShopHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, shop)
 }
 
+// GetByWalletID returns a shop by Wallet ID
+func (h *ShopHandler) GetByWalletID(c *gin.Context) {
+	walletID := c.Param("wallet_id")
+
+	shop, err := h.shopService.GetByWalletID(c.Request.Context(), walletID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Shop not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, shop)
+}
+
 // Create creates a new shop
 func (h *ShopHandler) Create(c *gin.Context) {
 	userID := c.GetString("user_id")
@@ -79,7 +92,8 @@ func (h *ShopHandler) Create(c *gin.Context) {
 		return
 	}
 
-	shop, err := h.shopService.Create(c.Request.Context(), &req, userID)
+	token := c.GetHeader("Authorization")
+	shop, err := h.shopService.Create(c.Request.Context(), &req, userID, token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

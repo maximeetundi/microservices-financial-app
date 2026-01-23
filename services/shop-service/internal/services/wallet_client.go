@@ -42,10 +42,19 @@ func NewWalletClient() *WalletClient {
 	}
 }
 
-func (c *WalletClient) GetWallet(walletID string) (*Wallet, error) {
+func (c *WalletClient) GetWallet(walletID, token string) (*Wallet, error) {
 	url := fmt.Sprintf("%s/api/v1/wallets/%s", c.baseURL, walletID)
 	
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+	
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get wallet: %w", err)
 	}
@@ -63,10 +72,19 @@ func (c *WalletClient) GetWallet(walletID string) (*Wallet, error) {
 	return &wallet, nil
 }
 
-func (c *WalletClient) GetUserWallets(userID string) ([]Wallet, error) {
+func (c *WalletClient) GetUserWallets(userID, token string) ([]Wallet, error) {
 	url := fmt.Sprintf("%s/api/v1/wallets?user_id=%s", c.baseURL, userID)
 	
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+	
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user wallets: %w", err)
 	}
@@ -86,16 +104,16 @@ func (c *WalletClient) GetUserWallets(userID string) ([]Wallet, error) {
 	return response.Wallets, nil
 }
 
-func (c *WalletClient) ValidateWalletOwnership(walletID, userID string) (bool, error) {
-	wallet, err := c.GetWallet(walletID)
+func (c *WalletClient) ValidateWalletOwnership(walletID, userID, token string) (bool, error) {
+	wallet, err := c.GetWallet(walletID, token)
 	if err != nil {
 		return false, err
 	}
 	return wallet.UserID == userID, nil
 }
 
-func (c *WalletClient) GetWalletBalance(walletID string) (float64, string, error) {
-	wallet, err := c.GetWallet(walletID)
+func (c *WalletClient) GetWalletBalance(walletID, token string) (float64, string, error) {
+	wallet, err := c.GetWallet(walletID, token)
 	if err != nil {
 		return 0, "", err
 	}

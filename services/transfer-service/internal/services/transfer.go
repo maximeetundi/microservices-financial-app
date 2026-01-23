@@ -15,23 +15,29 @@ import (
 )
 
 type TransferService struct {
-	transferRepo *repository.TransferRepository
-	walletRepo   *repository.WalletRepository
-	kafkaClient  *messaging.KafkaClient
-	config       *config.Config
+	transferRepo     *repository.TransferRepository
+	walletRepo       *repository.WalletRepository
+	kafkaClient      *messaging.KafkaClient
+	enterpriseClient *EnterpriseClient
+	shopClient       *ShopClient
+	config           *config.Config
 }
 
 func NewTransferService(
 	transferRepo *repository.TransferRepository,
 	walletRepo *repository.WalletRepository,
 	kafkaClient *messaging.KafkaClient,
+	enterpriseClient *EnterpriseClient,
+	shopClient *ShopClient,
 	config *config.Config,
 ) *TransferService {
 	return &TransferService{
-		transferRepo: transferRepo,
-		walletRepo:   walletRepo,
-		kafkaClient:  kafkaClient,
-		config:       config,
+		transferRepo:     transferRepo,
+		walletRepo:       walletRepo,
+		kafkaClient:      kafkaClient,
+		enterpriseClient: enterpriseClient,
+		shopClient:       shopClient,
+		config:           config,
 	}
 }
 
@@ -173,7 +179,6 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 	}
 
 	// 1. Populate Sender Details
-	// Getting sender user ID from wallet or directly from transfer
 	var senderUserID string
 	if transfer.FromWalletID != nil && *transfer.FromWalletID != "" {
 		fromWallet, err := s.walletRepo.GetByID(*transfer.FromWalletID)
@@ -182,42 +187,74 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 		}
 	}
 	
-	// Fallback to transfer.UserID if wallet lookup failed or provided no user (e.g. external)
 	if senderUserID == "" {
 		senderUserID = transfer.UserID
 	}
 
 	if senderUserID != "" {
 		name, email, phone, err := s.walletRepo.GetUserInfo(senderUserID)
-		if err == nil {
+		if err == nil && name != "" {
 			transfer.SenderDetails = &models.UserDetails{
 				Name:  name,
 				Email: email,
 				Phone: phone,
 			}
+		} else {
+			// Try Enterprise lookup
+			ent, err := s.enterpriseClient.GetEnterprise(senderUserID)
+			if err == nil && ent != nil {
+				transfer.SenderDetails = &models.UserDetails{
+					Name:  ent.Name + " (Entreprise)",
+					Email: "ID: " + ent.ID,
+				}
+			} else if transfer.FromWalletID != nil && *transfer.FromWalletID != "" {
+				// Try Shop lookup by WalletID
+				shop, err := s.shopClient.GetShopByWalletID(*transfer.FromWalletID)
+				if err == nil && shop != nil {
+					transfer.SenderDetails = &models.UserDetails{
+						Name:  shop.Name + " (Boutique)",
+						Email: "ID: " + shop.ID,
+					}
+				}
+			}
 		}
 	}
 
 	// 2. Populate Recipient Details
-	// Check if internal transfer with wallet ID
 	if transfer.ToWalletID != nil && *transfer.ToWalletID != "" {
 		toWallet, err := s.walletRepo.GetByID(*transfer.ToWalletID)
 		if err == nil {
 			name, email, phone, err := s.walletRepo.GetUserInfo(toWallet.UserID)
-			if err == nil {
+			if err == nil && name != "" {
 				transfer.RecipientDetails = &models.UserDetails{
 					Name:  name,
 					Email: email,
 					Phone: phone,
 				}
+			} else {
+				// Try Enterprise lookup for recipient
+				ent, err := s.enterpriseClient.GetEnterprise(toWallet.UserID)
+				if err == nil && ent != nil {
+					transfer.RecipientDetails = &models.UserDetails{
+						Name:  ent.Name + " (Entreprise)",
+						Email: "ID: " + ent.ID,
+					}
+				} else {
+					// Try Shop lookup
+					shop, err := s.shopClient.GetShopByWalletID(*transfer.ToWalletID)
+					if err == nil && shop != nil {
+						transfer.RecipientDetails = &models.UserDetails{
+							Name:  shop.Name + " (Boutique)",
+							Email: "ID: " + shop.ID,
+						}
+					}
+				}
 			}
 		}
 	} else {
-		// External or P2P by email/phone - data is already in transfer object
+		// External or P2P by email/phone
 		var name, email, phone string
 		
-		// If mobile money or international, these details might be in the specific structs, 
-		// but standard transfer struct has RecipientEmail/Phone too.
 		if transfer.RecipientEmail != nil {
 			email = *transfer.RecipientEmail
 		}
@@ -432,12 +469,27 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 	var senderEmail, senderPhone string
 	if s.walletRepo != nil {
 		name, email, phone, err := s.walletRepo.GetUserInfo(actualSenderID)
-		if err == nil {
-			if name != "" {
-				senderName = name
-			}
+		if err == nil && name != "" {
+			senderName = name
 			senderEmail = email
 			senderPhone = phone
+		} else {
+			// Try Enterprise lookup
+			if s.enterpriseClient != nil {
+				ent, err := s.enterpriseClient.GetEnterprise(actualSenderID)
+				if err == nil && ent != nil {
+					senderName = ent.Name + " (Entreprise)"
+					senderEmail = "ID: " + ent.ID
+				}
+			}
+			// Try Shop lookup
+			if s.shopClient != nil && transfer.FromWalletID != nil && *transfer.FromWalletID != "" {
+				shop, err := s.shopClient.GetShopByWalletID(*transfer.FromWalletID)
+				if err == nil && shop != nil {
+					senderName = shop.Name + " (Boutique)"
+					senderEmail = "ID: " + shop.ID
+				}
+			}
 		}
 	}
 
@@ -446,12 +498,27 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 	var recipientEmail, recipientPhone string
 	if s.walletRepo != nil && actualRecipientID != "" {
 		name, email, phone, err := s.walletRepo.GetUserInfo(actualRecipientID)
-		if err == nil {
-			if name != "" {
-				recipientName = name
-			}
+		if err == nil && name != "" {
+			recipientName = name
 			recipientEmail = email
 			recipientPhone = phone
+		} else {
+			// Try Enterprise lookup
+			if s.enterpriseClient != nil {
+				ent, err := s.enterpriseClient.GetEnterprise(actualRecipientID)
+				if err == nil && ent != nil {
+					recipientName = ent.Name + " (Entreprise)"
+					recipientEmail = "ID: " + ent.ID
+				}
+			}
+			// Try Shop lookup
+			if s.shopClient != nil && transfer.ToWalletID != nil && *transfer.ToWalletID != "" {
+				shop, err := s.shopClient.GetShopByWalletID(*transfer.ToWalletID)
+				if err == nil && shop != nil {
+					recipientName = shop.Name + " (Boutique)"
+					recipientEmail = "ID: " + shop.ID
+				}
+			}
 		}
 	} else {
 		// External recipient (P2P by email/phone without user account yet or external)

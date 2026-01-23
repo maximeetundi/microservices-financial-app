@@ -137,6 +137,7 @@ func main() {
 	{
 		// Public routes
 		api.GET("/shops", shopHandler.List)
+		api.GET("/shops/by-wallet/:wallet_id", shopHandler.GetByWalletID)
 		api.GET("/shops/:id", shopHandler.Get)
 		api.GET("/shops/:id/products", productHandler.ListByShop)
 		api.GET("/shops/:id/products/:productSlug", productHandler.Get)

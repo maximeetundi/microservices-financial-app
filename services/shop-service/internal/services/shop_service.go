@@ -32,9 +32,9 @@ func NewShopService(
 	}
 }
 
-func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest, userID string) (*models.Shop, error) {
+func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest, userID, token string) (*models.Shop, error) {
 	// Validate wallet ownership
-	valid, err := s.walletClient.ValidateWalletOwnership(req.WalletID, userID)
+	valid, err := s.walletClient.ValidateWalletOwnership(req.WalletID, userID, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate wallet: %w", err)
 	}
@@ -106,6 +106,10 @@ func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest,
 
 func (s *ShopService) GetBySlug(ctx context.Context, slug string) (*models.Shop, error) {
 	return s.shopRepo.GetBySlug(ctx, slug)
+}
+
+func (s *ShopService) GetByWalletID(ctx context.Context, walletID string) (*models.Shop, error) {
+	return s.shopRepo.GetByWalletID(ctx, walletID)
 }
 
 func (s *ShopService) GetByID(ctx context.Context, id string) (*models.Shop, error) {

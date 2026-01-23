@@ -62,7 +62,9 @@ func main() {
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg)
 	exchangeClient := services.NewExchangeClient()
-	transferService := services.NewTransferService(transferRepo, walletRepo, kafkaClient, cfg)
+	enterpriseClient := services.NewEnterpriseClient(cfg)
+	shopClient := services.NewShopClient(cfg)
+	transferService := services.NewTransferService(transferRepo, walletRepo, kafkaClient, enterpriseClient, shopClient, cfg)
 	mobilemoneyService := services.NewMobileMoneyService(cfg)
 	internationalService := services.NewInternationalTransferService(cfg)
 	complianceService := services.NewComplianceService(cfg)
