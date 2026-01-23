@@ -201,9 +201,9 @@ func (r *WalletRepository) UpdateBalanceWithTransaction(walletID string, amount 
 
 	var newBalance float64
 	switch transactionType {
-	case "deposit", "receive":
+	case "deposit", "receive", "credit":
 		newBalance = currentBalance + amount
-	case "withdrawal", "send":
+	case "withdrawal", "send", "debit":
 		if currentBalance < amount {
 			return fmt.Errorf("insufficient balance")
 		}
