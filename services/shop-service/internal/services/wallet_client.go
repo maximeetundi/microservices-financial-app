@@ -65,11 +65,16 @@ func (c *WalletClient) GetWallet(walletID, token string) (*Wallet, error) {
 		return nil, fmt.Errorf("wallet service returned %d: %s", resp.StatusCode, string(body))
 	}
 	
-	var wallet Wallet
-	if err := json.NewDecoder(resp.Body).Decode(&wallet); err != nil {
+	var response struct {
+		Wallet *Wallet `json:"wallet"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode wallet: %w", err)
 	}
-	return &wallet, nil
+	if response.Wallet == nil {
+		return nil, fmt.Errorf("wallet not found in response")
+	}
+	return response.Wallet, nil
 }
 
 func (c *WalletClient) GetUserWallets(userID, token string) ([]Wallet, error) {

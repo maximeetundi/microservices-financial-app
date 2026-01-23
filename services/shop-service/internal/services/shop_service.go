@@ -33,21 +33,21 @@ func NewShopService(
 }
 
 func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest, userID, token string) (*models.Shop, error) {
-	// Validate wallet ownership
-	valid, err := s.walletClient.ValidateWalletOwnership(req.WalletID, userID, token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate wallet: %w", err)
-	}
-	if !valid {
-		return nil, fmt.Errorf("wallet does not belong to user")
-	}
-	
 	ownerID := userID
 	ownerType := "user"
 
 	if req.EnterpriseID != "" && req.OwnerType == "enterprise" {
 		ownerID = req.EnterpriseID
 		ownerType = "enterprise"
+	}
+
+	// Validate wallet ownership
+	valid, err := s.walletClient.ValidateWalletOwnership(req.WalletID, ownerID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate wallet: %w", err)
+	}
+	if !valid {
+		return nil, fmt.Errorf("wallet does not belong to user")
 	}
 
 	shop := &models.Shop{
