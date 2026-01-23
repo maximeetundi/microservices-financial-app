@@ -532,10 +532,9 @@ const fetchWallets = async () => {
       })
     }
   } catch (e) {
-    console.log('Using mock data or API error')
+    console.error('API Error, using mock data:', e)
      wallets.value = [
       { id: 1, type: 'fiat', wallet_type: 'fiat', currency: 'USD', name: 'Main USD', balance: 1500.50, balanceUSD: 1500.50, status: 'active', address: 'USD-1234-5678' },
-      { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
       { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
     ]
   } finally {

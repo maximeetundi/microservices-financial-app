@@ -81,7 +81,7 @@
                 <NuxtLink :to="`/shops/${shop.slug}`" class="flex-1 py-2 text-center bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
                   👁️ Voir
                 </NuxtLink>
-                <NuxtLink :to="`/shops/manage/${shop.id}`" class="flex-1 py-2 text-center bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+                <NuxtLink :to="`/shops/manage/${shop.slug}`" class="flex-1 py-2 text-center bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
                   ⚙️ Gérer
                 </NuxtLink>
               </div>
