@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
@@ -204,8 +205,9 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 		}
 
 		// Internal call, no auth token needed
-		_, err := c.walletService.CreateWallet(userEvent.UserID, req)
-	}
+		if _, err := c.walletService.CreateWallet(userEvent.UserID, req); err != nil {
+			log.Printf("Failed to create default wallet: %v", err)
+		}
 	
 	return nil
 }
