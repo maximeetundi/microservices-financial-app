@@ -209,6 +209,8 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 			log.Printf("Failed to create default wallet: %v", err)
 		}
 	
+	}
+	
 	return nil
 }
 
