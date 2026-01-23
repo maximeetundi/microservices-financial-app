@@ -26,9 +26,10 @@ type ShopDetails struct {
 func NewShopClient(cfg *config.Config) *ShopClient {
 	// Assuming shop service URL is in config or default
 	// We might need to add ShopServiceURL to config if not present
-	url := "http://shop-service:8098" // Hardcoded default for now or add to config
-	if val := cfg.GetEnv("SHOP_SERVICE_URL", ""); val != "" {
-		url = val
+	// Default from config
+	url := cfg.ShopServiceURL
+	if url == "" {
+		url = "http://shop-service:8098"
 	}
 	
 	return &ShopClient{
