@@ -34,7 +34,8 @@ func (h *OrderHandler) Create(c *gin.Context) {
 		return
 	}
 
-	order, err := h.orderService.Create(c.Request.Context(), &req, userID, userName, userEmail)
+	token := c.GetHeader("Authorization")
+	order, err := h.orderService.Create(c.Request.Context(), &req, userID, userName, userEmail, token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

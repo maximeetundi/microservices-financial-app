@@ -144,7 +144,7 @@ func (s *ShopService) GetMyShops(ctx context.Context, userID string) ([]models.S
 	return s.shopRepo.GetByManagerID(ctx, userID)
 }
 
-func (s *ShopService) Update(ctx context.Context, shopID string, req *models.UpdateShopRequest, userID string) (*models.Shop, error) {
+func (s *ShopService) Update(ctx context.Context, shopID string, req *models.UpdateShopRequest, userID, token string) (*models.Shop, error) {
 	oid, err := parseObjectID(shopID)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (s *ShopService) Update(ctx context.Context, shopID string, req *models.Upd
 	}
 	if req.WalletID != nil {
 		// Validate new wallet
-		valid, err := s.walletClient.ValidateWalletOwnership(*req.WalletID, shop.OwnerID)
+		valid, err := s.walletClient.ValidateWalletOwnership(*req.WalletID, shop.OwnerID, token)
 		if err != nil || !valid {
 			return nil, fmt.Errorf("invalid wallet")
 		}

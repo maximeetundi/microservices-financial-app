@@ -39,7 +39,7 @@ func NewOrderService(
 	}
 }
 
-func (s *OrderService) Create(ctx context.Context, req *models.CreateOrderRequest, userID, userName, userEmail string) (*models.Order, error) {
+func (s *OrderService) Create(ctx context.Context, req *models.CreateOrderRequest, userID, userName, userEmail, token string) (*models.Order, error) {
 	shopID, err := parseObjectID(req.ShopID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid shop ID: %w", err)
@@ -51,7 +51,7 @@ func (s *OrderService) Create(ctx context.Context, req *models.CreateOrderReques
 	}
 	
 	// Validate and get buyer's wallet
-	buyerWallet, err := s.walletClient.GetWallet(req.WalletID)
+	buyerWallet, err := s.walletClient.GetWallet(req.WalletID, token)
 	if err != nil {
 		return nil, fmt.Errorf("invalid wallet: %w", err)
 	}

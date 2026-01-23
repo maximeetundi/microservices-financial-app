@@ -113,7 +113,8 @@ func (h *ShopHandler) Update(c *gin.Context) {
 		return
 	}
 
-	shop, err := h.shopService.Update(c.Request.Context(), shopID, &req, userID)
+	token := c.GetHeader("Authorization")
+	shop, err := h.shopService.Update(c.Request.Context(), shopID, &req, userID, token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
