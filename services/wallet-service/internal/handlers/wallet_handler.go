@@ -59,6 +59,28 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"wallets": wallets})
 }
 
+func (h *WalletHandler) DeleteWallet(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	walletID := c.Param("id")
+	if walletID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wallet ID is required"})
+		return
+	}
+
+	err := h.walletService.DeleteWallet(walletID, userID.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet deleted successfully"})
+}
+
 // getCurrencyForCountry returns the appropriate currency for a country code
 func getCurrencyForCountry(countryCode string) string {
 	// UEMOA - West African CFA Franc (XOF)

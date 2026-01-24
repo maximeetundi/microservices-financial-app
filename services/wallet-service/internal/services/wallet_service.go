@@ -101,6 +101,40 @@ func (s *WalletService) GetWallet(walletID, userID string) (*models.Wallet, erro
 	return wallet, nil
 }
 
+func (s *WalletService) DeleteWallet(walletID, userID string) error {
+	wallet, err := s.walletRepo.GetByID(walletID)
+	if err != nil {
+		return err
+	}
+
+	if wallet.UserID != userID {
+		return fmt.Errorf("wallet not found")
+	}
+
+	if wallet.Balance > 0 || wallet.FrozenBalance > 0 {
+		return fmt.Errorf("cannot delete wallet with funds. please transfer funds to your main wallet first")
+	}
+
+	// Check if it's the main (oldest) wallet
+	userWallets, err := s.walletRepo.GetByUserID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to check user wallets: %w", err)
+	}
+
+	if len(userWallets) == 0 {
+		return fmt.Errorf("no wallets found")
+	}
+
+	// Assuming GetByUserID returns sorted by CreatedAt DESC, the last one is the oldest
+	mainWallet := userWallets[len(userWallets)-1]
+	
+	if mainWallet.ID == walletID {
+		return fmt.Errorf("cannot delete main wallet. one wallet must always remain")
+	}
+
+	return s.walletRepo.Delete(walletID)
+}
+
 func (s *WalletService) GetUserWallets(userID string) ([]*models.Wallet, error) {
 	wallets, err := s.walletRepo.GetByUserID(userID)
 	if err != nil {

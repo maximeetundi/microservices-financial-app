@@ -131,6 +131,11 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               Envoyer
             </NuxtLink>
+            <button @click.stop="requestDelete(wallet)" 
+                    class="p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all border border-red-100 dark:border-red-500/20"
+                    title="Supprimer">
+               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -362,15 +367,130 @@
       </div>
 
     </div>
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in-up">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800">
+         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Supprimer le portefeuille ?</h3>
+         
+         <div v-if="walletToDelete" class="mb-6">
+           <p class="text-gray-600 dark:text-gray-400 mb-4">
+             Vous êtes sur le point de supprimer <strong>{{ walletToDelete.name }}</strong>.
+           </p>
+
+           <div v-if="walletToDelete.balance > 0" class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-200 dark:border-yellow-700/50 mb-4">
+             <div class="flex items-start gap-3">
+               <span class="text-2xl">⚠️</span>
+               <div>
+                 <p class="font-bold text-yellow-800 dark:text-yellow-200 text-sm">Fonds restants : {{ walletToDelete.balance }} {{ walletToDelete.currency }}</p>
+                 <p class="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                   Les fonds seront automatiquement convertis et envoyés vers votre portefeuille principal ({{ mainWallet?.name }}).
+                 </p>
+               </div>
+             </div>
+           </div>
+
+           <p class="text-sm text-gray-500">Cette action est irréversible.</p>
+         </div>
+
+         <div v-if="deleteError" class="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+           {{ deleteError }}
+         </div>
+
+         <div class="flex gap-3 mt-6">
+           <button @click="showDeleteModal = false" class="flex-1 py-3 px-4 rounded-xl font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
+             Annuler
+           </button>
+           <button 
+             @click="confirmDelete" 
+             :disabled="deleteLoading"
+             class="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex justify-center items-center"
+           >
+             <svg v-if="deleteLoading" class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+             </svg>
+             {{ deleteLoading ? 'Suppression...' : 'Confirmer' }}
+           </button>
+         </div>
+      </div>
+    </div>
   </NuxtLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { walletAPI } from '~/composables/useApi'
+import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+// Delete Logic
+const showDeleteModal = ref(false)
+const walletToDelete = ref(null)
+const deleteLoading = ref(false)
+const deleteError = ref('')
+
+const mainWallet = computed(() => {
+  if (!wallets.value.length) return null
+  // Oldest wallet is considered Main
+  return [...wallets.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
+})
+
+const requestDelete = (wallet) => {
+  if (mainWallet.value && wallet.id === mainWallet.value.id) {
+    alert("Impossible de supprimer votre portefeuille principal.")
+    return
+  }
+  walletToDelete.value = wallet
+  deleteError.value = ''
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async () => {
+  if (!walletToDelete.value) return
+  
+  try {
+    deleteLoading.value = true
+    deleteError.value = ''
+
+    // 1. Check for funds and transfer if needed
+    if (walletToDelete.value.balance > 0 && mainWallet.value) {
+      if (walletToDelete.value.currency === mainWallet.value.currency) {
+         // Same currency transfer
+         await transferAPI.create({
+            type: 'internal', 
+            amount: walletToDelete.value.balance,
+            currency: walletToDelete.value.currency, 
+            recipient: mainWallet.value.id,
+            description: `Clôture du portefeuille ${walletToDelete.value.name}`
+         })
+      } else {
+         // Different currency
+         await transferAPI.create({
+            type: 'internal', 
+            amount: walletToDelete.value.balance, 
+            currency: walletToDelete.value.currency, 
+            recipient: mainWallet.value.id,
+            description: `Clôture du portefeuille ${walletToDelete.value.name} (Conversion)`
+         })
+      }
+    }
+
+    // 2. Delete Wallet
+    await walletAPI.delete(walletToDelete.value.id)
+    
+    // 3. Refresh
+    await fetchWallets()
+    showDeleteModal.value = false
+    
+  } catch (e) {
+    console.error(e)
+    deleteError.value = e.response?.data?.error || e.message || "Erreur lors de la suppression"
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
 
 // Wallets - will be loaded from API
 const wallets = ref([])

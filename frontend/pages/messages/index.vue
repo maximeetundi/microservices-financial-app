@@ -149,8 +149,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import { contactsAPI } from '~/composables/useApi'
-import api from '~/composables/useApi'
+import api, { contactsAPI, messagingAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
 import MessageInput from '~/components/messages/MessageInput.vue'
@@ -467,7 +466,7 @@ const loadParticipantPresence = async (conv: any) => {
 const loadMessages = async () => {
   if (!selectedConv.value) return
   try {
-    const res = await api.get(`/messaging-service/api/v1/conversations/${selectedConv.value.id}/messages`)
+    const res = await messagingAPI.getMessages(selectedConv.value.id)
     const userId = currentUserId.value
     
     // Get other participant IDs from the conversation
@@ -495,7 +494,7 @@ const loadMessages = async () => {
 
 const loadConversations = async () => {
   try {
-    const res = await api.get('/messaging-service/api/v1/conversations')
+    const res = await messagingAPI.getConversations()
     userConversations.value = res.data?.conversations || []
   } catch (err) {
     console.error('Failed to load conversations:', err)
@@ -517,12 +516,9 @@ const handleContactConversation = async (user: any) => {
   showContactsModal.value = false
   // Create or get existing conversation with this user
   try {
-    const res = await api.post('/messaging-service/api/v1/conversations', {
+    const res = await messagingAPI.createConversation({
       participant_id: user.id,
-      participant_name: user.contactName || user.name || 'Utilisateur',
-      participant_email: user.email || '',
-      participant_phone: user.phone || '',
-      my_name: authStore.user?.firstName || 'Moi'
+      participant_name: user.contactName || user.name || 'Utilisateur'
     })
     const conversation = res.data
     userConversations.value.unshift(conversation)
@@ -536,7 +532,7 @@ const deleteConversation = async (conv: any) => {
   if (!confirm('Supprimer cette conversation ?')) return
   
   try {
-    await api.delete(`/messaging-service/api/v1/conversations/${conv.id}`)
+    await messagingAPI.deleteConversation(conv.id)
     userConversations.value = userConversations.value.filter(c => c.id !== conv.id)
     
     // Clear selection if this was the selected conversation
@@ -582,7 +578,7 @@ onMounted(async () => {
   
   try {
     const [convRes, contactsRes] = await Promise.all([
-      api.get('/messaging-service/api/v1/conversations'),
+      messagingAPI.getConversations(),
       contactsAPI.getAll()
     ])
     userConversations.value = convRes.data?.conversations || []

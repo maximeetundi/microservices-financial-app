@@ -255,6 +255,7 @@ export const walletAPI = {
         api.post(`/wallet-service/api/v1/wallets/${id}/deposit`, { amount, method }),
     withdraw: (id: string, amount: number, destination: string) =>
         api.post(`/wallet-service/api/v1/wallets/${id}/withdraw`, { amount, destination }),
+    delete: (id: string) => api.delete(`/wallet-service/api/v1/wallets/${id}`),
 
     // Crypto wallet methods
     generateCryptoWallet: (currency: string) =>
@@ -721,6 +722,25 @@ export const enterpriseAPI = {
     getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
 }
 
+// === MESSAGING API ===
+export const messagingAPI = {
+    // Conversations
+    getConversations: () => api.get('/messaging-service/api/v1/conversations'),
+    createConversation: (data: { participant_id: string, participant_name?: string }) => api.post('/messaging-service/api/v1/conversations', data),
+    deleteConversation: (id: string) => api.delete(`/messaging-service/api/v1/conversations/${id}`),
+
+    // Messages
+    getMessages: (conversationId: string) => api.get(`/messaging-service/api/v1/conversations/${conversationId}/messages`),
+    sendMessage: (conversationId: string, content: string, type = 'text', attachments: string[] = []) =>
+        api.post(`/messaging-service/api/v1/conversations/${conversationId}/messages`, { content, type, attachments }),
+    markAsRead: (messageId: string) => api.post(`/messaging-service/api/v1/messages/${messageId}/read`),
+
+    // Upload
+    uploadFile: (formData: FormData) => api.post('/messaging-service/api/v1/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+}
+
 export const useApi = () => {
     const apiObject = {
         authApi: authAPI,
@@ -741,6 +761,7 @@ export const useApi = () => {
         contactsApi: contactsAPI,
         donationApi: donationAPI,
         enterpriseApi: enterpriseAPI,
+        messagingApi: messagingAPI,
     }
     console.log('useApi returned keys:', Object.keys(apiObject))
     return apiObject

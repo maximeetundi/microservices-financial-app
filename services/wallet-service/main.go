@@ -156,6 +156,7 @@ func main() {
 			// Deposit and Withdraw routes (added to match frontend)
 			protected.POST("/wallets/:wallet_id/deposit", walletHandler.Deposit)
 			protected.POST("/wallets/:wallet_id/withdraw", walletHandler.Withdraw)
+			protected.DELETE("/wallets/:wallet_id", walletHandler.DeleteWallet)
 
 			// Crypto wallet specific routes
 			crypto := protected.Group("/crypto")

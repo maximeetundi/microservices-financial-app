@@ -68,11 +68,11 @@
         </div>
 
         <!-- Products Card -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
+        <NuxtLink :to="`/shops/manage/${slug}/products`" class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer border border-transparent hover:border-indigo-500">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Produits</h3>
           <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">0</div>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">En stock</p>
-        </div>
+        </NuxtLink>
       </div>
 
       <!-- Quick Actions -->
@@ -80,18 +80,22 @@
         <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Gestion rapide</h3>
           <div class="space-y-3">
-            <button class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+            <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
               <span class="font-medium text-gray-700 dark:text-gray-200">Ajouter un produit</span>
               <span class="text-gray-400">→</span>
-            </button>
-            <button class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+            </NuxtLink>
+            <NuxtLink :to="`/shops/manage/${slug}/categories`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
               <span class="font-medium text-gray-700 dark:text-gray-200">Gérer les catégories</span>
               <span class="text-gray-400">→</span>
-            </button>
-            <button class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-              <span class="font-medium text-gray-700 dark:text-gray-200">Configuration paiement</span>
+            </NuxtLink>
+            <NuxtLink :to="`/shops/manage/${slug}/managers`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+              <span class="font-medium text-gray-700 dark:text-gray-200">Gérer l'équipe</span>
               <span class="text-gray-400">→</span>
-            </button>
+            </NuxtLink>
+            <NuxtLink :to="`/shops/manage/${slug}/settings`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+              <span class="font-medium text-gray-700 dark:text-gray-200">Paramètres & Paiement</span>
+              <span class="text-gray-400">→</span>
+            </NuxtLink>
           </div>
         </div>
 
