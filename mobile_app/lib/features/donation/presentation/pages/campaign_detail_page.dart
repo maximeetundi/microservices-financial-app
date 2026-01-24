@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../widgets/common/unified_qr_code_screen.dart';
 import '../../../../core/services/donation_api_service.dart';
 import '../widgets/donate_modal.dart';
 import 'donors_list_page.dart';
@@ -210,65 +211,37 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
 
                   // QR & Code
                   if (campaign['campaign_code'] != null)
+                  // QR & Code
+                  if (campaign['campaign_code'] != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                                 // QR Image
-                                 Container(
-                                   height: 100, 
-                                   width: 100,
-                                   decoration: BoxDecoration(
-                                     color: Colors.white,
-                                     borderRadius: BorderRadius.circular(8),
-                                   ),
-                                   padding: const EdgeInsets.all(4),
-                                   child: QrImageView(
-                                     data: 'https://app.tech-afm.com/donations/${widget.campaignId}',
-                                     version: QrVersions.auto,
-                                     size: 92.0,
-                                     backgroundColor: Colors.white,
-                                   ),
-                                 ),
-                                 const SizedBox(width: 16),
-                                 Expanded(
-                                   child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.start,
-                                     children: [
-                                       const Text('Code Campagne', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                       Row(
-                                         children: [
-                                           Text(
-                                             campaign['campaign_code'], 
-                                             style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                                           ),
-                                           IconButton(
-                                             icon: const Icon(Icons.copy, color: Color(0xFF6366f1), size: 20),
-                                             onPressed: () {
-                                               Clipboard.setData(ClipboardData(text: campaign['campaign_code']));
-                                               ScaffoldMessenger.of(context).showSnackBar(
-                                                 const SnackBar(content: Text('Code copié !')),
-                                               );
-                                             },
-                                           ),
-                                         ],
-                                       ),
-                                       const SizedBox(height: 4),
-                                       const Text('Partagez ce code ou faites scanner le QR pour recevoir des dons.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                     ],
-                                   )
-                                 )
-                            ],
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UnifiedQRCodeScreen(
+                                title: campaign['title'] ?? 'Campagne',
+                                subtitle: 'Scan to donate',
+                                qrData: 'https://app.tech-afm.com/donations/${widget.campaignId}',
+                                displayCode: campaign['campaign_code'],
+                                shareText: 'Supports this campaign: ${campaign['title']}',
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('Afficher le QR Code & Partager'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Colors.white24),
                           ),
-                        ],
+                        ),
                       ),
                     ),
 

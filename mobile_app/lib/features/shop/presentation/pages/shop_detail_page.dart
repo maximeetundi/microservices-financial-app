@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/shop_models.dart';
 import '../../data/repositories/shop_repository.dart';
 import 'cart_page.dart';
+import '../../../../widgets/common/unified_qr_code_screen.dart';
 
 class ShopDetailPage extends StatefulWidget {
   final String shopSlug;
@@ -99,6 +100,27 @@ class _ShopDetailPageState extends State<ShopDetailPage> {
             expandedHeight: 180,
             pinned: true,
             backgroundColor: Colors.indigo,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.qr_code_2),
+                onPressed: () {
+                  if (_shop == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UnifiedQRCodeScreen(
+                        title: _shop!.name,
+                        subtitle: 'Scan to visit shop',
+                        qrData: 'https://app.tech-afm.com/shops/${widget.shopSlug}',
+                        displayCode: widget.shopSlug,
+                        shareText: 'Check out this shop: ${_shop!.name}',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,

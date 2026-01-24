@@ -20,12 +20,7 @@
                 </div>
               </div>
             </div>
-            <!-- Logo Overlay (Optional) -->
-            <div v-if="qrUrl" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div class="w-10 h-10 bg-white rounded-full p-1 shadow-md">
-                 <img src="/logo-icon.png" onerror="this.style.display='none'" class="w-full h-full object-contain rounded-full">
-              </div>
-            </div>
+
           </div>
 
           <!-- Title/Subtitle -->
