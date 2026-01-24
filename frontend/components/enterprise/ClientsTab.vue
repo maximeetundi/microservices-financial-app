@@ -45,40 +45,42 @@
         <p class="text-gray-500 text-sm">Les clients apparaîtront ici après inscription</p>
       </div>
 
-      <table v-else class="w-full text-left text-sm">
-        <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase">
-          <tr>
-            <th class="px-6 py-4 font-semibold">Client</th>
-            <th class="px-6 py-4 font-semibold">Matricule</th>
-            <th class="px-6 py-4 font-semibold">Service</th>
-            <th class="px-6 py-4 font-semibold text-right">Montant</th>
-            <th class="px-6 py-4 font-semibold">Prochaine Facture</th>
-            <th class="px-6 py-4 font-semibold text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-          <tr v-for="sub in clients" :key="sub.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ sub.client_name }}</td>
-            <td class="px-6 py-4">
-              <span v-if="sub.external_id" class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-mono text-gray-600 dark:text-gray-300">
-                {{ sub.external_id }}
-              </span>
-              <span v-else class="text-gray-400">--</span>
-            </td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">{{ getServiceName(sub.service_id) }}</td>
-            <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">
-              {{ formatCurrency(sub.amount) }}
-              <span class="text-xs text-gray-400 block">{{ formatFrequency(sub.billing_frequency) }}</span>
-            </td>
-            <td class="px-6 py-4 text-gray-500">{{ formatDate(sub.next_billing_at) }}</td>
-            <td class="px-6 py-4 text-right">
-              <button @click="confirmCancel(sub)" class="text-red-500 hover:text-red-700 text-xs font-medium hover:underline">
-                Résilier
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table v-else class="w-full text-left text-sm">
+          <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase">
+            <tr>
+              <th class="px-6 py-4 font-semibold">Client</th>
+              <th class="px-6 py-4 font-semibold">Matricule</th>
+              <th class="px-6 py-4 font-semibold">Service</th>
+              <th class="px-6 py-4 font-semibold text-right">Montant</th>
+              <th class="px-6 py-4 font-semibold">Prochaine Facture</th>
+              <th class="px-6 py-4 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+            <tr v-for="sub in clients" :key="sub.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ sub.client_name }}</td>
+              <td class="px-6 py-4">
+                <span v-if="sub.external_id" class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-mono text-gray-600 dark:text-gray-300">
+                  {{ sub.external_id }}
+                </span>
+                <span v-else class="text-gray-400">--</span>
+              </td>
+              <td class="px-6 py-4 text-gray-600 dark:text-gray-300">{{ getServiceName(sub.service_id) }}</td>
+              <td class="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">
+                {{ formatCurrency(sub.amount) }}
+                <span class="text-xs text-gray-400 block">{{ formatFrequency(sub.billing_frequency) }}</span>
+              </td>
+              <td class="px-6 py-4 text-gray-500">{{ formatDate(sub.next_billing_at) }}</td>
+              <td class="px-6 py-4 text-right">
+                <button @click="confirmCancel(sub)" class="text-red-500 hover:text-red-700 text-xs font-medium hover:underline">
+                  Résilier
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Add Client Modal -->
