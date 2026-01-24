@@ -58,7 +58,7 @@ func main() {
 	}
 	minioPublicURL := os.Getenv("MINIO_PUBLIC_URL")
 	if minioPublicURL == "" {
-		minioPublicURL = "https://cdn.maximeetundi.store"
+		minioPublicURL = "https://cdn.tech-afm.com"
 	}
 	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
 
@@ -86,7 +86,7 @@ func main() {
 
 	// CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://app.maximeetundi.store", "https://admin.maximeetundi.store", "http://localhost:3000", "http://localhost:3001"},
+		AllowOrigins:     []string{"https://app.tech-afm.com", "https://admin.tech-afm.com", "http://localhost:3000", "http://localhost:3001"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Authorization"},

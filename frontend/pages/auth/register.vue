@@ -331,7 +331,7 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const apiUrl = config.public.apiBaseUrl || 'https://api.app.maximeetundi.store'
+    const apiUrl = config.public.apiBaseUrl || 'https://api.app.tech-afm.com'
     const dateOfBirth = form.value.date_of_birth ? `${form.value.date_of_birth}T00:00:00Z` : ''
     
     const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {

@@ -209,7 +209,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kyc-documents
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -387,7 +387,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kyc-documents
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
       - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/?authSource=admin
     networks:
       - crypto-bank-network
@@ -422,7 +422,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=support-attachments
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -448,7 +448,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -474,7 +474,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -506,7 +506,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=enterprise-assets
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -534,13 +534,13 @@ services:
       - KAFKA_GROUP_ID=shop-service-group
       - WALLET_SERVICE_URL=http://wallet-service:8083
       - EXCHANGE_SERVICE_URL=http://exchange-service:8085
-      - APP_URL=https://app.maximeetundi.store
+      - APP_URL=https://app.tech-afm.com
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=shop-assets
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
       - AUTH_SERVICE_URL=http://auth-service:8081
     networks:
       - crypto-bank-network
@@ -566,7 +566,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=chat-attachments
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.tech-afm.com}
       - PORT=8095
     networks:
       - crypto-bank-network
@@ -577,14 +577,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - API_URL=${API_URL:-https://api.app.maximeetundi.store}
+        - API_URL=${API_URL:-https://api.app.tech-afm.com}
     ports:
       - "3000:3000"
     depends_on:
       - api-gateway
     environment:
-      - API_URL=${API_URL:-https://api.app.maximeetundi.store}
-      - API_BASE_URL=${API_URL:-https://api.app.maximeetundi.store}
+      - API_URL=${API_URL:-https://api.app.tech-afm.com}
+      - API_BASE_URL=${API_URL:-https://api.app.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -595,13 +595,13 @@ services:
       context: ./admin-dashboard
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.maximeetundi.store}
+        - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.tech-afm.com}
     ports:
       - "3002:3002"
     depends_on:
       - admin-service
     environment:
-      - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.maximeetundi.store}
+      - NEXT_PUBLIC_API_URL=${ADMIN_API_URL:-https://api.admin.tech-afm.com}
     networks:
       - crypto-bank-network
     restart: unless-stopped

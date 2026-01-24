@@ -198,7 +198,7 @@ const getCurrentUserId = () => {
 // WebSocket URL
 const getWsUrl = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//api.app.maximeetundi.store/messaging-service/ws/chat`
+  return `${protocol}//api.app.tech-afm.com/messaging-service/ws/chat`
 }
 
 // Connect to WebSocket

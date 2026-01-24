@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Build argument - MUST be set for Next.js to use it
-ARG NEXT_PUBLIC_API_URL=https://api.admin.maximeetundi.store
+ARG NEXT_PUBLIC_API_URL=https://api.admin.tech-afm.com
 
 # Set env for build
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

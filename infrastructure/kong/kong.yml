@@ -108,8 +108,8 @@ plugins:
   - name: cors
     config:
       origins:
-        - "https://app.maximeetundi.store"
-        - "https://admin.maximeetundi.store"
+        - "https://app.tech-afm.com"
+        - "https://admin.tech-afm.com"
         - "http://localhost:3000"
         - "http://localhost:3001"
       methods:

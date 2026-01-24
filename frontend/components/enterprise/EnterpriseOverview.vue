@@ -188,7 +188,7 @@ const totalServices = computed(() => {
 
 const subscriptionLink = computed(() => {
   if (!props.enterprise?.id) return ''
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.maximeetundi.store'
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.tech-afm.com'
   return `${origin}/subscribe/${props.enterprise.id}`
 })
 

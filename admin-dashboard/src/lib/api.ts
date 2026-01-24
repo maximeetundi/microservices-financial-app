@@ -140,7 +140,7 @@ export const getAuditLogs = (limit = 100, offset = 0) =>
 // In production, use the main API gateway (same as admin but replace admin-service path)
 const getBaseApiUrl = () => {
     // For production, use the same base URL as admin but without the /api/v1/admin path
-    // API_URL is like https://api.admin.maximeetundi.store
+    // API_URL is like https://api.admin.tech-afm.com
     // We need to go through Kong which routes /support-service to the support service
     if (API_URL.includes('localhost')) {
         // Local dev: support-service is on port 8089

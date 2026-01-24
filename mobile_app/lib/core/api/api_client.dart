@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
   // Production API URL
-  static const String _baseUrlProduction = 'https://api.app.maximeetundi.store';
+  static const String _baseUrlProduction = 'https://api.app.tech-afm.com';
   // For local development, use these:
   // static const String _baseUrlAndroid = 'http://10.0.2.2:8080';
   // static const String _baseUrlIOS = 'http://localhost:8080';

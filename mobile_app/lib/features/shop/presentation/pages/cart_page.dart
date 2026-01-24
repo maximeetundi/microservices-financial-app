@@ -20,7 +20,7 @@ class CartPage extends StatefulWidget {
 
 class _CartPageState extends State<CartPage> {
   final ShopRepository _repository = ShopRepository(
-    baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'https://api.maximeetundi.store'),
+    baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'https://api.tech-afm.com'),
   );
 
   String? _selectedWalletId;

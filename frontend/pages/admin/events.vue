@@ -138,7 +138,7 @@ const events = ref([])
 const tickets = ref([])
 
 const config = useRuntimeConfig()
-const apiUrl = config.public.adminApiUrl || 'https://api.admin.maximeetundi.store'
+const apiUrl = config.public.adminApiUrl || 'https://api.admin.tech-afm.com'
 
 const fetchEvents = async () => {
   try {

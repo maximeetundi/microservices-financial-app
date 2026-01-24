@@ -111,7 +111,7 @@ class ContactsSyncService {
       dio.options.headers['Authorization'] = 'Bearer $token';
       
       await dio.post(
-        'https://api.app.maximeetundi.store/auth-service/api/v1/users/contacts/sync',
+        'https://api.app.tech-afm.com/auth-service/api/v1/users/contacts/sync',
         data: {'contacts': contacts},
       );
       

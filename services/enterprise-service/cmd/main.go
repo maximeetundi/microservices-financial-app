@@ -57,7 +57,7 @@ func main() {
 
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://app.maximeetundi.store", "http://localhost:3000"},
+		AllowOrigins:     []string{"https://app.tech-afm.com", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
@@ -146,7 +146,7 @@ func main() {
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
 		
 		// QR Code Routes
-		qrHandler := handlers.NewQRCodeHandler("https://app.maximeetundi.store", entRepo)
+		qrHandler := handlers.NewQRCodeHandler("https://app.tech-afm.com", entRepo)
 		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
 		api.GET("/enterprises/:id/services/:serviceId/qrcode", qrHandler.GenerateServiceQR)
 		api.GET("/enterprises/:id/groups/:groupId/qrcode", qrHandler.GenerateServiceGroupQR)

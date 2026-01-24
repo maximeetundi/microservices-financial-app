@@ -4,39 +4,39 @@ Ce fichier récapitule les ports internes utilisés par chaque microservice et l
 
 ## 🌍 Domaines Publics
 
-| Application | URL / Domaine |
-| :--- | :--- |
-| **Application Web (Frontend)** | `https://app.maximeetundi.store` |
-| **Admin Dashboard** | `https://admin.maximeetundi.store` |
-| **API Gateway (Publique)** | `https://api.app.maximeetundi.store` |
-| **API Admin (Gateway)** | `https://api.admin.maximeetundi.store` |
-| **CDN (Assets)** | `https://cdn.maximeetundi.store` |
+| Application | URL / Domaine | Port Interne |
+| :--- | :--- | :---: |
+| **Application Web (Frontend)** | `https://app.tech-afm.com` | `3000` |
+| **Admin Dashboard** | `https://admin.tech-afm.com` | `3002` |
+| **API Gateway (Publique)** | `https://api.app.tech-afm.com` | `8080` |
+| **API Admin (Backend)** | `https://api.admin.tech-afm.com` | `8088` |
+| **CDN (Assets)** | `https://cdn.tech-afm.com` | `9000` |
 
 ---
 
 ## 🔌 Services & Ports Internes
 
-Voici la liste des services, leurs ports Docker internes, et leurs routes via l'API Gateway (Kong).
+Voici la liste des services, leurs ports Docker internes, et leurs URLs publiques via l'API Gateway.
 
-| Service | Port Interne | Route API Gateway |
+| Service | Port Local (Docker) | URL Publique |
 | :--- | :---: | :--- |
-| **API Gateway (Kong)** | `8080` | `/` |
+| **API Gateway (Kong)** | `8080` | `https://api.app.tech-afm.com` |
 | **Kong Admin** | `8001` | *(Non exposé publiquement)* |
-| **Frontend** | `3000` | - |
-| **Admin Dashboard** | `3002` | - |
-| **Auth Service** | `8081` | `/auth-service` |
-| **Wallet Service** | `8083` | `/wallet-service` |
-| **Transfer Service** | `8084` | `/transfer-service` |
-| **Exchange Service** | `8085` | `/exchange-service` |
-| **Card Service** | `8086` | `/card-service` |
-| **Notification Service** | `8087` | `/notification-service` |
-| **Admin Service** (Backend) | `8088` | `/admin-service` |
-| **Support Service** | `8089` | `/support-service` |
-| **Ticket Service** | `8090` | `/ticket-service` |
-| **Messaging Service** | `8095` | `/messaging-service` |
-| **Donation Service** | `8096` | `/donation-service` |
-| **Enterprise Service** | `8097` | `/enterprise-service` |
-| **Shop Service** | `8098` | `/shop-service` |
+| **Frontend** | `3000` | `https://app.tech-afm.com` |
+| **Admin Dashboard** | `3002` | `https://admin.tech-afm.com` |
+| **Auth Service** | `8081` | `https://api.app.tech-afm.com/auth-service` |
+| **Wallet Service** | `8083` | `https://api.app.tech-afm.com/wallet-service` |
+| **Transfer Service** | `8084` | `https://api.app.tech-afm.com/transfer-service` |
+| **Exchange Service** | `8085` | `https://api.app.tech-afm.com/exchange-service` |
+| **Card Service** | `8086` | `https://api.app.tech-afm.com/card-service` |
+| **Notification Service** | `8087` | `https://api.app.tech-afm.com/notification-service` |
+| **Admin Service** (Backend) | `8088` | `https://api.admin.tech-afm.com/admin-service` |
+| **Support Service** | `8089` | `https://api.app.tech-afm.com/support-service` |
+| **Ticket Service** | `8090` | `https://api.app.tech-afm.com/ticket-service` |
+| **Messaging Service** | `8095` | `https://api.app.tech-afm.com/messaging-service` |
+| **Donation Service** | `8096` | `https://api.app.tech-afm.com/donation-service` |
+| **Enterprise Service** | `8097` | `https://api.app.tech-afm.com/enterprise-service` |
+| **Shop Service** | `8098` | `https://api.app.tech-afm.com/shop-service` |
 
 ---
 
@@ -54,4 +54,4 @@ Voici la liste des services, leurs ports Docker internes, et leurs routes via l'
 | **Prometheus** | `9090` | Monitoring |
 | **Grafana** | `3001` | Visualisation (`:3000` interne) |
 
-> **Note :** Les routes API sont accessibles via `https://api.app.maximeetundi.store/<route>`. Exemple : `https://api.app.maximeetundi.store/wallet-service/health`
+> **Note :** Les routes API sont accessibles via `https://api.app.tech-afm.com/<route>`. Exemple : `https://api.app.tech-afm.com/wallet-service/health`

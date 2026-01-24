@@ -20,7 +20,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBaseUrl: 'https://api.app.maximeetundi.store',
+      apiBaseUrl: 'https://api.app.tech-afm.com',
       appName: 'Zekora',
       appVersion: '1.0.0'
     }

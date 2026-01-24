@@ -118,7 +118,7 @@ const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)
 
-const API_URL = 'https://api.app.maximeetundi.store'
+const API_URL = 'https://api.app.tech-afm.com'
 
 const handleLogin = async () => {
   loading.value = true

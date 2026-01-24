@@ -88,7 +88,7 @@ func main() {
 	// QR Service (using app URL)
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
-		appURL = "https://app.maximeetundi.store"
+		appURL = "https://app.tech-afm.com"
 	}
 	qrService := services.NewQRService(appURL)
 

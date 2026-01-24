@@ -12,7 +12,7 @@ class ShopsPage extends StatefulWidget {
 
 class _ShopsPageState extends State<ShopsPage> {
   final ShopRepository _repository = ShopRepository(
-    baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'https://api.maximeetundi.store'),
+    baseUrl: const String.fromEnvironment('API_URL', defaultValue: 'https://api.tech-afm.com'),
   );
 
   List<Shop> _shops = [];

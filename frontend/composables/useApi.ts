@@ -19,7 +19,7 @@ let refreshSubscribersGlobal: Array<(token: string) => void> = []
 const getApiUrl = () => {
     if (typeof window !== 'undefined') {
         // Client-side: use the API URL
-        return 'https://api.app.maximeetundi.store'
+        return 'https://api.app.tech-afm.com'
     }
     // Server-side or fallback
     return process.env.API_BASE_URL || 'http://api-gateway:8080'

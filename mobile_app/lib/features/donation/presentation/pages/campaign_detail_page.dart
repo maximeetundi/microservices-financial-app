@@ -232,7 +232,7 @@ class _CampaignDetailPageState extends State<CampaignDetailPage> {
                                    ),
                                    padding: const EdgeInsets.all(4),
                                    child: QrImageView(
-                                     data: 'https://app.maximeetundi.store/donations/${widget.campaignId}',
+                                     data: 'https://app.tech-afm.com/donations/${widget.campaignId}',
                                      version: QrVersions.auto,
                                      size: 92.0,
                                      backgroundColor: Colors.white,

@@ -16,7 +16,7 @@ const onMessageCallbacks: ((msg: WebSocketMessage) => void)[] = []
 export function useWebSocket() {
     const getWsUrl = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const apiHost = 'api.app.maximeetundi.store'
+        const apiHost = 'api.app.tech-afm.com'
         return `${protocol}//${apiHost}/messaging-service/ws/chat`
     }
 

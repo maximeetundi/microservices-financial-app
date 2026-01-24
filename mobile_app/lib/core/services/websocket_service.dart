@@ -64,7 +64,7 @@ class WebSocketService {
   final List<void Function()> _onConnectedCallbacks = [];
   final List<void Function()> _onDisconnectedCallbacks = [];
 
-  static const String _wsUrl = 'wss://api.app.maximeetundi.store/messaging-service/ws/chat';
+  static const String _wsUrl = 'wss://api.app.tech-afm.com/messaging-service/ws/chat';
 
   bool get isConnected => _isConnected;
 
