@@ -120,14 +120,16 @@ func (w *WalletClient) GetWalletBalanceByID(walletID, token string) (float64, st
 	}
 
 	var response struct {
-		Balance float64 `json:"balance"`
-		// API might not return currency in simple balance endpoint, implied from context or we fetch wallet details
+		Balance struct {
+			Available float64 `json:"available"`
+			Currency  string  `json:"currency"`
+		} `json:"balance"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return 0, "", fmt.Errorf("failed to decode wallet balance: %w", err)
 	}
 
-	return response.Balance, "", nil 
+	return response.Balance.Available, response.Balance.Currency, nil 
 }
 
 func (w *WalletClient) ProcessTransaction(req *TransactionRequest) error {
