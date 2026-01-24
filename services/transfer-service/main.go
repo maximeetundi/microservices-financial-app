@@ -58,13 +58,15 @@ func main() {
 	// Initialize repositories
 	transferRepo := repository.NewTransferRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
+	feeRepo := repository.NewFeeRepository(db)
 
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg)
 	exchangeClient := services.NewExchangeClient()
 	enterpriseClient := services.NewEnterpriseClient(cfg)
 	shopClient := services.NewShopClient(cfg)
-	transferService := services.NewTransferService(transferRepo, walletRepo, kafkaClient, enterpriseClient, shopClient, cfg)
+	feeService := services.NewFeeService(feeRepo)
+	transferService := services.NewTransferService(transferRepo, walletRepo, kafkaClient, enterpriseClient, shopClient, feeService, cfg)
 	mobilemoneyService := services.NewMobileMoneyService(cfg)
 	internationalService := services.NewInternationalTransferService(cfg)
 	complianceService := services.NewComplianceService(cfg)

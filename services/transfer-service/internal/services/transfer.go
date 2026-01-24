@@ -20,6 +20,7 @@ type TransferService struct {
 	kafkaClient      *messaging.KafkaClient
 	enterpriseClient *EnterpriseClient
 	shopClient       *ShopClient
+	feeService       *FeeService
 	config           *config.Config
 }
 
@@ -29,6 +30,7 @@ func NewTransferService(
 	kafkaClient *messaging.KafkaClient,
 	enterpriseClient *EnterpriseClient,
 	shopClient *ShopClient,
+	feeService *FeeService,
 	config *config.Config,
 ) *TransferService {
 	return &TransferService{
@@ -37,6 +39,7 @@ func NewTransferService(
 		kafkaClient:      kafkaClient,
 		enterpriseClient: enterpriseClient,
 		shopClient:       shopClient,
+		feeService:       feeService,
 		config:           config,
 	}
 }
@@ -54,8 +57,10 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	}
 
 	// Calculate fee
-	transferType := "domestic" // default type
-	fee := s.calculateFee(transferType, req.Amount)
+	fee, err := s.EstimateFee(req.Type, req.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate fee: %w", err)
+	}
 	
 	// Check balance covers amount + fee
 	totalDebit := req.Amount + fee
@@ -642,13 +647,7 @@ func (s *ComplianceService) CheckTransfer(transfer *models.Transfer) (*models.Co
 
 // Helper functions and methods
 
-func (s *TransferService) calculateFee(transferType string, amount float64) float64 {
-    // Simple fee logic: 1% for international, 0 for domestic
-    if transferType == "international" {
-        return amount * 0.01
-    }
-    return 0
-}
+// Helper functions and methods
 
 func (s *TransferService) resolveOrCreateRecipientWallet(email *string, phone *string, currency string) (string, error) {
 	var userID string

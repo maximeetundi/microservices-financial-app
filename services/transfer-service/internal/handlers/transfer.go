@@ -292,36 +292,25 @@ func (h *TransferHandler) GetFees(c *gin.Context) {
 		return
 	}
 
-	// Calculate fees based on transfer type
-	var feePercent float64
-	var fixedFee float64
-
-	switch transferType {
-	case "internal":
-		feePercent = 0.0
-		fixedFee = 0.0
-	case "bank":
-		feePercent = 0.5
-		fixedFee = 2.0
-	case "mobile":
-		feePercent = 1.0
-		fixedFee = 0.5
-	case "international":
-		feePercent = 2.0
-		fixedFee = 5.0
-	default:
-		feePercent = 1.0
-		fixedFee = 1.0
+	// Calculate fees using dynamic service
+	fee, err := h.transferService.EstimateFee(transferType, amount)
+	if err != nil {
+		// Log error but maybe return 0? Or error?
+		// For estimation, error is better or default 0.
+		// Let's return error if calculating failed unexpectedly, but maybe 0 is safer if config missing.
+		// FeeService CalculateFee returns 0 if error fetching config or missing.
+		// So real error is DB connectivity.
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate fee"})
+		return
 	}
 
-	fee := (amount * feePercent / 100) + fixedFee
 	total := amount + fee
 
 	c.JSON(http.StatusOK, gin.H{
 		"amount":       amount,
 		"fee":          fee,
-		"fee_percent":  feePercent,
-		"fixed_fee":    fixedFee,
+		"fee_percent":  0, // Dynamic fee details not exposed here, but total fee is what matters
+		"fixed_fee":    0,
 		"total":        total,
 		"currency":     currency,
 		"type":         transferType,

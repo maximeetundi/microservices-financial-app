@@ -176,6 +176,13 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 		totalAmount += estimatedFee.EstimatedFee
 	}
 
+	// Calculate platform fee
+	platformFee, err := s.feeService.CalculateFee("crypto_send", req.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate platform fee: %w", err)
+	}
+	totalAmount += platformFee
+
 	err = s.balanceService.ValidateSufficientBalance(walletID, totalAmount, false)
 	if err != nil {
 		return nil, err
@@ -197,7 +204,7 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 		FromWalletID:    &walletID,
 		TransactionType: "send",
 		Amount:          req.Amount,
-		Fee:             estimatedFee.EstimatedFee,
+		Fee:             estimatedFee.EstimatedFee + platformFee,
 		Currency:        wallet.Currency,
 		Status:          "pending",
 		Description:     req.Note,

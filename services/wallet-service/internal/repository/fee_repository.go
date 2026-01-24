@@ -75,6 +75,30 @@ func (r *FeeRepository) seedDefaults() error {
 			Type:        "percentage",
 			Percentage:  0, // Free by default
 		},
+		{
+			Key:         "crypto_send",
+			Description: "Crypto blockchain withdrawal/send fee (Platform fee)",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "transfer_bank",
+			Description: "Bank transfer fee",
+			Type:        "percentage", // or hybrid
+			Percentage:  0,
+		},
+		{
+			Key:         "transfer_mobile",
+			Description: "Mobile money transfer fee",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "transfer_international",
+			Description: "International transfer fee",
+			Type:        "percentage",
+			Percentage:  0,
+		},
 	}
 
 	for _, config := range defaults {

@@ -3,7 +3,7 @@
     <div class="p-8">
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">Gestion des Frais</h1>
-        <p class="text-slate-400">Configurez les frais dynamiques pour les services Wallet et Exchange.</p>
+        <p class="text-slate-400">Configurez les frais dynamiques pour tous les services.</p>
       </div>
 
       <!-- Tabs -->
@@ -13,14 +13,14 @@
           class="pb-2 px-4 text-sm font-medium transition-colors relative"
           :class="activeTab === 'wallet' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'"
         >
-          Wallet Service
+          Wallet / Transferts
         </button>
         <button 
           @click="activeTab = 'exchange'"
           class="pb-2 px-4 text-sm font-medium transition-colors relative"
           :class="activeTab === 'exchange' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'"
         >
-          Exchange Service
+          Exchange / Trading
         </button>
       </div>
 
@@ -43,10 +43,11 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-700/50">
-              <tr v-for="fee in currentFess" :key="fee.id" class="hover:bg-slate-700/20 transition-colors">
+              <tr v-for="fee in currentFees" :key="fee.id" class="hover:bg-slate-700/20 transition-colors">
                 <td class="px-6 py-4">
                   <div class="text-white font-medium">{{ formatKey(fee.key) }}</div>
                   <div class="text-xs text-slate-400">{{ fee.description }}</div>
+                  <div class="text-[10px] text-slate-500 font-mono mt-1">{{ fee.key }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <span class="px-2 py-1 rounded-full text-xs font-medium" 
@@ -79,9 +80,9 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="currentFess.length === 0">
+              <tr v-if="currentFees.length === 0">
                 <td colspan="6" class="px-6 py-8 text-center text-slate-400">
-                  Aucune configuration de frais trouvée.
+                  Aucune configuration de frais trouvée pour cette catégorie.
                 </td>
               </tr>
             </tbody>
@@ -94,7 +95,7 @@
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
       <div class="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg shadow-xl" @click.stop>
         <div class="p-6 border-b border-slate-700 flex justify-between items-center">
-          <h2 class="text-xl font-bold text-white">Modifier les frais</h2>
+          <h2 class="text-xl font-bold text-white">Modifier les frais: {{ formatKey(editingFee.key) }}</h2>
           <button @click="closeModal" class="text-slate-400 hover:text-white">✕</button>
         </div>
         
@@ -128,7 +129,7 @@
                <input v-model.number="editingFee.percentage" type="number" step="0.01" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors">
              </div>
              <div v-if="editingFee.type !== 'percentage'">
-               <label class="block text-sm font-medium text-slate-400 mb-1">Montant Fixe</label>
+               <label class="block text-sm font-medium text-slate-400 mb-1">Montant Fixe ({{ editingFee.currency || 'USD' }})</label>
                <input v-model.number="editingFee.fixed_amount" type="number" step="0.01" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors">
              </div>
           </div>
@@ -164,36 +165,38 @@ import { useApi } from '@/composables/useApi'
 
 const { adminFeeApi } = useApi()
 
-const activeTab = ref('wallet')
+const activeTab = ref('wallet') // 'wallet' or 'exchange'
 const loading = ref(true)
 const saving = ref(false)
 const showModal = ref(false)
-const walletFees = ref([])
-const exchangeFees = ref([])
+const allFees = ref([])
 const editingFee = ref({})
 
-const currentFess = computed(() => {
-  return activeTab.value === 'wallet' ? walletFees.value : exchangeFees.value
+const currentFees = computed(() => {
+  return allFees.value.filter(fee => {
+    if (activeTab.value === 'exchange') {
+      return fee.key.startsWith('exchange_') || fee.key.startsWith('trading_')
+    } else {
+      // Wallet, Transfer, Payment, etc.
+      return !fee.key.startsWith('exchange_') && !fee.key.startsWith('trading_')
+    }
+  })
 })
 
 const fetchFees = async () => {
   loading.value = true
   try {
-    const [walletRes, exchangeRes] = await Promise.all([
-      adminFeeApi.getWalletFees(),
-      adminFeeApi.getExchangeFees()
-    ])
-    walletFees.value = walletRes.data || []
-    exchangeFees.value = exchangeRes.data || []
+    const response = await adminFeeApi.getWalletFees()
+    allFees.value = response.data || []
   } catch (error) {
     console.error("Failed to fetch fees", error)
-    // Could add toast notification here
   } finally {
     loading.value = false
   }
 }
 
 const formatKey = (key) => {
+  if (!key) return ''
   return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
@@ -210,16 +213,14 @@ const closeModal = () => {
 const saveFee = async () => {
   saving.value = true
   try {
-    if (activeTab.value === 'wallet') {
-      await adminFeeApi.updateWalletFee(editingFee.value)
-      // Update local state vs re-fetch
-       const index = walletFees.value.findIndex(f => f.id === editingFee.value.id)
-       if (index !== -1) walletFees.value[index] = editingFee.value
-    } else {
-      await adminFeeApi.updateExchangeFee(editingFee.value)
-       const index = exchangeFees.value.findIndex(f => f.id === editingFee.value.id)
-       if (index !== -1) exchangeFees.value[index] = editingFee.value
+    await adminFeeApi.updateWalletFee(editingFee.value)
+    
+    // Update local state
+    const index = allFees.value.findIndex(f => f.id === editingFee.value.id)
+    if (index !== -1) {
+      allFees.value[index] = editingFee.value
     }
+    
     closeModal()
   } catch (error) {
     console.error("Failed to update fee", error)
