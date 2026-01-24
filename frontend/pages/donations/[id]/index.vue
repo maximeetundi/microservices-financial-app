@@ -281,43 +281,14 @@
         </div>
       </Teleport>
 
-      <!-- QR Code Modal -->
-      <Teleport to="body">
-        <div v-if="showQRModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showQRModal = false">
-            <div class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
-                <div class="p-4 bg-gray-50 dark:bg-slate-800 flex justify-end">
-                    <button @click="showQRModal = false" class="text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors">✕</button>
-                </div>
-                
-                <div class="p-8 text-center">
-                    <div class="mb-8 relative inline-block">
-                        <div class="bg-white p-4 rounded-2xl shadow-xl">
-                            <!-- Generated QR Code -->
-                            <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="w-48 h-48 object-contain">
-                            <div v-else class="w-48 h-48 bg-gray-100 flex items-center justify-center text-gray-300 text-6xl rounded-lg">📱</div>
-                        </div>
-                    </div>
-
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">{{ campaign?.title }}</h3>
-                    <p class="text-gray-500 text-sm mb-8 font-mono bg-gray-100 dark:bg-slate-800 py-2 rounded-lg select-all">
-                        {{ displayCode }}
-                    </p>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <button @click="copyCode(displayCode)" class="py-3 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
-                            <span>📋</span> Copier
-                        </button>
-                         <button @click="downloadQRCode" class="py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-                            <span>⬇️</span> PNG
-                        </button>
-                         <button @click="shareCampaign" class="col-span-2 py-3 bg-white border border-gray-200 dark:bg-slate-800 dark:border-gray-700 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                            <span>📤</span> Partager le lien
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </Teleport>
+      <ShareQRCodeModal
+        v-model="showQRModal"
+        :qr-data="windowLocation"
+        :display-code="displayCode"
+        :title="campaign?.title"
+        subtitle="Soutien"
+        :share-text="campaign?.description"
+      />
 
       <!-- Success Modal (Simplified) -->
         <Teleport to="body">
@@ -385,7 +356,7 @@
 import { useApi } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import { usePin } from '~/composables/usePin'
-import QRCode from 'qrcode'
+import ShareQRCodeModal from '~/components/common/ShareQRCodeModal.vue'
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
@@ -403,7 +374,7 @@ const campaignId = computed(() => route.params.id as string)
 const campaign = ref<any>(null)
 const loading = ref(true)
 const creatorName = ref('') 
-const qrCodeUrl = ref('')
+const windowLocation = ref('')
 
 const isCreator = computed(() => campaign.value && user.value && campaign.value.creator_id === user.value.id)
 
@@ -442,9 +413,10 @@ const loadData = async () => {
     try {
         const campRes = await donationApi.getCampaign(campaignId.value)
         campaign.value = campRes.data
-
-        // Always generate QR code from URL for easy scanning
-        generateQRCode(window.location.href)
+        
+        if (typeof window !== 'undefined') {
+            windowLocation.value = window.location.href
+        }
 
         // Fetch Creator Name
         if (campaign.value.creator_id) {
@@ -463,19 +435,8 @@ const loadData = async () => {
     }
 }
 
-const generateQRCode = async (text: string) => {
-    try {
-        qrCodeUrl.value = await QRCode.toDataURL(text, { width: 300, margin: 2, color: { dark: '#4f46e5', light: '#ffffff' } })
-    } catch (e) {
-        console.error("QR Env err", e)
-    }
-}
-
 const openQRModal = () => {
     showQRModal.value = true
-    if (!qrCodeUrl.value) {
-        generateQRCode(window.location.href)
-    }
 }
 
 const shareCampaign = async () => {
@@ -491,7 +452,7 @@ const shareCampaign = async () => {
             })
         } catch (e) { console.log('Share cancelled') }
     } else {
-        copyCode(url)
+        copyCode(displayCode.value)
     }
 }
 
@@ -614,19 +575,6 @@ const copyCode = (code: string) => {
     alert('Code copié !')
 }
 
-const downloadQRCode = () => {
-  if (!qrCodeUrl.value) {
-    alert('QR Code non disponible')
-    return
-  }
-  
-  const link = document.createElement('a')
-  link.href = qrCodeUrl.value
-  link.download = `campaign-${displayCode.value}.png`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
 
 // Cancel Campaign Logic
 const showCancelModal = ref(false)

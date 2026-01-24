@@ -195,15 +195,14 @@
       </Teleport>
 
       <!-- QR Modal -->
-      <Teleport to="body">
-        <div v-if="showQR && shop?.qr_code" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="showQR = false">
-          <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center">
-            <img :src="shop.qr_code" alt="QR Code" class="w-64 h-64 mx-auto mb-4">
-            <p class="text-gray-500">Scannez pour partager cette boutique</p>
-            <button @click="showQR = false" class="mt-4 px-6 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg">Fermer</button>
-          </div>
-        </div>
-      </Teleport>
+      <ShareQRCodeModal
+        v-model="showQR"
+        :qr-data="windowLocation"
+        :display-code="shop?.slug"
+        :title="shop?.name"
+        subtitle="Scanner pour visiter"
+        :share-text="'Visitez la boutique ' + shop?.name"
+      />
     </div>
   </NuxtLayout>
 </template>
@@ -211,6 +210,7 @@
 <script setup lang="ts">
 import { useShopApi, type Shop, type Product, type Category } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
+import ShareQRCodeModal from '~/components/common/ShareQRCodeModal.vue'
 
 const route = useRoute()
 const shopApi = useShopApi()
@@ -228,6 +228,7 @@ const selectedProduct = ref<Product | null>(null)
 const selectedImageIndex = ref(0)
 const quantity = ref(1)
 const showQR = ref(false)
+const windowLocation = ref('')
 
 const formatPrice = (amount: number, currency: string) => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currency || 'XOF' }).format(amount)
@@ -252,6 +253,9 @@ const loadShop = async () => {
   error.value = false
   try {
     shop.value = await shopApi.getShop(slug.value)
+    if (typeof window !== 'undefined') {
+        windowLocation.value = window.location.href
+    }
     const [prodResult, catResult] = await Promise.all([
       shopApi.listProducts(slug.value, 1, 100),
       shopApi.listCategories(slug.value)

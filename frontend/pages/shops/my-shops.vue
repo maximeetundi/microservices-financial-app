@@ -10,7 +10,6 @@
             <span>+</span> Nouvelle boutique
           </NuxtLink>
         </div>
-      </div>
       
       <div class="mb-6">
         <NuxtLink to="/shops" class="inline-flex items-center text-gray-500 hover:text-indigo-600 transition-colors">
