@@ -561,8 +561,9 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 	// ===== PAYMENT STATUS EVENTS =====
 	case "payment.request":
 		paymentType, _ := event["type"].(string)
-		// Skip notification for ticket purchases and donations (handled separately)
-		if paymentType == "ticket_purchase" || paymentType == "donation" {
+		// Skip notification for ticket purchases, donations, and internal exchange steps
+		if paymentType == "ticket_purchase" || paymentType == "donation" || 
+		   paymentType == "exchange_debit" || paymentType == "exchange_credit" {
 			return nil
 		}
 

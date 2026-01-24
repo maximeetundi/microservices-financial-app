@@ -34,14 +34,14 @@ func Load() *Config {
 		JWTSecret:        getEnv("JWT_SECRET", "your-secret-key"),
 		WalletServiceURL: getEnv("WALLET_SERVICE_URL", "http://localhost:8084"),
 		ExchangeFees: map[string]float64{
-			"crypto_to_crypto": getEnvFloat("CRYPTO_TO_CRYPTO_FEE", 0.5),  // 0.5%
-			"crypto_to_fiat":   getEnvFloat("CRYPTO_TO_FIAT_FEE", 0.75),   // 0.75%
-			"fiat_to_crypto":   getEnvFloat("FIAT_TO_CRYPTO_FEE", 0.75),   // 0.75%
-			"fiat_to_fiat":     getEnvFloat("FIAT_TO_FIAT_FEE", 0.25),     // 0.25%
+			"crypto_to_crypto": getEnvFloat("CRYPTO_TO_CRYPTO_FEE", 0.0),  // 0.0%
+			"crypto_to_fiat":   getEnvFloat("CRYPTO_TO_FIAT_FEE", 0.0),   // 0.0%
+			"fiat_to_crypto":   getEnvFloat("FIAT_TO_CRYPTO_FEE", 0.0),   // 0.0%
+			"fiat_to_fiat":     getEnvFloat("FIAT_TO_FIAT_FEE", 0.0),     // 0.0%
 		},
 		TradingFees: map[string]float64{
-			"buy":  getEnvFloat("TRADING_BUY_FEE", 0.1),   // 0.1%
-			"sell": getEnvFloat("TRADING_SELL_FEE", 0.1),  // 0.1%
+			"buy":  getEnvFloat("TRADING_BUY_FEE", 0.0),   // 0.0%
+			"sell": getEnvFloat("TRADING_SELL_FEE", 0.0),  // 0.0%
 		},
 		RateUpdateInterval: getEnvInt("RATE_UPDATE_INTERVAL", 3600), // 1 hour (3600 seconds)
 		
