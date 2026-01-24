@@ -133,7 +133,7 @@ func (s *ExchangeService) GetQuote(userID, token, fromCurrency, toCurrency strin
 	return quote, nil
 }
 
-func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalletID string) (*models.Exchange, error) {
+func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalletID, token string) (*models.Exchange, error) {
 	// Récupérer le devis
 	quote, err := s.exchangeRepo.GetQuote(quoteID)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalle
 
 	// Calculate and check fees
 	// Perform synchronous balance check
-	balance, _, err := s.walletClient.GetWalletBalanceByID(fromWalletID, "") // We might need to pass token if context has it, or trusted service call
+	balance, _, err := s.walletClient.GetWalletBalanceByID(fromWalletID, token) // Pass token explicitly
 	if err != nil {
 		log.Printf("Failed to check balance for wallet %s: %v", fromWalletID, err)
 		// Fallback or fail? Fail for safety to prevent insufficient funds

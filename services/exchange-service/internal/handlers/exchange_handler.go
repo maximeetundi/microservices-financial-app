@@ -99,11 +99,13 @@ func (h *ExchangeHandler) ExecuteExchange(c *gin.Context) {
 		return
 	}
 
+	token := c.GetHeader("Authorization")
 	exchange, err := h.exchangeService.ExecuteExchange(
 		userID.(string),
 		req.QuoteID,
 		req.FromWalletID,
 		req.ToWalletID,
+		token,
 	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
