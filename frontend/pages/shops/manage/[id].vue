@@ -142,6 +142,7 @@ onMounted(async () => {
 })
 
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth'],
+  layout: 'shop-admin'
 })
 </script>

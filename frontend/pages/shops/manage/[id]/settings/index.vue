@@ -1,13 +1,12 @@
 <template>
   <div class="container mx-auto px-4 py-8 max-w-4xl">
-    <!-- Header -->
-    <div class="mb-8">
-      <NuxtLink :to="`/shops/manage/${slug}`" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center gap-1 mb-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        Retour au tableau de bord
-      </NuxtLink>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Paramètres de la boutique</h1>
-      <p class="text-gray-500 dark:text-gray-400">Configurez les informations et préférences de votre boutique</p>
+     <!-- Header -->
+    <div class="mb-8 border-b border-gray-200 dark:border-gray-700 pb-5">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+        <Cog6ToothIcon class="h-8 w-8 text-indigo-600" />
+        Paramètres de la boutique
+      </h1>
+      <p class="mt-2 text-gray-500 dark:text-gray-400">Configurez les informations et préférences de votre boutique</p>
     </div>
 
     <!-- Loading -->
@@ -18,8 +17,11 @@
     <form v-else @submit.prevent="saveSettings" class="space-y-8">
       
       <!-- General Info -->
-      <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Informations Générales</h2>
+      <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
+           <BuildingStorefrontIcon class="h-6 w-6 text-indigo-500" />
+           Informations Générales
+        </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom de la boutique</label>
@@ -43,8 +45,11 @@
       </div>
 
       <!-- Contact & Address -->
-      <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Contact & Adresse</h2>
+      <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
+          <MapPinIcon class="h-6 w-6 text-indigo-500" />
+          Contact & Adresse
+        </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email de contact</label>
@@ -78,8 +83,11 @@
       </div>
 
       <!-- Shop Settings (Delivery, Orders) -->
-      <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">Préférences de commande</h2>
+      <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
+          <TruckIcon class="h-6 w-6 text-indigo-500" />
+          Préférences de commande
+        </h2>
         <div class="space-y-4">
            
            <div class="flex items-center justify-between">
@@ -141,9 +149,17 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi } from '@/composables/useShopApi'
+import { useToast } from "vue-toastification"
+import { 
+  Cog6ToothIcon, 
+  BuildingStorefrontIcon, 
+  MapPinIcon, 
+  TruckIcon 
+} from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const shopApi = useShopApi()
+const toast = useToast()
 const slug = route.params.id as string
 
 const loading = ref(true)
@@ -204,9 +220,9 @@ const saveSettings = async () => {
   try {
     saving.value = true
     await shopApi.updateShop(shopId.value, form.value)
-    alert('Paramètres mis à jour avec succès !')
+    toast.success('Paramètres mis à jour avec succès !')
   } catch (e: any) {
-    alert('Erreur: ' + (e.response?.data?.error || e.message))
+    toast.error('Erreur: ' + (e.response?.data?.error || e.message))
   } finally {
     saving.value = false
   }
@@ -217,6 +233,7 @@ onMounted(() => {
 })
 
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth'],
+  layout: 'shop-admin'
 })
 </script>
