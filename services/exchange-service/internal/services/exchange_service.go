@@ -429,6 +429,7 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 	// 1. Initiate Debit
 	debitReq := &messaging.PaymentRequestEvent{
 		RequestID:    fmt.Sprintf("TX-EXC-DEBIT-%s", exchange.ID),
+		UserID:       exchange.UserID,
 		FromWalletID: exchange.FromWalletID,
 		DebitAmount:  exchange.FromAmount,
 		Currency:     exchange.FromCurrency,
@@ -475,6 +476,7 @@ func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
 	// 2. Initiate Credit
 	creditReq := &messaging.PaymentRequestEvent{
 		RequestID:    fmt.Sprintf("TX-EXC-CREDIT-%s", exchange.ID),
+		UserID:       exchange.UserID,
 		ToWalletID:   exchange.ToWalletID,
 		CreditAmount: exchange.ToAmount,
 		Currency:     exchange.ToCurrency,
