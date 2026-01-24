@@ -34,7 +34,7 @@ func NewExchangeService(exchangeRepo *repository.ExchangeRepository, orderRepo *
 	}
 }
 
-func (s *ExchangeService) GetQuote(userID, fromCurrency, toCurrency string, fromAmount *float64, toAmount *float64) (*models.Quote, error) {
+func (s *ExchangeService) GetQuote(userID, token, fromCurrency, toCurrency string, fromAmount *float64, toAmount *float64) (*models.Quote, error) {
 	// Validation des devises
 	if !s.isSupportedCurrency(fromCurrency) || !s.isSupportedCurrency(toCurrency) {
 		return nil, fmt.Errorf("unsupported currency pair")
@@ -90,6 +90,38 @@ func (s *ExchangeService) GetQuote(userID, fromCurrency, toCurrency string, from
 		FeePercentage:     feePercentage,
 		ValidUntil:        time.Now().Add(5 * time.Minute), // Valide 5 minutes
 		EstimatedDelivery: s.getEstimatedDelivery(fromCurrency, toCurrency),
+	}
+
+	// Retrieve source wallet to check balance
+	wallets, err := s.walletClient.GetUserWallets(userID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user wallets: %w", err)
+	}
+	
+	// Find wallet for source currency
+	var fromWalletID string
+	for _, w := range wallets {
+		if w.Currency == strings.ToUpper(fromCurrency) {
+			fromWalletID = w.ID
+			break
+		}
+	}
+	
+	if fromWalletID == "" {
+		return nil, fmt.Errorf("no wallet found for currency %s", fromCurrency)
+	}
+
+	// Calculate and check fees
+	// Perform synchronous balance check
+	balance, _, err := s.walletClient.GetWalletBalanceByID(fromWalletID, token) // Pass token explicitly
+	if err != nil {
+		log.Printf("Failed to check balance for wallet %s: %v", fromWalletID, err)
+		// Fallback or fail? Fail for safety to prevent insufficient funds
+		return nil, fmt.Errorf("failed to verify wallet balance: %w", err)
+	}
+
+	if balance < quote.FromAmount {
+		return nil, fmt.Errorf("insufficient funds: available %f, required %f", balance, quote.FromAmount)
 	}
 
 	// Sauvegarder le devis

@@ -72,8 +72,11 @@ func (h *ExchangeHandler) GetQuote(c *gin.Context) {
 		return
 	}
 
+	token := c.GetHeader("Authorization")
+
 	quote, err := h.exchangeService.GetQuote(
 		userID.(string),
+		token,
 		req.FromCurrency,
 		req.ToCurrency,
 		req.FromAmount,

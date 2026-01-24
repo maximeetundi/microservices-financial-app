@@ -1,6 +1,11 @@
 <template>
   <NuxtLayout name="dashboard">
     <div class="max-w-7xl mx-auto py-8 px-4">
+      <div class="mb-6">
+        <NuxtLink to="/shops" class="inline-flex items-center text-gray-500 hover:text-indigo-600 transition-colors">
+          <span class="mr-2">←</span> Retour au Marketplace
+        </NuxtLink>
+      </div>
       <!-- Loading -->
       <div v-if="loading" class="space-y-6">
         <div class="animate-pulse bg-gray-100 dark:bg-slate-800 h-48 rounded-2xl"></div>

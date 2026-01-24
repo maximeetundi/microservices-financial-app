@@ -57,6 +57,46 @@ func (w *WalletClient) GetWalletBalance(userID, currency string) (*WalletBalance
 	return &balance, nil
 }
 
+type Wallet struct {
+	ID         string  `json:"id"`
+	Currency   string  `json:"currency"`
+	Balance    float64 `json:"balance"`
+	WalletType string  `json:"wallet_type"`
+	IsActive   bool    `json:"is_active"`
+}
+
+func (w *WalletClient) GetUserWallets(userID, token string) ([]Wallet, error) {
+	url := fmt.Sprintf("%s/api/v1/wallets", w.baseURL)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+
+	resp, err := w.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get wallets: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("wallet service returned status %d", resp.StatusCode)
+	}
+
+	var response struct {
+		Wallets []Wallet `json:"wallets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode wallets: %w", err)
+	}
+
+	return response.Wallets, nil
+}
+
 func (w *WalletClient) GetWalletBalanceByID(walletID, token string) (float64, string, error) {
 	url := fmt.Sprintf("%s/api/v1/wallets/%s/balance", w.baseURL, walletID)
 	

@@ -1,5 +1,10 @@
 <template>
   <div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+      <NuxtLink to="/shops" class="inline-flex items-center text-gray-500 hover:text-indigo-600 transition-colors">
+        <span class="mr-2">←</span> Retour au Marketplace
+      </NuxtLink>
+    </div>
     <div v-if="loading" class="flex justify-center items-center min-h-[50vh]">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
     </div>
@@ -127,7 +132,7 @@ onMounted(async () => {
   try {
     loading.value = true
     const response = await shopApi.getShop(slug)
-    shop.value = response.data
+    shop.value = response
   } catch (e: any) {
     console.error('Error fetching shop:', e)
     error.value = e.message || 'Impossible de charger la boutique'

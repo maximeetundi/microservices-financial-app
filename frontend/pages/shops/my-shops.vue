@@ -6,8 +6,15 @@
           <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">🏪 Mes Boutiques</h1>
           <p class="text-gray-500">Gérez vos boutiques et vos ventes</p>
         </div>
-        <NuxtLink to="/shops/create" class="btn-premium flex items-center gap-2">
-          <span>+</span> Nouvelle boutique
+          <NuxtLink to="/shops/create" class="btn-premium flex items-center gap-2">
+            <span>+</span> Nouvelle boutique
+          </NuxtLink>
+        </div>
+      </div>
+      
+      <div class="mb-6">
+        <NuxtLink to="/shops" class="inline-flex items-center text-gray-500 hover:text-indigo-600 transition-colors">
+          <span class="mr-2">←</span> Retour au Marketplace
         </NuxtLink>
       </div>
 
