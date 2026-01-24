@@ -97,7 +97,7 @@ func main() {
 	}
 	minioPublicURL := os.Getenv("MINIO_PUBLIC_URL")
 	if minioPublicURL == "" {
-		minioPublicURL = "https://minio.maximeetundi.store"
+		minioPublicURL = "https://cdn.maximeetundi.store"
 	}
 	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
 

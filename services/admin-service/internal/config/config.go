@@ -73,7 +73,7 @@ func Load() *Config {
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
 		MinioBucket:    getEnv("MINIO_BUCKET", "kyc-documents"),
 		MinioUseSSL:    minioUseSSL,
-		MinioPublicURL: getEnv("MINIO_PUBLIC_URL", "https://minio.maximeetundi.store"),
+		MinioPublicURL: getEnv("MINIO_PUBLIC_URL", "https://cdn.maximeetundi.store"),
 	}
 }
 

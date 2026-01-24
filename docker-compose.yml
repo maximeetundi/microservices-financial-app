@@ -209,7 +209,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kyc-documents
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -387,7 +387,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kyc-documents
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
       - MONGODB_URI=mongodb://admin:secure_password@mongodb:27017/?authSource=admin
     networks:
       - crypto-bank-network
@@ -422,7 +422,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=support-attachments
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -448,7 +448,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -474,7 +474,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -506,7 +506,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=enterprise-assets
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -540,7 +540,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=shop-assets
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
       - AUTH_SERVICE_URL=http://auth-service:8081
     networks:
       - crypto-bank-network
@@ -566,7 +566,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=chat-attachments
       - MINIO_USE_SSL=false
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.maximeetundi.store}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://cdn.maximeetundi.store}
       - PORT=8095
     networks:
       - crypto-bank-network

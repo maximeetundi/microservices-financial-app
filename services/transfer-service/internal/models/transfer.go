@@ -101,6 +101,7 @@ type TransferRequest struct {
 	Currency       string  `json:"currency" binding:"required"`
 	Description    *string `json:"description,omitempty"`
 	Reference      *string `json:"reference,omitempty"`
+	Type           string  `json:"type,omitempty"` // transfer_domestic, transfer_p2p, etc.
 }
 
 type InternationalTransferRequest struct {

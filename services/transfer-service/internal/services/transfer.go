@@ -92,7 +92,7 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		ToWalletID:     destinationWalletID,
 		RecipientEmail: req.ToEmail,
 		RecipientPhone: req.ToPhone,
-		TransferType:   transferType,
+		TransferType:   req.Type,
 		Amount:         req.Amount,
 		Fee:            fee,
 		Currency:       req.Currency,
@@ -176,6 +176,15 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 }
 
 
+
+
+// EstimateFee calculates the fee based on transfer type and amount
+func (s *TransferService) EstimateFee(transferType string, amount float64) (float64, error) {
+	if transferType == "" {
+		transferType = "transfer_domestic" // Default
+	}
+	return s.feeService.CalculateFee(transferType, amount)
+}
 
 func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 	transfer, err := s.transferRepo.GetByID(id)
