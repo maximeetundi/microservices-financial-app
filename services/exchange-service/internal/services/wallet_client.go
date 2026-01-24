@@ -57,6 +57,39 @@ func (w *WalletClient) GetWalletBalance(userID, currency string) (*WalletBalance
 	return &balance, nil
 }
 
+func (w *WalletClient) GetWalletBalanceByID(walletID, token string) (float64, string, error) {
+	url := fmt.Sprintf("%s/api/v1/wallets/%s/balance", w.baseURL, walletID)
+	
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+	
+	resp, err := w.httpClient.Do(req)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to get wallet balance: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, "", fmt.Errorf("wallet service returned status %d", resp.StatusCode)
+	}
+
+	var response struct {
+		Balance float64 `json:"balance"`
+		// API might not return currency in simple balance endpoint, implied from context or we fetch wallet details
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return 0, "", fmt.Errorf("failed to decode wallet balance: %w", err)
+	}
+
+	return response.Balance, "", nil 
+}
+
 func (w *WalletClient) ProcessTransaction(req *TransactionRequest) error {
 	url := fmt.Sprintf("%s/api/v1/wallets/transaction", w.baseURL)
 	

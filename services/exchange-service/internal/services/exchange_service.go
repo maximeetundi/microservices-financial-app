@@ -118,6 +118,18 @@ func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalle
 	}
 
 	// Calculate and check fees
+	// Perform synchronous balance check
+	balance, _, err := s.walletClient.GetWalletBalanceByID(fromWalletID, "") // We might need to pass token if context has it, or trusted service call
+	if err != nil {
+		log.Printf("Failed to check balance for wallet %s: %v", fromWalletID, err)
+		// Fallback or fail? Fail for safety to prevent insufficient funds
+		return nil, fmt.Errorf("failed to verify wallet balance: %w", err)
+	}
+
+	if balance < quote.FromAmount {
+		return nil, fmt.Errorf("insufficient funds: available %f, required %f", balance, quote.FromAmount)
+	}
+
 	// In a real system, we would lock funds here or check balance again
 	// We rely on the async processor to do the actual transfer and fail if insufficient funds
 
@@ -390,6 +402,14 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 		Currency:     exchange.FromCurrency,
 		Type:         "exchange_debit",
 		ReferenceID:  fmt.Sprintf("EXCHANGE_DEBIT_%s", exchange.ID),
+		Description:  fmt.Sprintf("Echange: %f %s vers %s (Taux: %f, Frais: %f %s)", exchange.FromAmount, exchange.FromCurrency, exchange.ToCurrency, exchange.ExchangeRate, exchange.Fee, exchange.FromCurrency),
+		Metadata: map[string]interface{}{
+			"exchange_id": exchange.ID,
+			"rate":        exchange.ExchangeRate,
+			"fee":         exchange.Fee,
+			"to_amount":   exchange.ToAmount,
+			"to_currency": exchange.ToCurrency,
+		},
 	}
 
 	log.Printf("[EXCHANGE DEBUG] Created debit request for exchange %s: SourceWallet=%s, Amount=%f, Currency=%s", 
@@ -401,7 +421,7 @@ func (s *ExchangeService) processExchange(exchange *models.Exchange) {
 
 	if err := s.kafkaPublisher.PublishPaymentRequest(debitReq); err != nil {
 		log.Printf("[EXCHANGE ERROR] Failed to publish debit request for exchange %s: %v", exchange.ID, err)
-		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		s.FailExchange(exchange.ID, "Failed to initiate debit: " + err.Error())
 	} else {
 		log.Printf("[EXCHANGE DEBUG] Successfully published debit request for exchange %s", exchange.ID)
 	}
@@ -428,6 +448,13 @@ func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
 		Currency:     exchange.ToCurrency,
 		Type:         "exchange_credit",
 		ReferenceID:  fmt.Sprintf("EXCHANGE_CREDIT_%s", exchange.ID),
+		Description:  fmt.Sprintf("Reçu via échange: %f %s (Source: %f %s)", exchange.ToAmount, exchange.ToCurrency, exchange.FromAmount, exchange.FromCurrency),
+		Metadata: map[string]interface{}{
+			"exchange_id":   exchange.ID,
+			"rate":          exchange.ExchangeRate,
+			"source_amount": exchange.FromAmount,
+			"source_currency": exchange.FromCurrency,
+		},
 	}
 
 	log.Printf("[EXCHANGE DEBUG] Updating status to processing_credit for exchange %s", exchangeID)
@@ -436,7 +463,10 @@ func (s *ExchangeService) CompleteExchangeCredit(exchangeID string) {
 	log.Printf("[EXCHANGE DEBUG] Publishing credit request for exchange %s", exchangeID)
 	if err := s.kafkaPublisher.PublishPaymentRequest(creditReq); err != nil {
 		log.Printf("[EXCHANGE ERROR] Failed to publish credit request for exchange %s: %v", exchange.ID, err)
+		// Partial failure is critical, manual intervention might be needed
 		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_partial") 
+		// We still notify failure/issue
+		s.FailExchange(exchange.ID, "Credit failed after debit success: " + err.Error())
 	} else {
 		log.Printf("[EXCHANGE DEBUG] Successfully published credit request for exchange %s", exchangeID)
 	}
@@ -451,16 +481,33 @@ func (s *ExchangeService) FinalizeExchange(exchangeID string) {
 	// existing UpdateStatus only updates status.
 	// Let's assume UpdateStatus is enough for now or I add a specialized method later.
 	
-	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
+	// exchange, _ := s.exchangeRepo.GetByID(exchangeID)
 	// CompletedAt update ... (skipping for brevity unless critical, assumed UpdateStatus handles updated_at)
 
-	s.publishExchangeEvent("exchange.completed", exchange)
+	// Notification is handled by WalletService/NotificationService via payment events
+	// s.publishExchangeEvent("exchange.completed", exchange)
 }
 
 func (s *ExchangeService) FailExchange(exchangeID, reason string) {
 	s.exchangeRepo.UpdateStatus(exchangeID, "failed")
 	exchange, _ := s.exchangeRepo.GetByID(exchangeID)
 	log.Printf("Exchange %s failed: %s. Details: %+v", exchangeID, reason, exchange)
+
+	// Publish failure event for notification
+	if s.kafkaPublisher != nil && exchange != nil {
+		event := map[string]interface{}{
+			"type":          "exchange.failed",
+			"exchange_id":   exchange.ID,
+			"user_id":       exchange.UserID,
+			"from_currency": exchange.FromCurrency,
+			"to_currency":   exchange.ToCurrency,
+			"amount":        exchange.FromAmount,
+			"status":        "failed",
+			"reason":        reason,
+			"timestamp":     time.Now(),
+		}
+		s.kafkaPublisher.PublishExchangeEvent("exchange.failed", event)
+	}
 }
 
 func (s *ExchangeService) calculateFeePercentage(fromCurrency, toCurrency string, amount float64) float64 {

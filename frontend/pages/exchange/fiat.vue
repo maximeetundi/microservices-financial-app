@@ -159,6 +159,9 @@
                {{ loading ? 'Conversion en cours...' : 'Confirmer la conversion' }}
             </span>
           </button>
+          <p v-if="fromAmount > currentSourceBalance" class="text-error text-sm mt-3 text-center font-medium">
+            ❌ Solde insuffisant ({{ formatMoney(currentSourceBalance) }})
+          </p>
         </div>
       </div>
 
@@ -365,7 +368,12 @@ const canConvert = computed(() => {
   // Allow conversion if we have source wallet and either dest wallet exists OR we'll create one
   const hasDestWallet = toWalletId.value && toWalletId.value !== '__new__'
   const willCreateWallet = destWallets.value.length === 0 || toWalletId.value === '__new__'
-  return fromAmount.value > 0 && fromCurrency.value !== toCurrency.value && fromWalletId.value && (hasDestWallet || willCreateWallet)
+  const hasSufficientBalance = fromAmount.value <= currentSourceBalance.value
+  return fromAmount.value > 0 && 
+         hasSufficientBalance &&
+         fromCurrency.value !== toCurrency.value && 
+         fromWalletId.value && 
+         (hasDestWallet || willCreateWallet)
 })
 
 const sourceWallets = computed(() => wallets.value.filter(w => w.currency === fromCurrency.value))

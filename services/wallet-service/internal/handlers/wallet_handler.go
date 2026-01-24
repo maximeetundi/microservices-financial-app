@@ -72,6 +72,30 @@ func (h *WalletHandler) DeleteWallet(c *gin.Context) {
 		return
 	}
 
+	// Verify PIN
+	pin := c.GetHeader("X-Transaction-Pin")
+	if pin != "" {
+		authClient := services.NewAuthClient()
+		token := c.GetHeader("Authorization")
+		if len(token) > 7 && token[:7] == "Bearer " {
+			token = token[7:]
+		}
+		
+		valid, err := authClient.VerifyPin(userID.(string), pin, token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
+			return
+		}
+		if !valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid PIN"})
+			return
+		}
+	} else {
+		// PIN is required for deletion
+		c.JSON(http.StatusBadRequest, gin.H{"error": "PIN is required for wallet deletion"})
+		return
+	}
+
 	err := h.walletService.DeleteWallet(walletID, userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

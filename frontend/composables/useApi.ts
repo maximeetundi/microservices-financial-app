@@ -255,7 +255,10 @@ export const walletAPI = {
         api.post(`/wallet-service/api/v1/wallets/${id}/deposit`, { amount, method }),
     withdraw: (id: string, amount: number, destination: string) =>
         api.post(`/wallet-service/api/v1/wallets/${id}/withdraw`, { amount, destination }),
-    delete: (id: string) => api.delete(`/wallet-service/api/v1/wallets/${id}`),
+    delete: (id: string, pin?: string) => {
+        const config = pin ? { headers: { 'X-Transaction-Pin': pin } } : {}
+        return api.delete(`/wallet-service/api/v1/wallets/${id}`, config)
+    },
 
     // Crypto wallet methods
     generateCryptoWallet: (currency: string) =>

@@ -108,6 +108,20 @@
                 </select>
               </div>
               
+              <!-- Destination Wallet Selector -->
+              <div class="mb-3">
+                <select 
+                  v-model="selectedToWalletId" 
+                  class="input-premium w-full bg-slate-800 text-white border-slate-600"
+                >
+                  <option v-for="wallet in toWalletOptions" :key="wallet.id" :value="wallet.id">
+                    {{ wallet.id === 'create_new' ? '➕ ' : '' }}
+                    {{ wallet.name || wallet.currency }} 
+                    {{ wallet.balance !== undefined && wallet.id !== 'create_new' ? `(${formatBalance(wallet.balance)} ${wallet.currency})` : '' }}
+                  </option>
+                </select>
+              </div>
+
               <!-- Amount Display -->
               <div class="relative">
                 <input 
@@ -291,6 +305,7 @@ const generatingAddress = ref(false)
 // Wallet selection
 const wallets = ref([])
 const selectedFromWalletId = ref('')
+const selectedToWalletId = ref('create_new') // Default to create new or select existing
 
 // Computed wallet options
 const fromWalletOptions = computed(() => {
@@ -303,12 +318,33 @@ const fromWalletOptions = computed(() => {
   }
 })
 
+// Destination wallet options based on selected currency
+const toWalletOptions = computed(() => {
+  if (mode.value === 'buy') {
+    const existing = wallets.value.filter(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
+    return [
+      ...existing,
+      { id: 'create_new', name: '➕ Créer un nouveau portefeuille', currency: toCurrency.value, balance: 0 }
+    ]
+  } else {
+    // Selling crypto -> receive fiat
+    const existing = wallets.value.filter(w => w.currency === toCurrency.value && w.wallet_type === 'fiat')
+    // Usually we don't creating fiat wallets on the fly as easily, but let's allow selecting existing
+    return existing
+  }
+})
+
 const fiatWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'fiat'))
 const cryptoWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'crypto'))
 
 // Selected crypto wallet (for address display)
 const selectedCryptoWallet = computed(() => {
   if (mode.value === 'buy') {
+    // If specific wallet selected, show it. If create_new, show nothing or indication
+    if (selectedToWalletId.value && selectedToWalletId.value !== 'create_new') {
+        return wallets.value.find(w => w.id === selectedToWalletId.value)
+    }
+    // Fallback to finding one if not explicitly selected logic wasn't there
     return wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
   }
   return null
@@ -415,10 +451,19 @@ const calculateConversion = () => {
     // Buying crypto with fiat: amount / rate
     const netAmount = fromAmount.value - fee
     toAmount.value = (netAmount / rate).toFixed(8)
+    
+    // Auto-select destination wallet if exists
+    const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
+    selectedToWalletId.value = matching ? matching.id : 'create_new'
+    
   } else {
     // Selling crypto for fiat: amount * rate
     const netAmount = fromAmount.value - fee
     toAmount.value = (netAmount * rate).toFixed(2)
+    
+    // Auto-select destination fiat wallet
+    const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'fiat')
+    selectedToWalletId.value = matching ? matching.id : ''
   }
 }
 
@@ -489,30 +534,42 @@ const generateAddress = async () => {
 
 const executeExchange = async () => {
   if (!selectedFromWalletId.value) {
-    showNotification('error', 'Veuillez sélectionner un portefeuille')
+    showNotification('error', 'Veuillez sélectionner un portefeuille source')
     return
+  }
+  
+  if (!selectedToWalletId.value && mode.value === 'sell') {
+      showNotification('error', 'Veuillez sélectionner un portefeuille de destination')
+      return
   }
 
   await requirePin(async () => {
     loading.value = true
     try {
-      // Get destination wallet
-      let destWallet = wallets.value.find(w => w.currency === toCurrency.value)
+      let destWalletId = selectedToWalletId.value
       
-      // Create if doesn't exist
-      if (!destWallet) {
-        const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
-        const walletType = crypto ? 'crypto' : 'fiat'
-        const walletName = crypto ? `${crypto.name} Wallet` : `${toCurrency.value} Wallet`
-        
-        const { data: newWalletRes } = await walletAPI.createWallet({
-          currency: toCurrency.value,
-          name: walletName,
-          wallet_type: walletType
-        })
-        destWallet = newWalletRes.wallet || newWalletRes
+      // Determine Destination Wallet
+      if (mode.value === 'buy') {
+          if (destWalletId === 'create_new') {
+             // Create new wallet
+            const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
+            const walletName = crypto ? `${crypto.name} Wallet` : `${toCurrency.value} Wallet`
+            
+            const { data: newWalletRes } = await walletAPI.createWallet({
+              currency: toCurrency.value,
+              name: walletName,
+              wallet_type: 'crypto'
+            })
+            const newWallet = newWalletRes.wallet || newWalletRes
+            destWalletId = newWallet.id
+          }
+      } 
+      // If sell mode, destWalletId is already selected (fiat wallet) or user must select one
+      
+      if (!destWalletId) {
+          throw new Error("Portefeuille de destination manquant")
       }
-      
+
       // 1. Get Quote
       const { data: quoteRes } = await exchangeAPI.getQuote(
         fromCurrency.value, 
@@ -529,7 +586,7 @@ const executeExchange = async () => {
       await exchangeAPI.executeExchange(
         quote.id,
         selectedFromWalletId.value,
-        destWallet.id
+        destWalletId
       )
       
       showNotification('success', 
@@ -564,6 +621,8 @@ const fetchWallets = async () => {
       selectedFromWalletId.value = fromWalletOptions.value[0].id
       fromCurrency.value = fromWalletOptions.value[0].currency
     }
+    
+    calculateConversion() // Recalculate options
   } catch (error) {
     console.error('Error fetching wallets:', error)
   }

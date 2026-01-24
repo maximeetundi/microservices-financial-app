@@ -286,6 +286,20 @@ func (s *NotificationService) createNotification(eventType string, event map[str
 			Channels: []string{"push", "email"}, // Pas de SMS
 		}
 
+	case "exchange.failed":
+		reason, _ := event["reason"].(string)
+		if reason == "" {
+			reason = "Erreur technique inconnue"
+		}
+		return &Notification{
+			Title:    "❌ Conversion échouée",
+			Body:     fmt.Sprintf("Votre demande de conversion a échoué: %s", reason),
+			Type:     "exchange",
+			Priority: PriorityHigh,
+			Data:     event,
+			Channels: []string{"push", "email"},
+		}
+
 	case "fiat_exchange.completed":
 		fromCurrency, _ := event["from_currency"].(string)
 		toCurrency, _ := event["to_currency"].(string)

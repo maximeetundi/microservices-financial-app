@@ -131,7 +131,8 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               Envoyer
             </NuxtLink>
-            <button @click.stop="requestDelete(wallet)" 
+            <button v-if="mainWallet && wallet.id !== mainWallet.id" 
+                    @click.stop="requestDelete(wallet)" 
                     class="p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all border border-red-100 dark:border-red-500/20"
                     title="Supprimer">
                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -421,8 +422,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
+import { usePin } from '~/composables/usePin'
 
 const router = useRouter()
+const { requirePin } = usePin()
 
 // Delete Logic
 const showDeleteModal = ref(false)
@@ -449,46 +452,49 @@ const requestDelete = (wallet) => {
 const confirmDelete = async () => {
   if (!walletToDelete.value) return
   
-  try {
-    deleteLoading.value = true
-    deleteError.value = ''
+  await requirePin(async (pin) => {
+    try {
+      deleteLoading.value = true
+      deleteError.value = ''
 
-    // 1. Check for funds and transfer if needed
-    if (walletToDelete.value.balance > 0 && mainWallet.value) {
-      if (walletToDelete.value.currency === mainWallet.value.currency) {
-         // Same currency transfer
-         await transferAPI.create({
-            type: 'internal', 
-            amount: walletToDelete.value.balance,
-            currency: walletToDelete.value.currency, 
-            recipient: mainWallet.value.id,
-            description: `Clôture du portefeuille ${walletToDelete.value.name}`
-         })
-      } else {
-         // Different currency
-         await transferAPI.create({
-            type: 'internal', 
-            amount: walletToDelete.value.balance, 
-            currency: walletToDelete.value.currency, 
-            recipient: mainWallet.value.id,
-            description: `Clôture du portefeuille ${walletToDelete.value.name} (Conversion)`
-         })
+      // 1. Check for funds and transfer if needed
+      if (walletToDelete.value.balance > 0 && mainWallet.value) {
+        if (walletToDelete.value.currency === mainWallet.value.currency) {
+           // Same currency transfer
+           await transferAPI.create({
+              type: 'internal', 
+              amount: walletToDelete.value.balance,
+              currency: walletToDelete.value.currency, 
+              recipient: mainWallet.value.id,
+              description: `Clôture du portefeuille ${walletToDelete.value.name}`
+           })
+        } else {
+           // Different currency
+           await transferAPI.create({
+              type: 'internal', 
+              amount: walletToDelete.value.balance, 
+              currency: walletToDelete.value.currency, 
+              recipient: mainWallet.value.id,
+              description: `Clôture du portefeuille ${walletToDelete.value.name} (Conversion)`
+           })
+        }
       }
-    }
 
-    // 2. Delete Wallet
-    await walletAPI.delete(walletToDelete.value.id)
-    
-    // 3. Refresh
-    await fetchWallets()
-    showDeleteModal.value = false
-    
-  } catch (e) {
-    console.error(e)
-    deleteError.value = e.response?.data?.error || e.message || "Erreur lors de la suppression"
-  } finally {
-    deleteLoading.value = false
-  }
+      // 2. Delete Wallet with PIN
+      // We assume walletAPI.delete will be updated to accept PIN/options
+      await walletAPI.delete(walletToDelete.value.id, pin)
+      
+      // 3. Refresh
+      await fetchWallets()
+      showDeleteModal.value = false
+      
+    } catch (e) {
+      console.error(e)
+      deleteError.value = e.response?.data?.error || e.message || "Erreur lors de la suppression"
+    } finally {
+      deleteLoading.value = false
+    }
+  })
 }
 
 
