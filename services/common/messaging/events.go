@@ -123,16 +123,17 @@ type FiatExchangeRequestEvent struct {
 // === Payment Events ===
 
 type PaymentRequestEvent struct {
-	RequestID    string  `json:"request_id"`
-	ReferenceID  string  `json:"reference_id"`
-	Type         string  `json:"type"` // exchange, transfer
-	UserID       string  `json:"user_id"`
-	FromWalletID string  `json:"from_wallet_id"`
-	DestinationUserID string `json:"destination_user_id,omitempty"` // For auto-resolution
-	ToWalletID   string  `json:"to_wallet_id,omitempty"`
-	DebitAmount  float64 `json:"debit_amount"`
+	RequestID    string                 `json:"request_id"`
+	ReferenceID  string                 `json:"reference_id"`
+	Type         string                 `json:"type"` // exchange, transfer
+	UserID       string                 `json:"user_id"`
+	FromWalletID string                 `json:"from_wallet_id"`
+	DestinationUserID string            `json:"destination_user_id,omitempty"` // For auto-resolution
+	ToWalletID   string                 `json:"to_wallet_id,omitempty"`
+	DebitAmount  float64                `json:"debit_amount"`
 	CreditAmount float64                `json:"credit_amount,omitempty"`
 	Currency     string                 `json:"currency"`
+	Description  string                 `json:"description,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
