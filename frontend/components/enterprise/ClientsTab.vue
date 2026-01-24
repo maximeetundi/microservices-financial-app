@@ -45,8 +45,8 @@
         <p class="text-gray-500 text-sm">Les clients apparaîtront ici après inscription</p>
       </div>
 
-      <div class="overflow-x-auto">
-        <table v-else class="w-full text-left text-sm">
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
           <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 text-xs uppercase">
             <tr>
               <th class="px-6 py-4 font-semibold">Client</th>
