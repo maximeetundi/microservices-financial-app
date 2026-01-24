@@ -155,10 +155,8 @@ func main() {
 			protected.DELETE("/shops/:id", shopHandler.Delete)
 			protected.POST("/shops/:id/managers", shopHandler.InviteManager)
 			protected.DELETE("/shops/:id/managers/:userId", shopHandler.RemoveManager)
-			protected.GET("/shops/:id/products", productHandler.ListByShop)
+			// Protected product/category management
 
-			protected.GET("/shops/:id/categories", categoryHandler.ListByShop)
-			protected.GET("/shops/:id/categories/tree", categoryHandler.ListWithHierarchy)
 
 			// Client Invitations (for private shops)
 			protected.POST("/shops/:id/clients", clientHandler.InviteClient)

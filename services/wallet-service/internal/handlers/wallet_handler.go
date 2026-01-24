@@ -66,7 +66,7 @@ func (h *WalletHandler) DeleteWallet(c *gin.Context) {
 		return
 	}
 
-	walletID := c.Param("id")
+	walletID := c.Param("wallet_id")
 	if walletID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Wallet ID is required"})
 		return
