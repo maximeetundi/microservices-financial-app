@@ -50,6 +50,10 @@ func Load() *Config {
 		BinanceAPISecret: getEnv("BINANCE_API_SECRET", ""),
 		BinanceBaseURL:   getEnv("BINANCE_BASE_URL", "https://api.binance.com"),
 		BinanceTestMode:  getEnvBool("BINANCE_TEST_MODE", true),
+
+		// Fiat Providers
+		FixerAPIKey:         getEnv("FIXER_API_KEY", ""),
+		CurrencyLayerAPIKey: getEnv("CURRENCYLAYER_API_KEY", ""),
 	}
 }
 

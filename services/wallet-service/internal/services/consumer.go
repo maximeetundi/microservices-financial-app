@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
@@ -192,13 +193,22 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 		return err
 	}
 
-	if userEvent.UserID != "" && userEvent.Currency != "" {
+	if userEvent.UserID != "" {
+		// Determine currency based on country
+		currency := "USD" // Default
+		if userEvent.Country != "" {
+			currency = getCurrencyByCountry(userEvent.Country)
+		} else if userEvent.Currency != "" {
+			// Fallback to event currency if country is missing but currency is provided
+			currency = userEvent.Currency
+		}
+
 		// Create default wallet
 		name := "Main Wallet"
-		desc := "Default wallet created on registration"
+		desc := fmt.Sprintf("Default %s wallet created on registration", currency)
 
 		req := &models.CreateWalletRequest{
-			Currency:    userEvent.Currency,
+			Currency:    currency,
 			WalletType:  "fiat",
 			Name:        &name,
 			Description: &desc,
@@ -206,12 +216,107 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 
 		// Internal call, no auth token needed
 		if _, err := c.walletService.CreateWallet(userEvent.UserID, req); err != nil {
-			log.Printf("Failed to create default wallet: %v", err)
+			log.Printf("Failed to create default wallet (Currency: %s): %v", currency, err)
 		}
-	
 	}
 	
 	return nil
+}
+
+// getCurrencyByCountry returns the currency code for a given country code (ISO 2 chars)
+func getCurrencyByCountry(countryCode string) string {
+	switch strings.ToUpper(countryCode) {
+	// === EUROPE ===
+	case "AT", "BE", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PT", "SK", "SI", "ES":
+		return "EUR"
+	case "GB": return "GBP"
+	case "CH": return "CHF"
+	case "SE": return "SEK"
+	case "NO": return "NOK"
+	case "DK": return "DKK"
+	case "PL": return "PLN"
+	case "CZ": return "CZK"
+	case "HU": return "HUF"
+	case "RO": return "RON"
+	case "BG": return "BGN"
+	case "HR": return "HRK"
+	case "RU": return "RUB" // Russia
+	case "UA": return "UAH"
+	case "BY": return "BYN"
+
+	// === NORTH AMERICA ===
+	case "US": return "USD"
+	case "CA": return "CAD"
+	case "MX": return "MXN"
+
+	// === SOUTH AMERICA ===
+	case "BR": return "BRL"
+	case "AR": return "ARS"
+	case "CL": return "CLP"
+	case "CO": return "COP"
+	case "PE": return "PEN"
+	case "UY": return "UYU"
+	case "VE": return "VES"
+	case "BO": return "BOB"
+	case "PY": return "PYG"
+
+	// === ASIA ===
+	case "CN": return "CNY" // China
+	case "JP": return "JPY" // Japan
+	case "KR": return "KRW" // South Korea
+	case "KP": return "KPW" // North Korea
+	case "IN": return "INR"
+	case "ID": return "IDR"
+	case "MY": return "MYR"
+	case "SG": return "SGD"
+	case "TH": return "THB"
+	case "VN": return "VND"
+	case "PH": return "PHP"
+	case "PK": return "PKR"
+	case "BD": return "BDT"
+	case "HK": return "HKD"
+	case "TW": return "TWD"
+	case "AF": return "AFN" // Afghanistan
+	case "IR": return "IRR" // Iran
+	case "IQ": return "IQD"
+	case "LB": return "LBP"
+	case "IL": return "ILS" // Israel
+	case "SA": return "SAR"
+	case "AE": return "AED"
+	case "QA": return "QAR"
+	case "TR": return "TRY"
+
+	// === AFRICA ===
+	// CFA Franc BEAC (CEMAC)
+	case "CM", "CF", "TD", "CG", "GA", "GQ":
+		return "XAF"
+	// CFA Franc BCEAO (UEMOA)
+	case "CI", "BJ", "BF", "GW", "ML", "NE", "SN", "TG":
+		return "XOF"
+	case "NG": return "NGN" // Nigeria
+	case "ZA": return "ZAR" // South Africa
+	case "EG": return "EGP" // Egypt
+	case "MA": return "MAD" // Morocco
+	case "KE": return "KES"
+	case "GH": return "GHS"
+	case "DZ": return "DZD"
+	case "TN": return "TND"
+	case "ET": return "ETB"
+	case "RW": return "RWF"
+	case "UG": return "UGX"
+	case "TZ": return "TZS"
+	case "AO": return "AOA"
+	case "MZ": return "MZN"
+	case "ZW": return "ZWL" // Zimbabwe (Zig/ZWL pending ISO stability, using ZWL)
+	case "CD": return "CDF"
+
+	// === OCEANIA ===
+	case "AU": return "AUD"
+	case "NZ": return "NZD"
+
+	default:
+		return "USD"
+	}
 }
 
 // handlePaymentEvent processes payment.request events from other services (e.g. exchange-service)

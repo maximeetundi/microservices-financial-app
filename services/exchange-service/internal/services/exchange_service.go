@@ -631,37 +631,16 @@ func (s *ExchangeService) getEstimatedDelivery(fromCurrency, toCurrency string) 
 }
 
 func (s *ExchangeService) isSupportedCurrency(currency string) bool {
-	supportedCurrencies := []string{
-		// Major currencies
-		"USD", "EUR", "GBP", "JPY", "CHF",
-		// Americas
-		"CAD", "MXN", "BRL", "ARS", "CLP", "COP", "PEN",
-		// Europe
-		"NOK", "SEK", "DKK", "PLN", "CZK", "HUF", "RON", "TRY", "RUB",
-		// Asia
-		"CNY", "HKD", "SGD", "KRW", "INR", "IDR", "MYR", "THB", "PHP", "VND", "PKR", "BDT",
-		// Middle East
-		"AED", "SAR", "QAR", "KWD", "BHD", "OMR", "ILS", "EGP",
-		// Africa
-		"XAF", "XOF", "NGN", "ZAR", "KES", "GHS", "MAD", "TND", "DZD", "UGX", "TZS", "RWF", "ETB",
-		// Oceania
-		"AUD", "NZD", "FJD",
-		// Crypto
-		"BTC", "ETH", "USDT", "USDC", "BNB", "ADA", "XRP", "DOT", "LTC",
-	}
-	
-	currency = strings.ToUpper(currency)
-	for _, supported := range supportedCurrencies {
-		if currency == supported {
-			return true
-		}
-	}
-	return false
+	// Allow any valid-looking currency code (3-5 chars)
+	// We rely on RateService.GetRate() to determine if it's actually supported/tradable
+	l := len(currency)
+	return l >= 3 && l <= 5
 }
 
 func (s *ExchangeService) isCryptoCurrency(currency string) bool {
 	cryptoCurrencies := []string{
 		"BTC", "ETH", "USDT", "USDC", "BNB", "ADA", "XRP", "DOT", "LTC", "LINK", "BCH", "XLM",
+		// Add more as needed or move to config/DB
 	}
 	
 	currency = strings.ToUpper(currency)
@@ -674,30 +653,8 @@ func (s *ExchangeService) isCryptoCurrency(currency string) bool {
 }
 
 func (s *ExchangeService) isFiatCurrency(currency string) bool {
-	fiatCurrencies := []string{
-		// Major
-		"USD", "EUR", "GBP", "JPY", "CHF",
-		// Americas
-		"CAD", "MXN", "BRL", "ARS", "CLP", "COP", "PEN",
-		// Europe
-		"NOK", "SEK", "DKK", "PLN", "CZK", "HUF", "RON", "TRY", "RUB",
-		// Asia
-		"CNY", "HKD", "SGD", "KRW", "INR", "IDR", "MYR", "THB", "PHP", "VND", "PKR", "BDT",
-		// Middle East
-		"AED", "SAR", "QAR", "KWD", "BHD", "OMR", "ILS", "EGP",
-		// Africa
-		"XAF", "XOF", "NGN", "ZAR", "KES", "GHS", "MAD", "TND", "DZD", "UGX", "TZS", "RWF", "ETB",
-		// Oceania
-		"AUD", "NZD", "FJD",
-	}
-	
-	currency = strings.ToUpper(currency)
-	for _, fiat := range fiatCurrencies {
-		if currency == fiat {
-			return true
-		}
-	}
-	return false
+	// Assume anything that is not a known crypto is a fiat currency
+	return !s.isCryptoCurrency(currency)
 }
 
 func (s *ExchangeService) publishExchangeEvent(eventType string, exchange *models.Exchange) {

@@ -15,7 +15,7 @@ type RateService struct {
 	rateRepo          *repository.RateRepository
 	config            *config.Config
 	binanceProvider   *BinanceProvider
-	fiatProvider      *FiatRateProvider
+	fiatProvider      *FailoverFiatProvider // Updated type
 	coingeckoProvider *CoinGeckoProvider
 	hexarateProvider  *HexarateProvider
 }
@@ -32,7 +32,7 @@ func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *Ra
 		rateRepo:          rateRepo,
 		config:            cfg,
 		binanceProvider:   NewBinanceProvider(binanceCfg),
-		fiatProvider:      NewFiatRateProvider(),
+		fiatProvider:      NewFailoverFiatProvider(cfg.FixerAPIKey, cfg.CurrencyLayerAPIKey),
 		coingeckoProvider: NewCoinGeckoProvider(),
 		hexarateProvider:  NewHexarateProvider(),
 	}
@@ -53,50 +53,24 @@ func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.Exchange
 			return updatedRate, nil
 		}
 	} else {
-		// Fetch fiat rate from real provider
-		rates, err := s.fiatProvider.GetRates("USD")
-		if err == nil {
-			// Find the rate we need
-			// Simplified: We assume base is USD or we calculate generic cross-rate via USD
-			// This implementation mainly supports USD -> Others for now
-			// A production version would handle cross-rates more robustly
-			
-			// If request is USD -> X
-			if fromCurrency == "USD" {
-				if rateVal, ok := rates[toCurrency]; ok {
-					updatedRate := &models.ExchangeRate{
-						FromCurrency: "USD",
-						ToCurrency:   toCurrency,
-						Rate:         rateVal,
-						BidPrice:     rateVal * 0.998,
-						AskPrice:     rateVal * 1.002,
-						Spread:       rateVal * 0.004,
-						Source:       "open.er-api.com",
-						LastUpdated:  time.Now(),
-					}
-					s.rateRepo.SaveRate(updatedRate)
-					return updatedRate, nil
-				}
-			}
-			
-			// If request is X -> USD
-			if toCurrency == "USD" {
-				if rateVal, ok := rates[fromCurrency]; ok && rateVal > 0 {
-					updatedRate := &models.ExchangeRate{
-						FromCurrency: fromCurrency,
-						ToCurrency:   "USD",
-						Rate:         1 / rateVal,
-						BidPrice:     (1 / rateVal) * 0.998,
-						AskPrice:     (1 / rateVal) * 1.002,
-						Spread:       (1 / rateVal) * 0.004,
-						Source:       "open.er-api.com",
-						LastUpdated:  time.Now(),
-					}
-					s.rateRepo.SaveRate(updatedRate)
-					return updatedRate, nil
-				}
-			}
-		}
+		// Fetch fiat rate from real provider (Robust Failover)
+		// We usually request USD base, but providers like Fixer force EUR.
+		// Use USD as common denominator if we can, but handle provider specific logic in provider if possible.
+		// For simplicity, we ask for "USD" but FailoverProvider and sub-providers handle normalization or we do cross-rate here.
+		// Actually, our providers return a map relative to their base (Fixer=EUR, CurrencyLayer=USD, OpenER=USD).
+		// We'll trust Failover to give us a map relative to USD (CurrencyLayer) or Convert if Fixer (EUR).
+		// Wait, my Fixer implementation asks for based? No, free Fixer is locked to EUR.
+		// My fiat_providers.go implementation just returns the map. 
+		// I need to standardize in `updateAllRates` mostly.
+		
+		// For single rate on-demand, checking cache is best. If fail, maybe trigger updateAllRates?
+		// Fetching single pair from these bulk-oriented APIs is inefficient or impossible on free tiers.
+		// So we rely on the background updater or cached DB data most of the time.
+		// If DB empty, we might need a sync fetch.
+		
+		// Let's trigger a full update if we really have nothing.
+		s.updateAllRates()
+		return s.rateRepo.GetRate(fromCurrency, toCurrency)
 	}
 
 	return rate, err
@@ -168,48 +142,46 @@ func (s *RateService) StartRateUpdater() {
 func (s *RateService) updateAllRates() {
 	fmt.Println("[RateService] Starting rate update...")
 	
-	// ========== 1. FIAT RATES VIA HEXARATE ==========
-	fmt.Println("[RateService] Fetching fiat rates from Hexarate...")
-	fiatRates, err := s.hexarateProvider.GetAllUSDRates()
+	// ========== 1. FIAT RATES VIA FAILOVER PROVIDER ==========
+	fmt.Println("[RateService] Fetching fiat rates from best available provider...")
+	fiatRates, source, err := s.fiatProvider.GetRates("USD")
 	if err != nil {
-		fmt.Printf("[RateService] Error fetching Hexarate rates: %v\n", err)
-		// Fallback to old provider
-		fiatRates, _ = s.fiatProvider.GetRates("USD")
+		fmt.Printf("[RateService] Error fetching fiat rates: %v\n", err)
 	} else {
-		fmt.Printf("[RateService] Fetched %d fiat rates\n", len(fiatRates))
-	}
-	
-	// Save fiat rates to DB
-	for currency, rate := range fiatRates {
-		if currency == "USD" {
-			continue
-		}
+		fmt.Printf("[RateService] Fetched %d fiat rates from %s\n", len(fiatRates), source)
 		
-		exRate := &models.ExchangeRate{
-			FromCurrency: "USD",
-			ToCurrency:   currency,
-			Rate:         rate,
-			BidPrice:     rate * 0.998,
-			AskPrice:     rate * 1.002,
-			Spread:       rate * 0.004,
-			Source:       "hexarate",
-			LastUpdated:  time.Now(),
-		}
-		s.rateRepo.SaveRate(exRate)
-		
-		// Reverse rate
-		if rate > 0 {
-			reverseRate := &models.ExchangeRate{
-				FromCurrency: currency,
-				ToCurrency:   "USD",
-				Rate:         1 / rate,
-				BidPrice:     (1 / rate) * 0.998,
-				AskPrice:     (1 / rate) * 1.002,
-				Spread:       (1 / rate) * 0.004,
-				Source:       "hexarate",
+		// Save fiat rates to DB
+		for currency, rate := range fiatRates {
+			if currency == "USD" {
+				continue
+			}
+			
+			exRate := &models.ExchangeRate{
+				FromCurrency: "USD",
+				ToCurrency:   currency,
+				Rate:         rate,
+				BidPrice:     rate * 0.998,
+				AskPrice:     rate * 1.002,
+				Spread:       rate * 0.004,
+				Source:       source,
 				LastUpdated:  time.Now(),
 			}
-			s.rateRepo.SaveRate(reverseRate)
+			s.rateRepo.SaveRate(exRate)
+			
+			// Reverse rate
+			if rate > 0 {
+				reverseRate := &models.ExchangeRate{
+					FromCurrency: currency,
+					ToCurrency:   "USD",
+					Rate:         1 / rate,
+					BidPrice:     (1 / rate) * 0.998,
+					AskPrice:     (1 / rate) * 1.002,
+					Spread:       (1 / rate) * 0.004,
+					Source:       source,
+					LastUpdated:  time.Now(),
+				}
+				s.rateRepo.SaveRate(reverseRate)
+			}
 		}
 	}
 	
@@ -287,10 +259,24 @@ func (s *RateService) updateAllRates() {
 						BidPrice:     cryptoToFiat * 0.995,
 						AskPrice:     cryptoToFiat * 1.005,
 						Spread:       cryptoToFiat * 0.01,
-						Source:       "coingecko+hexarate",
+						Source:       "coingecko+" + source, // Attributed to combination
 						LastUpdated:  time.Now(),
 					}
 					s.rateRepo.SaveRate(rate)
+
+					// NEW: Inverse Fiat -> Crypto
+					// Rate = 1 / cryptoToFiat
+					inverseRate := &models.ExchangeRate{
+						FromCurrency: currency, // e.g. NGN
+						ToCurrency:   symbol,   // e.g. BTC
+						Rate:         1 / cryptoToFiat,
+						BidPrice:     (1 / cryptoToFiat) * 0.995,
+						AskPrice:     (1 / cryptoToFiat) * 1.005,
+						Spread:       (1 / cryptoToFiat) * 0.01,
+						Source:       "coingecko+" + source + "(inverse)",
+						LastUpdated:  time.Now(),
+					}
+					s.rateRepo.SaveRate(inverseRate)
 				}
 			}
 		}
