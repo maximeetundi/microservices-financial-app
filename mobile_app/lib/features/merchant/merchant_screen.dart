@@ -212,8 +212,44 @@ class _MerchantScreenState extends State<MerchantScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildStatsCards(isDark),
-                                  const SizedBox(height: 24),
+                                    // Store Management Actions
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          _buildActionCard(
+                                            context,
+                                            icon: Icons.inventory_2,
+                                            label: 'Mes Produits',
+                                            color: Colors.blue,
+                                            onTap: () => context.push('/merchant/products'),
+                                            isDark: isDark,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          _buildActionCard(
+                                            context,
+                                            icon: Icons.shopping_bag,
+                                            label: 'Commandes',
+                                            color: Colors.orange,
+                                            onTap: () => context.push('/merchant/orders'),
+                                            isDark: isDark,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          _buildActionCard(
+                                            context,
+                                            icon: Icons.qr_code_scanner,
+                                            label: 'Scanner',
+                                            color: Colors.purple,
+                                            onTap: () => context.push('/merchant/scan'),
+                                            isDark: isDark,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    _buildStatsCards(isDark),
+                                    const SizedBox(height: 24),
                                   _buildPaymentsList(isDark),
                                 ],
                               ),
@@ -364,6 +400,44 @@ class _MerchantScreenState extends State<MerchantScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassContainer(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        borderRadius: 16,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

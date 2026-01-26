@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { walletAPI } from '~/composables/useApi'
+import { useExchangeStore } from './exchange'
 
 interface Wallet {
     id: string
@@ -8,6 +9,7 @@ interface Wallet {
     type: string
     is_default: boolean
     usd_rate?: number
+    balanceUSD?: number
 }
 
 interface WalletState {
@@ -30,19 +32,10 @@ export const useWalletStore = defineStore('wallet', {
     }),
 
     actions: {
-        // Helper to estimate rates if not provided by backend
-        // In a real app, these should come from a store or API
+        // Helper to get rates from exchange store
         getRate(currency: string): number {
-            const rates: Record<string, number> = {
-                'USD': 1,
-                'EUR': 1.08,
-                'GBP': 1.27,
-                'XOF': 0.00167,
-                'XAF': 0.00167,
-                'BTC': 43000,
-                'ETH': 2200,
-            }
-            return rates[currency?.toUpperCase()] || 1
+            const exchangeStore = useExchangeStore()
+            return exchangeStore.getRate(currency, 'USD')
         },
 
         initialize() {
@@ -70,9 +63,19 @@ export const useWalletStore = defineStore('wallet', {
             }
 
             try {
-                const response = await walletAPI.getAll()
-                if (response.data && response.data.wallets) {
-                    this.wallets = response.data.wallets
+                // Fetch wallets and rates in parallel
+                const exchangeStore = useExchangeStore()
+                const [walletResponse, _] = await Promise.all([
+                    walletAPI.getAll(),
+                    exchangeStore.fetchRates()
+                ])
+
+                if (walletResponse.data && walletResponse.data.wallets) {
+                    this.wallets = walletResponse.data.wallets.map((w: any) => ({
+                        ...w,
+                        type: w.wallet_type || w.type || 'fiat',
+                        wallet_type: w.wallet_type || w.type || 'fiat'
+                    }))
                     this.calculateBalances()
                     this.lastUpdated = Date.now()
                     this.error = null
@@ -89,12 +92,15 @@ export const useWalletStore = defineStore('wallet', {
         calculateBalances() {
             let total = 0
             let crypto = 0
+            const exchangeStore = useExchangeStore()
 
             this.wallets.forEach(w => {
                 const balance = Number(w.balance) || 0
-                // Use usd_rate from backend if available, else fallback
-                const rate = w.usd_rate || this.getRate(w.currency)
+                // Use usd_rate from backend if available, else get from exchange store
+                const rate = w.usd_rate || exchangeStore.getRate(w.currency, 'USD')
                 const inUSD = balance * rate
+
+                w.balanceUSD = inUSD
 
                 total += inUSD
 

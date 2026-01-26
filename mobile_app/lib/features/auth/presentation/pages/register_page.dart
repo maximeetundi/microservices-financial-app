@@ -39,13 +39,62 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _acceptTerms = false;
 
   final List<Map<String, String>> _countries = [
-    {'code': 'CIV', 'name': 'Côte d\'Ivoire', 'currency': 'XOF', 'dial_code': '+225'},
-    {'code': 'SEN', 'name': 'Sénégal', 'currency': 'XOF', 'dial_code': '+221'},
-    {'code': 'MLI', 'name': 'Mali', 'currency': 'XOF', 'dial_code': '+223'},
-    {'code': 'BFA', 'name': 'Burkina Faso', 'currency': 'XOF', 'dial_code': '+226'},
-    {'code': 'FRA', 'name': 'France', 'currency': 'EUR', 'dial_code': '+33'},
-    {'code': 'USA', 'name': 'États-Unis', 'currency': 'USD', 'dial_code': '+1'},
-    {'code': 'GBR', 'name': 'Royaume-Uni', 'currency': 'GBP', 'dial_code': '+44'},
+    // Africa (CEMAC)
+    {'code': 'CM', 'name': 'Cameroun', 'currency': 'XAF', 'dial_code': '+237'},
+    {'code': 'CF', 'name': 'Centrafrique', 'currency': 'XAF', 'dial_code': '+236'},
+    {'code': 'CG', 'name': 'Congo', 'currency': 'XAF', 'dial_code': '+242'},
+    {'code': 'GA', 'name': 'Gabon', 'currency': 'XAF', 'dial_code': '+241'},
+    {'code': 'GQ', 'name': 'Guinée Équatoriale', 'currency': 'XAF', 'dial_code': '+240'},
+    {'code': 'TD', 'name': 'Tchad', 'currency': 'XAF', 'dial_code': '+235'},
+    
+    // Africa (UEMOA)
+    {'code': 'CI', 'name': 'Côte d\'Ivoire', 'currency': 'XOF', 'dial_code': '+225'},
+    {'code': 'SN', 'name': 'Sénégal', 'currency': 'XOF', 'dial_code': '+221'},
+    {'code': 'ML', 'name': 'Mali', 'currency': 'XOF', 'dial_code': '+223'},
+    {'code': 'BF', 'name': 'Burkina Faso', 'currency': 'XOF', 'dial_code': '+226'},
+    {'code': 'TG', 'name': 'Togo', 'currency': 'XOF', 'dial_code': '+228'},
+    {'code': 'BJ', 'name': 'Bénin', 'currency': 'XOF', 'dial_code': '+229'},
+    {'code': 'NE', 'name': 'Niger', 'currency': 'XOF', 'dial_code': '+227'},
+    {'code': 'GW', 'name': 'Guinée-Bissau', 'currency': 'XOF', 'dial_code': '+245'},
+
+    // Other Africa
+    {'code': 'NG', 'name': 'Nigeria', 'currency': 'NGN', 'dial_code': '+234'},
+    {'code': 'ZA', 'name': 'Afrique du Sud', 'currency': 'ZAR', 'dial_code': '+27'},
+    {'code': 'EG', 'name': 'Égypte', 'currency': 'EGP', 'dial_code': '+20'},
+    {'code': 'MA', 'name': 'Maroc', 'currency': 'MAD', 'dial_code': '+212'},
+    {'code': 'KE', 'name': 'Kenya', 'currency': 'KES', 'dial_code': '+254'},
+    {'code': 'GH', 'name': 'Ghana', 'currency': 'GHS', 'dial_code': '+233'},
+    {'code': 'RW', 'name': 'Rwanda', 'currency': 'RWF', 'dial_code': '+250'},
+    {'code': 'CD', 'name': 'RDC', 'currency': 'CDF', 'dial_code': '+243'},
+    {'code': 'ZW', 'name': 'Zimbabwe', 'currency': 'ZWL', 'dial_code': '+263'},
+    
+    // North America
+    {'code': 'US', 'name': 'États-Unis', 'currency': 'USD', 'dial_code': '+1'},
+    {'code': 'CA', 'name': 'Canada', 'currency': 'CAD', 'dial_code': '+1'},
+    {'code': 'MX', 'name': 'Mexique', 'currency': 'MXN', 'dial_code': '+52'},
+    
+    // South America
+    {'code': 'BR', 'name': 'Brésil', 'currency': 'BRL', 'dial_code': '+55'},
+    {'code': 'AR', 'name': 'Argentine', 'currency': 'ARS', 'dial_code': '+54'},
+    
+    // Europe
+    {'code': 'FR', 'name': 'France', 'currency': 'EUR', 'dial_code': '+33'},
+    {'code': 'DE', 'name': 'Allemagne', 'currency': 'EUR', 'dial_code': '+49'},
+    {'code': 'GB', 'name': 'Royaume-Uni', 'currency': 'GBP', 'dial_code': '+44'},
+    {'code': 'ES', 'name': 'Espagne', 'currency': 'EUR', 'dial_code': '+34'},
+    {'code': 'IT', 'name': 'Italie', 'currency': 'EUR', 'dial_code': '+39'},
+    {'code': 'RU', 'name': 'Russie', 'currency': 'RUB', 'dial_code': '+7'},
+    
+    // Asia/Middle East
+    {'code': 'CN', 'name': 'Chine', 'currency': 'CNY', 'dial_code': '+86'},
+    {'code': 'JP', 'name': 'Japon', 'currency': 'JPY', 'dial_code': '+81'},
+    {'code': 'KR', 'name': 'Corée du Sud', 'currency': 'KRW', 'dial_code': '+82'},
+    {'code': 'IN', 'name': 'Inde', 'currency': 'INR', 'dial_code': '+91'},
+    {'code': 'AE', 'name': 'Émirats Arabes Unis', 'currency': 'AED', 'dial_code': '+971'},
+    {'code': 'SA', 'name': 'Arabie Saoudite', 'currency': 'SAR', 'dial_code': '+966'},
+    {'code': 'TR', 'name': 'Turquie', 'currency': 'TRY', 'dial_code': '+90'},
+    {'code': 'IR', 'name': 'Iran', 'currency': 'IRR', 'dial_code': '+98'},
+    {'code': 'AF', 'name': 'Afghanistan', 'currency': 'AFN', 'dial_code': '+93'},
   ];
 
   String? _getCurrency() {

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glass_container.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
+import '../../domain/entities/wallet.dart';
 import '../bloc/wallet_bloc.dart';
 
 class WalletDetailPage extends StatefulWidget {
@@ -182,7 +185,7 @@ class _WalletDetailPageState extends State<WalletDetailPage> {
                                   child: _ActionButton(
                                     icon: Icons.arrow_downward_rounded,
                                     label: 'Recevoir',
-                                    onTap: () => _showReceiveDialog(context),
+                                    onTap: () => _showReceiveDialog(context, wallet),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -303,25 +306,237 @@ class _WalletDetailPageState extends State<WalletDetailPage> {
     );
   }
 
-  void _showReceiveDialog(BuildContext context) {
-    showDialog(
+  void _showReceiveDialog(BuildContext context, Wallet wallet) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Recevoir des fonds'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                wallet.isCrypto ? 'Adresse de dépôt ${wallet.currency}' : 'Recharger votre compte',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              if (wallet.isCrypto) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: PrettyQr(
+                    data: wallet.address,
+                    size: 200,
+                    roundEdges: true,
+                    elementColor: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Adresse du portefeuille',
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : AppTheme.textSecondaryColor,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          wallet.address,
+                          style: GoogleFonts.sourceCodePro(
+                            color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20, color: AppTheme.primaryColor),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: wallet.address));
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Adresse copiée !')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Envoyez uniquement du ${wallet.currency} sur cette adresse. Tout autre jeton sera perdu.',
+                          style: GoogleFonts.inter(
+                            color: Colors.amber.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Fiat Deposit Options
+                _buildDepositOption(
+                  context,
+                  icon: Icons.credit_card,
+                  title: 'Carte Bancaire',
+                  subtitle: 'Visa, Mastercard',
+                  onTap: () {
+                    // TODO: Integrate Stripe/Card Service
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Bientôt disponible')),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildDepositOption(
+                  context,
+                  icon: Icons.phone_android,
+                  title: 'Mobile Money',
+                  subtitle: 'Orange, MTN, Wave',
+                  onTap: () {
+                    // TODO: Integrate Mobile Money
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Bientôt disponible')),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                 _buildDepositOption(
+                  context,
+                  icon: Icons.account_balance,
+                  title: 'Virement Bancaire',
+                  subtitle: 'IBAN / SWIFT',
+                  onTap: () {
+                     Navigator.pop(context);
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Veuillez contacter le support pour les virements')),
+                    );
+                  },
+                ),
+              ],
+              
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Fermer'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDepositOption(BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
           children: [
-            const Icon(Icons.qr_code, size: 150),
-            const SizedBox(height: 16),
-            Text('ID: ${widget.walletId}'),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppTheme.primaryColor),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: isDark ? Colors.white24 : Colors.black12),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
       ),
     );
   }

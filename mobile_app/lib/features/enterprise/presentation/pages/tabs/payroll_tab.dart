@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/services/api_service.dart';
-import '../../../data/models/enterprise_model.dart';
+import '../../data/models/enterprise_model.dart';
+import '../../widgets/pin_verification_dialog.dart';
 
 class PayrollTab extends StatefulWidget {
   final Enterprise enterprise;
@@ -198,14 +199,82 @@ class _PayrollTabState extends State<PayrollTab> {
   }
 
   void _initiatePayroll() async {
-    // TODO: Implement payroll initiation with PIN
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Demande de paie créée')),
+    // 1. Get PIN
+    final encryptedPin = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const PinVerificationDialog(
+        title: 'Confirmer la paie',
+        description: 'Entrez votre code PIN pour initier le paiement des salaires.',
+      ),
+    );
+
+    if (encryptedPin == null) return;
+
+    // 2. Call API
+    setState(() => _isLoading = true);
+    try {
+      final response = await _api.enterprise.runPayroll(
+        widget.enterprise.id, 
+        {'pin': encryptedPin},
+      );
+      
+      // 3. Handle Result
+      final status = response['status'];
+      final message = response['message'];
+      
+      if (status == 'pending_approval') {
+        _showSuccessDialog(
+          'Demande créée', 
+          'La demande de paiement a été créée avec succès. Elle nécessite maintenant l\'approbation des autres administrateurs.',
+        );
+      } else {
+        _showSuccessDialog(
+          'Paie exécutée', 
+          'Le paiement des salaires a été initié avec succès.',
+        );
+      }
+      
+      // Refresh
+      _loadPayroll();
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: ${e.toString()}'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSuccessDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            Text(content, textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
-  void _viewHistory() {
-    // TODO: Implement history view
+  void _viewHistory() async {
+    // TODO: Navigate to history page
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Historique bientôt disponible')),
+    );
   }
 
   void _configurePayroll() {

@@ -29,6 +29,9 @@ import '../../features/support/support_screen.dart';
 import '../../features/merchant/merchant_screen.dart';
 import 'dart:async';
 import '../../features/merchant/scan_pay_screen.dart';
+import '../../features/merchant/presentation/pages/my_products_page.dart';
+import '../../features/merchant/presentation/pages/add_product_page.dart';
+import '../../features/merchant/presentation/pages/merchant_orders_page.dart';
 import '../../main.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/events/events_screen.dart';
@@ -288,6 +291,23 @@ class AppRouter {
                 path: 'scan',
                 name: 'merchant-scan',
                 builder: (context, state) => const ScanPayScreen(),
+              ),
+              GoRoute(
+                path: 'products',
+                name: 'merchant-products',
+                builder: (context, state) => const MyProductsPage(),
+                routes: [
+                  GoRoute(
+                    path: 'add',
+                    name: 'merchant-products-add',
+                    builder: (context, state) => const AddProductPage(),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: 'orders',
+                name: 'merchant-orders',
+                builder: (context, state) => const MerchantOrdersPage(),
               ),
             ],
           ),

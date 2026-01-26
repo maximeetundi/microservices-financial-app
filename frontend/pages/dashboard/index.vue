@@ -256,9 +256,11 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { useWalletStore } from '~/stores/wallet'
+import { useExchangeStore } from '~/stores/exchange'
+import { storeToRefs } from 'pinia'
 
 // Page meta
 definePageMeta({
@@ -267,11 +269,24 @@ definePageMeta({
 })
 
 const authStore = useAuthStore()
+const walletStore = useWalletStore()
+const exchangeStore = useExchangeStore()
+
+// Use store refs
+const { wallets, totalBalance } = storeToRefs(walletStore)
+const { cryptoRates } = storeToRefs(exchangeStore)
+
 const userName = computed(() => authStore.user?.first_name || 'Utilisateur')
 
 // Reactive data
 const selectedPeriod = ref('7d')
-const portfolioStats = ref({})
+const portfolioStats = ref({
+  totalValue: 0,
+  availableCash: 0,
+  totalPnL: 0,
+  dailyChange: 0,
+  activeOrders: 0
+})
 const topHoldings = ref([])
 const marketData = ref([])
 const recentActivity = ref([])
@@ -287,93 +302,93 @@ const chartPeriods = [
 // Methods
 const getCurrencyColor = (currency) => {
   const colors = {
-    'BTC': 'bg-amber-500',
-    'ETH': 'bg-indigo-500',
+    'BTC': 'bg-amber-500', 
+    'ETH': 'bg-indigo-500', 
     'LTC': 'bg-gray-400',
     'ADA': 'bg-blue-600',
-    'USD': 'bg-emerald-500',
-    'EUR': 'bg-blue-800'
+    'USD': 'bg-emerald-500', 
+    'EUR': 'bg-blue-800',
+    'SOL': 'bg-purple-500',
+    'XOF': 'bg-cyan-600'
   }
   return colors[currency] || 'bg-gray-500'
 }
 
 const getCurrencySymbol = (currency) => {
   const symbols = {
-    'BTC': '₿',
-    'ETH': 'Ξ',
-    'LTC': 'Ł',
-    'ADA': '₳',
-    'USD': '$',
-    'EUR': '€'
+    'BTC': '₿', 'ETH': 'Ξ', 'LTC': 'Ł', 'ADA': '₳', 
+    'USD': '$', 'EUR': '€', 'GBP': '£'
   }
   return symbols[currency] || currency.substring(0, 2)
 }
 
 const getCurrencyName = (currency) => {
   const names = {
-    'BTC': 'Bitcoin',
-    'ETH': 'Ethereum',
-    'LTC': 'Litecoin',
-    'ADA': 'Cardano',
-    'USD': 'US Dollar',
-    'EUR': 'Euro'
+    'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'LTC': 'Litecoin', 
+    'USD': 'US Dollar', 'EUR': 'Euro', 'XOF': 'Franc CFA'
   }
   return names[currency] || currency
 }
 
 const quickTrade = (market) => {
-  navigateTo(`/exchange/trading?pair=${market.symbol}`)
+  // Extract symbol pair properly if needed
+  const symbol = market.symbol || market.pair
+  navigateTo(`/exchange/trading?pair=${symbol}`)
 }
 
-// Fetch data functions
-const fetchDashboardData = async () => {
-    // Demo data for now
-    portfolioStats.value = {
-      totalValue: 15750.50,
-      availableCash: 2500.00,
-      totalPnL: 2150.75,
-      totalPnLPercent: 15.8,
-      dailyChange: 2.3,
-      activeOrders: 3
-    }
+// Update data from stores
+const updateDashboardData = () => {
+  // Update Portfolio Stats using Store Data
+  // Calculate total value from store
+  portfolioStats.value.totalValue = totalBalance.value
+  
+  // Calculate available cash (Fiat wallets)
+  const cash = wallets.value
+    .filter(w => ['USD', 'EUR', 'XOF', 'XAF', 'GBP'].includes(w.currency) || w.type === 'fiat')
+    .reduce((sum, w) => sum + (w.balanceUSD || 0), 0)
+    
+  portfolioStats.value.availableCash = Math.round(cash * 100) / 100
+  
+  // PnM Mock (harder to calculate without historical data)
+  portfolioStats.value.totalPnL = 0 
+  portfolioStats.value.dailyChange = 0
 
-    topHoldings.value = [
-      {
-        currency: 'BTC',
-        amount: 0.25,
-        value: 10875,
-        change: 2.3
-      },
-      {
-        currency: 'ETH',
-        amount: 2.0,
-        value: 4900,
-        change: -1.2
-      },
-      {
-        currency: 'USD',
-        amount: 2500,
-        value: 2500,
-        change: 0
-      }
-    ]
+  // Update Top Holdings
+  const sortedWallets = [...wallets.value]
+    .sort((a, b) => (b.balanceUSD || 0) - (a.balanceUSD || 0))
+    .slice(0, 3)
+    
+  topHoldings.value = sortedWallets.map(w => ({
+    currency: w.currency,
+    amount: Number(w.balance),
+    value: w.balanceUSD || 0,
+    change: 0 // No 24h change data for wallet balance yet
+  }))
+
+  // Update Market Data from Exchange Store
+  if (cryptoRates.value.length > 0) {
+      marketData.value = cryptoRates.value.slice(0, 5).map(r => ({
+          symbol: r.symbol || r.pair, // Adapter to store interface
+          price: r.price || r.rate,
+          change: r.change_24h || 0,
+          volume: r.volume_24h || 0
+      }))
+  }
 }
 
-const fetchMarketData = async () => {
-    // Demo market data
-    marketData.value = [
-      { symbol: 'BTC/USD', price: 43500, change: 2.3, volume: 1234567 },
-      { symbol: 'ETH/USD', price: 2450, change: -1.2, volume: 987654 },
-      { symbol: 'LTC/USD', price: 72, change: 0.8, volume: 543210 },
-      { symbol: 'ADA/USD', price: 0.52, change: 3.1, volume: 876543 }
-    ]
-}
+// Watch for store changes
+watch([wallets, cryptoRates], () => {
+    updateDashboardData()
+})
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    fetchDashboardData(),
-    fetchMarketData()
-  ])
+    // Initialize/Fetch stores
+    await Promise.all([
+        walletStore.fetchWallets(),
+        exchangeStore.fetchRates()
+    ])
+    
+    updateDashboardData()
 })
 </script>

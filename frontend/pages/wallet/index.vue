@@ -424,14 +424,25 @@ import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
 import { usePin } from '~/composables/usePin'
 
+import { storeToRefs } from 'pinia'
+import { useWalletStore } from '~/stores/wallet'
+
 const router = useRouter()
 const { requirePin } = usePin()
+const walletStore = useWalletStore()
 
 // Delete Logic
 const showDeleteModal = ref(false)
 const walletToDelete = ref(null)
 const deleteLoading = ref(false)
 const deleteError = ref('')
+
+// Use store refs
+const { wallets, loading } = storeToRefs(walletStore)
+// Use store totalBalance directly or via computed if specific formatting needed?
+// The store has totalBalance as number. The template uses formatMoney(totalBalance).
+// So relying on storeToRefs(walletStore).totalBalance is correct.
+const { totalBalance } = storeToRefs(walletStore)
 
 const mainWallet = computed(() => {
   if (!wallets.value.length) return null
@@ -498,14 +509,12 @@ const confirmDelete = async () => {
 }
 
 
-// Wallets - will be loaded from API
-const wallets = ref([])
-
+// Selected Wallet state
 const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showTopUpModal = ref(false)
 const creatingWallet = ref(false)
-const loading = ref(true)
+// loading is now from store
 
 // Deposit form
 const depositAmount = ref(5000)
@@ -521,12 +530,7 @@ const newWallet = ref({
   name: ''
 })
 
-const totalBalance = computed(() => {
-  return wallets.value.reduce((sum, w) => {
-    const val = Number(w.balanceUSD)
-    return sum + (isNaN(val) ? 0 : val)
-  }, 0)
-})
+// totalBalance is now from store
 
 const formatMoney = (amount) => {
   const val = Number(amount)
@@ -625,47 +629,7 @@ const submitDeposit = async () => {
 }
 
 const fetchWallets = async () => {
-  loading.value = true
-  try {
-    const response = await walletAPI.getAll()
-    if (response.data?.wallets) {
-      // Map response to ensure consistent property access
-      wallets.value = response.data.wallets.map(w => {
-        const balance = Number(w.balance) || 0
-        // Calculate balanceUSD from balance using conversion rates
-        let balanceUSD = balance
-        if (w.currency === 'XOF' || w.currency === 'XAF') {
-          balanceUSD = balance / 600 // ~600 XOF/XAF per USD
-        } else if (w.currency === 'EUR') {
-          balanceUSD = balance * 1.08
-        } else if (w.currency === 'GBP') {
-          balanceUSD = balance * 1.27
-        } else if (w.currency === 'USD') {
-          balanceUSD = balance
-        } else if (w.currency === 'BTC') {
-          balanceUSD = balance * 43000
-        } else if (w.currency === 'ETH') {
-          balanceUSD = balance * 2200
-        }
-        
-        return {
-          ...w,
-          balance,
-          balanceUSD,
-          type: w.wallet_type || w.type,
-          wallet_type: w.wallet_type || w.type
-        }
-      })
-    }
-  } catch (e) {
-    console.error('API Error, using mock data:', e)
-     wallets.value = [
-      { id: 1, type: 'fiat', wallet_type: 'fiat', currency: 'USD', name: 'Main USD', balance: 1500.50, balanceUSD: 1500.50, status: 'active', address: 'USD-1234-5678' },
-      { id: 2, type: 'crypto', wallet_type: 'crypto', currency: 'BTC', name: 'Bitcoin Vault', balance: 0.045, balanceUSD: 1950.00, status: 'active', address: 'bc1q...3k4j' },
-    ]
-  } finally {
-    loading.value = false
-  }
+  await walletStore.fetchWallets()
 }
 
 const createWallet = async () => {
@@ -698,9 +662,13 @@ const createWallet = async () => {
   }
 }
 
-onMounted(() => {
-  fetchWallets()
-  if (wallets.value.length > 0) {
+onMounted(async () => {
+  // Initialize wallet store if needed (load from cache)
+  walletStore.initialize()
+  
+  await fetchWallets()
+  
+  if (wallets.value.length > 0 && !selectedWallet.value) {
     selectedWallet.value = wallets.value[0]
   }
 })

@@ -535,19 +535,19 @@ class _ExchangePageState extends State<ExchangePage>
         currencies: [
           // Crypto
           'BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'DOT',
-          'LTC', 'AVAX', 'MATIC', 'LINK', 'UNI', 'ATOM',
+          'LTC', 'AVAX', 'MATIC', 'LINK', 'UNI', 'ATOM', 'BCH', 'XLM',
           // Major Fiat
-          'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD',
+          'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD',
           // Africa
-          'XAF', 'XOF', 'NGN', 'ZAR', 'KES', 'GHS', 'MAD', 'TND', 'DZD', 'UGX', 'RWF', 'ETB',
+          'XAF', 'XOF', 'NGN', 'ZAR', 'KES', 'GHS', 'MAD', 'TND', 'DZD', 'UGX', 'RWF', 'ETB', 'CDF', 'TZS', 'AOA', 'MZN', 'ZWL',
           // Middle East
-          'AED', 'SAR', 'QAR', 'KWD', 'EGP', 'ILS',
+          'AED', 'SAR', 'QAR', 'KWD', 'EGP', 'ILS', 'OMR', 'BHD', 'TRY', 'IRR', 'AFN', 'LBP', 'IQD',
           // Asia
-          'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'IDR', 'MYR', 'THB', 'PHP', 'VND',
+          'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'IDR', 'MYR', 'THB', 'PHP', 'VND', 'PKR', 'BDT', 'TWD',
           // Americas
-          'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN',
+          'MXN', 'BRL', 'ARS', 'CLP', 'COP', 'PEN', 'UYU', 'VES', 'BOB', 'PYG',
           // Europe
-          'NOK', 'SEK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'RUB',
+          'NOK', 'SEK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'RUB', 'UAH', 'BYN', 'BGN', 'HRK',
         ],
         onChanged: (currency) {
           onCurrencyChanged(currency);
