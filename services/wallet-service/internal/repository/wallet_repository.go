@@ -35,6 +35,51 @@ func (r *WalletRepository) Create(wallet *models.Wallet) error {
 	return nil
 }
 
+func (r *WalletRepository) InitSchema() error {
+	// Create table if not exists (PostgreSQL)
+	createTableQuery := `
+		CREATE TABLE IF NOT EXISTS wallets (
+			id VARCHAR(255) PRIMARY KEY,
+			user_id VARCHAR(255) NOT NULL,
+			currency VARCHAR(10) NOT NULL,
+			wallet_type VARCHAR(20) NOT NULL,
+			balance DECIMAL(20, 8) DEFAULT 0,
+			frozen_balance DECIMAL(20, 8) DEFAULT 0,
+			wallet_address VARCHAR(255),
+			private_key_encrypted TEXT,
+			name VARCHAR(255),
+			is_active BOOLEAN DEFAULT TRUE,
+			is_hidden BOOLEAN DEFAULT FALSE,
+			external_id VARCHAR(255),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+	`
+	_, err := r.db.Exec(createTableQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create wallets table: %w", err)
+	}
+
+	// Migrations: Add missing columns if they don't exist
+	// In Postgres, we can do ADD COLUMN IF NOT EXISTS
+	migrations := []string{
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
+	}
+
+	for _, query := range migrations {
+		_, err := r.db.Exec(query)
+		if err != nil {
+			// Log error but continue? Or fail? 
+			// Check if error is "column already exists" if on old postgres
+			// But for now return error
+			return fmt.Errorf("failed to run migration %s: %w", query, err)
+		}
+	}
+
+	return nil
+}
+
 func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, error) {
 	query := `
 		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,

@@ -285,12 +285,28 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { exchangeAPI, walletAPI } from '~/composables/useApi'
+import { walletAPI, exchangeAPI } from '~/composables/useApi'
 import { usePin } from '~/composables/usePin'
+import { useWalletStore } from '~/stores/wallet'
+import { useExchangeStore } from '~/stores/exchange'
+import { storeToRefs } from 'pinia'
+
+// Page meta
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'auth'
+})
+
+const { requirePin } = usePin()
+const walletStore = useWalletStore()
+const exchangeStore = useExchangeStore()
+
+// Store refs
+const { wallets } = storeToRefs(walletStore)
+const { cryptoRates } = storeToRefs(exchangeStore)
 
 // Mode: buy or sell
 const mode = ref('buy')
-const { requirePin } = usePin()
 
 // Reactive data
 const loading = ref(false)
@@ -303,7 +319,6 @@ const calculatedFee = ref(0)
 const generatingAddress = ref(false)
 
 // Wallet selection
-const wallets = ref([])
 const selectedFromWalletId = ref('')
 const selectedToWalletId = ref('create_new') // Default to create new or select existing
 
@@ -320,22 +335,24 @@ const fromWalletOptions = computed(() => {
 
 // Destination wallet options based on selected currency
 const toWalletOptions = computed(() => {
+    // Current target currency
+    const target = mode.value === 'buy' ? toCurrency.value : toCurrency.value
+
   if (mode.value === 'buy') {
-    const existing = wallets.value.filter(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
+    const existing = wallets.value.filter(w => w.currency === target && w.wallet_type === 'crypto')
     return [
       ...existing,
-      { id: 'create_new', name: '➕ Créer un nouveau portefeuille', currency: toCurrency.value, balance: 0 }
+      { id: 'create_new', name: '➕ Créer un nouveau portefeuille', currency: target, balance: 0 }
     ]
   } else {
     // Selling crypto -> receive fiat
-    const existing = wallets.value.filter(w => w.currency === toCurrency.value && w.wallet_type === 'fiat')
+    const existing = wallets.value.filter(w => w.currency === target && w.wallet_type === 'fiat')
     // Usually we don't creating fiat wallets on the fly as easily, but let's allow selecting existing
     return existing
   }
 })
 
 const fiatWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'fiat'))
-const cryptoWallets = computed(() => wallets.value.filter(w => w.wallet_type === 'crypto'))
 
 // Selected crypto wallet (for address display)
 const selectedCryptoWallet = computed(() => {
@@ -361,24 +378,27 @@ const showNotification = (type, message) => {
   notification.value = { show: true, type, message }
 }
 
-// Crypto currencies with prices
-const cryptoCurrencies = ref([
-  { symbol: 'BTC', name: 'Bitcoin', icon: '₿', price: 90000, change: 2.5 },
-  { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', price: 3100, change: 1.8 },
-  { symbol: 'SOL', name: 'Solana', icon: '◎', price: 180, change: 4.2 },
-  { symbol: 'XRP', name: 'Ripple', icon: '✕', price: 2.2, change: 3.2 },
-  { symbol: 'BNB', name: 'BNB', icon: '◆', price: 520, change: 1.1 },
-  { symbol: 'ADA', name: 'Cardano', icon: '₳', price: 0.95, change: -0.8 },
-  { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', price: 0.35, change: 5.5 },
-  { symbol: 'DOT', name: 'Polkadot', icon: '●', price: 7.5, change: -1.2 },
-  { symbol: 'USDT', name: 'Tether', icon: '₮', price: 1, change: 0 },
-  { symbol: 'USDC', name: 'USD Coin', icon: '$', price: 1, change: 0 },
-])
+// Market Data from Store
+// Map store rates to list usable by UI
+const markets = computed(() => {
+    if (cryptoRates.value.length === 0) return []
+    return cryptoRates.value.map(r => {
+        // Parse symbol, e.g., "BTC/USD" -> "BTC"
+        const symbol = r.symbol || r.pair
+        const base = symbol.includes('/') ? symbol.split('/')[0] : symbol
+        
+        return {
+            symbol: base,
+            name: getCurrencyName(base),
+            icon: getCurrencySymbol(base), 
+            price: r.price || r.rate,
+            change: r.change_24h || 0,
+            bgColor: getBgColor(base)
+        }
+    })
+})
 
-const markets = computed(() => cryptoCurrencies.value.map(c => ({
-  ...c,
-  bgColor: getBgColor(c.symbol)
-})))
+const cryptoCurrencies = computed(() => markets.value)
 
 const getBgColor = (symbol) => {
   const colors = {
@@ -406,15 +426,59 @@ const getCurrencyEmoji = (currency) => {
   return emojis[currency] || '💵'
 }
 
+const getCurrencySymbol = (currency) => {
+  const symbols = {
+    'BTC': '₿', 'ETH': 'Ξ', 'LTC': 'Ł', 'ADA': '₳', 
+    'USD': '$', 'EUR': '€', 'GBP': '£'
+  }
+  return symbols[currency] || currency.substring(0, 2)
+}
+
+const getCurrencyName = (currency) => {
+  const names = {
+    'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'LTC': 'Litecoin', 
+    'USD': 'US Dollar', 'EUR': 'Euro', 'SOL': 'Solana', 'XOF': 'Franc CFA'
+  }
+  return names[currency] || currency
+}
+
 const getWalletBalance = (currency) => {
   const wallet = wallets.value.find(w => w.currency === currency)
   return wallet?.balance || 0
 }
 
 const getCurrentRate = () => {
-  const crypto = mode.value === 'buy' ? toCurrency.value : fromCurrency.value
-  const cryptoData = cryptoCurrencies.value.find(c => c.symbol === crypto)
-  return cryptoData?.price || 1
+    // Rely on Exchange Store getter
+    const from = mode.value === 'buy' ? fromCurrency.value : fromCurrency.value // If buy: paying with fromCurrency (USD). rate is 1? No.
+    // Rate display: 1 Target = X Source
+    // If Buying BTC with USD: Display 1 BTC = 50000 USD
+    
+    if (mode.value === 'buy') {
+        const target = toCurrency.value
+        const source = fromCurrency.value
+        return exchangeStore.getRate(target, source)
+    } else {
+        // Selling BTC for USD: Display 1 BTC = 50000 USD
+        const target = fromCurrency.value // BTC
+        const source = toCurrency.value // USD
+        return exchangeStore.getRate(target, source)
+    }
+}
+
+const getRateForConversion = () => {
+    // If buying: Source (USD) -> Target (BTC)
+    // AmountFrom (USD) / Rate (USD/BTC) ? No.
+    // We typically calculate: Amount * Price.
+    // Price of 1 Target in Source Terms.
+    if (mode.value === 'buy') {
+         // Buying BTC with USD. Price is e.g. 50000.
+         // 100 USD / 50000 = 0.002 BTC.
+         return exchangeStore.getRate(toCurrency.value, fromCurrency.value)
+    } else {
+        // Selling BTC for USD.
+        // 1 BTC * 50000 = 50000 USD.
+        return exchangeStore.getRate(fromCurrency.value, toCurrency.value)
+    }
 }
 
 const formatBalance = (amount) => {
@@ -443,28 +507,36 @@ const onWalletChange = () => {
 }
 
 const calculateConversion = () => {
-  const rate = getCurrentRate()
-  const fee = fromAmount.value * (feePercentage.value / 100)
-  calculatedFee.value = fee
-  
-  if (mode.value === 'buy') {
-    // Buying crypto with fiat: amount / rate
+    // Using store rate
+    const rate = getRateForConversion() // Price of 1 item in counter currency
+    
+    const fee = fromAmount.value * (feePercentage.value / 100)
+    calculatedFee.value = fee
     const netAmount = fromAmount.value - fee
-    toAmount.value = (netAmount / rate).toFixed(8)
-    
-    // Auto-select destination wallet if exists
-    const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
-    selectedToWalletId.value = matching ? matching.id : 'create_new'
-    
-  } else {
-    // Selling crypto for fiat: amount * rate
-    const netAmount = fromAmount.value - fee
-    toAmount.value = (netAmount * rate).toFixed(2)
-    
-    // Auto-select destination fiat wallet
-    const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'fiat')
-    selectedToWalletId.value = matching ? matching.id : ''
-  }
+
+    if (mode.value === 'buy') {
+        // Buying. fromAmount is in Fiat (e.g. USD). Rate is BTC in USD (e.g. 50000).
+        // Result is BTC.
+        // USD / (USD/BTC) = BTC
+        if (rate > 0) {
+            toAmount.value = (netAmount / rate).toFixed(8)
+        } else {
+            toAmount.value = '0'
+        }
+        
+        // Auto-select destination wallet if exists
+        const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'crypto')
+        selectedToWalletId.value = matching ? matching.id : 'create_new'
+    } else {
+        // Selling. fromAmount is in Crypto (e.g. BTC). Rate is BTC in USD (e.g. 50000).
+        // Result is USD.
+        // BTC * (USD/BTC) = USD
+         toAmount.value = (netAmount * rate).toFixed(2)
+         
+        // Auto-select destination fiat wallet
+        const matching = wallets.value.find(w => w.currency === toCurrency.value && w.wallet_type === 'fiat')
+        selectedToWalletId.value = matching ? matching.id : ''
+    }
 }
 
 const swapMode = () => {
@@ -511,12 +583,12 @@ const generateAddress = async () => {
     
     if (!wallet) {
       // Create the crypto wallet first
-      const { data: newWallet } = await walletAPI.createWallet({
+      const { data: newWalletRes } = await walletAPI.createWallet({
         currency: toCurrency.value,
         name: `${toCurrency.value} Wallet`,
         wallet_type: 'crypto'
       })
-      wallet = newWallet.wallet || newWallet
+      wallet = newWalletRes.wallet || newWalletRes
     }
     
     // Generate address (this endpoint needs to exist in wallet-service)
@@ -524,7 +596,7 @@ const generateAddress = async () => {
     showNotification('success', `Portefeuille ${toCurrency.value} créé! L'adresse sera générée automatiquement.`)
     
     // Refresh wallets
-    await fetchWallets()
+    await walletStore.fetchWallets()
   } catch (error) {
     showNotification('error', 'Erreur lors de la génération de l\'adresse')
   } finally {
@@ -552,8 +624,8 @@ const executeExchange = async () => {
       if (mode.value === 'buy') {
           if (destWalletId === 'create_new') {
              // Create new wallet
-            const crypto = cryptoCurrencies.value.find(c => c.symbol === toCurrency.value)
-            const walletName = crypto ? `${crypto.name} Wallet` : `${toCurrency.value} Wallet`
+            const cryptoData = markets.value.find(c => c.symbol === toCurrency.value)
+            const walletName = cryptoData ? `${cryptoData.name} Wallet` : `${toCurrency.value} Wallet`
             
             const { data: newWalletRes } = await walletAPI.createWallet({
               currency: toCurrency.value,
@@ -596,11 +668,12 @@ const executeExchange = async () => {
       )
       
       // Refresh wallets
-      await fetchWallets()
+      await walletStore.fetchWallets()
       
-      // Reset form
-      fromAmount.value = 0
+      // Reset form (keep small amount to avoid empty input)
+      fromAmount.value = 100
       toAmount.value = '0'
+      calculateConversion()
       
     } catch (error) {
       console.error('Exchange error:', error)
@@ -609,39 +682,6 @@ const executeExchange = async () => {
       loading.value = false
     }
   })
-}
-
-const fetchWallets = async () => {
-  try {
-    const { data } = await walletAPI.getAll()
-    wallets.value = data.wallets || []
-    
-    // Auto-select first wallet
-    if (fromWalletOptions.value.length > 0 && !selectedFromWalletId.value) {
-      selectedFromWalletId.value = fromWalletOptions.value[0].id
-      fromCurrency.value = fromWalletOptions.value[0].currency
-    }
-    
-    calculateConversion() // Recalculate options
-  } catch (error) {
-    console.error('Error fetching wallets:', error)
-  }
-}
-
-const fetchRates = async () => {
-  try {
-    const { data } = await exchangeAPI.getRates()
-    if (data.rates) {
-      Object.entries(data.rates).forEach(([pair, rate]) => {
-        const crypto = cryptoCurrencies.value.find(c => pair.includes(c.symbol))
-        if (crypto && rate.Rate) {
-          crypto.price = rate.Rate
-        }
-      })
-    }
-  } catch (error) {
-    console.error('Error fetching rates:', error)
-  }
 }
 
 // Watch mode changes
@@ -660,15 +700,25 @@ watch(mode, () => {
   calculateConversion()
 })
 
-onMounted(async () => {
-  await fetchWallets()
-  await fetchRates()
-  calculateConversion()
+// Watch rates to recalculate if they change
+watch(cryptoRates, () => {
+    calculateConversion()
 })
 
-definePageMeta({
-  layout: false,
-  middleware: 'auth'
+onMounted(async () => {
+  // Initialize stores
+  await Promise.all([
+      walletStore.fetchWallets(),
+      exchangeStore.fetchRates()
+  ])
+  
+  // Set defaults
+  if (fromWalletOptions.value.length > 0 && !selectedFromWalletId.value) {
+      selectedFromWalletId.value = fromWalletOptions.value[0].id
+      fromCurrency.value = fromWalletOptions.value[0].currency
+  }
+  
+  calculateConversion()
 })
 </script>
 

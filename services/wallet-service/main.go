@@ -79,6 +79,11 @@ func main() {
 	paymentRepo := repository.NewPaymentRequestRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
 	
+	// Initialize wallet tables
+	if err := walletRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize wallet tables: %v", err)
+	}
+
 	// Initialize payment tables
 	if err := paymentRepo.InitTable(); err != nil {
 		log.Printf("Warning: Failed to initialize payment tables: %v", err)
