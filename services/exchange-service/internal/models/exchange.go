@@ -198,6 +198,13 @@ type Market struct {
 	LastUpdated  time.Time `json:"last_updated"`
 }
 
+type BinancePrice struct {
+	Symbol    string  `json:"symbol"`
+	Price     float64 `json:"price,string"`
+	Volume24h float64 `json:"volume,string"`
+	Change24h float64 `json:"priceChangePercent,string"`
+}
+
 type OrderBook struct {
 	Symbol    string      `json:"symbol"`
 	Bids      []OrderLevel `json:"bids"` // Prix d'achat
