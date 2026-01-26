@@ -22,6 +22,10 @@ type Config struct {
 	BinanceAPISecret string
 	BinanceBaseURL   string
 	BinanceTestMode  bool
+
+	// Fiat Providers
+	FixerAPIKey         string
+	CurrencyLayerAPIKey string
 }
 
 func Load() *Config {
