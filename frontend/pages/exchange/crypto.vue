@@ -384,7 +384,9 @@ const markets = computed(() => {
     if (cryptoRates.value.length === 0) return []
     return cryptoRates.value.map(r => {
         // Parse symbol, e.g., "BTC/USD" -> "BTC"
-        const symbol = r.symbol || r.pair
+        const symbol = r.symbol || r.pair || ''
+        if (!symbol) return null // Skip invalid entries
+        
         const base = symbol.includes('/') ? symbol.split('/')[0] : symbol
         
         return {
@@ -395,7 +397,7 @@ const markets = computed(() => {
             change: r.change_24h || 0,
             bgColor: getBgColor(base)
         }
-    })
+    }).filter(m => m !== null) // Filter out nulls
 })
 
 const cryptoCurrencies = computed(() => markets.value)

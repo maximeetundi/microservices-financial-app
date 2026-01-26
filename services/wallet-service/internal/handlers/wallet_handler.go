@@ -139,7 +139,7 @@ func getCurrencyForCountry(countryCode string) string {
 	if xofCountries[countryCode] {
 		return "XOF"
 	}
-	if xafCountries[countryCode] {
+	if xafCountries[countryCode] || countryCode == "Cameroun" || countryCode == "Cameroon" {
 		return "XAF"
 	}
 	if eurCountries[countryCode] {

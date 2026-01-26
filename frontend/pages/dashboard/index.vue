@@ -368,12 +368,20 @@ const updateDashboardData = () => {
 
   // Update Market Data from Exchange Store
   if (cryptoRates.value.length > 0) {
-      marketData.value = cryptoRates.value.slice(0, 5).map(r => ({
-          symbol: r.symbol || r.pair, // Adapter to store interface
-          price: r.price || r.rate,
-          change: r.change_24h || 0,
-          volume: r.volume_24h || 0
-      }))
+      marketData.value = cryptoRates.value
+        .map(r => {
+            const sym = r.symbol || r.pair || ''
+            if (!sym) return null
+            return {
+                symbol: sym,
+                base: sym.includes('/') ? sym.split('/')[0] : sym,
+                price: r.price || r.rate || 0,
+                change: r.change_24h || 0,
+                volume: r.volume_24h || 0
+            }
+        })
+        .filter(i => i !== null)
+        .slice(0, 5)
   }
 }
 
