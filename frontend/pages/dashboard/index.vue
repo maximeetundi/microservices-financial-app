@@ -256,6 +256,7 @@
   </div>
 </template>
 
+<script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useWalletStore } from '~/stores/wallet'
