@@ -7,6 +7,7 @@ import '../../../../core/utils/constants.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../portfolio/presentation/bloc/portfolio_bloc.dart';
 import '../../../wallet/presentation/bloc/wallet_bloc.dart';
+import '../../../exchange/presentation/bloc/exchange_bloc.dart';
 import '../widgets/portfolio_summary_card.dart';
 import '../widgets/quick_actions_section.dart';
 import '../widgets/recent_transactions_section.dart';
@@ -33,6 +34,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _loadDashboardData() {
     context.read<PortfolioBloc>().add(LoadPortfolioEvent());
     context.read<WalletBloc>().add(LoadWalletsEvent());
+    context.read<ExchangeBloc>().add(const LoadExchangeRatesEvent());
   }
 
   @override

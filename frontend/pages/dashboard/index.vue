@@ -370,8 +370,13 @@ const updateDashboardData = () => {
   if (cryptoRates.value.length > 0) {
       marketData.value = cryptoRates.value
         .map(r => {
-            const sym = r.symbol || r.pair || ''
+            // Construct symbol if missing
+            let sym = r.symbol || r.pair || ''
+            if (!sym && r.from_currency && r.to_currency) {
+                sym = `${r.from_currency}/${r.to_currency}`
+            }
             if (!sym) return null
+
             return {
                 symbol: sym,
                 base: sym.includes('/') ? sym.split('/')[0] : sym,

@@ -384,7 +384,10 @@ const markets = computed(() => {
     if (cryptoRates.value.length === 0) return []
     return cryptoRates.value.map(r => {
         // Parse symbol, e.g., "BTC/USD" -> "BTC"
-        const symbol = r.symbol || r.pair || ''
+        let symbol = r.symbol || r.pair || ''
+        if (!symbol && r.from_currency && r.to_currency) {
+            symbol = `${r.from_currency}/${r.to_currency}`
+        }
         if (!symbol) return null // Skip invalid entries
         
         const base = symbol.includes('/') ? symbol.split('/')[0] : symbol

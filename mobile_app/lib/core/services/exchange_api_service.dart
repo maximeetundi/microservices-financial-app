@@ -6,10 +6,10 @@ class ExchangeApiService {
   final ApiClient _client = ApiClient();
   
   /// Récupérer tous les taux de change
-  Future<Map<String, dynamic>> getRates() async {
+  Future<List<dynamic>> getRates() async {
     final response = await _client.get(ApiEndpoints.exchangeRates);
     if (response.statusCode == 200) {
-      return response.data['rates'];
+      return response.data['rates'] ?? [];
     }
     throw Exception('Failed to get rates');
   }

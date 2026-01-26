@@ -1,37 +1,93 @@
-import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../exchange/presentation/bloc/exchange_bloc.dart';
 
 class CryptoPricesSection extends StatelessWidget {
   const CryptoPricesSection({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cryptos = [
-      _CryptoPrice(symbol: 'BTC', name: 'Bitcoin', price: 43250.00, change: 2.45, icon: '₿'),
-      _CryptoPrice(symbol: 'ETH', name: 'Ethereum', price: 2280.50, change: -1.2, icon: 'Ξ'),
-      _CryptoPrice(symbol: 'SOL', name: 'Solana', price: 98.75, change: 5.8, icon: '◎'),
-      _CryptoPrice(symbol: 'XRP', name: 'Ripple', price: 0.52, change: 0.5, icon: '✕'),
-    ];
+    return BlocBuilder<ExchangeBloc, ExchangeState>(
+      builder: (context, state) {
+        if (state is ExchangeLoadingState) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        List<_CryptoPrice> cryptos = [];
+        
+        if (state is ExchangeRatesLoadedState) {
+           // Parse rates
+           cryptos = state.rates.take(5).map((r) {
+             final symbol = r['symbol'] ?? r['pair'] ?? 'UNK';
+             // Extract base symbol e.g BTC from BTC/USD
+             final baseSymbol = symbol.contains('/') ? symbol.split('/')[0] : symbol;
+             
+             return _CryptoPrice(
+               symbol: baseSymbol, 
+               name: _getName(baseSymbol), 
+               price: (r['price'] ?? r['rate'] ?? 0).toDouble(), 
+               change: (r['change_24h'] ?? 0).toDouble(), 
+               icon: _getIcon(baseSymbol)
+             );
+           }).toList();
+        } else {
+           // Fallback or empty if not loaded yet (or error)
+           // We could show previous hardcoded data as skeletons or nothing.
+           // For now, let's return SizedBox if empty to avoid clutter, 
+           // or keep the structure with empty list.
+           if (cryptos.isEmpty) return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Prix Crypto',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Prix Crypto',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Voir plus'),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () {},
-              child: const Text('Voir plus'),
-            ),
+            const SizedBox(height: 8),
+            if (cryptos.isEmpty) 
+               const Text("Aucune donnée disponible")
+            else
+               ...cryptos.map((crypto) => _buildCryptoTile(crypto)),
           ],
-        ),
-        const SizedBox(height: 8),
-        ...cryptos.map((crypto) => _buildCryptoTile(crypto)),
-      ],
+        );
+      },
     );
+  }
+
+  String _getName(String symbol) {
+    switch (symbol) {
+      case 'BTC': return 'Bitcoin';
+      case 'ETH': return 'Ethereum';
+      case 'SOL': return 'Solana';
+      case 'XRP': return 'Ripple';
+      case 'USDT': return 'Tether';
+      case 'ADA': return 'Cardano';
+      case 'DOGE': return 'Dogecoin';
+      default: return symbol;
+    }
+  }
+
+  String _getIcon(String symbol) {
+     switch (symbol) {
+      case 'BTC': return '₿';
+      case 'ETH': return 'Ξ';
+      case 'SOL': return '◎';
+      case 'XRP': return '✕';
+      case 'USDT': return '₮';
+      case 'ADA': return '₳';
+      case 'DOGE': return 'Ð';
+      default: return '\$';
+    }
   }
 
   Widget _buildCryptoTile(_CryptoPrice crypto) {

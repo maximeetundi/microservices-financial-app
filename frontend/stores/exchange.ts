@@ -3,11 +3,15 @@ import { exchangeAPI, fiatAPI } from '~/composables/useApi'
 
 interface CryptoRate {
     pair: string
+    symbol?: string // Optional, as some endpoints might return this
+    from_currency?: string
+    to_currency?: string
     rate: number
     change_24h: number
     volume_24h: number
     last_updated: string
     // Add other fields if necessary
+    price?: number
 }
 
 interface FiatRate {
@@ -106,7 +110,19 @@ export const useExchangeStore = defineStore('exchange', {
                 ])
 
                 if (cryptoRes.status === 'fulfilled' && cryptoRes.value.data?.rates) {
-                    this.cryptoRates = cryptoRes.value.data.rates
+                    // Normalize rates to ensure 'pair' exists
+                    this.cryptoRates = cryptoRes.value.data.rates.map((r: any) => {
+                        let pair = r.pair || r.symbol
+                        if (!pair && r.from_currency && r.to_currency) {
+                            pair = `${r.from_currency}/${r.to_currency}`
+                        }
+
+                        return {
+                            ...r,
+                            pair: pair || '', // Ensure pair is never undefined
+                            symbol: pair || '', // Populate symbol too for convenience
+                        }
+                    }).filter((r: any) => r.pair)
                 }
 
                 if (fiatRes.status === 'fulfilled' && fiatRes.value.data?.rates) {

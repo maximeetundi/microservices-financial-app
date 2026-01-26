@@ -102,7 +102,7 @@ class ExchangeLoadingState extends ExchangeState {
 }
 
 class ExchangeRatesLoadedState extends ExchangeState {
-  final Map<String, dynamic> rates;
+  final List<dynamic> rates;
 
   const ExchangeRatesLoadedState({required this.rates});
 

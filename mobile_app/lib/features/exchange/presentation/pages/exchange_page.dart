@@ -33,6 +33,7 @@ class _ExchangePageState extends State<ExchangePage>
   String _fromCurrency = 'BTC';
   String _toCurrency = 'USD';
   bool _isSwapping = false;
+  double _currentRate = 0.0;
   
   // Wallets for exchange
   List<Map<String, dynamic>> _wallets = [];
@@ -610,7 +611,25 @@ class _ExchangePageState extends State<ExchangePage>
   void _showExchangeConfirmation(double amount) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => BlocListener<ExchangeBloc, ExchangeState>(
+      listener: (context, state) {
+        if (state is ExchangeRateLoadedState) {
+           setState(() {
+             _currentRate = state.rate;
+             // Update To Amount if From Amount is present
+             final fromAmount = double.tryParse(_fromAmountController.text);
+             if (fromAmount != null) {
+               _toAmountController.text = (fromAmount * state.rate).toStringAsFixed(6);
+             }
+           });
+        } else if (state is ExchangeSuccessState) {
+          _showSuccessDialog(state.exchangeId);
+        } else if (state is ExchangeErrorState) {
+          _showErrorSnackBar(state.message);
+        }
+      },
+      child: SingleChildScrollView(
+        child: AlertDialog(
         title: const Text('Confirm Exchange'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -629,7 +648,7 @@ class _ExchangePageState extends State<ExchangePage>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Exchange Rate:'),
-                      Text('1 $_fromCurrency = 43,500 $_toCurrency'),
+                      Text('1 $_fromCurrency = ${_currentRate.toStringAsFixed(6)} $_toCurrency'),
                     ],
                   ),
                   const SizedBox(height: 8),
