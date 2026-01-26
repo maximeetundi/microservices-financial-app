@@ -64,7 +64,7 @@ func (s *BalanceService) GetBalance(walletID string) (*models.Balance, error) {
 }
 
 func (s *BalanceService) GetUserBalances(userID string) ([]*models.Balance, error) {
-	wallets, err := s.walletRepo.GetByUserID(userID)
+	wallets, err := s.walletRepo.GetByUserID(userID, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user wallets: %w", err)
 	}
@@ -248,7 +248,7 @@ func (s *BalanceService) InvalidateCache(walletID string) {
 
 func (s *BalanceService) InvalidateUserCache(userID string) {
 	// Get all user wallets and invalidate their cache
-	wallets, err := s.walletRepo.GetByUserID(userID)
+	wallets, err := s.walletRepo.GetByUserID(userID, true)
 	if err != nil {
 		return
 	}
