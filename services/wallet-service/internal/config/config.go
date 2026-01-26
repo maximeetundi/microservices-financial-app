@@ -25,6 +25,14 @@ type Config struct {
 	
 	// Fee settings
 	NetworkFees map[string]float64
+	
+	// Crypto settings
+	EncryptionKey string
+	BlockchainRPC map[string]string
+	CryptoAPIKeys map[string]string
+
+	// Security
+	RateLimitRPS int
 }
 
 func Load() *Config {
