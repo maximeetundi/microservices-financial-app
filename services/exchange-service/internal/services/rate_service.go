@@ -318,7 +318,7 @@ func (s *RateService) fetchCryptoRate(from, to string) (*models.ExchangeRate, er
 	defer cancel()
 
 	// Helper to get price safely
-	getPrice := func(base, quote string) (*models.BinancePrice, error) {
+	getPrice := func(base, quote string) (*CryptoPrice, error) {
 		// Binance uses symbols like BTCUSDT
 		// Handle USD mapping to USDT for Binance
 		targetQuote := quote
