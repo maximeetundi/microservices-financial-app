@@ -84,7 +84,7 @@ func (p *CurrencyLayerProvider) GetRates(baseCurrency string) (map[string]float6
 		return nil, fmt.Errorf("API key missing")
 	}
 	// Free tier restricts source to USD
-	url := fmt.Sprintf("http://api.currencylayer.com/live?access_key=%s", p.apiKey)
+	url := fmt.Sprintf("http://apilayer.net/api/live?access_key=%s", p.apiKey)
 
 	resp, err := p.client.Get(url)
 	if err != nil {
