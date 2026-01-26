@@ -149,23 +149,7 @@ func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalle
 		return nil, fmt.Errorf("quote has expired")
 	}
 
-	// Calculate and check fees
-	// Perform synchronous balance check
-	balance, _, err := s.walletClient.GetWalletBalanceByID(fromWalletID, token) // Pass token explicitly
-	if err != nil {
-		log.Printf("Failed to check balance for wallet %s: %v", fromWalletID, err)
-		// Fallback or fail? Fail for safety to prevent insufficient funds
-		return nil, fmt.Errorf("failed to verify wallet balance: %w", err)
-	}
-
-	if balance < quote.FromAmount {
-		return nil, fmt.Errorf("insufficient funds: available %f, required %f", balance, quote.FromAmount)
-	}
-
-	// In a real system, we would lock funds here or check balance again
-	// We rely on the async processor to do the actual transfer and fail if insufficient funds
-
-	// Créer l'échange
+	// Créer l'échange avec statut initial "processing"
 	exchange := &models.Exchange{
 		UserID:           userID,
 		FromWalletID:     fromWalletID,
@@ -177,18 +161,82 @@ func (s *ExchangeService) ExecuteExchange(userID, quoteID, fromWalletID, toWalle
 		ExchangeRate:     quote.ExchangeRate,
 		Fee:              quote.Fee,
 		FeePercentage:    quote.FeePercentage,
-		Status:           "pending",
+		Status:           "processing",
 		QuoteID:          quoteID,
 	}
 
-	// Sauvegarder l'échange
 	err = s.exchangeRepo.Create(exchange)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create exchange: %w", err)
+		return nil, fmt.Errorf("failed to create exchange record: %w", err)
 	}
 
-	// Traiter l'échange de manière asynchrone
-	go s.processExchange(exchange)
+	log.Printf("[EXCHANGE SYNC] Starting sync exchange %s", exchange.ID)
+
+	// 1. Synchronous DEBIT
+	debitReq := &TransactionRequest{ // Uses the struct defined in wallet_client.go
+		UserID:    userID,
+		WalletID:  fromWalletID,
+		Amount:    exchange.FromAmount,
+		Type:      "debit",
+		Currency:  exchange.FromCurrency,
+		Reference: fmt.Sprintf("EXC_DEBIT_%s", exchange.ID),
+	}
+
+	err = s.walletClient.ProcessTransaction(debitReq)
+	if err != nil {
+		log.Printf("[EXCHANGE SYNC] Debit failed for %s: %v", exchange.ID, err)
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed")
+		// No refund needed, debit failed
+		return nil, fmt.Errorf("exchange failed at debit step: %v", err)
+	}
+
+	// Debit Success - Status Update
+	log.Printf("[EXCHANGE SYNC] Debit successful for %s", exchange.ID)
+	s.exchangeRepo.UpdateStatus(exchange.ID, "debited")
+
+	// 2. Synchronous CREDIT
+	creditReq := &TransactionRequest{
+		UserID:    userID,
+		WalletID:  toWalletID,
+		Amount:    exchange.ToAmount,
+		Type:      "credit",
+		Currency:  exchange.ToCurrency,
+		Reference: fmt.Sprintf("EXC_CREDIT_%s", exchange.ID),
+	}
+
+	err = s.walletClient.ProcessTransaction(creditReq)
+	if err != nil {
+		log.Printf("[EXCHANGE SYNC] CRITICAL: Credit failed for %s after successful debit. Initiating REFUND. Error: %v", exchange.ID, err)
+		
+		// 3. REFUND (Compensation)
+		refundReq := &TransactionRequest{
+			UserID:    userID,
+			WalletID:  fromWalletID,
+			Amount:    exchange.FromAmount,
+			Type:      "credit", // Credit back the source
+			Currency:  exchange.FromCurrency,
+			Reference: fmt.Sprintf("EXC_REFUND_%s", exchange.ID),
+		}
+		
+		refundErr := s.walletClient.ProcessTransaction(refundReq)
+		if refundErr != nil {
+			// FATAL ERROR: Money taken, not given, not returned.
+			log.Printf("[EXCHANGE SYNC] FATAL: Refund failed for %s! Manual intervention required. Error: %v", exchange.ID, refundErr)
+			s.exchangeRepo.UpdateStatus(exchange.ID, "failed_fatal")
+			return nil, fmt.Errorf("exchange failed and refund failed. Please contact support immediately. Ref: %s", exchange.ID)
+		}
+
+		log.Printf("[EXCHANGE SYNC] Refund successful for %s", exchange.ID)
+		s.exchangeRepo.UpdateStatus(exchange.ID, "failed_refunded")
+		return nil, fmt.Errorf("exchange failed (funds refunded): %v", err)
+	}
+
+	// 4. Success Finalization
+	log.Printf("[EXCHANGE SYNC] Exchange %s completed successfully", exchange.ID)
+	s.exchangeRepo.UpdateStatus(exchange.ID, "completed")
+
+	// Optional: Still publish event for analytics/notifications
+	s.publishExchangeEvent("exchange.completed", exchange)
 
 	return exchange, nil
 }

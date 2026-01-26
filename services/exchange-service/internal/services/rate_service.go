@@ -331,31 +331,59 @@ func (s *RateService) fetchCryptoRate(from, to string) (*models.ExchangeRate, er
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Binance uses symbols like BTCUSDT
-	// Handle USD mapping to USDT for Binance
-	targetTo := to
-	if to == "USD" {
-		targetTo = "USDT"
-	}
-	
-	symbol := from + targetTo
-	price, err := s.binanceProvider.GetPrice(ctx, symbol)
-	if err != nil {
-		return nil, err
+	// Helper to get price safely
+	getPrice := func(base, quote string) (*models.BinancePrice, error) {
+		// Binance uses symbols like BTCUSDT
+		// Handle USD mapping to USDT for Binance
+		targetQuote := quote
+		if quote == "USD" {
+			targetQuote = "USDT"
+		}
+		targetBase := base
+		if base == "USD" {
+			targetBase = "USDT"
+		}
+		
+		symbol := targetBase + targetQuote
+		return s.binanceProvider.GetPrice(ctx, symbol)
 	}
 
-	return &models.ExchangeRate{
-		FromCurrency: from,
-		ToCurrency:   to,
-		Rate:         price.Price,
-		BidPrice:     price.Price * 0.995,
-		AskPrice:     price.Price * 1.005,
-		Spread:       price.Price * 0.01,
-		Source:       "binance",
-		Volume24h:    price.Volume24h,
-		Change24h:    price.Change24h,
-		LastUpdated:  time.Now(),
-	}, nil
+	// Try direct pair first: FROM -> TO
+	price, err := getPrice(from, to)
+	if err == nil {
+		return &models.ExchangeRate{
+			FromCurrency: from,
+			ToCurrency:   to,
+			Rate:         price.Price,
+			BidPrice:     price.Price * 0.995,
+			AskPrice:     price.Price * 1.005,
+			Spread:       price.Price * 0.01,
+			Source:       "binance",
+			Volume24h:    price.Volume24h,
+			Change24h:    price.Change24h,
+			LastUpdated:  time.Now(),
+		}, nil
+	}
+
+	// Try inverse pair: TO -> FROM (e.g request USD->BTC, try BTC->USD output)
+	// This supports cases where we only have the major pair listing (BTCUSDT) but want to convert USDT to BTC
+	inversePrice, err := getPrice(to, from)
+	if err == nil && inversePrice.Price > 0 {
+		return &models.ExchangeRate{
+			FromCurrency: from,
+			ToCurrency:   to,
+			Rate:         1 / inversePrice.Price,
+			BidPrice:     (1 / inversePrice.Price) * 0.995,
+			AskPrice:     (1 / inversePrice.Price) * 1.005,
+			Spread:       (1 / inversePrice.Price) * 0.01,
+			Source:       "binance (inverse)",
+			Volume24h:    inversePrice.Volume24h,
+			Change24h:    inversePrice.Change24h,
+			LastUpdated:  time.Now(),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("failed to fetch rate for %s/%s: %v", from, to, err)
 }
 
 func (s *RateService) isCryptoPair(from, to string) bool {

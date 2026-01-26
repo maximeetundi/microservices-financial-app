@@ -59,22 +59,31 @@
       <!-- Dashboard Grid -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Stats Card -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Ventes du mois</h3>
+        <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+          <div class="flex items-center gap-2 mb-4">
+             <CurrencyEuroIcon class="h-6 w-6 text-indigo-500" />
+             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Ventes du mois</h3>
+          </div>
           <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">0.00 €</div>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Vs mois dernier: 0%</p>
         </div>
 
         <!-- Orders Card -->
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Commandes</h3>
+        <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+          <div class="flex items-center gap-2 mb-4">
+             <ClipboardDocumentListIcon class="h-6 w-6 text-indigo-500" />
+             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Commandes</h3>
+          </div>
           <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">0</div>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">En attente: 0</p>
         </div>
 
         <!-- Products Card -->
-        <NuxtLink :to="`/shops/manage/${slug}/products`" class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer border border-transparent hover:border-indigo-500">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Produits</h3>
+        <NuxtLink :to="`/shops/manage/${slug}/products`" class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer border border-transparent hover:border-indigo-500">
+          <div class="flex items-center gap-2 mb-4">
+             <ShoppingBagIcon class="h-6 w-6 text-indigo-500" />
+             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Produits</h3>
+          </div>
           <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">0</div>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">En stock</p>
         </NuxtLink>
@@ -82,29 +91,41 @@
 
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
+        <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Gestion rapide</h3>
           <div class="space-y-3">
-            <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-              <span class="font-medium text-gray-700 dark:text-gray-200">Ajouter un produit</span>
+            <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group">
+              <span class="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-3">
+                <PlusIcon class="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
+                Ajouter un produit
+              </span>
               <span class="text-gray-400">→</span>
             </NuxtLink>
-            <NuxtLink :to="`/shops/manage/${slug}/categories`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-              <span class="font-medium text-gray-700 dark:text-gray-200">Gérer les catégories</span>
+            <NuxtLink :to="`/shops/manage/${slug}/categories`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group">
+              <span class="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-3">
+                <TagIcon class="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
+                Gérer les catégories
+              </span>
               <span class="text-gray-400">→</span>
             </NuxtLink>
-            <NuxtLink :to="`/shops/manage/${slug}/managers`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-              <span class="font-medium text-gray-700 dark:text-gray-200">Gérer l'équipe</span>
+            <NuxtLink :to="`/shops/manage/${slug}/managers`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group">
+              <span class="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-3">
+                <UsersIcon class="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
+                Gérer l'équipe
+              </span>
               <span class="text-gray-400">→</span>
             </NuxtLink>
-            <NuxtLink :to="`/shops/manage/${slug}/settings`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-              <span class="font-medium text-gray-700 dark:text-gray-200">Paramètres & Paiement</span>
+            <NuxtLink :to="`/shops/manage/${slug}/settings`" class="w-full flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group">
+              <span class="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-3">
+                <Cog6ToothIcon class="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
+                Paramètres & Paiement
+              </span>
               <span class="text-gray-400">→</span>
             </NuxtLink>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
+        <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Dernières commandes</h3>
           <div class="text-center py-8 text-gray-500 dark:text-gray-400">
             Aucune commande récente
@@ -119,6 +140,18 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi } from '@/composables/useShopApi'
+import { 
+  BuildingStorefrontIcon, 
+  PencilSquareIcon,
+  CurrencyEuroIcon,
+  ClipboardDocumentListIcon,
+  ShoppingBagIcon,
+  PlusIcon,
+  TagIcon,
+  UsersIcon,
+  Cog6ToothIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const shopApi = useShopApi()
