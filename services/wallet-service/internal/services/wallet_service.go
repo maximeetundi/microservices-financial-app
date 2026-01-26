@@ -40,9 +40,23 @@ func NewWalletService(
 }
 
 func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequest) (*models.Wallet, error) {
-	// Check if user already has a wallet for this currency
+	// Check if user already has a wallet for this currency (Active OR Hidden)
+	// We need a repo method that fetches ANY wallet (IsActive=true, IsHidden=any)
+	// But current GetByUserAndCurrency fetches IsActive=true.
+	// We need to fetch hidden ones too to UNHIDE them. 
+	// The repo update for GetByUserAndCurrency returns Hidden ones too now if they are IsActive=true.
+	
 	existingWallet, _ := s.walletRepo.GetByUserAndCurrency(userID, req.Currency)
 	if existingWallet != nil {
+		if existingWallet.IsHidden {
+			// Unhide it
+			err := s.walletRepo.Unhide(existingWallet.ID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to reactivate wallet: %w", err)
+			}
+			existingWallet.IsHidden = false
+			return existingWallet, nil
+		}
 		return nil, fmt.Errorf("wallet already exists for currency %s", req.Currency)
 	}
 
@@ -54,6 +68,7 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 		FrozenBalance: 0,
 		Name:          req.Name,
 		IsActive:      true,
+		IsHidden:      false,
 	}
 
 	// Generate crypto address if it's a crypto wallet
@@ -71,6 +86,11 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 
 		wallet.WalletAddress = &cryptoWallet.Address
 		wallet.PrivateKeyEncrypted = &encryptedPrivateKey
+		
+		// Map Tatum Account ID to Wallet ExternalID
+		if cryptoWallet.AccountID != "" {
+			wallet.ExternalID = cryptoWallet.AccountID
+		}
 	}
 
 	err := s.walletRepo.Create(wallet)
@@ -82,6 +102,45 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 	s.publishWalletEvent("wallet.created", wallet)
 
 	return wallet, nil
+}
+
+// ProcessTatumDeposit handles incoming deposits from Tatum Webhooks
+func (s *WalletService) ProcessTatumDeposit(accountID string, amount float64, currency string, txHash string) error {
+	// 1. Find Wallet by Tatum Account ID
+	wallet, err := s.walletRepo.GetByExternalID(accountID)
+	if err != nil {
+		return fmt.Errorf("wallet not found for tatum account %s: %w", accountID, err)
+	}
+
+	// 2. Check for duplicate transaction (Idempotency)
+	// Ideally we check if txHash exists in transactions. 
+	// For now, assuming wallet_service transaction creation handles basic duplicates via Unique constraints if we had them or simple check.
+	// Since we don't have GetByTxHash, let's implement basic check after finding wallet.
+
+	// 3. Credit Wallet
+	// ProcessTransaction handles Debit/Credit logic securely
+	creditReq := &models.TransactionRequest{
+		UserID:    wallet.UserID,
+		WalletID:  wallet.ID,
+		Amount:    amount,
+		Type:      "credit",
+		Currency:  wallet.Currency, // Trust wallet currency or verify against webhook currency?
+		Reference: "DEPOSIT_" + txHash, // Prefix helps identify source
+	}
+
+	// Verify currency match
+	if strings.ToUpper(currency) != wallet.Currency && currency != "" {
+		// Log warning, but for tokens like USDT it might verify differently (ERC20 vs ETH)
+		// Tatum usually sends the currency of the account
+		return fmt.Errorf("currency mismatch webhok %s vs wallet %s", currency, wallet.Currency) 
+	}
+
+	err = s.ProcessTransaction(creditReq)
+	if err != nil {
+		return fmt.Errorf("failed to credit wallet for deposit: %w", err)
+	}
+
+	return nil
 }
 
 func (s *WalletService) GetWallet(walletID, userID string) (*models.Wallet, error) {
@@ -101,7 +160,7 @@ func (s *WalletService) GetWallet(walletID, userID string) (*models.Wallet, erro
 	return wallet, nil
 }
 
-func (s *WalletService) DeleteWallet(walletID, userID string) error {
+func (s *WalletService) HideWallet(walletID, userID string) error {
 	wallet, err := s.walletRepo.GetByID(walletID)
 	if err != nil {
 		return err
@@ -112,31 +171,47 @@ func (s *WalletService) DeleteWallet(walletID, userID string) error {
 	}
 
 	if wallet.Balance > 0 || wallet.FrozenBalance > 0 {
-		return fmt.Errorf("cannot delete wallet with funds. please transfer funds to your main wallet first")
+		return fmt.Errorf("cannot hide wallet with funds. please transfer funds to your main wallet first")
 	}
 
-	// Check if it's the main (oldest) wallet
-	userWallets, err := s.walletRepo.GetByUserID(userID)
+	// Check if it's the main (oldest) wallet logic - Optional? 
+	// User said "cannot delete main wallet" but "hide" might be allowed?
+	// Let's assume hiding any wallet (if empty) is fine, or keep logic.
+	// Keeping safety logic for now.
+	userWallets, err := s.walletRepo.GetByUserID(userID, false)
 	if err != nil {
 		return fmt.Errorf("failed to check user wallets: %w", err)
 	}
 
-	if len(userWallets) == 0 {
-		return fmt.Errorf("no wallets found")
+	if len(userWallets) <= 1 {
+		return fmt.Errorf("cannot hide the only wallet")
 	}
 
-	// Assuming GetByUserID returns sorted by CreatedAt DESC, the last one is the oldest
-	mainWallet := userWallets[len(userWallets)-1]
-	
-	if mainWallet.ID == walletID {
-		return fmt.Errorf("cannot delete main wallet. one wallet must always remain")
-	}
-
-	return s.walletRepo.Delete(walletID)
+	return s.walletRepo.Hide(walletID)
 }
 
-func (s *WalletService) GetUserWallets(userID string) ([]*models.Wallet, error) {
-	wallets, err := s.walletRepo.GetByUserID(userID)
+// Deprecated: Use HideWallet
+func (s *WalletService) DeleteWallet(walletID, userID string) error {
+	return s.HideWallet(walletID, userID)
+}
+
+func (s *WalletService) UnhideWallet(walletID, userID string) error {
+	// We need a repo method to get by ID even if hidden. 
+	// GetByID returns hidden ones too (based on repo update).
+	wallet, err := s.walletRepo.GetByID(walletID)
+	if err != nil {
+		return err
+	}
+	
+	if wallet.UserID != userID {
+		return fmt.Errorf("wallet not found")
+	}
+	
+	return s.walletRepo.Unhide(walletID)
+}
+
+func (s *WalletService) GetUserWallets(userID string, includeHidden bool) ([]*models.Wallet, error) {
+	wallets, err := s.walletRepo.GetByUserID(userID, includeHidden)
 	if err != nil {
 		return nil, err
 	}

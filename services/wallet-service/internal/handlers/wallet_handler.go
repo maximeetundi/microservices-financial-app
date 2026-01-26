@@ -29,14 +29,17 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 		return
 	}
 
-	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	includeHiddenStr := c.DefaultQuery("include_hidden", "false")
+	includeHidden, _ := strconv.ParseBool(includeHiddenStr)
+
+	wallets, err := h.walletService.GetUserWallets(userID.(string), includeHidden)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get wallets"})
 		return
 	}
 
-	// Auto-create a default wallet if user has none
-	if len(wallets) == 0 {
+	// Auto-create a default wallet if user has none (only if not getting hidden)
+	if len(wallets) == 0 && !includeHidden {
 		// Get user's country to determine currency
 		userCountry := h.walletService.GetUserCountry(userID.(string))
 		defaultCurrency := getCurrencyForCountry(userCountry)
@@ -96,13 +99,13 @@ func (h *WalletHandler) DeleteWallet(c *gin.Context) {
 		return
 	}
 
-	err := h.walletService.DeleteWallet(walletID, userID.(string))
+	err := h.walletService.HideWallet(walletID, userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Wallet deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet hidden successfully"})
 }
 
 // getCurrencyForCountry returns the appropriate currency for a country code
@@ -797,6 +800,48 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 
 	// Calculate new balance
 	newBalance := wallet.Balance - amountToDebit
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Withdrawal successful",
+		"transaction_id": transactionID,
+		"new_balance": newBalance,
+	})
+}
+
+func (h *WalletHandler) HandleTatumWebhook(c *gin.Context) {
+	// Tatum Webhook Payload Structure (Simplified)
+	var req struct {
+		AccountId        string `json:"accountId"`
+		Amount           string `json:"amount"` // String to avoid float precision issues initially
+		SubscriptionType string `json:"subscriptionType"`
+		TxId            string `json:"txId"`
+		Currency        string `json:"currency"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// We only care about ACCOUNT_INCOMING_BLOCKCHAIN_TRANSACTION
+	if req.SubscriptionType != "ACCOUNT_INCOMING_BLOCKCHAIN_TRANSACTION" {
+		c.JSON(http.StatusOK, gin.H{"message": "Ignored subscription type"})
+		return
+	}
+
+	amountFloat, _ := strconv.ParseFloat(req.Amount, 64)
+
+	err := h.walletService.ProcessTatumDeposit(req.AccountId, amountFloat, req.Currency, req.TxId)
+	if err != nil {
+		// Log error but maybe return 200 to prevent Tatum retries if it's a logic error?
+		// Or 500 to retry? 
+		// Return 400/500 to alert.
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deposit processed"})
+}
 
 	// Determine description
 	description := req.Description

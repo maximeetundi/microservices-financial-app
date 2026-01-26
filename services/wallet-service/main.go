@@ -221,6 +221,7 @@ func main() {
 		{
 			webhooks.POST("/crypto/confirmation", walletHandler.HandleCryptoConfirmation)
 			webhooks.POST("/crypto/deposit", walletHandler.HandleCryptoDeposit)
+			webhooks.POST("/tatum", walletHandler.HandleTatumWebhook)
 		}
 	}
 

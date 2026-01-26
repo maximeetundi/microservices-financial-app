@@ -18,14 +18,14 @@ func NewWalletRepository(db *sql.DB) *WalletRepository {
 func (r *WalletRepository) Create(wallet *models.Wallet) error {
 	query := `
 		INSERT INTO wallets (user_id, currency, wallet_type, balance, frozen_balance, 
-							 wallet_address, private_key_encrypted, name, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+							 wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at
 	`
 
 	err := r.db.QueryRow(query, wallet.UserID, wallet.Currency, wallet.WalletType,
 		wallet.Balance, wallet.FrozenBalance, wallet.WalletAddress,
-		wallet.PrivateKeyEncrypted, wallet.Name, wallet.IsActive).Scan(
+		wallet.PrivateKeyEncrypted, wallet.Name, wallet.IsActive, wallet.IsHidden, wallet.ExternalID).Scan(
 		&wallet.ID, &wallet.CreatedAt, &wallet.UpdatedAt)
 
 	if err != nil {
@@ -35,18 +35,19 @@ func (r *WalletRepository) Create(wallet *models.Wallet) error {
 	return nil
 }
 
-func (r *WalletRepository) GetByID(walletID string) (*models.Wallet, error) {
+func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, error) {
 	query := `
 		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
-			   wallet_address, private_key_encrypted, name, is_active, created_at, updated_at
-		FROM wallets WHERE id = $1 AND is_active = true
+			   wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id, created_at, updated_at
+		FROM wallets 
+		WHERE external_id = $1 AND is_active = true
 	`
 
 	var wallet models.Wallet
-	err := r.db.QueryRow(query, walletID).Scan(
+	err := r.db.QueryRow(query, externalID).Scan(
 		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
-		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive,
+		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.ExternalID,
 		&wallet.CreatedAt, &wallet.UpdatedAt,
 	)
 
@@ -60,14 +61,50 @@ func (r *WalletRepository) GetByID(walletID string) (*models.Wallet, error) {
 	return &wallet, nil
 }
 
-func (r *WalletRepository) GetByUserID(userID string) ([]*models.Wallet, error) {
+func (r *WalletRepository) GetByID(walletID string) (*models.Wallet, error) {
 	query := `
 		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
-			   wallet_address, name, is_active, created_at, updated_at
-		FROM wallets 
-		WHERE user_id = $1 AND is_active = true
-		ORDER BY created_at DESC
+			   wallet_address, private_key_encrypted, name, is_active, is_hidden, created_at, updated_at
+		FROM wallets WHERE id = $1 AND is_active = true
 	`
+
+	var wallet models.Wallet
+	err := r.db.QueryRow(query, walletID).Scan(
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
+		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden,
+		&wallet.CreatedAt, &wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("wallet not found")
+		}
+		return nil, fmt.Errorf("failed to get wallet: %w", err)
+	}
+
+	return &wallet, nil
+}
+
+func (r *WalletRepository) GetByUserID(userID string, includeHidden bool) ([]*models.Wallet, error) {
+	var query string
+	if includeHidden {
+		query = `
+			SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+				   wallet_address, name, is_active, is_hidden, created_at, updated_at
+			FROM wallets 
+			WHERE user_id = $1 AND is_active = true
+			ORDER BY created_at DESC
+		`
+	} else {
+		query = `
+			SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+				   wallet_address, name, is_active, is_hidden, created_at, updated_at
+			FROM wallets 
+			WHERE user_id = $1 AND is_active = true AND is_hidden = false
+			ORDER BY created_at DESC
+		`
+	}
 
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
@@ -81,7 +118,7 @@ func (r *WalletRepository) GetByUserID(userID string) ([]*models.Wallet, error) 
 		err := rows.Scan(
 			&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
 			&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
-			&wallet.Name, &wallet.IsActive, &wallet.CreatedAt, &wallet.UpdatedAt,
+			&wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.CreatedAt, &wallet.UpdatedAt,
 		)
 		if err != nil {
 			continue
@@ -93,9 +130,10 @@ func (r *WalletRepository) GetByUserID(userID string) ([]*models.Wallet, error) 
 }
 
 func (r *WalletRepository) GetByUserAndCurrency(userID, currency string) (*models.Wallet, error) {
+	// Query handles both hidden and visible wallets to enforce uniqueness check properly
 	query := `
 		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
-			   wallet_address, private_key_encrypted, name, is_active, created_at, updated_at
+			   wallet_address, private_key_encrypted, name, is_active, is_hidden, created_at, updated_at
 		FROM wallets 
 		WHERE user_id = $1 AND currency = $2 AND is_active = true
 	`
@@ -104,7 +142,7 @@ func (r *WalletRepository) GetByUserAndCurrency(userID, currency string) (*model
 	err := r.db.QueryRow(query, userID, currency).Scan(
 		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
-		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive,
+		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden,
 		&wallet.CreatedAt, &wallet.UpdatedAt,
 	)
 
@@ -179,7 +217,22 @@ func (r *WalletRepository) Unfreeze(walletID string) error {
 }
 
 func (r *WalletRepository) Delete(walletID string) error {
+	// Hard delete or deactivate
 	query := `UPDATE wallets SET is_active = false, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.Exec(query, walletID)
+	return err
+}
+
+func (r *WalletRepository) Hide(walletID string) error {
+	// Soft delete / Hide
+	query := `UPDATE wallets SET is_hidden = true, updated_at = NOW() WHERE id = $1`
+	_, err := r.db.Exec(query, walletID)
+	return err
+}
+
+func (r *WalletRepository) Unhide(walletID string) error {
+	// Unhide
+	query := `UPDATE wallets SET is_hidden = false, updated_at = NOW() WHERE id = $1`
 	_, err := r.db.Exec(query, walletID)
 	return err
 }

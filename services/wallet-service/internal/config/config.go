@@ -15,14 +15,10 @@ type Config struct {
 	JWTSecret    string
 	BaseURL      string
 	
-	// Crypto settings
-	EncryptionKey     string
-	BlockchainRPC     map[string]string
-	CryptoAPIKeys     map[string]string
-	
-	// Security settings
-	RateLimitRPS int
-	
+	// Tatum settings
+	TatumAPIKey string
+	TatumBaseURL string
+
 	// Transaction settings
 	MaxTransactionAmount map[string]float64
 	MinConfirmations     map[string]int
@@ -42,7 +38,11 @@ func Load() *Config {
 		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "wallet-service-group"),
 		JWTSecret:    getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		BaseURL:      getEnv("BASE_URL", "https://app.zekora.com"),
+		BaseURL:      getEnv("BASE_URL", "https://app.tech-afm.com"),
+
+		// Tatum settings
+		TatumAPIKey:  getEnv("TATUM_API_KEY", ""),
+		TatumBaseURL: getEnv("TATUM_BASE_URL", "https://api.tatum.io/v3"), // Default to v3 API
 		
 		// Crypto settings
 		EncryptionKey: getEnv("ENCRYPTION_KEY", "32-byte-encryption-key-for-crypto"),

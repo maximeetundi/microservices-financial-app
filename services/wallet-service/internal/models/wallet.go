@@ -15,6 +15,8 @@ type Wallet struct {
 	PrivateKeyEncrypted *string   `json:"-" db:"private_key_encrypted"`
 	Name                *string   `json:"name,omitempty" db:"name"`
 	IsActive            bool      `json:"is_active" db:"is_active"`
+	IsHidden            bool      `json:"is_hidden" db:"is_hidden"`
+	ExternalID          string    `json:"external_id" db:"external_id"` // Link to Tatum Account ID
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 }
