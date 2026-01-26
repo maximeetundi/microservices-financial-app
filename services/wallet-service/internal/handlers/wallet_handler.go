@@ -843,25 +843,7 @@ func (h *WalletHandler) HandleTatumWebhook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit processed"})
 }
 
-	// Determine description
-	description := req.Description
-	if description == "" && req.Destination != "" {
-		description = "Withdrawal to " + req.Destination
-	} else if description == "" {
-		description = "Withdrawal"
-	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":        "Withdrawal successful",
-		"transaction_id": transactionID,
-		"status":         "completed",
-		"amount":         amountToDebit,
-		"original_amount": req.Amount,
-		"currency":       wallet.Currency,
-		"new_balance":    newBalance,
-		"description":    description,
-	})
-}
 
 // GetPortfolio returns the user's portfolio with asset allocation
 func (h *WalletHandler) GetPortfolio(c *gin.Context) {
