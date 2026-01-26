@@ -514,7 +514,7 @@ func (h *WalletHandler) GetDashboardSummary(c *gin.Context) {
 	}
 
 	// Get all wallets for user
-	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	wallets, err := h.walletService.GetUserWallets(userID.(string), false)
 	if err != nil {
 		// Return empty summary on error
 		c.JSON(http.StatusOK, gin.H{
@@ -563,7 +563,7 @@ func (h *WalletHandler) GetRecentActivity(c *gin.Context) {
 	}
 
 	// Get user wallets first
-	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	wallets, err := h.walletService.GetUserWallets(userID.(string), false)
 	if err != nil || len(wallets) == 0 {
 		c.JSON(http.StatusOK, gin.H{"activities": []interface{}{}})
 		return
@@ -854,7 +854,7 @@ func (h *WalletHandler) GetPortfolio(c *gin.Context) {
 	}
 
 	// Get all wallets for user
-	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	wallets, err := h.walletService.GetUserWallets(userID.(string), false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"assets":       []interface{}{},
@@ -911,7 +911,7 @@ func (h *WalletHandler) GetStats(c *gin.Context) {
 	period := c.DefaultQuery("period", "month")
 
 	// Get all wallets for user
-	wallets, err := h.walletService.GetUserWallets(userID.(string))
+	wallets, err := h.walletService.GetUserWallets(userID.(string), false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"period":            period,
@@ -970,7 +970,7 @@ func (h *WalletHandler) GetWalletsInternal(c *gin.Context) {
 		return
 	}
 
-	wallets, err := h.walletService.GetUserWallets(userID)
+	wallets, err := h.walletService.GetUserWallets(userID, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get wallets"})
 		return
@@ -1003,7 +1003,7 @@ func (h *WalletHandler) CreateWalletInternal(c *gin.Context) {
 	if err != nil {
 		if err.Error() == "wallet already exists for currency "+req.Currency {
 			// Try to find existing wallet
-			wallets, _ := h.walletService.GetUserWallets(req.UserID)
+			wallets, _ := h.walletService.GetUserWallets(req.UserID, true)
 			for _, w := range wallets {
 				if w.Currency == req.Currency {
 					c.JSON(http.StatusOK, gin.H{"wallet": w, "existing": true})
