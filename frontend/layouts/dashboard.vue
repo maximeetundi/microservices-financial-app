@@ -251,7 +251,11 @@
 
     <!-- Global Modals -->
     <GlobalModal />
-    <PinSetupModal />
+    <SecurePinSetupModal 
+      :isOpen="pinState.showSetupModal"
+      @update:isOpen="pinState.showSetupModal = $event"
+      @success="onPinSetupSuccess"
+    />
     <PinModal 
       v-model:isOpen="pinState.showVerifyModal"
       @success="onPinSuccess"
@@ -266,6 +270,7 @@ import { useAuthStore } from '~/stores/auth'
 import { computed } from 'vue'
 import { usePin } from '~/composables/usePin'
 import PinModal from '~/components/common/PinModal.vue'
+import SecurePinSetupModal from '~/components/common/SecurePinSetupModal.vue'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)
@@ -274,6 +279,12 @@ const { checkPinStatus, hasPin, showPinSetup, state: pinState, executePendingAct
 
 const onPinSuccess = (pin) => {
     executePendingAction(pin)
+}
+
+const onPinSetupSuccess = () => {
+    closeModals()
+    // Refresh status
+    checkPinStatus()
 }
 
 const onPinClose = () => {

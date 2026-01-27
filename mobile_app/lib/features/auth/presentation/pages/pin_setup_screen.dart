@@ -28,14 +28,47 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _isPinSecure(String pin) {
+    // Check for repeated digits (e.g., 11111)
+    if (RegExp(r'^(\d)\1+$').hasMatch(pin)) return false; 
+    
+    // Check for sequential digits
+    const sequences = ['01234', '12345', '23456', '34567', '45678', '56789', '98765', '87654', '76543', '65432', '54321', '43210'];
+    if (sequences.contains(pin)) return false;
+    
+    return true;
+  }
+
   void _onPinCompleted(String pin) {
     if (!_isConfirmStep) {
+      // Step 1: Validate Complexity
+      if (!_isPinSecure(pin)) {
+        setState(() {
+          _errorMessage = 'Ce code PIN est trop simple. Évitez les suites logiques (12345) ou les répétitions (00000).';
+          _pin = '';
+        });
+        // Note: PinInputWidget should have a mechanism to clear itself via key change or controller, 
+        // effectively handled by setState trigger re-render if key changes or internal state management
+        return; 
+      }
+
       setState(() {
         _pin = pin;
         _isConfirmStep = true;
         _errorMessage = null;
       });
     } else {
+       // Step 2: Mismatch check
+       if (pin != _pin) {
+          setState(() {
+            _errorMessage = 'Les PINs ne correspondent pas. Veuillez recommencer depuis le début.';
+            _pin = '';
+            _confirmPin = '';
+            _isConfirmStep = false; // Reset to step 1
+          });
+          return;
+       }
+      
       setState(() {
         _confirmPin = pin;
       });
