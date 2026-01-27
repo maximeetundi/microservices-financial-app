@@ -2,8 +2,8 @@ package services
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -13,12 +13,13 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mr-tron/base58"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type CryptoService struct {
@@ -62,6 +63,8 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 	case "BSC":
 		// BSC uses same keys as ETH
 		address, privKeyHex, pubKeyHex, err = s.generateEthereumKeys()
+	case "SOL":
+		address, privKeyHex, pubKeyHex, err = s.generateSolanaKeys()
 	default:
 		return nil, fmt.Errorf("unsupported currency: %s", currency)
 	}
@@ -76,16 +79,11 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 		return nil, fmt.Errorf("failed to secure keys in vault: %w", err)
 	}
 
-	// 2. We can still use Tatum to watch the address (Non-Custodial monitoring)
-	// We just subscribe to the address, not an account ID.
-	// Note: Tatum might require specific plans for address subscriptions vs account subscriptions.
-	// For now, we assume Address Monitoring is available or we use polling.
-
 	// Create struct to return (NO Private Key)
 	return &CryptoWallet{
 		Address:  address,
 		Currency: currency,
-		Network:  "mainnet", // Configurable
+		Network:  s.getNetworkForCurrency(currency),
 	}, nil
 }
 
@@ -102,8 +100,6 @@ func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 
 	// Generate Address
 	params := &chaincfg.MainNetParams
-	// if s.config.Environment == "development" { params = &chaincfg.TestNet3Params }
-
 	addr, err := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), params)
 	if err != nil {
 		return "", "", "", err
@@ -124,7 +120,7 @@ func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
 	privKeyBytes := crypto.FromECDSA(privateKey)
 	privKeyHex := hex.EncodeToString(privKeyBytes)
 
-	// Generate Public Key (derived from private in ECDSA)
+	// Generate Public Key
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
@@ -138,6 +134,25 @@ func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 
 	return address, privKeyHex, pubKeyHex, nil
+}
+
+// --- Solana ---
+
+func (s *CryptoService) generateSolanaKeys() (string, string, string, error) {
+	// Generate Ed25519 Key Pair
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// Address is Base58 encoded Public Key
+	address := base58.Encode(pubKey)
+
+	// Encode Keys for storage
+	privKeyStr := base58.Encode(privKey)
+	pubKeyStr := base58.Encode(pubKey)
+
+	return address, privKeyStr, pubKeyStr, nil
 }
 
 // --- Vault Storage ---
@@ -157,512 +172,104 @@ func (s *CryptoService) storeKeyPairInVault(userID, currency, privKey, pubKey, a
 		"created_at":  fmt.Sprintf("%d", time.Now().Unix()),
 	}
 
-	// We need a Write/Put method in VaultClient.
-	// The current client in common/secrets only has GetSecret.
-	// We need to update VaultClient to support Write.
-	// For now, assume it exists or I will update it.
-
-	// Temporarily: IF WriteSecret doesn't exist, we assume the user implemented it
-	// OR I need to add it to common/secrets/vault.go first.
-	// I WILL ADD IT.
-
 	return s.vaultClient.WriteSecret(path, data)
 }
 
 // --- Helpers & Validation ---
 
 func (s *CryptoService) ValidateAddress(address, currency string) bool {
-	// Re-use previous validation logic or libraries
 	switch strings.ToUpper(currency) {
 	case "BTC":
 		_, err := btcutil.DecodeAddress(address, &chaincfg.MainNetParams)
 		return err == nil
 	case "ETH", "BSC":
-		return common.IsHexAddress(address) // Requires go-ethereum/common
+		return common.IsHexAddress(address)
+	case "SOL":
+		decoded, err := base58.Decode(address)
+		if err != nil {
+			return false
+		}
+		return len(decoded) == 32
 	default:
-		return true
+		// Generic length check for others
+		return len(address) > 20
 	}
 }
 
 func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionResult {
-	// Keep previous logic
 	if strings.HasPrefix(address, "0x") && len(address) == 42 {
 		return NetworkDetectionResult{Type: "EVM", Network: "unknown", Variant: "ERC20"}
 	}
 	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "bv1") {
 		return NetworkDetectionResult{Type: "BTC", Network: "mainnet", Variant: "BTC"}
 	}
+	// Solana Check
+	if len(address) >= 32 && len(address) <= 44 {
+		_, err := base58.Decode(address)
+		if err == nil {
+			return NetworkDetectionResult{Type: "SOL", Network: "mainnet-beta", Variant: "SPL"}
+		}
+	}
 	return NetworkDetectionResult{Type: "UNKNOWN", Network: "unknown", Variant: "unknown"}
+}
+
+func (s *CryptoService) getNetworkForCurrency(currency string) string {
+	switch strings.ToUpper(currency) {
+	case "BTC":
+		return "bitcoin-mainnet"
+	case "ETH":
+		return "ethereum-mainnet"
+	case "BSC":
+		return "bsc-mainnet"
+	case "SOL":
+		return "solana-mainnet-beta"
+	default:
+		return "mainnet"
+	}
 }
 
 // Keep Fee Estimation logic
 func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, priority string) (*models.CryptoTransactionEstimate, error) {
-	// Keep existing implementation
+	baseFee := 0.001
+	if strings.ToUpper(currency) == "SOL" {
+		baseFee = 0.000005
+	}
+
 	estimate := &models.CryptoTransactionEstimate{
-		EstimatedFee:   0.001,
-		EstimatedTotal: amount + 0.001,
+		EstimatedFee:   baseFee,
+		EstimatedTotal: amount + baseFee,
 		Currency:       strings.ToUpper(currency),
 	}
 	return estimate, nil
 }
 
-// GetBalance (Now uses Node/Tatum API to query Address, NOT Account)
+// GetBalance
 func (s *CryptoService) GetBalance(address, currency string) (float64, error) {
-	// Call Tatum API for Address Balance
-	// Example: GET /v3/ethereum/account/balance/{address}
-	// Implement in TatumProvider
 	return s.tatum.GetAddressBalance(currency, address)
 }
 
 func (s *CryptoService) EncryptPrivateKey(privateKey, password string) (string, error) {
-	// DEPRECATED in Non-Custodial Vault Mode
-	// But kept to satisfy interface/legacy calls if any
 	return "STORED_IN_VAULT", nil
 }
 
-// ... other methods ...
-
-// Need to update CreateTransaction to use local signing?
 func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {
-	// 1. Fetch Private Key from Vault
-	// 2. Sign Transaction locally (btcutil/go-ethereum)
-	// 3. Broadcast using Tatum
-
-	// Detailed implementation omitted for brevity of this replace block
-	// but this is where the core logic shifts.
+	// Mock transaction for now
 	return "0xMOCK_TX_HASH_SIGNED_LOCALLY", nil
 }
 
 func (s *CryptoService) GetMinimumConfirmations(currency string) int {
+	if strings.ToUpper(currency) == "SOL" {
+		return 1
+	}
 	return 6
 }
 
 func (s *CryptoService) GetTransactionStatus(txHash, currency string) (string, int, error) {
 	return "confirmed", 12, nil
 }
-func NewCryptoService(cfg *config.Config) *CryptoService {
-	return &CryptoService{
-		config: cfg,
-		tatum:  NewTatumProvider(cfg),
-	}
-}
-
-type CryptoWallet struct {
-	Address    string `json:"address"`
-	PrivateKey string `json:"private_key"`
-	PublicKey  string `json:"public_key"`
-	Currency   string `json:"currency"`
-	Network    string `json:"network"`
-	// Tatum specific
-	AccountID string `json:"account_id,omitempty"`
-}
-
-func (s *CryptoService) GenerateWallet(currency string) (*CryptoWallet, error) {
-	// If Tatum API Key is set, use Tatum
-	if s.config.TatumAPIKey != "" {
-		return s.generateTatumWallet(currency)
-	}
-
-	// Fallback to Mock for Dev without API Key
-	fmt.Println("[CryptoService] WARNING: No TATUM_API_KEY found. Using Mock Wallet Generation.")
-	switch strings.ToUpper(currency) {
-	case "BTC":
-		return s.generateBitcoinWallet()
-	case "ETH":
-		return s.generateEthereumWallet()
-	case "BSC":
-		return s.generateBSCWallet()
-	default:
-		return nil, fmt.Errorf("unsupported currency: %s", currency)
-	}
-}
-
-// generateTatumWallet creates a Virtual Account and a Deposit Address
-func (s *CryptoService) generateTatumWallet(currency string) (*CryptoWallet, error) {
-	// 1. Create Virtual Account
-	// Note: We don't provide xpub here in this simplified version, letting Tatum manage it (Custodial)
-	acc, err := s.tatum.CreateVirtualAccount(currency, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create tatum account: %w", err)
-	}
-
-	// 2. Generate Deposit Address using the account ID
-	// Tatum API returns the account ID in the `id` field
-	addr, err := s.tatum.GenerateDepositAddress(acc.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate address: %w", err)
-	}
-
-	// 3. Subscribe to incoming transactions webhook
-	// This ensures we get notified when deposits are made
-	webhookURL := s.config.BaseURL + "/api/v1/webhooks/tatum"
-	_, err = s.tatum.SubscribeToAccountTransactions(acc.ID, webhookURL)
-	if err != nil {
-		// Log but don't fail - wallet is still created, webhook can be added later
-		fmt.Printf("[CryptoService] Warning: Failed to subscribe to webhook: %v\n", err)
-	}
-
-	return &CryptoWallet{
-		Address:    addr.Address,
-		PrivateKey: "", // Custodial - No Private Key exposed
-		PublicKey:  "",
-		Currency:   currency,
-		Network:    "tatum-virtual",
-		AccountID:  acc.ID, // Store the Tatum account ID for future reference
-	}, nil
-}
-
-func (s *CryptoService) ValidateAddress(address, currency string) bool {
-	// Basic regex validation still useful
-	switch strings.ToUpper(currency) {
-	case "BTC":
-		return s.validateBitcoinAddress(address)
-	case "ETH", "BSC":
-		return s.validateEthereumAddress(address)
-	case "USDT":
-		// Check if it's either EVM (ERC20/BEP20) or TRON (TRC20)
-		return s.validateEthereumAddress(address) || s.validateTronAddress(address)
-	default:
-		return true // Allow others if unknown
-	}
-}
 
 type NetworkDetectionResult struct {
-	Type    string // EVM, BTC, TRON
-	Network string // mainnet, testnet, unknown
-	Variant string // ERC20, TRC20, BEP20 (inferred)
-}
-
-func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionResult {
-	// 1. Check for EVM (Ethereum, BSC, Polygon, etc.)
-	if strings.HasPrefix(address, "0x") && len(address) == 42 {
-		// Verify absolute hex correctness
-		if _, err := hex.DecodeString(address[2:]); err == nil {
-			return NetworkDetectionResult{
-				Type:    "EVM",
-				Network: "unknown", // Cannot distinguish mainnet/testnet by address
-				Variant: "ERC20",   // Generic term for 0x addresses, could be BEP20
-			}
-		}
-	}
-
-	// 2. Check for TRON
-	if strings.HasPrefix(address, "T") && len(address) == 34 {
-		// Basic Base58 check could be added here, simplified for now
-		return NetworkDetectionResult{
-			Type:    "TRON",
-			Network: "unknown", // Cannot distinguish easily without querying node
-			Variant: "TRC20",
-		}
-	}
-
-	// 3. Check for Bitcoin
-	// Mainnet
-	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1") {
-		return NetworkDetectionResult{
-			Type:    "BTC",
-			Network: "mainnet",
-			Variant: "BTC",
-		}
-	}
-	// Testnet
-	if strings.HasPrefix(address, "m") || strings.HasPrefix(address, "n") || strings.HasPrefix(address, "2") || strings.HasPrefix(address, "tb1") {
-		return NetworkDetectionResult{
-			Type:    "BTC",
-			Network: "testnet",
-			Variant: "BTC",
-		}
-	}
-
-	return NetworkDetectionResult{
-		Type:    "UNKNOWN",
-		Network: "unknown",
-		Variant: "unknown",
-	}
-}
-
-func (s *CryptoService) validateTronAddress(address string) bool {
-	if len(address) != 34 || !strings.HasPrefix(address, "T") {
-		return false
-	}
-	// In production: Validate Base58 and Checksum
-	return true
-}
-
-func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, priority string) (*models.CryptoTransactionEstimate, error) {
-	baseFee := s.config.NetworkFees[strings.ToUpper(currency)]
-	if baseFee == 0 {
-		baseFee = 0.001 // Default fee
-	}
-
-	// Adjust fee based on priority
-	multiplier := 1.0
-	switch priority {
-	case "low":
-		multiplier = 0.5
-	case "normal":
-		multiplier = 1.0
-	case "high":
-		multiplier = 2.0
-	case "urgent":
-		multiplier = 3.0
-	default:
-		multiplier = 1.0
-	}
-
-	estimatedFee := baseFee * multiplier
-	estimatedTotal := amount + estimatedFee
-
-	estimate := &models.CryptoTransactionEstimate{
-		EstimatedFee:   estimatedFee,
-		EstimatedTotal: estimatedTotal,
-		Currency:       strings.ToUpper(currency),
-	}
-
-	// Add gas-specific fields for Ethereum-based currencies
-	if strings.ToUpper(currency) == "ETH" || strings.ToUpper(currency) == "BSC" {
-		gasPrice := int64(20000000000) // 20 gwei default
-		gasLimit := int64(21000)       // Standard transfer
-
-		if priority == "high" {
-			gasPrice = int64(40000000000) // 40 gwei
-		} else if priority == "urgent" {
-			gasPrice = int64(60000000000) // 60 gwei
-		}
-
-		estimate.GasPrice = &gasPrice
-		estimate.GasLimit = &gasLimit
-	}
-
-	return estimate, nil
-}
-
-func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {
-	// If Tatum API Key is set, use Tatum
-	if s.config.TatumAPIKey != "" {
-		// Use Tatum to send funds (Off-chain transfer to blockchain address)
-		// fromWallet.ExternalID MUST hold the Tatum Account ID
-		if fromWallet.ExternalID == "" {
-			return "", fmt.Errorf("wallet %s has no linked tatum account", fromWallet.ID)
-		}
-
-		resp, err := s.tatum.SendToBlockchain(fromWallet.Currency, fromWallet.ExternalID, toAddress, amount)
-		if err != nil {
-			return "", fmt.Errorf("tatum transfer failed: %w", err)
-		}
-
-		return resp.TxID, nil
-	}
-
-	// Mock Logic
-	currency := strings.ToUpper(fromWallet.Currency)
-
-	// Validate destination address
-	if !s.ValidateAddress(toAddress, currency) {
-		return "", fmt.Errorf("invalid destination address")
-	}
-
-	// Check balance
-	if fromWallet.Balance < amount {
-		return "", fmt.Errorf("insufficient balance")
-	}
-
-	// Generate transaction hash (simplified)
-	txHash := s.generateTransactionHash(fromWallet.WalletAddress, &toAddress, amount, currency)
-
-	return txHash, nil
-}
-
-func (s *CryptoService) GetTransactionStatus(txHash, currency string) (string, int, error) {
-	// Mock implementation
-	// In production, you would query the blockchain
-
-	// Simulate different transaction states
-	switch len(txHash) % 4 {
-	case 0:
-		return "pending", 0, nil
-	case 1:
-		return "confirmed", 1, nil
-	case 2:
-		return "confirmed", 6, nil
-	default:
-		return "confirmed", 15, nil
-	}
-}
-
-func (s *CryptoService) GetBalance(address, currency string) (float64, error) {
-	// Mock implementation
-	// In production, query actual blockchain
-
-	// Return a mock balance based on address hash
-	hash := sha256.Sum256([]byte(address + currency))
-	balance := float64(hash[0]) / 100.0
-
-	return balance, nil
-}
-
-// Private methods for wallet generation
-
-func (s *CryptoService) generateBitcoinWallet() (*CryptoWallet, error) {
-	// Simplified Bitcoin wallet generation
-	// In production, use proper Bitcoin libraries like btcd/btcutil
-
-	privateKey, err := s.generatePrivateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey := s.generatePublicKeyFromPrivate(privateKey)
-	address := s.generateBitcoinAddress(publicKey)
-
-	return &CryptoWallet{
-		Address:    address,
-		PrivateKey: privateKey,
-		PublicKey:  publicKey,
-		Currency:   "BTC",
-		Network:    "mainnet",
-	}, nil
-}
-
-func (s *CryptoService) generateEthereumWallet() (*CryptoWallet, error) {
-	// Simplified Ethereum wallet generation
-	// In production, use proper Ethereum libraries like go-ethereum
-
-	privateKey, err := s.generatePrivateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey := s.generatePublicKeyFromPrivate(privateKey)
-	address := s.generateEthereumAddress(publicKey)
-
-	return &CryptoWallet{
-		Address:    address,
-		PrivateKey: privateKey,
-		PublicKey:  publicKey,
-		Currency:   "ETH",
-		Network:    "mainnet",
-	}, nil
-}
-
-func (s *CryptoService) generateBSCWallet() (*CryptoWallet, error) {
-	// BSC uses same address format as Ethereum
-	wallet, err := s.generateEthereumWallet()
-	if err != nil {
-		return nil, err
-	}
-
-	wallet.Currency = "BSC"
-	wallet.Network = "bsc-mainnet"
-
-	return wallet, nil
-}
-
-func (s *CryptoService) generatePrivateKey() (string, error) {
-	// Generate 32-byte private key
-	bytes := make([]byte, 32)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-func (s *CryptoService) generatePublicKeyFromPrivate(privateKey string) string {
-	// Simplified public key generation
-	// In production, use proper elliptic curve cryptography
-	hash := sha256.Sum256([]byte(privateKey))
-	return hex.EncodeToString(hash[:])
-}
-
-func (s *CryptoService) generateBitcoinAddress(publicKey string) string {
-	// Simplified Bitcoin address generation
-	// In production, use proper Base58Check encoding
-	hash := sha256.Sum256([]byte(publicKey))
-	return "1" + hex.EncodeToString(hash[:20])
-}
-
-func (s *CryptoService) generateEthereumAddress(publicKey string) string {
-	// Simplified Ethereum address generation
-	// In production, use proper Keccak256 hashing
-	hash := sha256.Sum256([]byte(publicKey))
-	return "0x" + hex.EncodeToString(hash[:20])
-}
-
-func (s *CryptoService) validateBitcoinAddress(address string) bool {
-	// Simplified Bitcoin address validation
-	if len(address) < 26 || len(address) > 35 {
-		return false
-	}
-	return strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1")
-}
-
-func (s *CryptoService) validateEthereumAddress(address string) bool {
-	// Simplified Ethereum address validation
-	if len(address) != 42 {
-		return false
-	}
-	if !strings.HasPrefix(address, "0x") {
-		return false
-	}
-	// Check if hex
-	_, err := hex.DecodeString(address[2:])
-	return err == nil
-}
-
-func (s *CryptoService) generateTransactionHash(fromAddress, toAddress *string, amount float64, currency string) string {
-	// Generate a mock transaction hash
-	data := fmt.Sprintf("%s-%s-%f-%s-%d",
-		*fromAddress, *toAddress, amount, currency,
-		time.Now().UnixNano())
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:])
-}
-
-func (s *CryptoService) EncryptPrivateKey(privateKey, password string) (string, error) {
-	// If empty key (Custodial), return empty
-	if privateKey == "" {
-		return "", nil
-	}
-
-	// Simplified encryption
-	// In production, use proper encryption like AES-256-GCM
-	key := sha256.Sum256([]byte(password))
-
-	// XOR encryption (for demo only)
-	encrypted := make([]byte, len(privateKey))
-	for i, b := range []byte(privateKey) {
-		encrypted[i] = b ^ key[i%32]
-	}
-
-	return hex.EncodeToString(encrypted), nil
-}
-
-func (s *CryptoService) DecryptPrivateKey(encryptedKey, password string) (string, error) {
-	if encryptedKey == "" {
-		return "", nil
-	}
-
-	// Simplified decryption
-	key := sha256.Sum256([]byte(password))
-
-	encrypted, err := hex.DecodeString(encryptedKey)
-	if err != nil {
-		return "", err
-	}
-
-	// XOR decryption
-	decrypted := make([]byte, len(encrypted))
-	for i, b := range encrypted {
-		decrypted[i] = b ^ key[i%32]
-	}
-
-	return string(decrypted), nil
-}
-
-func (s *CryptoService) GetMinimumConfirmations(currency string) int {
-	if conf, exists := s.config.MinConfirmations[strings.ToUpper(currency)]; exists {
-		return conf
-	}
-	return 6 // Default minimum confirmations
+	Type    string
+	Network string
+	Variant string
 }
