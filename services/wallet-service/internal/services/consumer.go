@@ -194,13 +194,14 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 	}
 
 	if userEvent.UserID != "" {
-		// Determine currency based on country
+		// Determine currency
 		currency := "USD" // Default
-		if userEvent.Country != "" {
-			currency = getCurrencyByCountry(userEvent.Country)
-		} else if userEvent.Currency != "" {
-			// Fallback to event currency if country is missing but currency is provided
+		
+		// Prioritize explicit currency from event if available
+		if userEvent.Currency != "" {
 			currency = userEvent.Currency
+		} else if userEvent.Country != "" {
+			currency = getCurrencyByCountry(userEvent.Country)
 		}
 
 		// Create default wallet
@@ -229,90 +230,90 @@ func getCurrencyByCountry(countryCode string) string {
 	// === EUROPE ===
 	case "AT", "BE", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PT", "SK", "SI", "ES":
 		return "EUR"
-	case "GB": return "GBP"
-	case "CH": return "CHF"
-	case "SE": return "SEK"
-	case "NO": return "NOK"
-	case "DK": return "DKK"
-	case "PL": return "PLN"
-	case "CZ": return "CZK"
-	case "HU": return "HUF"
-	case "RO": return "RON"
-	case "BG": return "BGN"
-	case "HR": return "HRK"
-	case "RU": return "RUB" // Russia
-	case "UA": return "UAH"
-	case "BY": return "BYN"
+	case "GB", "GBR": return "GBP"
+	case "CH", "CHE": return "CHF"
+	case "SE", "SWE": return "SEK"
+	case "NO", "NOR": return "NOK"
+	case "DK", "DNK": return "DKK"
+	case "PL", "POL": return "PLN"
+	case "CZ", "CZE": return "CZK"
+	case "HU", "HUN": return "HUF"
+	case "RO", "ROU": return "RON"
+	case "BG", "BGR": return "BGN"
+	case "HR", "HRV": return "HRK"
+	case "RU", "RUS": return "RUB" // Russia
+	case "UA", "UKR": return "UAH"
+	case "BY", "BLR": return "BYN"
 
 	// === NORTH AMERICA ===
-	case "US": return "USD"
-	case "CA": return "CAD"
-	case "MX": return "MXN"
+	case "US", "USA": return "USD"
+	case "CA", "CAN": return "CAD"
+	case "MX", "MEX": return "MXN"
 
 	// === SOUTH AMERICA ===
-	case "BR": return "BRL"
-	case "AR": return "ARS"
-	case "CL": return "CLP"
-	case "CO": return "COP"
-	case "PE": return "PEN"
-	case "UY": return "UYU"
-	case "VE": return "VES"
-	case "BO": return "BOB"
-	case "PY": return "PYG"
+	case "BR", "BRA": return "BRL"
+	case "AR", "ARG": return "ARS"
+	case "CL", "CHL": return "CLP"
+	case "CO", "COL": return "COP"
+	case "PE", "PER": return "PEN"
+	case "UY", "URY": return "UYU"
+	case "VE", "VEN": return "VES"
+	case "BO", "BOL": return "BOB"
+	case "PY", "PRY": return "PYG"
 
 	// === ASIA ===
-	case "CN": return "CNY" // China
-	case "JP": return "JPY" // Japan
-	case "KR": return "KRW" // South Korea
-	case "KP": return "KPW" // North Korea
-	case "IN": return "INR"
-	case "ID": return "IDR"
-	case "MY": return "MYR"
-	case "SG": return "SGD"
-	case "TH": return "THB"
-	case "VN": return "VND"
-	case "PH": return "PHP"
-	case "PK": return "PKR"
-	case "BD": return "BDT"
-	case "HK": return "HKD"
-	case "TW": return "TWD"
-	case "AF": return "AFN" // Afghanistan
-	case "IR": return "IRR" // Iran
-	case "IQ": return "IQD"
-	case "LB": return "LBP"
-	case "IL": return "ILS" // Israel
-	case "SA": return "SAR"
-	case "AE": return "AED"
-	case "QA": return "QAR"
-	case "TR": return "TRY"
+	case "CN", "CHN": return "CNY" // China
+	case "JP", "JPN": return "JPY" // Japan
+	case "KR", "KOR": return "KRW" // South Korea
+	case "KP", "PRK": return "KPW" // North Korea
+	case "IN", "IND": return "INR"
+	case "ID", "IDN": return "IDR"
+	case "MY", "MYS": return "MYR"
+	case "SG", "SGP": return "SGD"
+	case "TH", "THA": return "THB"
+	case "VN", "VNM": return "VND"
+	case "PH", "PHL": return "PHP"
+	case "PK", "PAK": return "PKR"
+	case "BD", "BGD": return "BDT"
+	case "HK", "HKD": return "HKD"
+	case "TW", "TWN": return "TWD"
+	case "AF", "AFG": return "AFN" // Afghanistan
+	case "IR", "IRN": return "IRR" // Iran
+	case "IQ", "IRQ": return "IQD"
+	case "LB", "LBN": return "LBP"
+	case "IL", "ISR": return "ILS" // Israel
+	case "SA", "SAU": return "SAR"
+	case "AE", "ARE": return "AED"
+	case "QA", "QAT": return "QAR"
+	case "TR", "TUR": return "TRY"
 
 	// === AFRICA ===
 	// CFA Franc BEAC (CEMAC)
-	case "CM", "CF", "TD", "CG", "GA", "GQ":
+	case "CM", "CMR", "CF", "CAF", "TD", "TCD", "CG", "COG", "GA", "GAB", "GQ", "GNQ":
 		return "XAF"
 	// CFA Franc BCEAO (UEMOA)
-	case "CI", "BJ", "BF", "GW", "ML", "NE", "SN", "TG":
+	case "CI", "CIV", "BJ", "BEN", "BF", "BFA", "GW", "GNB", "ML", "MLI", "NE", "NER", "SN", "SEN", "TG", "TGO":
 		return "XOF"
-	case "NG": return "NGN" // Nigeria
-	case "ZA": return "ZAR" // South Africa
-	case "EG": return "EGP" // Egypt
-	case "MA": return "MAD" // Morocco
-	case "KE": return "KES"
-	case "GH": return "GHS"
-	case "DZ": return "DZD"
-	case "TN": return "TND"
-	case "ET": return "ETB"
-	case "RW": return "RWF"
-	case "UG": return "UGX"
-	case "TZ": return "TZS"
-	case "AO": return "AOA"
-	case "MZ": return "MZN"
-	case "ZW": return "ZWL" // Zimbabwe (Zig/ZWL pending ISO stability, using ZWL)
-	case "CD": return "CDF"
+	case "NG", "NGA": return "NGN" // Nigeria
+	case "ZA", "ZAF": return "ZAR" // South Africa
+	case "EG", "EGY": return "EGP" // Egypt
+	case "MA", "MAR": return "MAD" // Morocco
+	case "KE", "KEN": return "KES"
+	case "GH", "GHA": return "GHS"
+	case "DZ", "DZA": return "DZD"
+	case "TN", "TUN": return "TND"
+	case "ET", "ETH": return "ETB"
+	case "RW", "RWF": return "RWF"
+	case "UG", "UGA": return "UGX"
+	case "TZ", "TZA": return "TZS"
+	case "AO", "AGO": return "AOA"
+	case "MZ", "MOZ": return "MZN"
+	case "ZW", "ZWE": return "ZWL" // Zimbabwe
+	case "CD", "COD": return "CDF"
 
 	// === OCEANIA ===
-	case "AU": return "AUD"
-	case "NZ": return "NZD"
+	case "AU", "AUS": return "AUD"
+	case "NZ", "NZL": return "NZD"
 
 	default:
 		return "USD"
