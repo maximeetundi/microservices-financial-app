@@ -202,5 +202,6 @@ export function usePin() {
         showPinSetup,
         closeModals,
         executePendingAction,
+        validatePin,
     }
 }
