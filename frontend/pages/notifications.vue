@@ -233,12 +233,12 @@ const processNotifications = (list) => {
         }
 
         // Action URL Logic
-        let url = n.action_url || meta.link || null
+        let url = n.action_url || meta?.link || null
         
         // Generate action_url based on notification type if not already set
         if (!url) {
           const type = n.type?.toLowerCase() || ''
-          const refId = meta.transfer_id || meta.reference || meta.reference_id || meta.id
+          const refId = meta?.transfer_id || meta?.reference || meta?.reference_id || meta?.id
           
           switch (type) {
             case 'transfer':
@@ -257,9 +257,9 @@ const processNotifications = (list) => {
               url = '/settings'
               break
             case 'enterprise':
-              if (meta.action === 'accept_invitation' && meta.employee_id) {
+              if (meta?.action === 'accept_invitation' && meta?.employee_id) {
                 url = `/approve/${meta.employee_id}?type=invitation`
-              } else if (meta.action === 'approve_action' && meta.approval_id) {
+              } else if (meta?.action === 'approve_action' && meta?.approval_id) {
                 url = `/approve/${meta.approval_id}?type=approval`
               } else {
                 url = '/enterprise'
@@ -267,9 +267,9 @@ const processNotifications = (list) => {
               break
             default:
               // Check for special actions
-              if (meta.action === 'accept_invitation' && meta.employee_id) {
+              if (meta?.action === 'accept_invitation' && meta?.employee_id) {
                 url = `/approve/${meta.employee_id}?type=invitation`
-              } else if (meta.action === 'approve_action' && meta.approval_id) {
+              } else if (meta?.action === 'approve_action' && meta?.approval_id) {
                 url = `/approve/${meta.approval_id}?type=approval`
               }
               break
