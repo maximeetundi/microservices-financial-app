@@ -133,21 +133,18 @@ func (p *TatumProvider) GenerateDepositAddress(accountID string) (*DepositAddres
 	return &address, nil
 }
 
-// Mock XPub generator for dev/test if no real XPUB provided
-// In production, you would fetch this from a secure Vault/ENV
+// Mock XPub generator
 func (p *TatumProvider) GetMasterXpub(currency string) string {
-	// For Bitcoin Testnet
 	if currency == "BTC" {
 		return "tpubD6NzVbkrYhZ4X8..." // Placeholder
 	}
-	// For Ethereum (Sepolia/Mainnet)
 	if currency == "ETH" {
 		return "xpub6F..." // Placeholder
 	}
 	return ""
 }
 
-// WebhookSubscription represents a Tatum webhook subscription
+// WebhookSubscription
 type WebhookSubscription struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
@@ -157,14 +154,11 @@ type WebhookSubscription struct {
 	} `json:"attr"`
 }
 
-// SubscribeToAccountTransactions creates a webhook subscription for incoming transactions
-// This is called automatically when creating a crypto wallet to receive deposit notifications
 func (p *TatumProvider) SubscribeToAccountTransactions(accountID string, webhookURL string) (*WebhookSubscription, error) {
 	log.Printf("[Tatum] Subscribing to transactions for account: %s", accountID)
 
 	url := fmt.Sprintf("%s/subscription", p.baseURL)
 
-	// Request body for subscription
 	reqBody := map[string]interface{}{
 		"type": "ACCOUNT_INCOMING_BLOCKCHAIN_TRANSACTION",
 		"attr": map[string]string{
@@ -201,7 +195,6 @@ func (p *TatumProvider) SubscribeToAccountTransactions(accountID string, webhook
 	return &subscription, nil
 }
 
-// GetAccountBalance retrieves the balance from Tatum virtual account
 func (p *TatumProvider) GetAccountBalance(accountID string) (*TatumBalance, error) {
 	url := fmt.Sprintf("%s/ledger/account/%s/balance", p.baseURL, accountID)
 
@@ -227,7 +220,6 @@ func (p *TatumProvider) GetAccountBalance(accountID string) (*TatumBalance, erro
 	return &balance, nil
 }
 
-// WithdrawalRequest represents a request to send funds to blockchain
 type WithdrawalRequest struct {
 	SenderAccountId string `json:"senderAccountId"`
 	Address         string `json:"address"`
@@ -236,17 +228,14 @@ type WithdrawalRequest struct {
 	Compliant       bool   `json:"compliant,omitempty"`
 }
 
-// WithdrawalResponse represents the response from a withdrawal
 type WithdrawalResponse struct {
-	ID   string `json:"id"`   // Internal withdrawal ID
-	TxID string `json:"txId"` // Blockchain transaction hash
+	ID   string `json:"id"`
+	TxID string `json:"txId"`
 }
 
-// SendToBlockchain transfers crypto from virtual account to external blockchain address
 func (p *TatumProvider) SendToBlockchain(currency, senderAccountID, toAddress string, amount float64) (*WithdrawalResponse, error) {
 	log.Printf("[Tatum] Sending %f %s from account %s to address %s", amount, currency, senderAccountID, toAddress)
 
-	// Determine endpoint based on currency
 	var endpoint string
 	switch currency {
 	case "BTC":
@@ -266,7 +255,7 @@ func (p *TatumProvider) SendToBlockchain(currency, senderAccountID, toAddress st
 	reqBody := WithdrawalRequest{
 		SenderAccountId: senderAccountID,
 		Address:         toAddress,
-		Amount:          fmt.Sprintf("%.8f", amount), // Ensure correct precision
+		Amount:          fmt.Sprintf("%.8f", amount),
 		Compliant:       false,
 	}
 
@@ -330,15 +319,9 @@ func (p *TatumProvider) GetAddressBalance(currency, address string) (float64, er
 	}
 
 	// Parsing depends on chain
-	// ETH/BSC/SOL: {"balance": "0.123"}
-	// BTC: {"incoming": "...", "outgoing": "..."} -> Calculate difference
-
 	type GenericBalance struct {
 		Balance string `json:"balance"`
 	}
-
-	// For simplicity, we assume the generic balance field works for account-based chains
-	// For UTXO (BTC), we might need different struct, but let's try generic first or handle specific
 
 	if currency == "BTC" {
 		type BTCBalance struct {
@@ -347,15 +330,11 @@ func (p *TatumProvider) GetAddressBalance(currency, address string) (float64, er
 		}
 		var btcBal BTCBalance
 		if err := json.NewDecoder(resp.Body).Decode(&btcBal); err == nil {
-			// Convert and calc
-			// simplified: return 0 for now as parsing strings to float requires strconv
-			// I'll add strconv import if needed, or helper
-			return 0.0, nil
+			return 0.0, nil // Placeholder
 		}
 	} else {
 		var bal GenericBalance
 		if err := json.NewDecoder(resp.Body).Decode(&bal); err == nil {
-			// Parse float
 			var val float64
 			fmt.Sscanf(bal.Balance, "%f", &val)
 			return val, nil
