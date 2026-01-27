@@ -40,7 +40,7 @@
             <div class="relative">
                <select v-model="form.fromWalletId" class="input-field w-full appearance-none cursor-pointer" required>
                 <option value="" disabled>Sélectionnez un portefeuille</option>
-                <option v-for="wallet in wallets" :key="wallet.id" :value="wallet.id">
+                <option v-for="wallet in filteredWallets" :key="wallet.id" :value="wallet.id">
                    {{ wallet.name }} - {{ formatMoney(wallet.balance, wallet.currency) }}
                 </option>
               </select>
@@ -151,6 +151,22 @@
              <div class="space-y-2">
               <label class="block text-sm font-medium text-muted">Nom du bénéficiaire</label>
               <input v-model="form.recipientName" type="text" class="input-field" />
+            </div>
+          </div>
+
+          <!-- Crypto Transfer Fields -->
+          <div v-if="selectedType === 'crypto'" class="space-y-4 animate-fade-in">
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-muted">Adresse du portefeuille destinataire</label>
+              <input 
+                v-model="form.recipientAddress" 
+                type="text" 
+                class="input-field font-mono text-sm" 
+                placeholder="0x... ou bc1q..." 
+              />
+            </div>
+             <div class="p-3 bg-warning/10 border border-warning/20 rounded-xl text-xs text-warning">
+              ⚠️ Assurez-vous que l'adresse correspond au réseau <strong>{{ selectedWalletCurrency }}</strong>. Les transactions crypto sont irréversibles.
             </div>
           </div>
 
@@ -362,6 +378,11 @@ const executeTransfer = async () => {
           recipient: form.value.recipientPhone,
           description: form.value.description + ` [${form.value.provider} - ${form.value.country}]`
       })
+    } else if (selectedType.value === 'wire') {
+         result = await transferApi.create({
+          type: 'wire',
+          from_wallet_id: form.value.fromWalletId,
+          amount: form.value.amount,
           currency: selectedWalletCurrency.value,
           recipient: form.value.recipientName,
           description: form.value.description + ` [IBAN: ${form.value.bankAccount}]`
