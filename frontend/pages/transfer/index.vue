@@ -166,7 +166,10 @@
               />
             </div>
              <div class="p-3 bg-warning/10 border border-warning/20 rounded-xl text-xs text-warning">
-              ⚠️ Assurez-vous que l'adresse correspond au réseau <strong>{{ selectedWalletCurrency }}</strong>. Les transactions crypto sont irréversibles.
+              <div class="mb-1 font-bold flex items-center gap-1">
+                 <span class="text-base">🌐</span> Réseau requis : <span class="uppercase underline">{{ currentNetwork }}</span>
+              </div>
+              ⚠️ Assurez-vous que l'adresse correspond bien au réseau <strong>{{ currentNetwork }}</strong>. Les transactions crypto sont irréversibles.
             </div>
           </div>
 
@@ -238,6 +241,35 @@ const transferTypes = [
 ]
 
 const selectedType = ref('p2p')
+
+// Comprehensive Network Mapping
+const networkMap = {
+  'BTC': 'Bitcoin Network (SegWit)',
+  'ETH': 'Ethereum Mainnet (ERC-20)',
+  'USDT': 'Ethereum Mainnet (ERC-20)', // Default USDT on our platform
+  'USDC': 'Ethereum Mainnet (ERC-20)',
+  'LTC': 'Litecoin Network',
+  'BSC': 'BNB Smart Chain (BEP-20)',
+  'BNB': 'BNB Smart Chain (BEP-20)',
+  'MATIC': 'Polygon Network',
+  'SOL': 'Solana Network',
+  'TRON': 'Tron Network (TRC-20)',
+  'USDT_TRON': 'Tron Network (TRC-20)',
+  'XRP': 'Ripple Network',
+  'ADA': 'Cardano Network',
+  'DOGE': 'Dogecoin Network',
+  'BCH': 'Bitcoin Cash Network',
+  'XLM': 'Stellar Network',
+  'ALGO': 'Algorand Network',
+  'CELO': 'Celo Network',
+  'ONE': 'Harmony One Network'
+}
+
+const currentNetwork = computed(() => {
+  if (!selectedWalletCurrency.value) return ''
+  return networkMap[selectedWalletCurrency.value] || `${selectedWalletCurrency.value} Network`
+})
+
 const wallets = ref([])
 const filteredWallets = computed(() => {
   if (selectedType.value === 'crypto') {
