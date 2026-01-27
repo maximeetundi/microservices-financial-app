@@ -223,6 +223,12 @@ const transferTypes = [
 
 const selectedType = ref('p2p')
 const wallets = ref([])
+const filteredWallets = computed(() => {
+  if (selectedType.value === 'crypto') {
+    return wallets.value.filter(w => w.wallet_type === 'crypto')
+  }
+  return wallets.value.filter(w => w.wallet_type !== 'crypto')
+})
 const loadingWallets = ref(true)
 const loading = ref(false)
 
@@ -237,7 +243,8 @@ const form = ref({
   recipientPhone: '',
   bankName: '',
   bankAccount: '',
-  recipientName: ''
+  recipientName: '',
+  recipientAddress: ''
 })
 
 // P2P Lookup
@@ -256,6 +263,7 @@ const estimatedFee = computed(() => {
   if (selectedType.value === 'p2p') return 0 // Free internal transfers?
   if (selectedType.value === 'mobile') return form.value.amount * 0.01 // 1%
   if (selectedType.value === 'wire') return Math.max(5, form.value.amount * 0.02) // Min 5 or 2%
+  if (selectedType.value === 'crypto') return 0.0001 // Estimated network fee placeholder
   return 0
 })
 
@@ -354,15 +362,20 @@ const executeTransfer = async () => {
           recipient: form.value.recipientPhone,
           description: form.value.description + ` [${form.value.provider} - ${form.value.country}]`
       })
-    } else if (selectedType.value === 'wire') {
-         result = await transferApi.create({
-          type: 'wire',
-          from_wallet_id: form.value.fromWalletId,
-          amount: form.value.amount,
           currency: selectedWalletCurrency.value,
           recipient: form.value.recipientName,
           description: form.value.description + ` [IBAN: ${form.value.bankAccount}]`
         })
+    } else if (selectedType.value === 'crypto') {
+        if (!form.value.recipientAddress) throw new Error("Adresse destinataire requise")
+        
+        await walletApi.sendCrypto(form.value.fromWalletId, {
+          to_address: form.value.recipientAddress,
+          amount: form.value.amount,
+          note: form.value.description
+        })
+        
+        result = { data: { transfer: { status: 'completed' } } }
     }
 
     // Show success message with custom modal
