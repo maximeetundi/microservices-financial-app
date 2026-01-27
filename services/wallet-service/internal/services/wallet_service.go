@@ -138,6 +138,14 @@ func (s *WalletService) ProcessTatumDeposit(accountID string, amount float64, cu
 	return nil
 }
 
+func (s *WalletService) GetWalletByID(walletID string) (*models.Wallet, error) {
+	wallet, err := s.walletRepo.GetByID(walletID)
+	if err != nil {
+		return nil, err
+	}
+	return wallet, nil
+}
+
 func (s *WalletService) GetWallet(walletID, userID string) (*models.Wallet, error) {
 	wallet, err := s.walletRepo.GetByID(walletID)
 	if err != nil {
