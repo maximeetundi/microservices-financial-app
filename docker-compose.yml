@@ -68,6 +68,39 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  vault:
+    image: hashicorp/vault:latest
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./infrastructure/vault/config:/vault/config
+      - vault_data:/vault/file
+    environment:
+      VAULT_ADDR: 'http://127.0.0.1:8200'
+      VAULT_API_ADDR: 'http://127.0.0.1:8200'
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault.hcl
+    networks:
+      - crypto-bank-network
+    restart: unless-stopped
+
+  vault-init:
+    image: hashicorp/vault:latest
+    depends_on:
+      - vault
+    volumes:
+      - ./infrastructure/vault/scripts/setup.sh:/setup.sh
+      - vault_data:/vault/file
+    environment:
+      VAULT_ADDR: 'http://vault:8200'
+      TATUM_API_KEY: ${TATUM_API_KEY:-}
+      FIXER_API_KEY: ${FIXER_API_KEY:-}
+      CURRENCYLAYER_API_KEY: ${CURRENCYLAYER_API_KEY:-}
+    entrypoint: /bin/sh /setup.sh
+    networks:
+      - crypto-bank-network
+      
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
@@ -250,6 +283,9 @@ services:
       - KAFKA_BROKERS=kafka:9092
       - KAFKA_GROUP_ID=wallet-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
+      - TATUM_API_KEY=${TATUM_API_KEY:-}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-token-secure-2024
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -309,6 +345,8 @@ services:
       - KAFKA_GROUP_ID=exchange-service-group
       - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - WALLET_SERVICE_URL=http://wallet-service:8083
+      - FIXER_API_KEY=${FIXER_API_KEY:-}
+      - CURRENCYLAYER_API_KEY=${CURRENCYLAYER_API_KEY:-}
     networks:
       - crypto-bank-network
     restart: unless-stopped
@@ -629,6 +667,7 @@ volumes:
   postgres_data:
   minio_data:
   mongodb_data:
+  vault_data:
 
 networks:
   crypto-bank-network:

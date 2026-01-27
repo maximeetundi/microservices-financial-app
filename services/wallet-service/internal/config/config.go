@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"strconv"
+
+	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 )
 
 type Config struct {
@@ -14,18 +16,18 @@ type Config struct {
 	KafkaGroupID string
 	JWTSecret    string
 	BaseURL      string
-	
+
 	// Tatum settings
-	TatumAPIKey string
+	TatumAPIKey  string
 	TatumBaseURL string
 
 	// Transaction settings
 	MaxTransactionAmount map[string]float64
 	MinConfirmations     map[string]int
-	
+
 	// Fee settings
 	NetworkFees map[string]float64
-	
+
 	// Crypto settings
 	EncryptionKey string
 	BlockchainRPC map[string]string
@@ -51,7 +53,7 @@ func Load() *Config {
 		// Tatum settings
 		TatumAPIKey:  getEnv("TATUM_API_KEY", ""),
 		TatumBaseURL: getEnv("TATUM_BASE_URL", "https://api.tatum.io/v3"), // Default to v3 API
-		
+
 		// Crypto settings
 		EncryptionKey: getEnv("ENCRYPTION_KEY", "32-byte-encryption-key-for-crypto"),
 		BlockchainRPC: map[string]string{
@@ -60,14 +62,14 @@ func Load() *Config {
 			"BSC": getEnv("BSC_RPC", "https://bsc-dataseed.binance.org/"),
 		},
 		CryptoAPIKeys: map[string]string{
-			"INFURA": getEnv("INFURA_API_KEY", ""),
+			"INFURA":  getEnv("INFURA_API_KEY", ""),
 			"ALCHEMY": getEnv("ALCHEMY_API_KEY", ""),
 			"MORALIS": getEnv("MORALIS_API_KEY", ""),
 		},
-		
+
 		// Security
 		RateLimitRPS: rateLimitRPS,
-		
+
 		// Transaction limits
 		MaxTransactionAmount: map[string]float64{
 			"BTC": 10.0,
@@ -80,7 +82,7 @@ func Load() *Config {
 			"ETH": 12,
 			"BSC": 15,
 		},
-		
+
 		// Network fees (in respective currencies)
 		NetworkFees: map[string]float64{
 			"BTC": 0.0001,
@@ -88,6 +90,17 @@ func Load() *Config {
 			"BSC": 0.0005,
 		},
 	}
+
+	// Vault Integration
+	if vaultClient, err := secrets.NewVaultClient(); err == nil {
+		if secretData, err := vaultClient.GetSecret("secret/wallet-service"); err == nil {
+			if val, ok := secretData["tatum_api_key"].(string); ok && val != "" {
+				cfg.TatumAPIKey = val
+			}
+		}
+	}
+
+	return cfg
 }
 
 func getEnv(key, defaultValue string) string {
