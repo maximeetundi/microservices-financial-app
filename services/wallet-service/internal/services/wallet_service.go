@@ -290,6 +290,19 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 		"to_address": req.ToAddress,
 		"gas_price":  req.GasPrice,
 	}
+	
+	// Auto-detect network from address
+	networkInfo := s.cryptoService.DetectAddressNetwork(req.ToAddress)
+	metadata["network_type"] = networkInfo.Type
+	metadata["network_variant"] = networkInfo.Variant
+	metadata["network_env"] = networkInfo.Network
+	
+	// Safety Check for Bitcoin Testnet vs Mainnet
+	if networkInfo.Type == "BTC" && networkInfo.Network == "testnet" && !strings.Contains(strings.ToLower(wallet.Currency), "test") {
+		// Just a warning log for now, could block in strict mode
+		fmt.Printf("WARNING: Sending to BTC Testnet address from potentially Mainnet wallet: %s\n", req.ToAddress)
+	}
+
 	metadataJSON, _ := json.Marshal(metadata)
 	metadataStr := string(metadataJSON)
 	transaction.Metadata = &metadataStr

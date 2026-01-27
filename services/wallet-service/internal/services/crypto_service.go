@@ -96,9 +96,74 @@ func (s *CryptoService) ValidateAddress(address, currency string) bool {
 		return s.validateBitcoinAddress(address)
 	case "ETH", "BSC":
 		return s.validateEthereumAddress(address)
+	case "USDT":
+		// Check if it's either EVM (ERC20/BEP20) or TRON (TRC20)
+		return s.validateEthereumAddress(address) || s.validateTronAddress(address)
 	default:
 		return true // Allow others if unknown
 	}
+}
+
+type NetworkDetectionResult struct {
+	Type     string // EVM, BTC, TRON
+	Network  string // mainnet, testnet, unknown
+	Variant  string // ERC20, TRC20, BEP20 (inferred)
+}
+
+func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionResult {
+	// 1. Check for EVM (Ethereum, BSC, Polygon, etc.)
+	if strings.HasPrefix(address, "0x") && len(address) == 42 {
+		// Verify absolute hex correctness
+		if _, err := hex.DecodeString(address[2:]); err == nil {
+			return NetworkDetectionResult{
+				Type:    "EVM",
+				Network: "unknown", // Cannot distinguish mainnet/testnet by address
+				Variant: "ERC20",   // Generic term for 0x addresses, could be BEP20
+			}
+		}
+	}
+
+	// 2. Check for TRON
+	if strings.HasPrefix(address, "T") && len(address) == 34 {
+		// Basic Base58 check could be added here, simplified for now
+		return NetworkDetectionResult{
+			Type:    "TRON",
+			Network: "unknown", // Cannot distinguish easily without querying node
+			Variant: "TRC20",
+		}
+	}
+
+	// 3. Check for Bitcoin
+	// Mainnet
+	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1") {
+		return NetworkDetectionResult{
+			Type:    "BTC",
+			Network: "mainnet",
+			Variant: "BTC",
+		}
+	}
+	// Testnet
+	if strings.HasPrefix(address, "m") || strings.HasPrefix(address, "n") || strings.HasPrefix(address, "2") || strings.HasPrefix(address, "tb1") {
+		return NetworkDetectionResult{
+			Type:    "BTC",
+			Network: "testnet",
+			Variant: "BTC",
+		}
+	}
+
+	return NetworkDetectionResult{
+		Type:    "UNKNOWN",
+		Network: "unknown",
+		Variant: "unknown",
+	}
+}
+
+func (s *CryptoService) validateTronAddress(address string) bool {
+	if len(address) != 34 || !strings.HasPrefix(address, "T") {
+		return false
+	}
+	// In production: Validate Base58 and Checksum
+	return true
 }
 
 func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, priority string) (*models.CryptoTransactionEstimate, error) {
