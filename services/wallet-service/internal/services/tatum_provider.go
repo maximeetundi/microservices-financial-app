@@ -287,8 +287,8 @@ func (p *TatumProvider) SendToBlockchain(currency, senderAccountID, toAddress st
 	return &response, nil
 }
 
-// GetAddressBalance retrieves the blockchain balance for a specific address (Node Mode)
-func (p *TatumProvider) GetAddressBalance(currency, address string) (float64, error) {
+// GetBalance retrieves the blockchain balance for a specific address (Node Mode) -> Interface Implementation
+func (p *TatumProvider) GetBalance(currency, address string) (float64, error) {
 	var endpoint string
 	switch currency {
 	case "BTC":
