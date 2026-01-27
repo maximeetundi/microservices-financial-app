@@ -39,7 +39,7 @@ func (s *AuditService) LogLogin(userID, email, ipAddress, userAgent string, succ
 	if failReason != "" {
 		details["reason"] = failReason
 	}
-	
+
 	s.publishEvent("auth.login", AuditEvent{
 		Type:      "login",
 		UserID:    userID,
@@ -154,7 +154,7 @@ func (s *AuditService) LogUserBlocked(userID, email, reason, adminID string) {
 		"reason":   reason,
 		"admin_id": adminID,
 	})
-	
+
 	// Also log audit event
 	s.publishEvent("auth.user_blocked", AuditEvent{
 		Type:    "user_blocked",
@@ -179,7 +179,7 @@ func (s *AuditService) LogUserUnblocked(userID, email, adminID string) {
 		"phone":    "",
 		"admin_id": adminID,
 	})
-	
+
 	// Also log audit event
 	s.publishEvent("auth.user_unblocked", AuditEvent{
 		Type:    "user_unblocked",
@@ -202,7 +202,7 @@ func (s *AuditService) LogPinLocked(userID, email, phone string, failedAttempts 
 		"phone":           phone,
 		"failed_attempts": failedAttempts,
 	})
-	
+
 	s.publishEvent("auth.pin_locked", AuditEvent{
 		Type:    "pin_locked",
 		UserID:  userID,
@@ -224,7 +224,7 @@ func (s *AuditService) LogPinUnlocked(userID, email, adminID string) {
 		"phone":    "",
 		"admin_id": adminID,
 	})
-	
+
 	s.publishEvent("auth.pin_unlocked", AuditEvent{
 		Type:    "pin_unlocked",
 		UserID:  userID,
@@ -242,10 +242,11 @@ func (s *AuditService) LogUserRegistered(user *models.User, currency string) {
 	// Publish user.registered event to Kafka for wallet-service to create default wallet
 	if s.kafkaClient != nil {
 		userEvent := messaging.UserRegisteredEvent{
-			UserID:   user.ID,
-			Email:    user.Email,
-			Country:  user.Country,
-			Currency: currency,
+			UserID:    user.ID,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			Country:   user.Country,
+			Currency:  currency,
 		}
 		envelope := messaging.NewEventEnvelope(messaging.EventUserRegistered, "auth-service", userEvent)
 		if err := s.kafkaClient.Publish(context.Background(), messaging.TopicUserEvents, envelope); err != nil {
@@ -257,23 +258,14 @@ func (s *AuditService) LogUserRegistered(user *models.User, currency string) {
 		log.Printf("Warning: kafkaClient is nil, wallet-service won't receive user.registered event")
 	}
 
-	// Also publish notification for welcome email etc.
-	s.publishNotification("user.registered", map[string]interface{}{
-		"type":       "user.registered",
-		"user_id":    user.ID,
-		"email":      user.Email,
-		"first_name": user.FirstName,
-		"country":    user.Country,
-		"currency":   currency,
-		"timestamp":  time.Now().Unix(),
-	})
+	// Removed duplicate publishNotification call
 
 	s.publishEvent("auth.registered", AuditEvent{
 		Type:      "user_registered",
 		UserID:    user.ID,
 		Email:     user.Email,
 		Success:   true,
-		IPAddress: "", 
+		IPAddress: "",
 		Details: map[string]interface{}{
 			"country":  user.Country,
 			"currency": currency,

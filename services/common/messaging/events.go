@@ -47,10 +47,11 @@ func (e *EventEnvelope) WithMetadata(key string, value interface{}) *EventEnvelo
 // === User Events ===
 
 type UserRegisteredEvent struct {
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	Currency string `json:"currency"`
-	Country  string `json:"country"`
+	UserID    string `json:"user_id"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	Currency  string `json:"currency"`
+	Country   string `json:"country"`
 }
 
 // === Wallet Events ===
@@ -64,13 +65,13 @@ type WalletCreatedEvent struct {
 }
 
 type WalletBalanceUpdatedEvent struct {
-	WalletID    string  `json:"wallet_id"`
-	UserID      string  `json:"user_id"`
-	OldBalance  float64 `json:"old_balance"`
-	NewBalance  float64 `json:"new_balance"`
-	Amount      float64 `json:"amount"`
-	Operation   string  `json:"operation"` // credit, debit
-	Reference   string  `json:"reference"`
+	WalletID   string  `json:"wallet_id"`
+	UserID     string  `json:"user_id"`
+	OldBalance float64 `json:"old_balance"`
+	NewBalance float64 `json:"new_balance"`
+	Amount     float64 `json:"amount"`
+	Operation  string  `json:"operation"` // credit, debit
+	Reference  string  `json:"reference"`
 }
 
 // === Transfer Events ===
@@ -98,16 +99,16 @@ type TransferCompletedEvent struct {
 // === Exchange Events ===
 
 type ExchangeCompletedEvent struct {
-	ExchangeID     string  `json:"exchange_id"`
-	UserID         string  `json:"user_id"`
-	FromWalletID   string  `json:"from_wallet_id"`
-	ToWalletID     string  `json:"to_wallet_id"`
-	FromCurrency   string  `json:"from_currency"`
-	ToCurrency     string  `json:"to_currency"`
-	FromAmount     float64 `json:"from_amount"`
-	ToAmount       float64 `json:"to_amount"`
-	ExchangeRate   float64 `json:"exchange_rate"`
-	Fee            float64 `json:"fee"`
+	ExchangeID   string  `json:"exchange_id"`
+	UserID       string  `json:"user_id"`
+	FromWalletID string  `json:"from_wallet_id"`
+	ToWalletID   string  `json:"to_wallet_id"`
+	FromCurrency string  `json:"from_currency"`
+	ToCurrency   string  `json:"to_currency"`
+	FromAmount   float64 `json:"from_amount"`
+	ToAmount     float64 `json:"to_amount"`
+	ExchangeRate float64 `json:"exchange_rate"`
+	Fee          float64 `json:"fee"`
 }
 
 type FiatExchangeRequestEvent struct {
@@ -123,18 +124,18 @@ type FiatExchangeRequestEvent struct {
 // === Payment Events ===
 
 type PaymentRequestEvent struct {
-	RequestID    string                 `json:"request_id"`
-	ReferenceID  string                 `json:"reference_id"`
-	Type         string                 `json:"type"` // exchange, transfer
-	UserID       string                 `json:"user_id"`
-	FromWalletID string                 `json:"from_wallet_id"`
-	DestinationUserID string            `json:"destination_user_id,omitempty"` // For auto-resolution
-	ToWalletID   string                 `json:"to_wallet_id,omitempty"`
-	DebitAmount  float64                `json:"debit_amount"`
-	CreditAmount float64                `json:"credit_amount,omitempty"`
-	Currency     string                 `json:"currency"`
-	Description  string                 `json:"description,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	RequestID         string                 `json:"request_id"`
+	ReferenceID       string                 `json:"reference_id"`
+	Type              string                 `json:"type"` // exchange, transfer
+	UserID            string                 `json:"user_id"`
+	FromWalletID      string                 `json:"from_wallet_id"`
+	DestinationUserID string                 `json:"destination_user_id,omitempty"` // For auto-resolution
+	ToWalletID        string                 `json:"to_wallet_id,omitempty"`
+	DebitAmount       float64                `json:"debit_amount"`
+	CreditAmount      float64                `json:"credit_amount,omitempty"`
+	Currency          string                 `json:"currency"`
+	Description       string                 `json:"description,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type PaymentStatusEvent struct {
@@ -167,10 +168,10 @@ type CardTransactionEvent struct {
 // === Notification Events ===
 
 type NotificationEvent struct {
-	UserID  string                 `json:"user_id"`
-	Type    string                 `json:"type"`
-	Title   string                 `json:"title"`
-	Message string                 `json:"message"`
-	Data    map[string]interface{} `json:"data,omitempty"`
-	ActionUrl string             `json:"action_url,omitempty"`
+	UserID    string                 `json:"user_id"`
+	Type      string                 `json:"type"`
+	Title     string                 `json:"title"`
+	Message   string                 `json:"message"`
+	Data      map[string]interface{} `json:"data,omitempty"`
+	ActionUrl string                 `json:"action_url,omitempty"`
 }
