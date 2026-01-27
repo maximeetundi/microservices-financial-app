@@ -94,16 +94,26 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 }
 
 // --- Bitcoin ---
+// --- Bitcoin (Native SegWit - Bech32) ---
 func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 	privKey, _ := btcec.NewPrivateKey(btcec.S256())
 	privKeyHex := hex.EncodeToString(privKey.Serialize())
 	pubKey := privKey.PubKey()
-	pubKeyHex := hex.EncodeToString(pubKey.SerializeCompressed())
+	pubKeyCompressed := pubKey.SerializeCompressed()
+	pubKeyHex := hex.EncodeToString(pubKeyCompressed)
+
 	params := &chaincfg.MainNetParams
-	addr, err := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), params)
+
+	// Generate Witness Public Key Hash (P2WPKH)
+	// 1. Hash160(PubKeyCompressed)
+	pubKeyHash := btcutil.Hash160(pubKeyCompressed)
+
+	// 2. Create Witness Address (bc1q...)
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash, params)
 	if err != nil {
 		return "", "", "", err
 	}
+
 	return addr.EncodeAddress(), privKeyHex, pubKeyHex, nil
 }
 
