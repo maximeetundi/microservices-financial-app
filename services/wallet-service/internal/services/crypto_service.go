@@ -58,31 +58,25 @@ func (s *CryptoService) GenerateWallet(currency string) (*CryptoWallet, error) {
 func (s *CryptoService) generateTatumWallet(currency string) (*CryptoWallet, error) {
 	// 1. Create Virtual Account
 	// Note: We don't provide xpub here in this simplified version, letting Tatum manage it (Custodial)
-	// Or we could use a master xpub from config if we wanted HD wallet derivation
 	acc, err := s.tatum.CreateVirtualAccount(currency, "") 
 	if err != nil {
-		// If fails, maybe strict mode requires xpub, but for VC it's optional usually
 		return nil, fmt.Errorf("failed to create tatum account: %w", err)
 	}
 
-	// The AccountCode/ID is usually in 'ID' field, but the struct I made has AccountCode. 
-	// Let's assume response maps to struct properly. Re-check struct if needed.
-	// Actually Tatum Create response is { "id": "..." } often.
-	// Let's assume acc.AccountCode is what we want or we need to fix the struct.
-	// For now, let's use a generic ID field if we can, or just assume CreateVirtualAccount returns something usable.
-	// *Correction*: CreateVirtualAccount often returns just the ID in `id`.
-	// My struct `TatumAccount` might need adjustment. Let's fix it implicitly here or handling it.
-	
-	// 2. Generate Address
-	// We need the Account ID (which is the Ledger ID)
-	// Let's assume we get it. 
-	// To be safe, let's assume `acc.AccountCode` (if mapped) or `id`.
-	// Since I can't see the response structure at runtime, I'll trust the struct I defined or improve it later.
-	
-	// Assuming `AccountCode` holds the ID for now.
-	addr, err := s.tatum.GenerateDepositAddress(acc.AccountCode) // or ID
+	// 2. Generate Deposit Address using the account ID
+	// Tatum API returns the account ID in the `id` field
+	addr, err := s.tatum.GenerateDepositAddress(acc.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate address: %w", err)
+	}
+
+	// 3. Subscribe to incoming transactions webhook
+	// This ensures we get notified when deposits are made
+	webhookURL := s.config.BaseURL + "/api/v1/webhooks/tatum"
+	_, err = s.tatum.SubscribeToAccountTransactions(acc.ID, webhookURL)
+	if err != nil {
+		// Log but don't fail - wallet is still created, webhook can be added later
+		fmt.Printf("[CryptoService] Warning: Failed to subscribe to webhook: %v\n", err)
 	}
 
 	return &CryptoWallet{
@@ -91,7 +85,7 @@ func (s *CryptoService) generateTatumWallet(currency string) (*CryptoWallet, err
 		PublicKey:  "",
 		Currency:   currency,
 		Network:    "tatum-virtual",
-		AccountID:  acc.AccountCode,
+		AccountID:  acc.ID, // Store the Tatum account ID for future reference
 	}, nil
 }
 
@@ -156,12 +150,20 @@ func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, 
 }
 
 func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {
-	// If Tatum
+	// If Tatum API Key is set, use Tatum
 	if s.config.TatumAPIKey != "" {
-		// Use Tatum to send funds (Off-chain or On-chain)
-		// For now, return mock hash to not block flow, as Send via Tatum is a separate API call
-		// TODO: Implement Tatum Send
-		return "tatum_tx_" + fmt.Sprintf("%d", time.Now().UnixNano()), nil
+		// Use Tatum to send funds (Off-chain transfer to blockchain address)
+		// fromWallet.ExternalID MUST hold the Tatum Account ID
+		if fromWallet.ExternalID == "" {
+			return "", fmt.Errorf("wallet %s has no linked tatum account", fromWallet.ID)
+		}
+
+		resp, err := s.tatum.SendToBlockchain(fromWallet.Currency, fromWallet.ExternalID, toAddress, amount)
+		if err != nil {
+			return "", fmt.Errorf("tatum transfer failed: %w", err)
+		}
+		
+		return resp.TxID, nil
 	}
 
 	// Mock Logic

@@ -46,7 +46,7 @@ func Load() *Config {
 		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "wallet-service-group"),
 		JWTSecret:    getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		BaseURL:      getEnv("BASE_URL", "https://app.tech-afm.com"),
+		BaseURL:      getEnv("BASE_URL", "https://api.app.tech-afm.com/wallet-service"),
 
 		// Tatum settings
 		TatumAPIKey:  getEnv("TATUM_API_KEY", ""),
