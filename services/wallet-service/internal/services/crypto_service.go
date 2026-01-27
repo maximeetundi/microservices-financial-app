@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -92,21 +92,16 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 // --- Bitcoin ---
 
 func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
-	// Generate Private Key
-	privKey, err := btcec.NewPrivateKey()
-	if err != nil {
-		return "", "", "", err
-	}
+	// Generate Private Key (Legacy btcec API)
+	privKey, _ := btcec.NewPrivateKey(btcec.S256())
 	privKeyHex := hex.EncodeToString(privKey.Serialize())
 
 	// Generate Public Key
 	pubKey := privKey.PubKey()
 	pubKeyHex := hex.EncodeToString(pubKey.SerializeCompressed())
 
-	// Generate Address (P2PKH for simplicity, SegWit is better but complex for logic here)
-	// Using Mainnet params
+	// Generate Address
 	params := &chaincfg.MainNetParams
-	// Use Testnet if configured?
 	// if s.config.Environment == "development" { params = &chaincfg.TestNet3Params }
 
 	addr, err := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), params)
