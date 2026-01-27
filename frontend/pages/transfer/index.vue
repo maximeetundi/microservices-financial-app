@@ -336,19 +336,36 @@ const fetchWallets = async () => {
     wallets.value = res.data.wallets || []
     
     // Check if wallet ID is passed in URL query param
+    // Check if wallet ID is passed in URL query param
     const urlWalletId = route.query.wallet
     if (urlWalletId) {
       // Find and select the wallet from URL
       const targetWallet = wallets.value.find(w => w.id === urlWalletId)
       if (targetWallet) {
         form.value.fromWalletId = targetWallet.id
-        return // Don't auto-select, use the URL param
       }
     }
+
+    // Check if type is passed default to p2p
+    const urlType = route.query.type
+    if (urlType && ['p2p', 'mobile', 'wire', 'crypto'].includes(urlType)) {
+        selectedType.value = urlType
+    }
     
-    // Fallback: Auto-select first wallet with balance
-    const validWallet = wallets.value.find(w => w.balance > 0)
-    if (validWallet) form.value.fromWalletId = validWallet.id
+    // Fallback: Auto-select first wallet with balance if not selected
+    if (!form.value.fromWalletId) {
+        const validWallet = wallets.value.find(w => w.balance > 0)
+        if (validWallet) form.value.fromWalletId = validWallet.id
+    }
+    
+    // If we are in crypto mode, ensure we auto-select a crypto wallet if the current one isn't
+    if (selectedType.value === 'crypto') {
+        const currentW = wallets.value.find(w => w.id === form.value.fromWalletId)
+        if (!currentW || currentW.wallet_type !== 'crypto') {
+            const firstCrypto = wallets.value.find(w => w.wallet_type === 'crypto')
+            if (firstCrypto) form.value.fromWalletId = firstCrypto.id
+        }
+    }
   } catch (e) {
     console.error('Failed to fetch wallets', e)
      // Fallback mock

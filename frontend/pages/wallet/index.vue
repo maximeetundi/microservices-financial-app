@@ -126,7 +126,7 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Recharger
             </button>
-            <NuxtLink :to="`/transfer?wallet=${wallet.id}`" @click.stop
+                :to="`/transfer?wallet=${wallet.id}${wallet.wallet_type === 'crypto' ? '&type=crypto' : ''}`" @click.stop
                     class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-white text-sm font-semibold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               Envoyer
@@ -212,12 +212,14 @@
       <div v-if="showTopUpModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in-up">
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-0 max-w-lg w-full shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh]">
            <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-             <h3 class="text-xl font-bold text-gray-900 dark:text-white">Recharger</h3>
+             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+               {{ selectedWallet?.wallet_type === 'crypto' || selectedWallet?.type === 'crypto' ? 'Recevoir Crypto' : 'Recharger Compte' }}
+             </h3>
              <button @click="closeTopUpModal" class="text-gray-400 hover:text-gray-900 dark:hover:text-white">✕</button>
            </div>
            
            <div class="p-6 overflow-y-auto custom-scrollbar">
-             <!-- Wallet Selection -->
+             <!-- Wallet Selection Display -->
              <div class="mb-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl flex items-center gap-4">
                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm" :class="getCurrencyBg(selectedWallet?.currency)">
                  {{ getCurrencyIcon(selectedWallet?.currency) }}
@@ -228,136 +230,168 @@
                </div>
              </div>
 
-             <!-- Amount Input -->
-             <div class="mb-6">
-               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Montant à déposer</label>
-               <div class="relative">
-                 <input 
-                   v-model.number="depositAmount" 
-                   type="number" 
-                   placeholder="0.00"
-                   min="1"
-                   class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                 />
-                 <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">{{ selectedWallet?.currency }}</span>
+             <!-- CRYPTO DEPOSIT VIEW -->
+             <div v-if="selectedWallet?.wallet_type === 'crypto' || selectedWallet?.type === 'crypto'" class="text-center space-y-6">
+                <div class="p-6 bg-white rounded-xl shadow-inner border border-gray-100 inline-block">
+                  <img 
+                    :src="`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${selectedWallet?.wallet_address}`" 
+                    alt="Wallet QR Code" 
+                    class="w-40 h-40 mix-blend-multiply" 
+                  />
+                </div>
+                
+                <div class="space-y-2">
+                   <p class="text-sm text-gray-500 dark:text-gray-400">Votre adresse {{ selectedWallet?.currency }}</p>
+                   <div class="relative group">
+                     <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-xl break-all font-mono text-sm text-gray-700 dark:text-gray-300 border border-transparent group-hover:border-indigo-500 transition-colors">
+                        {{ selectedWallet?.wallet_address }}
+                     </div>
+                     <button @click="copyAddress" class="absolute right-2 top-2 p-2 bg-indigo-500 text-white rounded-lg shadow-lg hover:scale-105 transition-transform">
+                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                     </button>
+                   </div>
+                   <p class="text-xs text-yellow-600 dark:text-yellow-500 mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-700/30">
+                     ⚠️ Envoyez uniquement du <strong>{{ selectedWallet?.currency }}</strong> sur cette adresse. Tout autre jeton sera perdu définitivement.
+                   </p>
+                </div>
+             </div>
+
+             <!-- FIAT DEPOSIT VIEW -->
+             <div v-else>
+               <!-- Amount Input -->
+               <div class="mb-6">
+                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Montant à déposer</label>
+                 <div class="relative">
+                   <input 
+                     v-model.number="depositAmount" 
+                     type="number" 
+                     placeholder="0.00"
+                     min="1"
+                     class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                   />
+                   <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">{{ selectedWallet?.currency }}</span>
+                 </div>
+                 <div class="flex gap-2 mt-3">
+                   <button v-for="amt in [1000, 5000, 10000, 50000]" :key="amt" 
+                     @click="depositAmount = amt"
+                     class="flex-1 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors text-gray-700 dark:text-gray-300">
+                     {{ amt.toLocaleString() }}
+                   </button>
+                 </div>
                </div>
-               <div class="flex gap-2 mt-3">
-                 <button v-for="amt in [1000, 5000, 10000, 50000]" :key="amt" 
-                   @click="depositAmount = amt"
-                   class="flex-1 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors text-gray-700 dark:text-gray-300">
-                   {{ amt.toLocaleString() }}
-                 </button>
+
+               <!-- Payment Method Selection -->
+               <div class="mb-6">
+                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
+                 <div class="grid grid-cols-1 gap-3">
+                   <!-- Mobile Money Section -->
+                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">📱 Mobile Money</p>
+                   <button @click="depositMethod = 'orange'" 
+                     :class="depositMethod === 'orange' ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-200 dark:border-gray-700'"
+                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-orange-500 transition-all group">
+                     <span class="text-2xl">🟠</span>
+                     <div class="text-left flex-1">
+                       <p class="font-bold text-gray-900 dark:text-white">Orange Money</p>
+                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                     </div>
+                     <div v-if="depositMethod === 'orange'" class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                       </svg>
+                     </div>
+                   </button>
+                   <button @click="depositMethod = 'mtn'" 
+                     :class="depositMethod === 'mtn' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'border-gray-200 dark:border-gray-700'"
+                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-yellow-500 transition-all group">
+                     <span class="text-2xl">🟡</span>
+                     <div class="text-left flex-1">
+                       <p class="font-bold text-gray-900 dark:text-white">MTN Mobile Money</p>
+                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                     </div>
+                     <div v-if="depositMethod === 'mtn'" class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                       </svg>
+                     </div>
+                   </button>
+                   <button @click="depositMethod = 'wave'" 
+                     :class="depositMethod === 'wave' ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-gray-200 dark:border-gray-700'"
+                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-blue-500 transition-all group">
+                     <span class="text-2xl">🌊</span>
+                     <div class="text-left flex-1">
+                       <p class="font-bold text-gray-900 dark:text-white">Wave</p>
+                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
+                     </div>
+                     <div v-if="depositMethod === 'wave'" class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                       </svg>
+                     </div>
+                   </button>
+
+                   <!-- Bank Transfer Section -->
+                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">🏦 Virement</p>
+                   <button @click="depositMethod = 'bank'" 
+                     :class="depositMethod === 'bank' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-gray-200 dark:border-gray-700'"
+                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-emerald-500 transition-all group">
+                     <span class="text-2xl">🏦</span>
+                     <div class="text-left flex-1">
+                       <p class="font-bold text-gray-900 dark:text-white">Virement Bancaire</p>
+                       <p class="text-xs text-gray-500 dark:text-gray-400">IBAN / RIB • 1-3 jours</p>
+                     </div>
+                     <div v-if="depositMethod === 'bank'" class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                       </svg>
+                     </div>
+                   </button>
+
+                   <!-- Card Section -->
+                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">💳 Carte</p>
+                   <button @click="depositMethod = 'card'" 
+                     :class="depositMethod === 'card' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10' : 'border-gray-200 dark:border-gray-700'"
+                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-purple-500 transition-all group">
+                     <span class="text-2xl">💳</span>
+                     <div class="text-left flex-1">
+                       <p class="font-bold text-gray-900 dark:text-white">Carte Bancaire</p>
+                       <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard • Instantané</p>
+                     </div>
+                     <div v-if="depositMethod === 'card'" class="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                       </svg>
+                     </div>
+                   </button>
+                 </div>
                </div>
-             </div>
 
-             <!-- Payment Method Selection -->
-             <div class="mb-6">
-               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
-               <div class="grid grid-cols-1 gap-3">
-                 <!-- Mobile Money Section -->
-                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">📱 Mobile Money</p>
-                 <button @click="depositMethod = 'orange'" 
-                   :class="depositMethod === 'orange' ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-200 dark:border-gray-700'"
-                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-orange-500 transition-all group">
-                   <span class="text-2xl">🟠</span>
-                   <div class="text-left flex-1">
-                     <p class="font-bold text-gray-900 dark:text-white">Orange Money</p>
-                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                   </div>
-                   <div v-if="depositMethod === 'orange'" class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                     </svg>
-                   </div>
-                 </button>
-                 <button @click="depositMethod = 'mtn'" 
-                   :class="depositMethod === 'mtn' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'border-gray-200 dark:border-gray-700'"
-                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-yellow-500 transition-all group">
-                   <span class="text-2xl">🟡</span>
-                   <div class="text-left flex-1">
-                     <p class="font-bold text-gray-900 dark:text-white">MTN Mobile Money</p>
-                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                   </div>
-                   <div v-if="depositMethod === 'mtn'" class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
-                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                     </svg>
-                   </div>
-                 </button>
-                 <button @click="depositMethod = 'wave'" 
-                   :class="depositMethod === 'wave' ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-gray-200 dark:border-gray-700'"
-                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-blue-500 transition-all group">
-                   <span class="text-2xl">🌊</span>
-                   <div class="text-left flex-1">
-                     <p class="font-bold text-gray-900 dark:text-white">Wave</p>
-                     <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                   </div>
-                   <div v-if="depositMethod === 'wave'" class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                     </svg>
-                   </div>
-                 </button>
-
-                 <!-- Bank Transfer Section -->
-                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">🏦 Virement</p>
-                 <button @click="depositMethod = 'bank'" 
-                   :class="depositMethod === 'bank' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-gray-200 dark:border-gray-700'"
-                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-emerald-500 transition-all group">
-                   <span class="text-2xl">🏦</span>
-                   <div class="text-left flex-1">
-                     <p class="font-bold text-gray-900 dark:text-white">Virement Bancaire</p>
-                     <p class="text-xs text-gray-500 dark:text-gray-400">IBAN / RIB • 1-3 jours</p>
-                   </div>
-                   <div v-if="depositMethod === 'bank'" class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                     </svg>
-                   </div>
-                 </button>
-
-                 <!-- Card Section -->
-                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">💳 Carte</p>
-                 <button @click="depositMethod = 'card'" 
-                   :class="depositMethod === 'card' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10' : 'border-gray-200 dark:border-gray-700'"
-                   class="flex items-center gap-4 p-4 rounded-xl border hover:border-purple-500 transition-all group">
-                   <span class="text-2xl">💳</span>
-                   <div class="text-left flex-1">
-                     <p class="font-bold text-gray-900 dark:text-white">Carte Bancaire</p>
-                     <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard • Instantané</p>
-                   </div>
-                   <div v-if="depositMethod === 'card'" class="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                     <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                     </svg>
-                   </div>
-                 </button>
+               <!-- Error/Success Message -->
+               <div v-if="depositError" class="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+                 {{ depositError }}
                </div>
-             </div>
+               <div v-if="depositSuccess" class="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 text-sm">
+                 {{ depositSuccess }}
+               </div>
 
-             <!-- Error/Success Message -->
-             <div v-if="depositError" class="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm">
-               {{ depositError }}
+               <!-- Submit Button -->
+               <button 
+                 @click="submitDeposit"
+                 :disabled="!depositAmount || depositAmount <= 0 || !depositMethod || depositLoading"
+                 class="w-full py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
+               >
+                 <span v-if="depositLoading" class="flex items-center justify-center gap-2">
+                   <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                   </svg>
+                   Traitement...
+                 </span>
+                 <span v-else>Déposer {{ depositAmount ? depositAmount.toLocaleString() : '' }} {{ selectedWallet?.currency }}</span>
+               </button>
              </div>
-             <div v-if="depositSuccess" class="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 text-sm">
-               {{ depositSuccess }}
-             </div>
-
-             <!-- Submit Button -->
-             <button 
-               @click="submitDeposit"
-               :disabled="!depositAmount || depositAmount <= 0 || !depositMethod || depositLoading"
-               class="w-full py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
-             >
-               <span v-if="depositLoading" class="flex items-center justify-center gap-2">
-                 <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                 </svg>
-                 Traitement...
-               </span>
-               <span v-else>Déposer {{ depositAmount ? depositAmount.toLocaleString() : '' }} {{ selectedWallet?.currency }}</span>
-             </button>
+           </div>
+        </div>
+      </div>
            </div>
         </div>
       </div>
