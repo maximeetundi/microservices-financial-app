@@ -40,7 +40,7 @@ type Config struct {
 func Load() *Config {
 	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
 
-	return &Config{
+	cfg := &Config{
 		Environment:  getEnv("ENVIRONMENT", "development"),
 		Port:         getEnv("PORT", "8083"),
 		DBUrl:        getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
