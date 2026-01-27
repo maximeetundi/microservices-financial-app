@@ -6,7 +6,7 @@ export VAULT_ADDR=http://vault:8200
 
 # Wait for Vault to start
 echo "Waiting for Vault to start..."
-until wget -q --spider http://vault:8200/v1/sys/health?init=true; do
+until wget -q --spider http://vault:8200/v1/sys/seal-status; do
   echo "Valut is not ready yet..."
   sleep 2
 done
