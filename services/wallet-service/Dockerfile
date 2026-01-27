@@ -19,13 +19,6 @@ RUN go mod download || true
 # Copy service source code
 COPY ./wallet-service .
 
-# Install crypto dependencies
-RUN go get github.com/btcsuite/btcd/btcec/v2
-RUN go get github.com/btcsuite/btcd/chaincfg
-RUN go get github.com/btcsuite/btcutil
-RUN go get github.com/ethereum/go-ethereum/crypto
-RUN go get github.com/mr-tron/base58
-
 # Tidy dependencies after copying source
 RUN go mod tidy
 
