@@ -145,6 +145,15 @@ const handleSubmit = async () => {
   if (pin.length !== 5) return
   
   if (step.value === 1) {
+    // Validate complexity first
+    const { validatePin } = usePin()
+    const validation = validatePin(pin)
+    if (!validation.valid) {
+        errorMessage.value = validation.message || 'Mots de passe invalides'
+        handleClear()
+        return
+    }
+
     // Move to confirmation step
     firstPin.value = pin
     pinDigits.value = ['', '', '', '', '']

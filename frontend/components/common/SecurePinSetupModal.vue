@@ -71,6 +71,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { userAPI } from '~/composables/useApi'
+import { usePin } from '~/composables/usePin'
 
 const props = defineProps({
   isOpen: {
@@ -139,6 +140,16 @@ const handleSubmit = async () => {
   if (pin.length !== 5) return
   
   if (step.value === 1) {
+    // Validate complexity using shared logic
+    const { validatePin } = usePin()
+    const validation = validatePin(pin)
+    
+    if (!validation.valid) {
+      error.value = validation.message || 'Mots de passe invalides'
+      handleClear()
+      return
+    }
+
     // Move to confirmation step
     firstPin.value = pin
     pinDigits.value = ['', '', '', '', '']
