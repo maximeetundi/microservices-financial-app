@@ -13,7 +13,33 @@ const pinState = ref({
     verifyCallback: null as ((verified: boolean) => void) | null,
 })
 
+    verifyCallback: null as ((verified: boolean) => void) | null,
+})
+
 export function usePin() {
+    
+    // PIN Complexity Validation
+    const validatePin = (pin: string): { valid: boolean; message?: string } => {
+        if (!/^\d{5}$/.test(pin)) {
+            return { valid: false, message: 'Le PIN doit contenir 5 chiffres.' }
+        }
+        
+        // Check for repeated digits (e.g., 11111, 00000)
+        if (/^(\d)\1{4}$/.test(pin)) {
+            return { valid: false, message: 'Ce code PIN est trop simple (répétition).' }
+        }
+        
+        // Check for sequential digits (e.g., 12345, 54321)
+        const sequences = [
+            '01234', '12345', '23456', '34567', '45678', '56789',
+            '98765', '87654', '76543', '65432', '54321', '43210'
+        ]
+        if (sequences.includes(pin)) {
+            return { valid: false, message: 'Ce code PIN est trop simple (suite logique).' }
+        }
+        
+        return { valid: true }
+    }
 
     // Check if user has set their PIN
     const checkPinStatus = async (): Promise<boolean> => {
@@ -32,6 +58,12 @@ export function usePin() {
 
     // Set up a new PIN
     const setupPin = async (pin: string, confirmPin: string): Promise<{ success: boolean; message: string }> => {
+        // Validate complexity first
+        const validation = validatePin(pin)
+        if (!validation.valid) {
+            return { success: false, message: validation.message || 'PIN invalide' }
+        }
+
         try {
             pinState.value.isLoading = true
             await userAPI.setupPin({ pin, confirm_pin: confirmPin })
@@ -74,6 +106,12 @@ export function usePin() {
 
     // Change the PIN
     const changePin = async (currentPin: string, newPin: string, confirmPin: string): Promise<{ success: boolean; message: string }> => {
+        // Validate complexity first
+        const validation = validatePin(newPin)
+        if (!validation.valid) {
+            return { success: false, message: validation.message || 'PIN invalide' }
+        }
+
         try {
             pinState.value.isLoading = true
             await userAPI.changePin({
