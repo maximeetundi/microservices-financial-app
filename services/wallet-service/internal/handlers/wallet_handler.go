@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/services"
+	"github.com/gin-gonic/gin"
 )
 
 type WalletHandler struct {
@@ -44,7 +44,7 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 		// Get user's country to determine currency
 		userCountry := h.walletService.GetUserCountry(userID.(string))
 		defaultCurrency := getCurrencyForCountry(userCountry)
-		
+
 		name := "Wallet Principal"
 		desc := "Wallet créé automatiquement"
 		defaultReq := &models.CreateWalletRequest{
@@ -53,7 +53,7 @@ func (h *WalletHandler) GetWallets(c *gin.Context) {
 			Name:        &name,
 			Description: &desc,
 		}
-		
+
 		newWallet, err := h.walletService.CreateWallet(userID.(string), defaultReq)
 		if err == nil {
 			wallets = append(wallets, newWallet)
@@ -84,7 +84,7 @@ func (h *WalletHandler) DeleteWallet(c *gin.Context) {
 		if len(token) > 7 && token[:7] == "Bearer " {
 			token = token[7:]
 		}
-		
+
 		valid, err := authClient.VerifyPin(userID.(string), pin, token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
@@ -186,6 +186,7 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 
 	wallet, err := h.walletService.CreateWallet(userID.(string), &req)
 	if err != nil {
+		if err.Error() == "wallet already exists for currency "+req.Currency {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -222,7 +223,7 @@ func (h *WalletHandler) UpdateWallet(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	// First verify ownership
 	_, err := h.walletService.GetWallet(walletID, userID.(string))
 	if err != nil {
@@ -254,7 +255,7 @@ func (h *WalletHandler) GetBalance(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	// Verify ownership
 	_, err := h.walletService.GetWallet(walletID, userID.(string))
 	if err != nil {
@@ -279,7 +280,7 @@ func (h *WalletHandler) GetWalletTransactions(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	// Parse query parameters
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -303,7 +304,7 @@ func (h *WalletHandler) FreezeWallet(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -672,7 +673,7 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	var req struct {
 		Amount float64 `json:"amount" binding:"required,gt=0"`
 		Method string  `json:"method" binding:"required"`
@@ -700,14 +701,14 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 
 	// Return success with new balance
 	newBalance := wallet.Balance + req.Amount
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Deposit successful",
+		"message":        "Deposit successful",
 		"transaction_id": "dep_" + strconv.FormatInt(time.Now().Unix(), 10),
-		"status": "completed",
-		"amount": req.Amount,
-		"new_balance": newBalance,
-		"currency": wallet.Currency,
+		"status":         "completed",
+		"amount":         req.Amount,
+		"new_balance":    newBalance,
+		"currency":       wallet.Currency,
 	})
 }
 
@@ -719,14 +720,14 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 	}
 
 	walletID := c.Param("wallet_id")
-	
+
 	// Support both standard withdraw and ticket purchase withdraw
 	var req struct {
-		Amount       float64 `json:"amount" binding:"required,gt=0"`
-		Destination  string  `json:"destination"`  // Optional for ticket purchase
-		Description  string  `json:"description"`  // For ticket purchase
-		PIN          string  `json:"pin"`          // PIN for verification
-		Currency     string  `json:"currency"`     // Target currency for conversion
+		Amount      float64 `json:"amount" binding:"required,gt=0"`
+		Destination string  `json:"destination"` // Optional for ticket purchase
+		Description string  `json:"description"` // For ticket purchase
+		PIN         string  `json:"pin"`         // PIN for verification
+		Currency    string  `json:"currency"`    // Target currency for conversion
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -754,7 +755,7 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 		if len(token) > 7 && token[:7] == "Bearer " {
 			token = token[7:]
 		}
-		
+
 		valid, err := authClient.VerifyPin(userID.(string), req.PIN, token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
@@ -781,10 +782,10 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 	// Check if sufficient balance
 	if wallet.Balance < amountToDebit {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Insufficient balance",
+			"error":     "Insufficient balance",
 			"available": wallet.Balance,
-			"required": amountToDebit,
-			"currency": wallet.Currency,
+			"required":  amountToDebit,
+			"currency":  wallet.Currency,
 		})
 		return
 	}
@@ -801,11 +802,11 @@ func (h *WalletHandler) Withdraw(c *gin.Context) {
 
 	// Calculate new balance
 	newBalance := wallet.Balance - amountToDebit
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Withdrawal successful",
+		"message":        "Withdrawal successful",
 		"transaction_id": transactionID,
-		"new_balance": newBalance,
+		"new_balance":    newBalance,
 	})
 }
 
@@ -815,8 +816,8 @@ func (h *WalletHandler) HandleTatumWebhook(c *gin.Context) {
 		AccountId        string `json:"accountId"`
 		Amount           string `json:"amount"` // String to avoid float precision issues initially
 		SubscriptionType string `json:"subscriptionType"`
-		TxId            string `json:"txId"`
-		Currency        string `json:"currency"`
+		TxId             string `json:"txId"`
+		Currency         string `json:"currency"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -835,7 +836,7 @@ func (h *WalletHandler) HandleTatumWebhook(c *gin.Context) {
 	err := h.walletService.ProcessTatumDeposit(req.AccountId, amountFloat, req.Currency, req.TxId)
 	if err != nil {
 		// Log error but maybe return 200 to prevent Tatum retries if it's a logic error?
-		// Or 500 to retry? 
+		// Or 500 to retry?
 		// Return 400/500 to alert.
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -843,8 +844,6 @@ func (h *WalletHandler) HandleTatumWebhook(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit processed"})
 }
-
-
 
 // GetPortfolio returns the user's portfolio with asset allocation
 func (h *WalletHandler) GetPortfolio(c *gin.Context) {
@@ -858,10 +857,10 @@ func (h *WalletHandler) GetPortfolio(c *gin.Context) {
 	wallets, err := h.walletService.GetUserWallets(userID.(string), false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
-			"assets":       []interface{}{},
-			"total_value":  0,
-			"change_24h":   0,
-			"change_pct":   0,
+			"assets":      []interface{}{},
+			"total_value": 0,
+			"change_24h":  0,
+			"change_pct":  0,
 		})
 		return
 	}
@@ -872,15 +871,15 @@ func (h *WalletHandler) GetPortfolio(c *gin.Context) {
 
 	for _, wallet := range wallets {
 		asset := map[string]interface{}{
-			"id":          wallet.ID,
-			"name":        wallet.Currency,
-			"symbol":      wallet.Currency,
-			"type":        wallet.WalletType,
-			"balance":     wallet.Balance,
-			"value":       wallet.Balance, // TODO: Convert to base currency
-			"change_24h":  0.0,            // TODO: Get from exchange service
-			"change_pct":  0.0,            // TODO: Get from exchange service
-			"allocation":  0.0,            // Will be calculated below
+			"id":         wallet.ID,
+			"name":       wallet.Currency,
+			"symbol":     wallet.Currency,
+			"type":       wallet.WalletType,
+			"balance":    wallet.Balance,
+			"value":      wallet.Balance, // TODO: Convert to base currency
+			"change_24h": 0.0,            // TODO: Get from exchange service
+			"change_pct": 0.0,            // TODO: Get from exchange service
+			"allocation": 0.0,            // Will be calculated below
 		}
 		assets = append(assets, asset)
 		totalValue += wallet.Balance
@@ -894,10 +893,10 @@ func (h *WalletHandler) GetPortfolio(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"assets":       assets,
-		"total_value":  totalValue,
-		"change_24h":   0,   // TODO: Calculate from exchange rates
-		"change_pct":   0.0, // TODO: Calculate from exchange rates
+		"assets":      assets,
+		"total_value": totalValue,
+		"change_24h":  0,   // TODO: Calculate from exchange rates
+		"change_pct":  0.0, // TODO: Calculate from exchange rates
 	})
 }
 
@@ -962,6 +961,7 @@ func (h *WalletHandler) GetStats(c *gin.Context) {
 		"volume":            volume,
 	})
 }
+
 // === Internal Service-to-Service Handlers ===
 
 func (h *WalletHandler) GetWalletsInternal(c *gin.Context) {
