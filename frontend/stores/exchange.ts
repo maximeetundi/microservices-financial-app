@@ -86,9 +86,9 @@ export const useExchangeStore = defineStore('exchange', {
                 'GBP': 1.27,
                 'XOF': 0.00167,
                 'XAF': 0.00167, // 1/600 approx
-                'BTC': 43000,
-                'ETH': 2200,
-                'SOL': 95,
+                'BTC': 87500,
+                'ETH': 3850,
+                'SOL': 145,
             }
             const f = fallbackRates[from]
             const t = fallbackRates[to]

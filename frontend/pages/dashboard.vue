@@ -364,10 +364,10 @@ const fetchDashboardData = async () => {
     
     if (marketsRes?.data?.markets) {
        cryptoMarkets.value = marketsRes.data.markets.slice(0, 4).map(m => ({
-         name: m.BaseAsset,
-         symbol: m.Symbol,
-         price: m.Price,
-         change: m.Change24h,
+         name: m.base_asset || m.BaseAsset, // Handle both just in case
+         symbol: m.symbol || m.Symbol,
+         price: m.price || m.Price,
+         change: m.change_24h || m.Change24h,
          bgColor: 'bg-orange-500/20' 
        }))
     }
