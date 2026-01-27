@@ -146,7 +146,7 @@ const handleSubmit = async () => {
     
     if (!validation.valid) {
       error.value = validation.message || 'Mots de passe invalides'
-      handleClear()
+      pinDigits.value = ['', '', '', '', ''] // Clear input only
       return
     }
 
@@ -160,8 +160,10 @@ const handleSubmit = async () => {
   
   // Step 2: Verify PINs match
   if (pin !== firstPin.value) {
-    error.value = 'Les PINs ne correspondent pas'
-    handleClear()
+    error.value = 'Les PINs ne correspondent pas. Veuillez recommencer.'
+    pinDigits.value = ['', '', '', '', ''] // Clear inputs
+    step.value = 1 // Reset to start
+    firstPin.value = ''
     shuffleKeys()
     return
   }
