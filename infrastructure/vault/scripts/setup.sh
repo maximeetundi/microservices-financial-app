@@ -23,9 +23,23 @@ else
     echo "Vault initialized. Keys saved to /vault/file/init-keys.json"
 fi
 
+# Install jquery for JSON parsing
+apk add --no-cache jq > /dev/null 2>&1
+
 # Read keys
-UNSEAL_KEY=$(grep -o '"unseal_keys_b64":\["[^"]*"' /vault/file/init-keys.json | cut -d'"' -f4)
-ROOT_TOKEN=$(grep -o '"root_token":"[^"]*"' /vault/file/init-keys.json | cut -d'"' -f4)
+if [ -f "/vault/file/init-keys.json" ]; then
+    UNSEAL_KEY=$(jq -r ".unseal_keys_b64[0]" /vault/file/init-keys.json)
+    ROOT_TOKEN=$(jq -r ".root_token" /vault/file/init-keys.json)
+else
+    echo "Error: init-keys.json not found!"
+    exit 1
+fi
+
+if [ -z "$UNSEAL_KEY" ] || [ "$UNSEAL_KEY" = "null" ]; then
+    echo "Error: Failed to parse UNSEAL_KEY. Check init-keys.json content."
+    cat /vault/file/init-keys.json
+    exit 1
+fi
 
 # Unseal
 echo "Unsealing Vault..."
