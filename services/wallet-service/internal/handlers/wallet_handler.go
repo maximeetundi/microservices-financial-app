@@ -1,10 +1,9 @@
 package handlers
 
-import (
+	"log"
 	"net/http"
 	"strconv"
-	"time"
-
+	
 	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/services"
@@ -185,11 +184,11 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 
 	wallet, err := h.walletService.CreateWallet(userID.(string), &req)
 	if err != nil {
-		if err.Error() == "wallet already exists for currency "+req.Currency {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create wallet"})
+		log.Printf("Error creating wallet: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create wallet: " + err.Error()})
 		return
 	}
 
