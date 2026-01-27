@@ -35,6 +35,9 @@ type Config struct {
 
 	// Security
 	RateLimitRPS int
+
+	// Network
+	CryptoNetwork string
 }
 
 func Load() *Config {
@@ -100,6 +103,9 @@ func Load() *Config {
 			}
 		}
 	}
+
+	// Network Selection
+	cfg.CryptoNetwork = getEnv("CRYPTO_NETWORK", "mainnet")
 
 	return cfg
 }

@@ -6,17 +6,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/handlers"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/services"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Prometheus metrics
@@ -38,12 +38,18 @@ var (
 
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		if c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
 		start := time.Now()
 		c.Next()
 		duration := time.Since(start).Seconds()
 		status := strconv.Itoa(c.Writer.Status())
-		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
 		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(duration)
 	}
@@ -78,7 +84,7 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	paymentRepo := repository.NewPaymentRequestRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
-	
+
 	// Initialize wallet tables
 	if err := walletRepo.InitSchema(); err != nil {
 		log.Printf("Warning: Failed to initialize wallet tables: %v", err)
@@ -101,17 +107,18 @@ func main() {
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient)
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
-	
+
 	// Start Kafka consumer for inter-service communication
 	consumer := services.NewConsumer(kafkaClient, walletService)
 	if err := consumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start Kafka consumer: %v", err)
 	}
-	
+
 	// Initialize handlers
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
+	addressHandler := handlers.NewAddressHandler(walletService, cryptoService)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -155,9 +162,10 @@ func main() {
 			protected.PUT("/wallets/:wallet_id", walletHandler.UpdateWallet)
 			protected.GET("/wallets/:wallet_id/balance", walletHandler.GetBalance)
 			protected.GET("/wallets/:wallet_id/transactions", walletHandler.GetWalletTransactions)
+			protected.GET("/wallets/:id/address", addressHandler.GetDepositAddress) // New Endpoint
 			protected.POST("/wallets/:wallet_id/freeze", walletHandler.FreezeWallet)
 			protected.POST("/wallets/:wallet_id/unfreeze", walletHandler.UnfreezeWallet)
-			
+
 			// Deposit and Withdraw routes (added to match frontend)
 			protected.POST("/wallets/:wallet_id/deposit", walletHandler.Deposit)
 			protected.POST("/wallets/:wallet_id/withdraw", walletHandler.Withdraw)
@@ -167,7 +175,7 @@ func main() {
 			crypto := protected.Group("/crypto")
 			{
 				crypto.POST("/generate", walletHandler.GenerateCryptoWallet)
-				crypto.GET("/:wallet_id/address", walletHandler.GetCryptoAddress)
+				// crypto.GET("/:wallet_id/address", walletHandler.GetCryptoAddress) // Deprecated/Replaced by /wallets/:id/address
 				crypto.POST("/:wallet_id/send", walletHandler.SendCrypto)
 				crypto.GET("/:wallet_id/pending", walletHandler.GetPendingTransactions)
 				crypto.POST("/:wallet_id/estimate-fee", walletHandler.EstimateTransactionFee)
@@ -210,7 +218,7 @@ func main() {
 
 		// Service-to-Service routes (should be protected by internal network or secret)
 		api.POST("/wallets/transaction", walletHandler.ProcessInterServiceTransaction)
-		
+
 		// Internal Wallet Management (for other services like transfer-service)
 		internal := api.Group("/internal")
 		{

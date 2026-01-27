@@ -232,27 +232,56 @@
 
              <!-- CRYPTO DEPOSIT VIEW -->
              <div v-if="selectedWallet?.wallet_type === 'crypto' || selectedWallet?.type === 'crypto'" class="text-center space-y-6">
-                <div class="p-6 bg-white rounded-xl shadow-inner border border-gray-100 inline-block">
-                  <img 
-                    :src="`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${selectedWallet?.wallet_address}`" 
-                    alt="Wallet QR Code" 
-                    class="w-40 h-40 mix-blend-multiply" 
-                  />
+                
+                <!-- Network Selector -->
+                <div v-if="availableNetworks.length > 0" class="text-left mb-4">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Réseau de dépôt</label>
+                    <select 
+                        v-model="selectedNetwork" 
+                        class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    >
+                        <option value="" disabled>Choisir le réseau</option>
+                        <option v-for="net in availableNetworks" :key="net" :value="net">{{ net }}</option>
+                    </select>
+                </div>
+
+                <div v-if="addressLoading" class="py-10 flex flex-col items-center justify-center">
+                    <svg class="animate-spin h-10 w-10 text-indigo-500 mb-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <p class="text-gray-500">Génération de l'adresse...</p>
                 </div>
                 
-                <div class="space-y-2">
-                   <p class="text-sm text-gray-500 dark:text-gray-400">Votre adresse {{ selectedWallet?.currency }}</p>
-                   <div class="relative group">
-                     <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-xl break-all font-mono text-sm text-gray-700 dark:text-gray-300 border border-transparent group-hover:border-indigo-500 transition-colors">
-                        {{ selectedWallet?.wallet_address }}
-                     </div>
-                     <button @click="copyAddress" class="absolute right-2 top-2 p-2 bg-indigo-500 text-white rounded-lg shadow-lg hover:scale-105 transition-transform">
-                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                     </button>
-                   </div>
-                   <p class="text-xs text-yellow-600 dark:text-yellow-500 mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-700/30">
-                     ⚠️ Envoyez uniquement du <strong>{{ selectedWallet?.currency }}</strong> sur cette adresse. Tout autre jeton sera perdu définitivement.
-                   </p>
+                <div v-else-if="targetAddress || selectedWallet?.wallet_address" class="space-y-6 animate-fade-in-up">
+                    <div class="p-6 bg-white rounded-xl shadow-inner border border-gray-100 inline-block">
+                        <img 
+                            :src="`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${targetAddress || selectedWallet?.wallet_address}`" 
+                            alt="Wallet QR Code" 
+                            class="w-40 h-40 mix-blend-multiply" 
+                        />
+                    </div>
+                
+                    <div class="space-y-2">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        Votre adresse {{ selectedWallet?.currency }} <span v-if="selectedNetwork">({{ selectedNetwork }})</span>
+                    </p>
+                    <div class="relative group">
+                        <div class="p-4 bg-gray-100 dark:bg-slate-800 rounded-xl break-all font-mono text-sm text-gray-700 dark:text-gray-300 border border-transparent group-hover:border-indigo-500 transition-colors">
+                            {{ targetAddress || selectedWallet?.wallet_address }}
+                        </div>
+                        <button @click="copyAddress" class="absolute right-2 top-2 p-2 bg-indigo-500 text-white rounded-lg shadow-lg hover:scale-105 transition-transform">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        </button>
+                    </div>
+                    <p class="text-xs text-yellow-600 dark:text-yellow-500 mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-700/30">
+                        ⚠️ Envoyez uniquement du <strong>{{ selectedWallet?.currency }}</strong> <span v-if="selectedNetwork">sur le réseau <strong>{{ selectedNetwork }}</strong></span>. Tout autre jeton sera perdu.
+                    </p>
+                    </div>
+                </div>
+
+                <div v-else class="text-center py-8 text-gray-500">
+                    <p>Veuillez sélectionner un réseau pour afficher l'adresse.</p>
                 </div>
              </div>
 
@@ -601,21 +630,79 @@ const selectWallet = (wallet) => {
   selectedWallet.value = wallet
 }
 
+const selectedNetwork = ref('')
+const targetAddress = ref('')
+const addressLoading = ref(false)
+
+const availableNetworks = computed(() => {
+    if (!selectedWallet.value) return []
+    const currency = selectedWallet.value.currency
+    
+    if (currency === 'USDT') return ['TRC20', 'ERC20', 'BEP20']
+    if (currency === 'ETH') return ['ERC20', 'BEP20']
+    if (currency === 'BTC') return ['BTC', 'SEGWIT']
+    if (currency === 'TRX') return ['TRC20']
+    return []
+})
+
 const openTopUpModal = () => {
     if (!selectedWallet.value && wallets.value.length > 0) {
         selectedWallet.value = wallets.value[0]
     }
+    // Reset network state
+    selectedNetwork.value = ''
+    targetAddress.value = ''
+    
+    // If only one network (or native), might auto-select or just show default address
+    if (availableNetworks.value.length === 0 && selectedWallet.value?.wallet_type === 'crypto') {
+         targetAddress.value = selectedWallet.value.wallet_address
+    } else if (availableNetworks.value.length === 1) {
+        selectedNetwork.value = availableNetworks.value[0]
+        fetchDepositAddress()
+    }
+    
     showTopUpModal.value = true
 }
 
 const openTopUpForWallet = (wallet) => {
     selectedWallet.value = wallet
+    selectedNetwork.value = ''
+    targetAddress.value = ''
+    
+    if (availableNetworks.value.length === 0 && wallet.wallet_type === 'crypto') {
+         targetAddress.value = wallet.wallet_address
+    }
+    
     showTopUpModal.value = true
 }
 
+const fetchDepositAddress = async () => {
+    if (!selectedWallet.value || !selectedNetwork.value) return
+    
+    addressLoading.value = true
+    try {
+        const res = await walletAPI.getDepositAddress(selectedWallet.value.id, selectedNetwork.value)
+        if (res.data && res.data.address) {
+            targetAddress.value = res.data.address
+        }
+    } catch (e) {
+        console.error("Failed to fetch address", e)
+        depositError.value = "Impossible de récupérer l'adresse pour ce réseau."
+    } finally {
+        addressLoading.value = false
+    }
+}
+
+// Watch network change
+import { watch } from 'vue'
+watch(selectedNetwork, (newVal) => {
+    if (newVal) fetchDepositAddress()
+})
+
 const copyAddress = () => {
-  if (selectedWallet.value?.wallet_address) {
-    navigator.clipboard.writeText(selectedWallet.value.wallet_address)
+  const addr = targetAddress.value || selectedWallet.value?.wallet_address
+  if (addr) {
+    navigator.clipboard.writeText(addr)
     alert('Adresse copiée !')
   }
 }
@@ -624,6 +711,8 @@ const closeTopUpModal = () => {
   showTopUpModal.value = false
   depositError.value = ''
   depositSuccess.value = ''
+  selectedNetwork.value = ''
+  targetAddress.value = ''
 }
 
 const submitDeposit = async () => {

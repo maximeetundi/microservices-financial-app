@@ -2,8 +2,6 @@ package services
 
 import (
 	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -13,9 +11,10 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
+	btcbase58 "github.com/btcsuite/btcutil/base58"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mr-tron/base58"
+	"github.com/mr-tron/base58" // For plain Base58 (Solana)
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
@@ -95,6 +94,15 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 
 // --- Bitcoin ---
 // --- Bitcoin (Native SegWit - Bech32) ---
+// Helper to get params based on config
+func (s *CryptoService) getBitcoinParams() *chaincfg.Params {
+	if s.config.CryptoNetwork == "testnet" {
+		return &chaincfg.TestNet3Params
+	}
+	return &chaincfg.MainNetParams
+}
+
+// --- Bitcoin (Native SegWit - Bech32) ---
 func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 	privKey, _ := btcec.NewPrivateKey(btcec.S256())
 	privKeyHex := hex.EncodeToString(privKey.Serialize())
@@ -102,13 +110,13 @@ func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 	pubKeyCompressed := pubKey.SerializeCompressed()
 	pubKeyHex := hex.EncodeToString(pubKeyCompressed)
 
-	params := &chaincfg.MainNetParams
+	params := s.getBitcoinParams()
 
 	// Generate Witness Public Key Hash (P2WPKH)
 	// 1. Hash160(PubKeyCompressed)
 	pubKeyHash := btcutil.Hash160(pubKeyCompressed)
 
-	// 2. Create Witness Address (bc1q...)
+	// 2. Create Witness Address (bc1q... or tb1q...)
 	addr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash, params)
 	if err != nil {
 		return "", "", "", err
@@ -136,16 +144,121 @@ func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
 	return address, privKeyHex, pubKeyHex, nil
 }
 
-// --- Solana ---
-func (s *CryptoService) generateSolanaKeys() (string, string, string, error) {
-	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+// --- TRON (TRX / TRC20) ---
+func (s *CryptoService) generateTronKeys() (string, string, string, error) {
+	// 1. Generate ECDSA Key (Same curve as Ethereum)
+	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		return "", "", "", err
 	}
-	address := base58.Encode(pubKey)
-	privKeyStr := base58.Encode(privKey)
-	pubKeyStr := base58.Encode(pubKey)
-	return address, privKeyStr, pubKeyStr, nil
+	privKeyBytes := crypto.FromECDSA(privateKey)
+	privKeyHex := hex.EncodeToString(privKeyBytes)
+
+	// 2. Get Public Key from Private Key
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", "", "", fmt.Errorf("error casting public key to ECDSA")
+	}
+	pubKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	pubKeyHex := hex.EncodeToString(pubKeyBytes)
+
+	// 3. Address Generation
+	// TRON Address = Prefix + Keccak256(PubKey)[12:]
+	// Prefix = 0x41 (Mainnet) or 0xa0 (Testnet/Shasta)
+
+	// Determine prefix based on config
+	prefix := byte(0x41)
+	if s.config.CryptoNetwork == "testnet" {
+		prefix = byte(0xa0)
+	}
+
+	// Get Ethereum-style address bytes (last 20 bytes of Keccak256 hash of pubkey)
+	// crypto.PubkeyToAddress returns the 20-byte address.
+	ethAddressBytes := crypto.PubkeyToAddress(*publicKeyECDSA).Bytes()
+
+	// Prepend Prefix
+	input := append([]byte{prefix}, ethAddressBytes...)
+
+	// 4. Base58Check Encode (Payload + Checksum)
+	// Github.com/mr-tron/base58 doesn't do Checksum automatically for us, need to implement manual check?
+	// Actually, btcutil/base58 has CheckEncode. Let's stick to standard algos.
+	// Checksum = SHA256(SHA256(input))[:4]
+
+	// Available library: github.com/btcsuite/btcutil/base58 (already imported for SOL/BTC)
+	// It has CheckEncode which does exactly this.
+	address := btcbase58.CheckEncode(input[1:], input[0]) // CheckEncode takes (payload, version_byte)
+
+	return address, privKeyHex, pubKeyHex, nil
+}
+
+// --- Get Or Create Address (Multi-Network) ---
+func (s *CryptoService) GetOrCreateAddress(userID, currency, network string) (string, error) {
+	// Normalize network
+	network = strings.ToUpper(network)
+	currency = strings.ToUpper(currency)
+
+	// Determine Chain Family & Vault Path
+	var chainFamily string
+	var algoFunc func() (string, string, string, error)
+
+	switch {
+	case network == "TRC20" || network == "TRON" || currency == "TRX":
+		chainFamily = "tron"
+		algoFunc = s.generateTronKeys
+	case network == "ERC20" || network == "BEP20" || network == "ETHEREUM" || network == "BSC" || currency == "ETH":
+		chainFamily = "evm" // Shared address for all EVM chains
+		algoFunc = s.generateEthereumKeys
+	case currency == "BTC":
+		chainFamily = "bitcoin"
+		algoFunc = s.generateBitcoinKeys
+	case currency == "SOL":
+		chainFamily = "solana"
+		algoFunc = s.generateSolanaKeys
+	default:
+		// Default behavior if network not specified: derive from currency
+		if currency == "USDT" {
+			// Default USDT to TRON (Binance-style preference)
+			chainFamily = "tron"
+			algoFunc = s.generateTronKeys
+		} else {
+			return "", fmt.Errorf("unsupported network/currency combination: %s on %s", currency, network)
+		}
+	}
+
+	// 1. Check Vault
+	if s.vaultClient != nil {
+		path := fmt.Sprintf("secret/wallets/%s/chains/%s", userID, chainFamily)
+		secret, err := s.vaultClient.GetSecret(path)
+		if err == nil && secret != nil {
+			if addr, ok := secret["address"].(string); ok && addr != "" {
+				return addr, nil
+			}
+		}
+	}
+
+	// 2. Generate New Keys
+	address, priv, pub, err := algoFunc()
+	if err != nil {
+		return "", err
+	}
+
+	// 3. Store in Vault
+	if s.vaultClient != nil {
+		path := fmt.Sprintf("secret/wallets/%s/chains/%s", userID, chainFamily)
+		data := map[string]interface{}{
+			"address":     address,
+			"private_key": priv,
+			"public_key":  pub,
+			"created_at":  fmt.Sprintf("%d", time.Now().Unix()),
+			"network":     network,
+		}
+		if err := s.vaultClient.WriteSecret(path, data); err != nil {
+			return "", fmt.Errorf("failed to write to vault: %v", err)
+		}
+	}
+
+	return address, nil
 }
 
 // --- Vault Storage ---
@@ -167,8 +280,16 @@ func (s *CryptoService) storeKeyPairInVault(userID, currency, privKey, pubKey, a
 func (s *CryptoService) ValidateAddress(address, currency string) bool {
 	switch strings.ToUpper(currency) {
 	case "BTC":
-		_, err := btcutil.DecodeAddress(address, &chaincfg.MainNetParams)
-		return err == nil
+		// Check against the configured network first
+		params := s.getBitcoinParams()
+		_, err := btcutil.DecodeAddress(address, params)
+		if err == nil {
+			return true
+		}
+
+		// Fallback: If in testnet, might want to block mainnet addresses or vice-versa?
+		// For safety, strictly enforce the configured network.
+		return false
 	case "ETH", "BSC":
 		return common.IsHexAddress(address)
 	case "SOL":
@@ -186,9 +307,15 @@ func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionRes
 	if strings.HasPrefix(address, "0x") && len(address) == 42 {
 		return NetworkDetectionResult{Type: "EVM", Network: "unknown", Variant: "ERC20"}
 	}
-	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "bv1") {
+	// BTC Mainnet
+	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1") {
 		return NetworkDetectionResult{Type: "BTC", Network: "mainnet", Variant: "BTC"}
 	}
+	// BTC Testnet
+	if strings.HasPrefix(address, "m") || strings.HasPrefix(address, "n") || strings.HasPrefix(address, "2") || strings.HasPrefix(address, "tb1") {
+		return NetworkDetectionResult{Type: "BTC", Network: "testnet", Variant: "BTC"}
+	}
+
 	if len(address) >= 32 && len(address) <= 44 {
 		_, err := base58.Decode(address)
 		if err == nil {
@@ -201,6 +328,9 @@ func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionRes
 func (s *CryptoService) getNetworkForCurrency(currency string) string {
 	switch strings.ToUpper(currency) {
 	case "BTC":
+		if s.config.CryptoNetwork == "testnet" {
+			return "bitcoin-testnet"
+		}
 		return "bitcoin-mainnet"
 	case "ETH":
 		return "ethereum-mainnet"
