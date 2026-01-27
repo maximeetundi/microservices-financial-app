@@ -21,9 +21,6 @@ COPY ./wallet-service .
 
 # Pin dependencies to stable versions compatible with Go 1.23
 RUN go get github.com/ethereum/go-ethereum@v1.13.15
-RUN go get github.com/btcsuite/btcd@v0.24.0
-RUN go get github.com/btcsuite/btcutil@v1.0.2
-RUN go get github.com/mr-tron/base58@v1.2.0
 
 # Tidy dependencies after copying source
 RUN go mod tidy
