@@ -13,22 +13,21 @@ const pinState = ref({
     verifyCallback: null as ((verified: boolean) => void) | null,
 })
 
-    verifyCallback: null as ((verified: boolean) => void) | null,
-})
+
 
 export function usePin() {
-    
+
     // PIN Complexity Validation
     const validatePin = (pin: string): { valid: boolean; message?: string } => {
         if (!/^\d{5}$/.test(pin)) {
             return { valid: false, message: 'Le PIN doit contenir 5 chiffres.' }
         }
-        
+
         // Check for repeated digits (e.g., 11111, 00000)
         if (/^(\d)\1{4}$/.test(pin)) {
             return { valid: false, message: 'Ce code PIN est trop simple (répétition).' }
         }
-        
+
         // Check for sequential digits (e.g., 12345, 54321)
         const sequences = [
             '01234', '12345', '23456', '34567', '45678', '56789',
@@ -37,7 +36,7 @@ export function usePin() {
         if (sequences.includes(pin)) {
             return { valid: false, message: 'Ce code PIN est trop simple (suite logique).' }
         }
-        
+
         return { valid: true }
     }
 
