@@ -126,7 +126,7 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Recharger
             </button>
-                :to="`/transfer?wallet=${wallet.id}${wallet.wallet_type === 'crypto' ? '&type=crypto' : ''}`" @click.stop
+            <NuxtLink :to="`/transfer?wallet=${wallet.id}${wallet.wallet_type === 'crypto' ? '&type=crypto' : ''}`" @click.stop
                     class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-gray-700 dark:text-white text-sm font-semibold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
               Envoyer
