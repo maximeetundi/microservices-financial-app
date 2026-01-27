@@ -2,6 +2,8 @@ package services
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -142,6 +144,18 @@ func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
 	pubKeyHex := hex.EncodeToString(pubKeyBytes)
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
 	return address, privKeyHex, pubKeyHex, nil
+}
+
+// --- Solana ---
+func (s *CryptoService) generateSolanaKeys() (string, string, string, error) {
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", "", "", err
+	}
+	address := base58.Encode(pubKey)
+	privKeyStr := base58.Encode(privKey)
+	pubKeyStr := base58.Encode(pubKey)
+	return address, privKeyStr, pubKeyStr, nil
 }
 
 // --- TRON (TRX / TRC20) ---
