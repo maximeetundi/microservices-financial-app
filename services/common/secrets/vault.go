@@ -51,3 +51,8 @@ func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
 	}
 	return nil, fmt.Errorf("failed to read secret after retries: %v", err)
 }
+
+func (v *VaultClient) WriteSecret(path string, data map[string]interface{}) error {
+	_, err := v.client.Logical().Write(path, data)
+	return err
+}

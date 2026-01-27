@@ -43,9 +43,9 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 	// Check if user already has a wallet for this currency (Active OR Hidden)
 	// We need a repo method that fetches ANY wallet (IsActive=true, IsHidden=any)
 	// But current GetByUserAndCurrency fetches IsActive=true.
-	// We need to fetch hidden ones too to UNHIDE them. 
+	// We need to fetch hidden ones too to UNHIDE them.
 	// The repo update for GetByUserAndCurrency returns Hidden ones too now if they are IsActive=true.
-	
+
 	existingWallet, _ := s.walletRepo.GetByUserAndCurrency(userID, req.Currency)
 	if existingWallet != nil {
 		if existingWallet.IsHidden {
@@ -72,25 +72,20 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 	}
 
 	// Generate crypto address if it's a crypto wallet
+	// Generate crypto address if it's a crypto wallet
 	if req.WalletType == "crypto" {
-		cryptoWallet, err := s.cryptoService.GenerateWallet(req.Currency)
+		cryptoWallet, err := s.cryptoService.GenerateWallet(userID, req.Currency)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate crypto wallet: %w", err)
 		}
 
-		// Encrypt private key
-		encryptedPrivateKey, err := s.cryptoService.EncryptPrivateKey(cryptoWallet.PrivateKey, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt private key: %w", err)
-		}
-
+		// Private Key is stored in Vault by CryptoService
+		vaultMsg := "VAULT_SECURED"
 		wallet.WalletAddress = &cryptoWallet.Address
-		wallet.PrivateKeyEncrypted = &encryptedPrivateKey
-		
-		// Map Tatum Account ID to Wallet ExternalID
-		if cryptoWallet.AccountID != "" {
-			wallet.ExternalID = cryptoWallet.AccountID
-		}
+		wallet.PrivateKeyEncrypted = &vaultMsg
+
+		// Use Address as ExternalID for lookups (Non-Custodial)
+		wallet.ExternalID = cryptoWallet.Address
 	}
 
 	err := s.walletRepo.Create(wallet)
@@ -113,7 +108,7 @@ func (s *WalletService) ProcessTatumDeposit(accountID string, amount float64, cu
 	}
 
 	// 2. Check for duplicate transaction (Idempotency)
-	// Ideally we check if txHash exists in transactions. 
+	// Ideally we check if txHash exists in transactions.
 	// For now, assuming wallet_service transaction creation handles basic duplicates via Unique constraints if we had them or simple check.
 	// Since we don't have GetByTxHash, let's implement basic check after finding wallet.
 
@@ -124,7 +119,7 @@ func (s *WalletService) ProcessTatumDeposit(accountID string, amount float64, cu
 		WalletID:  wallet.ID,
 		Amount:    amount,
 		Type:      "credit",
-		Currency:  wallet.Currency, // Trust wallet currency or verify against webhook currency?
+		Currency:  wallet.Currency,     // Trust wallet currency or verify against webhook currency?
 		Reference: "DEPOSIT_" + txHash, // Prefix helps identify source
 	}
 
@@ -132,7 +127,7 @@ func (s *WalletService) ProcessTatumDeposit(accountID string, amount float64, cu
 	if strings.ToUpper(currency) != wallet.Currency && currency != "" {
 		// Log warning, but for tokens like USDT it might verify differently (ERC20 vs ETH)
 		// Tatum usually sends the currency of the account
-		return fmt.Errorf("currency mismatch webhok %s vs wallet %s", currency, wallet.Currency) 
+		return fmt.Errorf("currency mismatch webhok %s vs wallet %s", currency, wallet.Currency)
 	}
 
 	err = s.ProcessTransaction(creditReq)
@@ -174,7 +169,7 @@ func (s *WalletService) HideWallet(walletID, userID string) error {
 		return fmt.Errorf("cannot hide wallet with funds. please transfer funds to your main wallet first")
 	}
 
-	// Check if it's the main (oldest) wallet logic - Optional? 
+	// Check if it's the main (oldest) wallet logic - Optional?
 	// User said "cannot delete main wallet" but "hide" might be allowed?
 	// Let's assume hiding any wallet (if empty) is fine, or keep logic.
 	// Keeping safety logic for now.
@@ -196,17 +191,17 @@ func (s *WalletService) DeleteWallet(walletID, userID string) error {
 }
 
 func (s *WalletService) UnhideWallet(walletID, userID string) error {
-	// We need a repo method to get by ID even if hidden. 
+	// We need a repo method to get by ID even if hidden.
 	// GetByID returns hidden ones too (based on repo update).
 	wallet, err := s.walletRepo.GetByID(walletID)
 	if err != nil {
 		return err
 	}
-	
+
 	if wallet.UserID != userID {
 		return fmt.Errorf("wallet not found")
 	}
-	
+
 	return s.walletRepo.Unhide(walletID)
 }
 
@@ -290,13 +285,13 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 		"to_address": req.ToAddress,
 		"gas_price":  req.GasPrice,
 	}
-	
+
 	// Auto-detect network from address
 	networkInfo := s.cryptoService.DetectAddressNetwork(req.ToAddress)
 	metadata["network_type"] = networkInfo.Type
 	metadata["network_variant"] = networkInfo.Variant
 	metadata["network_env"] = networkInfo.Network
-	
+
 	// Safety Check for Bitcoin Testnet vs Mainnet
 	if networkInfo.Type == "BTC" && networkInfo.Network == "testnet" && !strings.Contains(strings.ToLower(wallet.Currency), "test") {
 		// Just a warning log for now, could block in strict mode
@@ -478,7 +473,7 @@ func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error
 	if req.Type == "credit" {
 		opType = "receive"
 	}
-	
+
 	err = s.walletRepo.UpdateBalanceWithTransaction(req.WalletID, req.Amount, opType)
 	if err != nil {
 		return fmt.Errorf("failed to update balance: %w", err)
@@ -504,7 +499,7 @@ func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error
 	}
 
 	if err := s.transactionRepo.Create(transaction); err != nil {
-		// Log error but don't fail as balance is already updated? 
+		// Log error but don't fail as balance is already updated?
 		// Ideally we should transactionally update both.
 		// For now, return error so caller can retry or handle failure.
 		return fmt.Errorf("failed to create transaction record: %w", err)
@@ -573,7 +568,7 @@ func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*m
 	if description == "" {
 		description = "Internal transfer"
 	}
-	
+
 	transaction := &models.Transaction{
 		ID:              fmt.Sprintf("tx_%d", time.Now().UnixNano()),
 		FromWalletID:    &req.FromWalletID,
@@ -632,7 +627,7 @@ func (s *WalletService) monitorTransactionConfirmations(transactionID, txHash, c
 			}
 
 			s.transactionRepo.UpdateStatus(transactionID, "completed", nil)
-			
+
 			// Publish completion event
 			s.publishTransactionEvent("transaction.completed", transaction)
 			break
@@ -653,7 +648,7 @@ func (s *WalletService) publishWalletEvent(eventType string, wallet *models.Wall
 	}
 
 	envelope := messaging.NewEventEnvelope(eventType, "wallet-service", eventData)
-	
+
 	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicWalletEvents, envelope); err != nil {
 		// Log error but don't fail
 		_ = err
@@ -673,7 +668,7 @@ func (s *WalletService) publishTransactionEvent(eventType string, transaction *m
 	}
 
 	envelope := messaging.NewEventEnvelope(eventType, "wallet-service", eventData)
-	
+
 	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicTransactionEvents, envelope); err != nil {
 		// Log error but don't fail
 		_ = err

@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/segmentio/kafka-go v0.4.47
+	github.com/hashicorp/vault/api v1.9.0
 )
 
 require (
