@@ -24,22 +24,35 @@ else
 fi
 
 # Install jquery for JSON parsing
-apk add --no-cache jq > /dev/null 2>&1
+echo "Installing jq..."
+apk add --no-cache jq
 
 # Read keys
 if [ -f "/vault/file/init-keys.json" ]; then
+    echo "Found init-keys.json. Content:"
+    cat /vault/file/init-keys.json
+    
+    echo "Attempting to parse keys..."
     UNSEAL_KEY=$(jq -r ".unseal_keys_b64[0]" /vault/file/init-keys.json)
     ROOT_TOKEN=$(jq -r ".root_token" /vault/file/init-keys.json)
+    
+    # Fallback if jq failed or returned null
+    if [ -z "$UNSEAL_KEY" ] || [ "$UNSEAL_KEY" = "null" ]; then
+        echo "jq failed. Trying fallback grep/sed..."
+        UNSEAL_KEY=$(grep "unseal_keys_b64" /vault/file/init-keys.json | sed -E 's/.*"unseal_keys_b64":\["([^"]+)".*/\1/')
+        ROOT_TOKEN=$(grep "root_token" /vault/file/init-keys.json | sed -E 's/.*"root_token":"([^"]+)".*/\1/')
+    fi
 else
     echo "Error: init-keys.json not found!"
     exit 1
 fi
 
 if [ -z "$UNSEAL_KEY" ] || [ "$UNSEAL_KEY" = "null" ]; then
-    echo "Error: Failed to parse UNSEAL_KEY. Check init-keys.json content."
-    cat /vault/file/init-keys.json
+    echo "CRITICAL ERROR: Failed to extract UNSEAL_KEY. Aborting."
     exit 1
 fi
+
+echo "Unseal Key found: ${UNSEAL_KEY:0:5}..." # Print only first 5 chars for verification
 
 # Unseal
 echo "Unsealing Vault..."
