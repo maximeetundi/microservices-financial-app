@@ -31,6 +31,9 @@ const (
 	// Trading topics
 	TopicTradingEvents = "trading.events"
 	TopicRateUpdates   = "rate.updates"
+
+	// Audit topics
+	TopicAuditEvents = "audit.events"
 )
 
 // Event type constants

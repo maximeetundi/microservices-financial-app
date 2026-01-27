@@ -1,4 +1,4 @@
-package main
+`package main
 
 import (
 	"log"
@@ -83,18 +83,12 @@ func main() {
 		log.Fatal("Failed to initialize Redis:", err)
 	}
 
-	// Initialize RabbitMQ for audit events
-	mqChannel, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize RabbitMQ: %v (audit logging disabled)", err)
-	}
-
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db, redisClient)
 	prefsRepo := repository.NewPreferencesRepository(db)
 
-	// Initialize Kafka for Total Balance updates
+	// Initialize Kafka for events and messaging
 	kafkaClient := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
 	defer kafkaClient.Close()
 	
@@ -103,8 +97,8 @@ func main() {
 		log.Printf("Warning: Failed to start balance consumer: %v", err)
 	}
 
-	// Initialize services
-	auditService := services.NewAuditService(mqChannel)
+	// Initialize services (using Kafka for all events)
+	auditService := services.NewAuditService(kafkaClient)
 	authService := services.NewAuthService(userRepo, sessionRepo, cfg, auditService)
 	emailService := services.NewEmailService(cfg)
 	smsService := services.NewSMSService(cfg)

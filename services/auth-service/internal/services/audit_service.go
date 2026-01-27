@@ -1,23 +1,23 @@
 package services
 
 import (
-	"encoding/json"
+	"context"
 	"log"
 	"time"
 
-	"github.com/streadway/amqp"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
 
-// AuditService handles security audit logging and event publishing
+// AuditService handles security audit logging and event publishing via Kafka
 type AuditService struct {
-	mqChannel *amqp.Channel
+	kafkaClient *messaging.KafkaClient
 }
 
 // NewAuditService creates a new audit service
-func NewAuditService(mqChannel *amqp.Channel) *AuditService {
+func NewAuditService(kafkaClient *messaging.KafkaClient) *AuditService {
 	return &AuditService{
-		mqChannel: mqChannel,
+		kafkaClient: kafkaClient,
 	}
 }
 
@@ -145,7 +145,7 @@ func (s *AuditService) LogSessionRevoked(userID, sessionID, ipAddress, userAgent
 
 // LogUserBlocked logs when a user account is blocked
 func (s *AuditService) LogUserBlocked(userID, email, reason, adminID string) {
-	// Send to user (via auth.events exchange that notification-service listens to)
+	// Send notification via Kafka
 	s.publishNotification("user.blocked", map[string]interface{}{
 		"type":     "user.blocked",
 		"user_id":  userID,
@@ -171,7 +171,7 @@ func (s *AuditService) LogUserBlocked(userID, email, reason, adminID string) {
 
 // LogUserUnblocked logs when a user account is unblocked
 func (s *AuditService) LogUserUnblocked(userID, email, adminID string) {
-	// Send to user
+	// Send notification via Kafka
 	s.publishNotification("user.unblocked", map[string]interface{}{
 		"type":     "user.unblocked",
 		"user_id":  userID,
@@ -237,8 +237,27 @@ func (s *AuditService) LogPinUnlocked(userID, email, adminID string) {
 	})
 }
 
-// LogUserRegistered logs when a new user registers
+// LogUserRegistered logs when a new user registers and publishes to Kafka for wallet creation
 func (s *AuditService) LogUserRegistered(user *models.User, currency string) {
+	// Publish user.registered event to Kafka for wallet-service to create default wallet
+	if s.kafkaClient != nil {
+		userEvent := messaging.UserRegisteredEvent{
+			UserID:   user.ID,
+			Email:    user.Email,
+			Country:  user.Country,
+			Currency: currency,
+		}
+		envelope := messaging.NewEventEnvelope(messaging.EventUserRegistered, "auth-service", userEvent)
+		if err := s.kafkaClient.Publish(context.Background(), messaging.TopicUserEvents, envelope); err != nil {
+			log.Printf("Failed to publish user.registered to Kafka: %v", err)
+		} else {
+			log.Printf("[Kafka] ✅ Published user.registered event for user %s (country: %s, currency: %s)", user.ID, user.Country, currency)
+		}
+	} else {
+		log.Printf("Warning: kafkaClient is nil, wallet-service won't receive user.registered event")
+	}
+
+	// Also publish notification for welcome email etc.
 	s.publishNotification("user.registered", map[string]interface{}{
 		"type":       "user.registered",
 		"user_id":    user.ID,
@@ -273,61 +292,30 @@ func (s *AuditService) LogPinChanged(userID, email, phone string) {
 	})
 }
 
-// publishNotification publishes to auth.events exchange for notification-service
-func (s *AuditService) publishNotification(routingKey string, event map[string]interface{}) {
-	if s.mqChannel == nil {
-		log.Printf("[NOTIFICATION] %s: %v", routingKey, event)
+// publishNotification publishes notification events to Kafka
+func (s *AuditService) publishNotification(eventType string, event map[string]interface{}) {
+	if s.kafkaClient == nil {
+		log.Printf("[NOTIFICATION] %s: %v", eventType, event)
 		return
 	}
 
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		log.Printf("Failed to marshal notification event: %v", err)
-		return
-	}
-
-	// Publish to auth.events exchange (notification-service listens to this)
-	err = s.mqChannel.Publish(
-		"auth.events", // exchange
-		routingKey,    // routing key
-		false,         // mandatory
-		false,         // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
-	if err != nil {
+	envelope := messaging.NewEventEnvelope(eventType, "auth-service", event)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicNotificationEvents, envelope); err != nil {
 		log.Printf("Failed to publish notification event: %v", err)
 	} else {
-		log.Printf("[NOTIFICATION] ✅ Published %s", routingKey)
+		log.Printf("[NOTIFICATION] ✅ Published %s to Kafka", eventType)
 	}
 }
 
-func (s *AuditService) publishEvent(routingKey string, event AuditEvent) {
-	if s.mqChannel == nil {
+// publishEvent publishes audit events to Kafka
+func (s *AuditService) publishEvent(eventType string, event AuditEvent) {
+	if s.kafkaClient == nil {
 		log.Printf("[AUDIT] %s: user=%s success=%v ip=%s", event.Type, event.UserID, event.Success, event.IPAddress)
 		return
 	}
 
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		log.Printf("Failed to marshal audit event: %v", err)
-		return
-	}
-
-	err = s.mqChannel.Publish(
-		"audit.events", // exchange
-		routingKey,     // routing key
-		false,          // mandatory
-		false,          // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
-	if err != nil {
+	envelope := messaging.NewEventEnvelope(eventType, "auth-service", event)
+	if err := s.kafkaClient.Publish(context.Background(), messaging.TopicAuditEvents, envelope); err != nil {
 		log.Printf("Failed to publish audit event: %v", err)
 	}
 }
-
