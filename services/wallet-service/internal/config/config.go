@@ -62,9 +62,10 @@ func Load() *Config {
 			"BSC": getEnv("BSC_RPC", "https://bsc-dataseed.binance.org/"),
 		},
 		CryptoAPIKeys: map[string]string{
-			"INFURA":  getEnv("INFURA_API_KEY", ""),
-			"ALCHEMY": getEnv("ALCHEMY_API_KEY", ""),
-			"MORALIS": getEnv("MORALIS_API_KEY", ""),
+			"INFURA":            getEnv("INFURA_API_KEY", ""),
+			"ALCHEMY":           getEnv("ALCHEMY_API_KEY", ""),
+			"MORALIS":           getEnv("MORALIS_API_KEY", ""),
+			"BLOCKCYPHER_TOKEN": getEnv("BLOCKCYPHER_TOKEN", ""),
 		},
 
 		// Security

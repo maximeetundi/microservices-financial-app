@@ -24,8 +24,9 @@ import (
 
 type CryptoService struct {
 	config      *config.Config
-	tatum       *TatumProvider
+	blockchain  BlockchainProvider // Abstraction for redundancy
 	vaultClient *secrets.VaultClient
+	// Legacy tatum field removed, use blockchain provider
 }
 
 func NewCryptoService(cfg *config.Config) *CryptoService {
@@ -34,9 +35,18 @@ func NewCryptoService(cfg *config.Config) *CryptoService {
 		log.Printf("Warning: Vault client could not be initialized in CryptoService: %v", err)
 	}
 
+	// Initialize Providers
+	tatum := NewTatumProvider(cfg)
+	blockcypher := NewBlockCypherProvider(cfg)
+	rpcProvider := NewRpcProvider(cfg)
+
+	// Create Failover Manager
+	// Priorities: Tatum -> BlockCypher (BTC) -> RPC (ETH/BSC) -> (Others)
+	failover := NewFailoverProvider(tatum, blockcypher, rpcProvider)
+
 	return &CryptoService{
 		config:      cfg,
-		tatum:       NewTatumProvider(cfg),
+		blockchain:  failover,
 		vaultClient: vc,
 	}
 }
@@ -45,13 +55,10 @@ type CryptoWallet struct {
 	Address  string `json:"address"`
 	Currency string `json:"currency"`
 	Network  string `json:"network"`
-	// PrivateKey is NOT exposed here to prevent accidental logging/returns
 }
 
 func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, error) {
 	// NON-CUSTODIAL IMPLEMENTATION
-	// We generate keys locally and store them in Vault.
-
 	var address, privKeyHex, pubKeyHex string
 	var err error
 
@@ -79,7 +86,6 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 		return nil, fmt.Errorf("failed to secure keys in vault: %w", err)
 	}
 
-	// Create struct to return (NO Private Key)
 	return &CryptoWallet{
 		Address:  address,
 		Currency: currency,
@@ -88,95 +94,66 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 }
 
 // --- Bitcoin ---
-
 func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
-	// Generate Private Key (Legacy btcec API)
 	privKey, _ := btcec.NewPrivateKey(btcec.S256())
 	privKeyHex := hex.EncodeToString(privKey.Serialize())
-
-	// Generate Public Key
 	pubKey := privKey.PubKey()
 	pubKeyHex := hex.EncodeToString(pubKey.SerializeCompressed())
-
-	// Generate Address
 	params := &chaincfg.MainNetParams
 	addr, err := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), params)
 	if err != nil {
 		return "", "", "", err
 	}
-
 	return addr.EncodeAddress(), privKeyHex, pubKeyHex, nil
 }
 
 // --- Ethereum / BSC ---
-
 func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
-	// Generate Private Key
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		return "", "", "", err
 	}
-
 	privKeyBytes := crypto.FromECDSA(privateKey)
 	privKeyHex := hex.EncodeToString(privKeyBytes)
-
-	// Generate Public Key
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return "", "", "", fmt.Errorf("error casting public key to ECDSA")
 	}
-
 	pubKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
 	pubKeyHex := hex.EncodeToString(pubKeyBytes)
-
-	// Generate Address
 	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
-
 	return address, privKeyHex, pubKeyHex, nil
 }
 
 // --- Solana ---
-
 func (s *CryptoService) generateSolanaKeys() (string, string, string, error) {
-	// Generate Ed25519 Key Pair
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return "", "", "", err
 	}
-
-	// Address is Base58 encoded Public Key
 	address := base58.Encode(pubKey)
-
-	// Encode Keys for storage
 	privKeyStr := base58.Encode(privKey)
 	pubKeyStr := base58.Encode(pubKey)
-
 	return address, privKeyStr, pubKeyStr, nil
 }
 
 // --- Vault Storage ---
-
 func (s *CryptoService) storeKeyPairInVault(userID, currency, privKey, pubKey, address string) error {
 	if s.vaultClient == nil {
 		return fmt.Errorf("vault client is not available")
 	}
-
-	// Path: secret/wallets/{userID}/{currency}
 	path := fmt.Sprintf("secret/wallets/%s/%s", userID, strings.ToLower(currency))
-
 	data := map[string]interface{}{
 		"private_key": privKey,
 		"public_key":  pubKey,
 		"address":     address,
 		"created_at":  fmt.Sprintf("%d", time.Now().Unix()),
 	}
-
 	return s.vaultClient.WriteSecret(path, data)
 }
 
 // --- Helpers & Validation ---
-
 func (s *CryptoService) ValidateAddress(address, currency string) bool {
 	switch strings.ToUpper(currency) {
 	case "BTC":
@@ -191,7 +168,6 @@ func (s *CryptoService) ValidateAddress(address, currency string) bool {
 		}
 		return len(decoded) == 32
 	default:
-		// Generic length check for others
 		return len(address) > 20
 	}
 }
@@ -203,7 +179,6 @@ func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionRes
 	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "bv1") {
 		return NetworkDetectionResult{Type: "BTC", Network: "mainnet", Variant: "BTC"}
 	}
-	// Solana Check
 	if len(address) >= 32 && len(address) <= 44 {
 		_, err := base58.Decode(address)
 		if err == nil {
@@ -228,13 +203,12 @@ func (s *CryptoService) getNetworkForCurrency(currency string) string {
 	}
 }
 
-// Keep Fee Estimation logic
+// Fee Estimation
 func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, priority string) (*models.CryptoTransactionEstimate, error) {
 	baseFee := 0.001
 	if strings.ToUpper(currency) == "SOL" {
 		baseFee = 0.000005
 	}
-
 	estimate := &models.CryptoTransactionEstimate{
 		EstimatedFee:   baseFee,
 		EstimatedTotal: amount + baseFee,
@@ -243,9 +217,9 @@ func (s *CryptoService) EstimateTransactionFee(currency string, amount float64, 
 	return estimate, nil
 }
 
-// GetBalance
+// GetBalance - USES FAILOVER PROVIDER
 func (s *CryptoService) GetBalance(address, currency string) (float64, error) {
-	return s.tatum.GetAddressBalance(currency, address)
+	return s.blockchain.GetBalance(currency, address)
 }
 
 func (s *CryptoService) EncryptPrivateKey(privateKey, password string) (string, error) {
@@ -253,7 +227,11 @@ func (s *CryptoService) EncryptPrivateKey(privateKey, password string) (string, 
 }
 
 func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {
-	// Mock transaction for now
+	// 1. Fetch Key from Vault (s.vaultClient.GetSecret)
+	// 2. Sign locally
+	// 3. Broadcast using s.blockchain.BroadcastTransaction(...)
+
+	// Mock implementation
 	return "0xMOCK_TX_HASH_SIGNED_LOCALLY", nil
 }
 

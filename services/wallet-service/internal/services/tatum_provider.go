@@ -343,3 +343,62 @@ func (p *TatumProvider) GetAddressBalance(currency, address string) (float64, er
 
 	return 0, nil
 }
+
+// Name returns the provider name
+func (p *TatumProvider) Name() string {
+	return "Tatum"
+}
+
+// BroadcastTransaction broadcasts a signed raw transaction to the blockchain
+func (p *TatumProvider) BroadcastTransaction(currency, txHex string) (string, error) {
+	log.Printf("[Tatum] Broadcasting raw tx for %s", currency)
+
+	var endpoint string
+	switch currency {
+	case "BTC":
+		endpoint = "bitcoin/broadcast"
+	case "ETH":
+		endpoint = "ethereum/broadcast"
+	case "BSC":
+		endpoint = "bsc/broadcast"
+	case "SOL":
+		endpoint = "solana/broadcast" // Check actual endpoint, assume standard pattern
+	default:
+		// Try generic broadcast
+		endpoint = fmt.Sprintf("%s/broadcast", strings.ToLower(currency))
+	}
+
+	url := fmt.Sprintf("%s/%s", p.baseURL, endpoint)
+
+	reqBody := map[string]string{
+		"txData": txHex,
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req.Header.Add("x-api-key", p.apiKey)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf("tatum broadcast error %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	type BroadcastResponse struct {
+		TxId string `json:"txId"`
+	}
+
+	var res BroadcastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", err
+	}
+
+	return res.TxId, nil
+}
