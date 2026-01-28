@@ -248,6 +248,26 @@ func (r *UserRepository) CreateVerificationToken(userID, tokenType string, expir
 	return &token, nil
 }
 
+func (r *UserRepository) CreateExplicitVerificationToken(userID, tokenString, tokenType string, expiresAt time.Time) (*models.VerificationToken, error) {
+	query := `
+		INSERT INTO verification_tokens (user_id, token, type, expires_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, user_id, token, type, expires_at, used, created_at
+	`
+
+	var token models.VerificationToken
+	err := r.db.QueryRow(query, userID, tokenString, tokenType, expiresAt).Scan(
+		&token.ID, &token.UserID, &token.Token, &token.Type,
+		&token.ExpiresAt, &token.Used, &token.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create explicit verification token: %w", err)
+	}
+
+	return &token, nil
+}
+
 func (r *UserRepository) GetVerificationToken(token, tokenType string) (*models.VerificationToken, error) {
 	query := `
 		SELECT id, user_id, token, type, expires_at, used, created_at

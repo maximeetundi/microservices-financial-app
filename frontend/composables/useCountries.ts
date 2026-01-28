@@ -61,11 +61,27 @@ export const useCountries = () => {
         }
     };
 
+    // Priority map for shared calling codes (e.g. +1 defaults to US, +7 to RU, +44 to GB)
+    const dialCodePriority: Record<string, string> = {
+        '+1': 'US',
+        '+7': 'RU',
+        '+44': 'GB',
+        '+39': 'IT',
+        '+33': 'FR',
+    };
+
     // Helper to find country by dial code (for reverse lookup when user types)
     const getCountryByDialCode = (dialCode: string) => {
         const cleanCode = dialCode.replace('+', '');
+        const formattedCode = `+${cleanCode}`;
+        
+        // Check priority map first
+        if (dialCodePriority[formattedCode]) {
+            return countries.find(c => c?.code === dialCodePriority[formattedCode]);
+        }
+        
         // This is a simple lookup. Precise lookup might need more logic or libphonenumber's asYouType
-        return countries.find(c => c?.dialCode === dialCode || c?.dialCode === `+${cleanCode}`);
+        return countries.find(c => c?.dialCode === formattedCode);
     }
 
     return {

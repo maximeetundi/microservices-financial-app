@@ -99,6 +99,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		// if err == nil {
 		// 	h.emailService.SendVerificationEmail(user.Email, token)
 		// }
+		
+		// Send verification SMS
+		if user.Phone != "" {
+			code, err := h.smsService.SendVerificationCode(user.Phone)
+			if err != nil {
+				log.Printf("Failed to send SMS: %v", err)
+			} else {
+				// Store the code
+				if err := h.authService.CreatePhoneVerification(user.ID, code); err != nil {
+					log.Printf("Failed to store SMS verification code: %v", err)
+				}
+			}
+		}
 	}()
 
 	// Remove sensitive data
@@ -254,8 +267,18 @@ func (h *AuthHandler) VerifyPhone(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement phone verification logic
-	// This would involve checking the SMS verification code stored in Redis
+	// Lookup user by phone
+	user, err := h.authService.LookupUser(req.Phone)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Verify code
+	if err := h.authService.VerifyPhone(user.ID, req.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Phone verified successfully"})
 }

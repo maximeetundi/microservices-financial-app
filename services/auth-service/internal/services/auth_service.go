@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/nyaruka/phonenumbers"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
@@ -40,14 +41,21 @@ type Claims struct {
 
 func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error) {
 	// Normalize phone number first - remove spaces, dashes, and other non-digit characters except +
+	// Parse and validate phone number using libphonenumber
 	if req.Phone != "" {
-		normalizedPhone := ""
-		for _, c := range req.Phone {
-			if c == '+' || (c >= '0' && c <= '9') {
-				normalizedPhone += string(c)
-			}
+		// Parse the number
+		num, err := phonenumbers.Parse(req.Phone, req.Country)
+		if err != nil {
+			return nil, fmt.Errorf("invalid phone number format: %w", err)
 		}
-		req.Phone = normalizedPhone
+		
+		// Validate against region
+		if !phonenumbers.IsValidNumber(num) {
+			return nil, fmt.Errorf("invalid phone number for country %s", req.Country)
+		}
+		
+		// Format to E.164
+		req.Phone = phonenumbers.Format(num, phonenumbers.E164)
 	}
 
 	// Check if email already exists
@@ -363,6 +371,43 @@ func (s *AuthService) VerifyEmail(token string) error {
 	// Update email verification status
 	if err := s.userRepo.UpdateEmailVerification(verificationToken.UserID, true); err != nil {
 		return fmt.Errorf("failed to verify email: %w", err)
+	}
+
+	// Mark token as used
+	s.userRepo.MarkTokenAsUsed(verificationToken.ID)
+
+	return nil
+}
+
+func (s *AuthService) CreatePhoneVerification(userID, code string) error {
+	// Expires in 15 minutes
+	expiresAt := time.Now().Add(15 * time.Minute)
+	
+	// Store the code as a verification token
+	_, err := s.userRepo.CreateExplicitVerificationToken(userID, code, "phone_verification", expiresAt)
+	if err != nil {
+		return fmt.Errorf("failed to save verification code: %w", err)
+	}
+	
+	return nil
+}
+
+func (s *AuthService) VerifyPhone(userID, code string) error {
+	// Get and validate token
+	// search by token (code) and type
+	verificationToken, err := s.userRepo.GetVerificationToken(code, "phone_verification")
+	if err != nil {
+		return fmt.Errorf("invalid or expired verification code")
+	}
+
+	// Verify it belongs to the user
+	if verificationToken.UserID != userID {
+		return fmt.Errorf("invalid verification code")
+	}
+
+	// Update phone verification status
+	if err := s.userRepo.UpdatePhoneVerification(userID, true); err != nil {
+		return fmt.Errorf("failed to verify phone: %w", err)
 	}
 
 	// Mark token as used

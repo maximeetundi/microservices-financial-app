@@ -322,12 +322,18 @@ watch(phoneCode, (newCode) => {
 })
 
 // Format phone number as you type
-watch(phoneNumber, (newValue) => {
+watch(phoneNumber, (newValue, oldValue) => {
     if (form.value.country && newValue) {
+        // Prevent infinite loop if the value is the same (formatted)
+        if (newValue === oldValue) return
+        
         const asYouType = new AsYouType(form.value.country)
         const formatted = asYouType.input(newValue)
-        // We might want to format distinctively, but for now just input binding
-        // phoneNumber.value = formatted // This can cause cursor jumping issues, be careful
+        
+        // Only update if it's different and not just a deletion causing loop
+        if (formatted !== newValue) {
+            phoneNumber.value = formatted
+        }
     }
 })
 
