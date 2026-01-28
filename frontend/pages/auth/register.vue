@@ -110,26 +110,33 @@
             </div>
             <div class="space-y-4">
                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100 mb-1">Pays</label>
+                  <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-indigo-100 mb-1">
+                    <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Pays
+                  </label>
                   <div class="relative">
                     <select
                       v-model="form.country"
                       required
-                      class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none pl-10"
+                      class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none px-4"
                     >
                       <option value="" disabled class="text-gray-400">Sélectionner votre pays</option>
                       <option v-for="country in countries" :key="country.code" :value="country.code" class="text-gray-900 dark:text-white bg-white dark:bg-slate-900">
                         {{ country.name }}
                       </option>
                     </select>
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span class="text-lg">🌍</span>
-                    </div>
                   </div>
                 </div>
 
                 <div class="space-y-1">
-                  <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Téléphone</label>
+                  <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-indigo-100">
+                    <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    Téléphone
+                  </label>
                   <div class="flex gap-3">
                     <!-- Dial Code Input -->
                     <div class="w-1/4">
