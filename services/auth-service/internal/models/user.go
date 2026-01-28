@@ -74,7 +74,7 @@ type RegisterRequest struct {
 	Password    string    `json:"password" binding:"required,min=8"`
 	FirstName   string    `json:"first_name" binding:"required"`
 	LastName    string    `json:"last_name" binding:"required"`
-	Country     string    `json:"country" binding:"required,len=3"`
+	Country     string    `json:"country" binding:"required,len=2"`
 	Currency    string    `json:"currency" binding:"required,len=3"`
 	DateOfBirth time.Time `json:"date_of_birth" binding:"required"`
 }
