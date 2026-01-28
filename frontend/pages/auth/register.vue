@@ -108,29 +108,49 @@
                 placeholder="exemple@email.com"
               />
             </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Pays</label>
-                <select
-                  v-model="form.country"
-                  required
-                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none"
-                >
-                  <option value="" disabled class="text-gray-400">Sélectionner</option>
-                  <option v-for="country in countries" :key="country.code" :value="country.code" class="text-gray-900 dark:text-white bg-white dark:bg-slate-900">
-                    {{ country.name }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Téléphone</label>
-                <input
-                  v-model="form.phone"
-                  type="tel"
-                  class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
-                  placeholder="+33 6..."
-                />
-              </div>
+            <div class="space-y-4">
+               <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100 mb-1">Pays</label>
+                  <div class="relative">
+                    <select
+                      v-model="form.country"
+                      required
+                      class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none pl-10"
+                    >
+                      <option value="" disabled class="text-gray-400">Sélectionner votre pays</option>
+                      <option v-for="country in countries" :key="country.code" :value="country.code" class="text-gray-900 dark:text-white bg-white dark:bg-slate-900">
+                        {{ country.name }}
+                      </option>
+                    </select>
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span class="text-lg">🌍</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-1">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-indigo-100">Téléphone</label>
+                  <div class="flex gap-3">
+                    <!-- Dial Code Input -->
+                    <div class="w-1/4">
+                       <input
+                        v-model="phoneCode"
+                        type="text"
+                        placeholder="+33"
+                        class="input-premium w-full text-center bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <!-- National Number Input -->
+                    <div class="flex-1">
+                      <input
+                        v-model="phoneNumber"
+                        type="tel"
+                        class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
+                        placeholder="6 12 34 56 78"
+                      />
+                    </div>
+                  </div>
+                </div>
             </div>
           </div>
 
@@ -241,12 +261,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useCountries } from '~/composables/useCountries'
+import { isValidPhoneNumber, parsePhoneNumber, AsYouType } from 'libphonenumber-js'
 
 definePageMeta({ layout: false })
 
 const router = useRouter()
 const config = useRuntimeConfig()
-const { countries, getCurrencyByCountry, getDialCodeByCountry } = useCountries()
+const { countries, getCurrencyByCountry, getDialCodeByCountry, getCountryByDialCode } = useCountries()
 const colorMode = useColorMode()
 
 const isDark = computed(() => colorMode.value === 'dark')
@@ -261,26 +282,53 @@ const loading = ref(false)
 const error = ref('')
 const success = ref('')
 
+// Separate phone fields for better UX
+const phoneCode = ref('')
+const phoneNumber = ref('')
+
 const form = ref({
   first_name: '',
   last_name: '',
   date_of_birth: '',
   email: '',
   country: '',
-  phone: '',
+  phone: '', // Will be constructed from phoneCode + phoneNumber
   password: '',
   confirm_password: ''
 })
 
-// Watch country selection to auto-fill phone dial code
+// Watch country selection to auto-fill dial code
 watch(() => form.value.country, (newCountry) => {
   if (newCountry) {
     const dialCode = getDialCodeByCountry(newCountry)
-    // Only auto-fill if phone is empty or just contains a dial code
-    if (!form.value.phone || form.value.phone.match(/^\+[\d-]+$/)) {
-      form.value.phone = dialCode + ' '
+    if (dialCode && phoneCode.value !== dialCode) {
+        phoneCode.value = dialCode
     }
   }
+})
+
+// Watch dial code to auto-select country (Reverse lookup)
+watch(phoneCode, (newCode) => {
+    if (!newCode) return
+    const formattedCode = newCode.startsWith('+') ? newCode : `+${newCode}`
+    
+    // Only try to find country if the code looks complete (e.g., 2-4 digits)
+    if (formattedCode.length >= 2) {
+        const country = getCountryByDialCode(formattedCode)
+        if (country && country.code !== form.value.country) {
+            form.value.country = country.code
+        }
+    }
+})
+
+// Format phone number as you type
+watch(phoneNumber, (newValue) => {
+    if (form.value.country && newValue) {
+        const asYouType = new AsYouType(form.value.country)
+        const formatted = asYouType.input(newValue)
+        // We might want to format distinctively, but for now just input binding
+        // phoneNumber.value = formatted // This can cause cursor jumping issues, be careful
+    }
 })
 
 // Password strength
@@ -312,6 +360,18 @@ const nextStep = () => {
       error.value = 'Email et pays sont requis'
       return
     }
+    
+    // Validate Phone at this step
+    const fullPhone = `${phoneCode.value}${phoneNumber.value}`
+    if (!phoneCode.value || !phoneNumber.value) {
+        error.value = 'Numéro de téléphone requis'
+        return
+    }
+    
+    if (!isValidPhoneNumber(fullPhone, form.value.country)) {
+        error.value = 'Numéro de téléphone invalide pour ce pays'
+        return
+    }
   }
   currentStep.value++
 }
@@ -334,6 +394,9 @@ const handleSubmit = async () => {
     const apiUrl = config.public.apiBaseUrl || 'https://api.app.tech-afm.com'
     const dateOfBirth = form.value.date_of_birth ? `${form.value.date_of_birth}T00:00:00Z` : ''
     
+    // Construct E.164 phone number
+    const finalPhone = parsePhoneNumber(`${phoneCode.value}${phoneNumber.value}`, form.value.country).number
+    
     const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {
       method: 'POST',
       body: {
@@ -341,7 +404,7 @@ const handleSubmit = async () => {
         password: form.value.password,
         first_name: form.value.first_name,
         last_name: form.value.last_name,
-        phone: form.value.phone || undefined,
+        phone: finalPhone,
         date_of_birth: dateOfBirth,
         country: form.value.country,
         currency: getCurrencyByCountry(form.value.country)
