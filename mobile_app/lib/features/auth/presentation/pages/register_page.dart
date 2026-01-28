@@ -552,6 +552,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ],
                     ),
+                    const Spacer(),
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 40,
+                      color: isDark ? Colors.white : null, // Optional: Tint white for dark mode if it's black
+                    ),
                   ],
                 ),
               ),
