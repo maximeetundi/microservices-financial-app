@@ -2,8 +2,6 @@ module github.com/crypto-bank/microservices-financial-app/services/wallet-servic
 
 go 1.23
 
-
-
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
@@ -13,6 +11,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/prometheus/client_golang v1.18.0
 	golang.org/x/time v0.5.0
+	golang.org/x/crypto v0.17.0
 	github.com/boombuler/barcode v1.0.1
 	github.com/crypto-bank/microservices-financial-app/services/common v0.0.0
 )
@@ -43,14 +42,13 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-
 )
 
 replace (
-    github.com/crypto-bank/microservices-financial-app/services/api-gateway => ../api-gateway
-    github.com/crypto-bank/microservices-financial-app/services/auth-service => ../auth-service
-    github.com/crypto-bank/microservices-financial-app/services/card-service => ../card-service
-    github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
-    github.com/crypto-bank/microservices-financial-app/services/transfer-service => ../transfer-service
-    github.com/crypto-bank/microservices-financial-app/services/common => ../common
+	github.com/crypto-bank/microservices-financial-app/services/api-gateway => ../api-gateway
+	github.com/crypto-bank/microservices-financial-app/services/auth-service => ../auth-service
+	github.com/crypto-bank/microservices-financial-app/services/card-service => ../card-service
+	github.com/crypto-bank/microservices-financial-app/services/exchange-service => ../exchange-service
+	github.com/crypto-bank/microservices-financial-app/services/transfer-service => ../transfer-service
+	github.com/crypto-bank/microservices-financial-app/services/common => ../common
 )

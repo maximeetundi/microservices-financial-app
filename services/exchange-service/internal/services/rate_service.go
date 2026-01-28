@@ -14,6 +14,7 @@ import (
 type RateService struct {
 	rateRepo          *repository.RateRepository
 	config            *config.Config
+	settingsService   *SettingsService
 	binanceProvider   *BinanceProvider
 	fiatProvider      *FailoverFiatProvider // Updated type
 	coingeckoProvider *CoinGeckoProvider
@@ -31,11 +32,46 @@ func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *Ra
 	return &RateService{
 		rateRepo:          rateRepo,
 		config:            cfg,
+		settingsService:   nil,
 		binanceProvider:   NewBinanceProvider(binanceCfg),
 		fiatProvider:      NewFailoverFiatProvider(cfg.FixerAPIKey, cfg.CurrencyLayerAPIKey),
 		coingeckoProvider: NewCoinGeckoProvider(),
 		hexarateProvider:  NewHexarateProvider(),
 	}
+}
+
+// NewRateServiceWithSettings creates a RateService with configurable settings from admin panel
+func NewRateServiceWithSettings(rateRepo *repository.RateRepository, cfg *config.Config, settingsSvc *SettingsService) *RateService {
+	// Use dynamic test mode from settings if available
+	testMode := cfg.BinanceTestMode
+	if settingsSvc != nil {
+		testMode = settingsSvc.IsBinanceTestMode()
+	}
+
+	binanceCfg := BinanceConfig{
+		APIKey:    cfg.BinanceAPIKey,
+		APISecret: cfg.BinanceAPISecret,
+		BaseURL:   cfg.BinanceBaseURL,
+		TestMode:  testMode,
+	}
+
+	return &RateService{
+		rateRepo:          rateRepo,
+		config:            cfg,
+		settingsService:   settingsSvc,
+		binanceProvider:   NewBinanceProvider(binanceCfg),
+		fiatProvider:      NewFailoverFiatProvider(cfg.FixerAPIKey, cfg.CurrencyLayerAPIKey),
+		coingeckoProvider: NewCoinGeckoProvider(),
+		hexarateProvider:  NewHexarateProvider(),
+	}
+}
+
+// getUpdateInterval returns the rate update interval from settings or config fallback
+func (s *RateService) getUpdateInterval() int {
+	if s.settingsService != nil {
+		return s.settingsService.GetRateUpdateInterval()
+	}
+	return s.config.RateUpdateInterval
 }
 
 func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.ExchangeRate, error) {
@@ -152,10 +188,24 @@ func (s *RateService) GetMarkets() ([]*models.Market, error) {
 // StartRateUpdater starts a background goroutine that periodically updates exchange rates
 func (s *RateService) StartRateUpdater() {
 	go func() {
-		ticker := time.NewTicker(time.Duration(s.config.RateUpdateInterval) * time.Second)
+		// Run initial update immediately on startup
+		fmt.Println("[RateService] Running initial rate update...")
+		s.updateAllRates()
+
+		// Then continue with periodic updates using dynamic interval
+		interval := s.getUpdateInterval()
+		fmt.Printf("[RateService] Setting up rate updates every %d seconds\n", interval)
+		ticker := time.NewTicker(time.Duration(interval) * time.Second)
 		defer ticker.Stop()
 
 		for range ticker.C {
+			// Check for updated interval from settings
+			newInterval := s.getUpdateInterval()
+			if newInterval != interval {
+				fmt.Printf("[RateService] Rate update interval changed: %d -> %d seconds\n", interval, newInterval)
+				interval = newInterval
+				ticker.Reset(time.Duration(interval) * time.Second)
+			}
 			s.updateAllRates()
 		}
 	}()

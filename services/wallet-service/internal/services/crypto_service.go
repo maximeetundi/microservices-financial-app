@@ -21,6 +21,7 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/security"
 )
 
 type CryptoService struct {
@@ -68,7 +69,7 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 	// Bitcoin Family
 	case "BTC":
 		address, privKeyHex, pubKeyHex, err = s.generateBitcoinKeys()
-	
+
 	// Solana Family
 	case "SOL":
 		address, privKeyHex, pubKeyHex, err = s.generateSolanaKeys()
@@ -142,33 +143,33 @@ func (s *CryptoService) deriveBitcoinAddress(pubKeyHex, network string) (string,
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Determine params based on requested network
 	var params *chaincfg.Params
 	if strings.HasPrefix(strings.ToUpper(network), "TEST") || s.config.CryptoNetwork == "testnet" {
 		if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
-             // If user specifically asked for Mainnet equivalents despite testnet config, 
-             // we could theoretically return mainnet, but let's stick to safe defaults.
-             // Usually "SEGWIT" implies Mainnet in UI.
-             // If network == "TESTNET", definitely testnet.
-        }
-        
-        if strings.ToUpper(network) == "TESTNET" {
-             params = &chaincfg.TestNet3Params
-        } else if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
-             params = &chaincfg.MainNetParams
-        } else {
-             // Default fallback to config
-             params = s.getBitcoinParams()
-        }
+			// If user specifically asked for Mainnet equivalents despite testnet config,
+			// we could theoretically return mainnet, but let's stick to safe defaults.
+			// Usually "SEGWIT" implies Mainnet in UI.
+			// If network == "TESTNET", definitely testnet.
+		}
+
+		if strings.ToUpper(network) == "TESTNET" {
+			params = &chaincfg.TestNet3Params
+		} else if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
+			params = &chaincfg.MainNetParams
+		} else {
+			// Default fallback to config
+			params = s.getBitcoinParams()
+		}
 	} else {
-        // Mainnet Config
-        if strings.ToUpper(network) == "TESTNET" {
-            params = &chaincfg.TestNet3Params
-        } else {
-            params = &chaincfg.MainNetParams
-        }
-    }
+		// Mainnet Config
+		if strings.ToUpper(network) == "TESTNET" {
+			params = &chaincfg.TestNet3Params
+		} else {
+			params = &chaincfg.MainNetParams
+		}
+	}
 
 	// PubKey to Address
 	// 1. Hash160
@@ -320,15 +321,15 @@ func (s *CryptoService) GetOrCreateAddress(userID, currency, network string) (st
 	if err != nil {
 		return "", err
 	}
-    
-    // If specific network requested during initial generation (e.g. BTC Testnet), 
-    // ensure the returned address matches that network if algoFunc didn't handle it
-    if chainFamily == "bitcoin" && network != "" {
-        derivedAddr, err := s.deriveBitcoinAddress(pub, network)
-        if err == nil {
-            address = derivedAddr
-        }
-    }
+
+	// If specific network requested during initial generation (e.g. BTC Testnet),
+	// ensure the returned address matches that network if algoFunc didn't handle it
+	if chainFamily == "bitcoin" && network != "" {
+		derivedAddr, err := s.deriveBitcoinAddress(pub, network)
+		if err == nil {
+			address = derivedAddr
+		}
+	}
 
 	// 3. Store in Vault
 	if s.vaultClient != nil {
@@ -449,8 +450,30 @@ func (s *CryptoService) GetBalance(address, currency string) (float64, error) {
 	return s.blockchain.GetBalance(currency, address)
 }
 
-func (s *CryptoService) EncryptPrivateKey(privateKey, password string) (string, error) {
-	return "STORED_IN_VAULT", nil
+// EncryptPrivateKey encrypts a private key for database storage
+// This provides defense-in-depth alongside the external vault
+func (s *CryptoService) EncryptPrivateKey(privateKey, _ string) (string, error) {
+	vault := security.GetVaultService()
+	return vault.EncryptPrivateKey(privateKey)
+}
+
+// GetEncryptedKeyWithHash returns an encrypted private key and its hash for database storage
+func (s *CryptoService) GetEncryptedKeyWithHash(privateKey string) (encryptedKey, keyHash string, err error) {
+	vault := security.GetVaultService()
+
+	encryptedKey, err = vault.EncryptPrivateKey(privateKey)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to encrypt private key: %w", err)
+	}
+
+	keyHash = security.HashData(privateKey)
+	return encryptedKey, keyHash, nil
+}
+
+// DecryptPrivateKey decrypts a stored private key
+func (s *CryptoService) DecryptPrivateKey(encryptedKey string) (string, error) {
+	vault := security.GetVaultService()
+	return vault.DecryptPrivateKey(encryptedKey)
 }
 
 func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {

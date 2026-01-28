@@ -37,6 +37,8 @@ func (r *WalletRepository) Create(wallet *models.Wallet) error {
 
 func (r *WalletRepository) InitSchema() error {
 	// Create table if not exists (PostgreSQL)
+	// SECURITY: private_key_encrypted stores AES-256-GCM encrypted private keys
+	// The plaintext key is NEVER stored in the database
 	createTableQuery := `
 		CREATE TABLE IF NOT EXISTS wallets (
 			id VARCHAR(255) PRIMARY KEY,
@@ -47,6 +49,7 @@ func (r *WalletRepository) InitSchema() error {
 			frozen_balance DECIMAL(20, 8) DEFAULT 0,
 			wallet_address VARCHAR(255),
 			private_key_encrypted TEXT,
+			key_hash VARCHAR(64),
 			name VARCHAR(255),
 			is_active BOOLEAN DEFAULT TRUE,
 			is_hidden BOOLEAN DEFAULT FALSE,
@@ -65,12 +68,13 @@ func (r *WalletRepository) InitSchema() error {
 	migrations := []string{
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS key_hash VARCHAR(64)",
 	}
 
 	for _, query := range migrations {
 		_, err := r.db.Exec(query)
 		if err != nil {
-			// Log error but continue? Or fail? 
+			// Log error but continue? Or fail?
 			// Check if error is "column already exists" if on old postgres
 			// But for now return error
 			return fmt.Errorf("failed to run migration %s: %w", query, err)
@@ -216,14 +220,17 @@ func (r *WalletRepository) UpdateBalance(walletID string, balance, frozenBalance
 	return nil
 }
 
-func (r *WalletRepository) UpdateAddress(walletID, address, encryptedPrivateKey string) error {
+// UpdateAddress updates the wallet address and encrypted private key
+// SECURITY: The private key should already be encrypted before calling this method
+// keyHash is the SHA-256 hash of the plaintext key for verification purposes
+func (r *WalletRepository) UpdateAddress(walletID, address, encryptedPrivateKey, keyHash string) error {
 	query := `
 		UPDATE wallets 
-		SET wallet_address = $1, private_key_encrypted = $2, updated_at = NOW()
-		WHERE id = $3
+		SET wallet_address = $1, private_key_encrypted = $2, key_hash = $3, updated_at = NOW()
+		WHERE id = $4
 	`
 
-	_, err := r.db.Exec(query, address, encryptedPrivateKey, walletID)
+	_, err := r.db.Exec(query, address, encryptedPrivateKey, keyHash, walletID)
 	if err != nil {
 		return fmt.Errorf("failed to update wallet address: %w", err)
 	}

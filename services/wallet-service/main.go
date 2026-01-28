@@ -84,6 +84,7 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	paymentRepo := repository.NewPaymentRequestRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
+	platformRepo := repository.NewPlatformAccountRepository(db)
 
 	// Initialize wallet tables
 	if err := walletRepo.InitSchema(); err != nil {
@@ -100,6 +101,11 @@ func main() {
 		log.Printf("Warning: Failed to initialize fee tables: %v", err)
 	}
 
+	// Initialize platform account tables
+	if err := platformRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize platform account tables: %v", err)
+	}
+
 	// Initialize services
 	feeService := services.NewFeeService(feeRepo)
 	cryptoService := services.NewCryptoService(cfg)
@@ -107,6 +113,7 @@ func main() {
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient)
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
+	platformService := services.NewPlatformAccountService(platformRepo)
 
 	// Start Kafka consumer for inter-service communication
 	consumer := services.NewConsumer(kafkaClient, walletService)
@@ -118,6 +125,7 @@ func main() {
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
+	adminPlatformHandler := handlers.NewAdminPlatformHandler(platformService)
 	addressHandler := handlers.NewAddressHandler(walletService, cryptoService)
 
 	// Setup Gin
@@ -210,9 +218,27 @@ func main() {
 
 			// Admin Fee Management
 			admin := protected.Group("/admin")
+			admin.Use(middleware.AdminOnly())
 			{
 				admin.GET("/fees", adminFeeHandler.GetFees)
 				admin.PUT("/fees", adminFeeHandler.UpdateFee)
+
+				// Platform Account Management
+				admin.GET("/platform/accounts", adminPlatformHandler.GetAccounts)
+				admin.GET("/platform/accounts/:id", adminPlatformHandler.GetAccount)
+				admin.POST("/platform/accounts", adminPlatformHandler.CreateAccount)
+				admin.POST("/platform/accounts/:id/credit", adminPlatformHandler.CreditAccount)
+				admin.POST("/platform/accounts/:id/debit", adminPlatformHandler.DebitAccount)
+
+				// Platform Crypto Wallets
+				admin.GET("/platform/crypto-wallets", adminPlatformHandler.GetCryptoWallets)
+				admin.GET("/platform/crypto-wallets/:id", adminPlatformHandler.GetCryptoWallet)
+				admin.POST("/platform/crypto-wallets", adminPlatformHandler.CreateCryptoWallet)
+				admin.PUT("/platform/crypto-wallets/:id/sync", adminPlatformHandler.SyncCryptoWalletBalance)
+
+				// Platform Transactions & Reconciliation
+				admin.GET("/platform/transactions", adminPlatformHandler.GetTransactions)
+				admin.GET("/platform/reconciliation", adminPlatformHandler.GetReconciliation)
 			}
 		}
 

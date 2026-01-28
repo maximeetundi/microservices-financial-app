@@ -6,32 +6,38 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/handlers"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/services"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestsTotal   = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
-	exchangesTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "exchanges_total", Help: "Total exchanges"}, []string{"pair", "status"})
+	exchangesTotal      = promauto.NewCounterVec(prometheus.CounterOpts{Name: "exchanges_total", Help: "Total exchanges"}, []string{"pair", "status"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		if c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
 		start := time.Now()
 		c.Next()
 		status := strconv.Itoa(c.Writer.Status())
-		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
 		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
 	}
@@ -66,13 +72,15 @@ func main() {
 	rateRepo := repository.NewRateRepository(db, redisClient)
 	orderRepo := repository.NewOrderRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
-	
-	// Initialize fee tables
+	settingsRepo := repository.NewSettingsRepository(db)
+
+	// Initialize tables
 	if err := feeRepo.InitSchema(); err != nil {
 		log.Printf("Warning: Failed to initialize fee tables: %v", err)
 	}
-
-	// Initialize exchange tables (includes migration for fee_percentage)
+	if err := settingsRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize settings tables: %v", err)
+	}
 	if err := exchangeRepo.InitSchema(); err != nil {
 		log.Printf("Warning: Failed to initialize exchange tables: %v", err)
 	}
@@ -82,17 +90,23 @@ func main() {
 
 	// Initialize services
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
-	rateService := services.NewRateService(rateRepo, cfg)
+	settingsService := services.NewSettingsService(settingsRepo)
+	rateService := services.NewRateServiceWithSettings(rateRepo, cfg, settingsService)
 	feeService := services.NewFeeService(feeRepo)
+
+	// Start background rate updater (fetches prices from CoinGecko/Binance and stores in DB)
+	rateService.StartRateUpdater()
+	log.Printf("Background rate updater started (interval: %ds)", settingsService.GetRateUpdateInterval())
 	exchangeService := services.NewExchangeService(exchangeRepo, orderRepo, rateService, feeService, kafkaPublisher, walletClient, cfg)
 	tradingService := services.NewTradingService(orderRepo, exchangeService, cfg)
 	fiatExchangeService := services.NewFiatExchangeService(exchangeRepo, rateService, feeService, kafkaPublisher, cfg)
-	
+
 	// Initialize handlers
 	exchangeHandler := handlers.NewExchangeHandler(exchangeService, rateService, tradingService, walletClient)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
+	adminSettingsHandler := handlers.NewAdminSettingsHandler(settingsService)
 	fiatHandler := handlers.NewFiatHandler(fiatExchangeService, rateService)
-	
+
 	// Start Kafka Consumers
 	paymentConsumer := services.NewPaymentStatusConsumer(kafkaClient, exchangeService)
 	paymentConsumer.SetFiatExchangeService(fiatExchangeService)
@@ -185,10 +199,15 @@ func main() {
 			admin.POST("/rates/update", exchangeHandler.UpdateRates)
 			admin.GET("/analytics", exchangeHandler.GetAnalytics)
 			admin.GET("/volume", exchangeHandler.GetTradingVolume)
-			
+
 			// Fee Configuration
 			admin.GET("/fees", adminFeeHandler.GetFees)
 			admin.PUT("/fees", adminFeeHandler.UpdateFee)
+
+			// System Settings
+			admin.GET("/settings", adminSettingsHandler.GetSettings)
+			admin.PUT("/settings", adminSettingsHandler.UpdateSetting)
+			admin.GET("/settings/:key", adminSettingsHandler.GetSettingByKey)
 		}
 
 		// Webhook endpoints for price feeds

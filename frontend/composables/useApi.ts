@@ -513,6 +513,31 @@ export const adminFeeAPI = {
     updateExchangeFee: (data: any) => api.put('/exchange-service/api/v1/admin/fees', data),
 }
 
+// ========== Admin Platform Accounts ==========
+export const adminPlatformAPI = {
+    // Fiat Accounts
+    getAccounts: () => api.get('/wallet-service/api/v1/admin/platform/accounts'),
+    getAccount: (id: string) => api.get(`/wallet-service/api/v1/admin/platform/accounts/${id}`),
+    createAccount: (data: { currency: string, account_type: string, name: string, description?: string, priority?: number, min_balance?: number, max_balance?: number }) =>
+        api.post('/wallet-service/api/v1/admin/platform/accounts', data),
+    creditAccount: (id: string, data: { amount: number, description: string, reference?: string }) =>
+        api.post(`/wallet-service/api/v1/admin/platform/accounts/${id}/credit`, data),
+    debitAccount: (id: string, data: { amount: number, description: string, reference?: string }) =>
+        api.post(`/wallet-service/api/v1/admin/platform/accounts/${id}/debit`, data),
+
+    // Crypto Wallets
+    getCryptoWallets: () => api.get('/wallet-service/api/v1/admin/platform/crypto-wallets'),
+    getCryptoWallet: (id: string) => api.get(`/wallet-service/api/v1/admin/platform/crypto-wallets/${id}`),
+    createCryptoWallet: (data: { currency: string, network: string, wallet_type: string, address: string, label?: string, priority?: number, min_balance?: number, max_balance?: number }) =>
+        api.post('/wallet-service/api/v1/admin/platform/crypto-wallets', data),
+    syncCryptoWalletBalance: (id: string) => api.put(`/wallet-service/api/v1/admin/platform/crypto-wallets/${id}/sync`),
+
+    // Transactions & Reconciliation
+    getTransactions: (limit = 50, offset = 0) =>
+        api.get(`/wallet-service/api/v1/admin/platform/transactions?limit=${limit}&offset=${offset}`),
+    getReconciliation: () => api.get('/wallet-service/api/v1/admin/platform/reconciliation'),
+}
+
 // ========== Support ==========
 export const supportAPI = {
     // Get all conversations for the current user
@@ -760,6 +785,7 @@ export const useApi = () => {
         paymentApi: paymentAPI,
         adminPaymentApi: adminPaymentAPI,
         adminFeeApi: adminFeeAPI,
+        adminPlatformApi: adminPlatformAPI,
         supportApi: supportAPI,
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,
