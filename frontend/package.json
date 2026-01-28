@@ -26,6 +26,7 @@
     "@vueuse/core": "^10.5.0",
     "@vueuse/nuxt": "^10.5.0",
     "axios": "^1.6.2",
+    "libphonenumber-js": "^1.10.49",
     "chart.js": "^4.4.0",
     "pinia": "^2.1.7",
     "plyr": "^3.8.4",
