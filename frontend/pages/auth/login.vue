@@ -188,27 +188,60 @@
             </div>
           </div>
 
-          <!-- 2FA Field -->
-          <div v-if="show2FA" class="space-y-2 animate-fade-in-up">
-            <label for="totp" class="block text-sm font-medium text-gray-700 dark:text-indigo-100">
-              Code d'authentification
-            </label>
-            <div class="relative">
-              <input
-                id="totp"
-                v-model="loginForm.totp_code"
-                type="text"
-                maxlength="6"
-                pattern="[0-9]{6}"
-                required
-                class="input-premium text-center text-2xl tracking-[0.5em] font-mono bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white"
-                placeholder="000000"
-              />
-            </div>
-            <p class="text-xs text-gray-500 dark:text-indigo-300 text-center">
-              Entrez le code à 6 chiffres de votre application
-            </p>
-          </div>
+          <!-- 2FA Modal -->
+          <Teleport to="body">
+              <div v-if="show2FA" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                  <!-- Backdrop -->
+                  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="show2FA = false"></div>
+                  
+                  <!-- Modal Card -->
+                  <div class="relative w-full max-w-sm bg-white dark:bg-[#1a1b26] rounded-2xl shadow-2xl p-8 transform transition-all animate-scale-in border border-gray-100 dark:border-white/10">
+                      <div class="text-center mb-6">
+                           <div class="w-16 h-16 mx-auto bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center mb-4 text-3xl">
+                               🔐
+                           </div>
+                           <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Authentification 2FA</h3>
+                           <p class="text-gray-500 dark:text-indigo-200/60 text-sm">
+                               Entrez le code généré par votre application Google Authenticator
+                           </p>
+                      </div>
+
+                      <form @submit.prevent="verify2FA" class="space-y-6">
+                          <div class="relative">
+                            <input
+                                id="totp"
+                                v-model="loginForm.totp_code"
+                                type="text"
+                                maxlength="6"
+                                pattern="[0-9]{6}"
+                                required
+                                autofocus
+                                class="input-premium text-center text-3xl tracking-[0.5em] font-mono py-4 bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white w-full rounded-xl"
+                                placeholder="000000"
+                            />
+                          </div>
+
+                          <div class="flex gap-3">
+                              <button 
+                                type="button" 
+                                @click="show2FA = false"
+                                class="flex-1 py-3 px-4 rounded-xl font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                              >
+                                  Annuler
+                              </button>
+                              <button 
+                                type="submit"
+                                :disabled="isLoading"
+                                class="flex-1 btn-premium py-3 rounded-xl font-bold text-white shadow-lg shadow-indigo-500/20"
+                              >
+                                  <span v-if="isLoading">Vérification...</span>
+                                  <span v-else>Vérifier</span>
+                              </button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          </Teleport>
 
           <!-- Remember & Forgot -->
           <div class="flex items-center justify-between pt-2">
@@ -421,6 +454,12 @@ watch(phoneNumber, (newValue, oldValue) => {
 // --- Login Logic ---
 
 const handleLogin = async () => {
+    // If showing 2FA modal, this function is called by the modal's verify button
+    if (show2FA.value) {
+        await verify2FA()
+        return
+    }
+
   if (isLoading.value) return
 
   isLoading.value = true
@@ -429,7 +468,7 @@ const handleLogin = async () => {
   try {
     let credentials = {
         password: loginForm.value.password,
-        two_fa_code: loginForm.value.totp_code || undefined
+        // totp_code is not sent in first step
     }
 
     if (loginMethod.value === 'phone') {
@@ -461,7 +500,8 @@ const handleLogin = async () => {
 
     if (result.requires2FA) {
       show2FA.value = true
-      errorMessage.value = 'Veuillez entrer votre code d\'authentification.'
+      // Don't set error message here, just show modal
+      isLoading.value = false
       return
     }
 
@@ -474,8 +514,46 @@ const handleLogin = async () => {
     console.error('Login error:', error)
     errorMessage.value = 'Une erreur est survenue. Veuillez réessayer.'
   } finally {
-    isLoading.value = false
+    if (!show2FA.value) {
+        isLoading.value = false
+    }
   }
+}
+
+const verify2FA = async () => {
+    if (!loginForm.value.totp_code || loginForm.value.totp_code.length !== 6) {
+        errorMessage.value = "Code invalide"
+        return
+    }
+    
+    isLoading.value = true
+    errorMessage.value = ''
+
+    try {
+        let credentials = {
+             password: loginForm.value.password,
+             two_fa_code: loginForm.value.totp_code
+        }
+         if (loginMethod.value === 'phone') {
+            const finalPhone = parsePhoneNumber(`${phoneCode.value}${phoneNumber.value}`, selectedCountryCode.value).number
+            credentials.phone = finalPhone
+        } else {
+             credentials.email = loginForm.value.email
+        }
+
+        const result = await authStore.login(credentials)
+        
+        if (result.success) {
+            show2FA.value = false
+            await navigateTo('/dashboard')
+        } else {
+            errorMessage.value = result.error || 'Code incorrect'
+        }
+    } catch (e) {
+        errorMessage.value = 'Erreur lors de la vérification'
+    } finally {
+        isLoading.value = false
+    }
 }
 </script>
 
