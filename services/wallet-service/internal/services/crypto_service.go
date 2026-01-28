@@ -63,16 +63,26 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 	var address, privKeyHex, pubKeyHex string
 	var err error
 
+	// Determine Chain Type based on Currency
 	switch strings.ToUpper(currency) {
+	// Bitcoin Family
 	case "BTC":
 		address, privKeyHex, pubKeyHex, err = s.generateBitcoinKeys()
-	case "ETH":
-		address, privKeyHex, pubKeyHex, err = s.generateEthereumKeys()
-	case "BSC":
-		// BSC uses same keys as ETH
-		address, privKeyHex, pubKeyHex, err = s.generateEthereumKeys()
+	
+	// Solana Family
 	case "SOL":
 		address, privKeyHex, pubKeyHex, err = s.generateSolanaKeys()
+
+	// TRON Family (TRX + TRC20 Tokens)
+	case "TRX", "USDT":
+		// USDT defaults to TRC20 (Tron) for low fees
+		address, privKeyHex, pubKeyHex, err = s.generateTronKeys()
+
+	// EVM Family (ETH + BSC + Polygon + Avalanche + ERC20/BEP20 Tokens)
+	case "ETH", "USDC", "BNB", "MATIC", "AVAX", "LINK", "UNI", "SHIB", "DAI":
+		// All these use Ethereum-compatible keys (Hex address starting with 0x)
+		address, privKeyHex, pubKeyHex, err = s.generateEthereumKeys()
+
 	default:
 		return nil, fmt.Errorf("unsupported currency: %s", currency)
 	}

@@ -85,9 +85,10 @@
 
           <div class="flex items-center justify-between mb-6 relative z-10">
             <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md text-white font-bold" 
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md text-white font-bold overflow-hidden" 
                    :class="getCurrencyBg(wallet.currency)">
-                {{ getCurrencyIcon(wallet.currency) }}
+                <img v-if="getCurrencyLogo(wallet.currency)" :src="getCurrencyLogo(wallet.currency)" class="w-full h-full object-cover" />
+                <span v-else>{{ getCurrencyIcon(wallet.currency) }}</span>
               </div>
               <div>
                 <p class="font-bold text-gray-900 dark:text-white text-lg">{{ wallet.currency }}</p>
@@ -159,24 +160,44 @@
               </select>
             </div>
 
-            <div>
-              <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Devise</label>
-              <select v-model="newWallet.currency" class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                <template v-if="newWallet.type === 'fiat'">
+            <!-- Crypto Selection Grid -->
+            <div v-if="newWallet.type === 'crypto'">
+               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Choisir une crypto-monnaie</label>
+               
+               <div class="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                 <button 
+                    v-for="crypto in availableCryptos" 
+                    :key="crypto.code"
+                    type="button"
+                    @click="newWallet.currency = crypto.code"
+                    class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left group hover:scale-[1.02]"
+                    :class="newWallet.currency === crypto.code 
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 ring-1 ring-indigo-500' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-slate-800'"
+                 >
+                    <img :src="crypto.logo" :alt="crypto.name" class="w-8 h-8 rounded-full" />
+                    <div>
+                      <p class="font-bold text-sm text-gray-900 dark:text-white">{{ crypto.name }}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ crypto.code }}</p>
+                    </div>
+                    <div v-if="newWallet.currency === crypto.code" class="ml-auto text-indigo-500">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                 </button>
+               </div>
+            </div>
+
+            <!-- Fiat Selection (Simple Select) -->
+             <div v-else>
+               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Devise</label>
+               <select v-model="newWallet.currency" class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
                   <option value="USD">🇺🇸 Dollar US (USD)</option>
                   <option value="EUR">🇪🇺 Euro (EUR)</option>
                   <option value="GBP">🇬🇧 Livre Sterling (GBP)</option>
                   <option value="XOF">🇨🇮 Franc CFA (XOF)</option>
                   <option value="XAF">🇨🇲 Franc CFA (XAF)</option>
-                </template>
-                <template v-else>
-                  <option value="BTC">₿ Bitcoin (BTC)</option>
-                  <option value="ETH">Ξ Ethereum (ETH)</option>
-                  <option value="USDT">💵 Tether (USDT)</option>
-                  <option value="SOL">◎ Solana (SOL)</option>
-                </template>
-              </select>
-            </div>
+               </select>
+             </div>
 
             <div>
               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Nom du portefeuille</label>
@@ -221,8 +242,9 @@
            <div class="p-6 overflow-y-auto custom-scrollbar">
              <!-- Wallet Selection Display -->
              <div class="mb-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl flex items-center gap-4">
-               <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm" :class="getCurrencyBg(selectedWallet?.currency)">
-                 {{ getCurrencyIcon(selectedWallet?.currency) }}
+               <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm overflow-hidden" :class="getCurrencyBg(selectedWallet?.currency)">
+                 <img v-if="getCurrencyLogo(selectedWallet?.currency)" :src="getCurrencyLogo(selectedWallet?.currency)" class="w-full h-full object-cover" />
+                 <span v-else>{{ getCurrencyIcon(selectedWallet?.currency) }}</span>
                </div>
                <div>
                   <p class="text-sm text-gray-500 dark:text-gray-400">Portefeuille cible</p>
@@ -587,6 +609,22 @@ const newWallet = ref({
 
 // totalBalance is now from store
 
+const availableCryptos = [
+  { code: 'BTC', name: 'Bitcoin', logo: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025' },
+  { code: 'ETH', name: 'Ethereum', logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025' },
+  { code: 'USDT', name: 'Tether', logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025' },
+  { code: 'USDC', name: 'USD Coin', logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=025' },
+  { code: 'SOL', name: 'Solana', logo: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=025' },
+  { code: 'BNB', name: 'BNB', logo: 'https://cryptologos.cc/logos/bnb-bnb-logo.png?v=025' },
+  { code: 'MATIC', name: 'Polygon', logo: 'https://cryptologos.cc/logos/polygon-matic-logo.png?v=025' },
+  { code: 'AVAX', name: 'Avalanche', logo: 'https://cryptologos.cc/logos/avalanche-avax-logo.png?v=025' },
+  { code: 'TRX', name: 'Tron', logo: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025' },
+  { code: 'LINK', name: 'Chainlink', logo: 'https://cryptologos.cc/logos/chainlink-link-logo.png?v=025' },
+  { code: 'UNI', name: 'Uniswap', logo: 'https://cryptologos.cc/logos/uniswap-uni-logo.png?v=025' },
+  { code: 'SHIB', name: 'Shiba Inu', logo: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.png?v=025' },
+  { code: 'DAI', name: 'Dai', logo: 'https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png?v=025' }
+]
+
 const formatMoney = (amount) => {
   const val = Number(amount)
   if (amount === undefined || amount === null || isNaN(val)) return '$0.00'
@@ -596,27 +634,40 @@ const formatMoney = (amount) => {
 const formatCrypto = (amount, currency) => {
   const val = Number(amount)
   if (amount === undefined || amount === null || isNaN(val)) return `0.00 ${currency}`
-  if (['BTC', 'ETH', 'SOL'].includes(currency)) {
+  if (['BTC', 'ETH', 'SOL', 'BNB'].includes(currency) || availableCryptos.some(c => c.code === currency)) {
     return `${val.toFixed(6)} ${currency}`
   }
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(val)
 }
 
+const getCurrencyLogo = (currency) => {
+  const c = availableCryptos.find(x => x.code === currency)
+  return c ? c.logo : null
+}
+
 const getCurrencyIcon = (currency) => {
-  const icons = { BTC: '₿', ETH: 'Ξ', USD: '$', EUR: '€', GBP: '£', SOL: '◎' }
+  // Return emoji/symbol fallback
+  const icons = { BTC: '₿', ETH: 'Ξ', USD: '$', EUR: '€', GBP: '£', SOL: '◎', USDT: '₮', USDC: '$', BNB: 'B', MATIC: 'M', AVAX: '🔺', TRX: 'T' }
   return icons[currency] || '💰'
 }
 
 const getCurrencyBg = (currency) => {
+  // Enhanced color mapping
   const bgs = { 
     BTC: 'bg-amber-500', 
     ETH: 'bg-indigo-500', 
     USD: 'bg-emerald-500', 
     EUR: 'bg-blue-600', 
     SOL: 'bg-purple-500',
-    GBP: 'bg-rose-500',
-    XOF: 'bg-cyan-600',
-    XAF: 'bg-teal-600'
+    USDT: 'bg-teal-500',
+    USDC: 'bg-blue-500',
+    BNB: 'bg-yellow-500',
+    MATIC: 'bg-violet-600',
+    AVAX: 'bg-red-500',
+    TRX: 'bg-red-600',
+    LINK: 'bg-blue-400',
+    UNI: 'bg-pink-500',
+    SHIB: 'bg-orange-600'
   }
   return bgs[currency] || 'bg-slate-500'
 }
@@ -638,7 +689,7 @@ const availableNetworks = computed(() => {
     if (!selectedWallet.value) return []
     const currency = selectedWallet.value.currency
     
-    if (currency === 'USDT') return ['TRC20', 'ERC20', 'BEP20']
+    if (currency === 'USDT' || currency === 'USDC') return ['ERC20', 'BEP20', 'TRC20']
     if (currency === 'ETH') return ['ERC20', 'BEP20']
     if (currency === 'BTC') return ['BTC', 'SEGWIT', 'TESTNET']
     if (currency === 'TRX') return ['TRC20']
