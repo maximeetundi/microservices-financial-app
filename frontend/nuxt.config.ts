@@ -22,7 +22,8 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: 'https://api.app.tech-afm.com',
       appName: 'Zekora',
-      appVersion: '1.0.0'
+      appVersion: '1.0.0',
+      cryptoNetwork: process.env.CRYPTO_NETWORK || 'mainnet'
     }
   },
   ssr: true,

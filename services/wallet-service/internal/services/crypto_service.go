@@ -137,6 +137,51 @@ func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 	return addr.EncodeAddress(), privKeyHex, pubKeyHex, nil
 }
 
+func (s *CryptoService) deriveBitcoinAddress(pubKeyHex, network string) (string, error) {
+	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
+	if err != nil {
+		return "", err
+	}
+	
+	// Determine params based on requested network
+	var params *chaincfg.Params
+	if strings.HasPrefix(strings.ToUpper(network), "TEST") || s.config.CryptoNetwork == "testnet" {
+		if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
+             // If user specifically asked for Mainnet equivalents despite testnet config, 
+             // we could theoretically return mainnet, but let's stick to safe defaults.
+             // Usually "SEGWIT" implies Mainnet in UI.
+             // If network == "TESTNET", definitely testnet.
+        }
+        
+        if strings.ToUpper(network) == "TESTNET" {
+             params = &chaincfg.TestNet3Params
+        } else if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
+             params = &chaincfg.MainNetParams
+        } else {
+             // Default fallback to config
+             params = s.getBitcoinParams()
+        }
+	} else {
+        // Mainnet Config
+        if strings.ToUpper(network) == "TESTNET" {
+            params = &chaincfg.TestNet3Params
+        } else {
+            params = &chaincfg.MainNetParams
+        }
+    }
+
+	// PubKey to Address
+	// 1. Hash160
+	pubKeyHash := btcutil.Hash160(pubKeyBytes)
+
+	// 2. Create Address
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash, params)
+	if err != nil {
+		return "", err
+	}
+	return addr.EncodeAddress(), nil
+}
+
 // --- Ethereum / BSC ---
 func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
 	privateKey, err := crypto.GenerateKey()
@@ -250,13 +295,22 @@ func (s *CryptoService) GetOrCreateAddress(userID, currency, network string) (st
 		}
 	}
 
-	// 1. Check Vault
+	// 1. Check Vault for existing keys
 	if s.vaultClient != nil {
 		path := fmt.Sprintf("secret/wallets/%s/chains/%s", userID, chainFamily)
 		secret, err := s.vaultClient.GetSecret(path)
 		if err == nil && secret != nil {
-			if addr, ok := secret["address"].(string); ok && addr != "" {
-				return addr, nil
+			// Found existing keys
+			pubKey, ok := secret["public_key"].(string)
+			if ok && pubKey != "" {
+				// Re-derive address for the specific network requested
+				if chainFamily == "bitcoin" {
+					return s.deriveBitcoinAddress(pubKey, network)
+				}
+				// For EVM and others where address is static/same across networks
+				if addr, ok := secret["address"].(string); ok && addr != "" {
+					return addr, nil
+				}
 			}
 		}
 	}
@@ -266,12 +320,21 @@ func (s *CryptoService) GetOrCreateAddress(userID, currency, network string) (st
 	if err != nil {
 		return "", err
 	}
+    
+    // If specific network requested during initial generation (e.g. BTC Testnet), 
+    // ensure the returned address matches that network if algoFunc didn't handle it
+    if chainFamily == "bitcoin" && network != "" {
+        derivedAddr, err := s.deriveBitcoinAddress(pub, network)
+        if err == nil {
+            address = derivedAddr
+        }
+    }
 
 	// 3. Store in Vault
 	if s.vaultClient != nil {
 		path := fmt.Sprintf("secret/wallets/%s/chains/%s", userID, chainFamily)
 		data := map[string]interface{}{
-			"address":     address,
+			"address":     address, // Store default (usually mainnet) address reference
 			"private_key": priv,
 			"public_key":  pub,
 			"created_at":  fmt.Sprintf("%d", time.Now().Unix()),

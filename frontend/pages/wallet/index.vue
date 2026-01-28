@@ -689,10 +689,37 @@ const availableNetworks = computed(() => {
     if (!selectedWallet.value) return []
     const currency = selectedWallet.value.currency
     
-    if (currency === 'USDT' || currency === 'USDC') return ['ERC20', 'BEP20', 'TRC20']
-    if (currency === 'ETH') return ['ERC20', 'BEP20']
-    if (currency === 'BTC') return ['BTC', 'SEGWIT', 'TESTNET']
-    if (currency === 'TRX') return ['TRC20']
+    // Check global config for testnet mode
+    const config = useRuntimeConfig()
+    const isTestnet = config.public.cryptoNetwork === 'testnet'
+
+    if (currency === 'USDT' || currency === 'USDC') {
+       if (isTestnet) return ['ERC20', 'BEP20', 'TRC20', 'SEPOLIA-ERC20', 'BSC-TESTNET', 'SHASTA-TRC20']
+       return ['ERC20', 'BEP20', 'TRC20']
+    }
+    if (currency === 'ETH') {
+       if (isTestnet) return ['ERC20', 'BEP20', 'SEPOLIA', 'GOERLI']
+       return ['ERC20', 'BEP20']
+    }
+    if (currency === 'BTC') {
+       if (isTestnet) return ['BTC', 'SEGWIT', 'TESTNET']
+       return ['BTC', 'SEGWIT']
+    }
+    if (currency === 'TRX') {
+       if (isTestnet) return ['TRC20', 'SHASTA']
+       return ['TRC20']
+    }
+    if (currency === 'SOL') {
+       if (isTestnet) return ['SOLANA', 'DEVNET']
+       return ['SOLANA']
+    }
+    if (currency === 'BNB') {
+       if (isTestnet) return ['BEP20', 'BSC-TESTNET']
+       return ['BEP20']
+    }
+    
+    // For others (MATIC, AVAX, etc) default to main/test if simple
+    if (isTestnet) return ['MAINNET', 'TESTNET']
     return []
 })
 
