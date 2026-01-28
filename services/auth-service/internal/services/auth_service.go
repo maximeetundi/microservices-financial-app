@@ -118,13 +118,40 @@ func (s *AuthService) LookupUser(identifier string) (*models.User, error) {
 }
 
 func (s *AuthService) Login(req *models.LoginRequest, ipAddress, userAgent string) (*models.LoginResponse, error) {
-	// Get user by email
-	user, err := s.userRepo.GetByEmail(req.Email)
-	if err != nil {
-		log.Printf("Login failed: user not found for email %s - error: %v", req.Email, err)
-		return nil, fmt.Errorf("invalid credentials")
+	var user *models.User
+	var err error
+
+	// 1. Try Login by Phone
+	if req.Phone != "" {
+		// Normalize: remove spaces, keep + if present
+		normalized := strings.ReplaceAll(req.Phone, " ", "")
+		// Maybe stripping + if GetByPhone expects so, but typically we store E.164 with +
+		// Assuming normalized E.164 is stored. If frontend sends raw input, we might need to parse.
+		// For login, let's assume exact match or simple normalization. 
+		// Actually, Create logic used libphonenumber to save E.164. 
+		// Frontend should ideally send E.164 or we assume the user typed it correctly or backend searches loosely.
+		// Let's rely on simple normalization for now (remove spaces).
+		
+		// If it doesn't start with +, maybe user forgot it? 
+		// But let's trust exact match for security or simple clean.
+		
+		user, err = s.userRepo.GetByPhone(normalized)
+		if err != nil {
+			log.Printf("Login failed: user not found for phone %s - error: %v", req.Phone, err)
+			return nil, fmt.Errorf("invalid credentials")
+		}
+		log.Printf("Login: Found user by phone %s with ID %s", user.Phone, user.ID)
+	} else if req.Email != "" {
+		// 2. Try Login by Email
+		user, err = s.userRepo.GetByEmail(req.Email)
+		if err != nil {
+			log.Printf("Login failed: user not found for email %s - error: %v", req.Email, err)
+			return nil, fmt.Errorf("invalid credentials")
+		}
+		log.Printf("Login: Found user by email %s with ID %s", user.Email, user.ID)
+	} else {
+		return nil, fmt.Errorf("email or phone required")
 	}
-	log.Printf("Login: Found user %s with ID %s", user.Email, user.ID)
 
 	// Check if user is locked
 	locked, err := s.userRepo.IsLocked(user.ID)

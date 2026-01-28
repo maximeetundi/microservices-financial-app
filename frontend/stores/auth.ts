@@ -91,14 +91,17 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async login(email: string, password: string, twoFaCode?: string) {
+    async login(credentials: { email?: string, phone?: string, password: string, two_fa_code?: string }) {
       this.isLoading = true
       try {
-        const response = await api.post('/auth-service/api/v1/auth/login', {
-          email,
-          password,
-          two_fa_code: twoFaCode
-        })
+        const payload: any = {
+          password: credentials.password,
+          two_fa_code: credentials.two_fa_code
+        }
+        if (credentials.email) payload.email = credentials.email
+        if (credentials.phone) payload.phone = credentials.phone
+
+        const response = await api.post('/auth-service/api/v1/auth/login', payload)
 
         const { access_token, refresh_token, user } = response.data
 

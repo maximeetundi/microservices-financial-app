@@ -63,7 +63,8 @@ type VerificationToken struct {
 }
 
 type LoginRequest struct {
-	Email     string `json:"email" binding:"required,email"`
+	Email     string `json:"email,omitempty"`     // Optional, login with email
+	Phone     string `json:"phone,omitempty"`     // Optional, login with phone
 	Password  string `json:"password" binding:"required"`
 	TwoFACode string `json:"two_fa_code,omitempty"`
 }
