@@ -39,6 +39,103 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _acceptTerms = false;
 
   // Expanded Country List (Matches Frontend)
+  // Helper for Flags
+  String _getFlagEmoji(String countryCode) {
+    return countryCode.toUpperCase().replaceAllMapped(RegExp(r'[A-Z]'),
+        (match) => String.fromCharCode(match.group(0)!.codeUnitAt(0) + 127397));
+  }
+
+  void _showCountryPicker(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = _countries.where((c) {
+               final q = searchQuery.toLowerCase();
+               return c['name']!.toLowerCase().contains(q) || c['dial_code']!.contains(q);
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  // Handle
+                  Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Search
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un pays...',
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
+                        prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      onChanged: (v) => setModalState(() => searchQuery = v),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // List
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => Divider(color: isDark ? Colors.white10 : Colors.grey.shade100),
+                      itemBuilder: (context, index) {
+                        final country = filtered[index];
+                        final isSelected = country['code'] == _selectedCountry;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          onTap: () {
+                            _onCountryChanged(country['code']);
+                            Navigator.pop(context);
+                          },
+                          leading: Text(
+                            _getFlagEmoji(country['code']!),
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          title: Text(
+                            country['name']!,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          trailing: isSelected 
+                              ? const Icon(Icons.check, color: AppTheme.primaryColor) 
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   final List<Map<String, String>> _countries = [
     {'code': 'AF', 'name': 'Afghanistan', 'currency': 'AFN', 'dial_code': '+93'},
     {'code': 'ZA', 'name': 'Afrique du Sud', 'currency': 'ZAR', 'dial_code': '+27'},
@@ -786,38 +883,44 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 16),
 
-          // Country
-          _buildInputLabel(context, 'Pays de résidence', Icons.public),
+          // Country Picker Custom UI
+          _buildInputLabel(context, 'Pays de résidence', Icons.public), // Changed icon in buildInputLabel if needed, but param is icon
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedCountry,
-            decoration: InputDecoration(
-              hintText: 'Sélectionner votre pays',
-              filled: true,
-              fillColor: isDark ? const Color(0xFF0F0C29) : Colors.grey.shade50,
-              border: OutlineInputBorder(
+          InkWell(
+            onTap: () => _showCountryPicker(context, isDark),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F0C29) : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                border: Border.all(
+                    color: isDark ? Colors.transparent : Colors.transparent, // Or match CustomTextField border
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+              child: Row(
+                children: [
+                  if (_selectedCountry != null) ...[
+                      Text(_getFlagEmoji(_selectedCountry!), style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      _selectedCountry != null 
+                          ? _countries.firstWhere((c) => c['code'] == _selectedCountry)['name']!
+                          : 'Sélectionner votre pays',
+                      style: TextStyle(
+                        color: _selectedCountry != null 
+                            ? (isDark ? Colors.white : AppTheme.textPrimaryColor)
+                            : (isDark ? Colors.white38 : Colors.grey[600]),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down, color: isDark ? Colors.white54 : Colors.grey),
+                ],
               ),
             ),
-            dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            items: _countries.map((country) {
-              return DropdownMenuItem<String>(
-                value: country['code'],
-                child: Text(
-                  country['name']!,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-                  ),
-                ),
-              );
-            }).toList(),
-            onChanged: _onCountryChanged,
-            validator: (v) => v == null ? 'Requis' : null,
           ),
           const SizedBox(height: 16),
           
@@ -828,36 +931,22 @@ class _RegisterPageState extends State<RegisterPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                // Country Dial Code & Picker
+               // We remove the Dropdown overlay since we have the main country picker above.
+               // But we still keep this as a visual indicator or a quick way to see code.
+               // User specifically asked for "Exactly the same", on Web we have:
+               // [Flag+Label] [Select Box]
+               // [Phone Label] [DialCode] [Number]
+               // So here we keep DialCode simple.
                SizedBox(
-                 width: 135,
-                 child: Stack(
-                   children: [
-                      // Underlay Dropdown for picking country
-                      Opacity(
-                        opacity: 0.0,
-                        child: DropdownButtonFormField<String>(
-                            value: _selectedCountry,
-                            items: _countries.map((country) {
-                                return DropdownMenuItem<String>(
-                                value: country['code'],
-                                child: Text(country['name']!),
-                                );
-                            }).toList(),
-                            onChanged: _onCountryChanged,
-                        ),
-                      ),
-                      // Overlay Dial Code Input that triggers country lookup
-                      CustomTextField(
-                        controller: _dialCodeController,
-                        hint: '+33',
-                        keyboardType: TextInputType.phone,
-                        onChanged: _onDialCodeChanged,
-                        fillColor: isDark ? const Color(0xFF0F0C29) : Colors.grey.shade50,
-                        // Add suffix icon to indicate dropdown?
-                        suffixIcon: const Icon(Icons.arrow_drop_down, size: 20),
-                      ),
-                   ],
-                 ),
+                 width: 100,
+                 child: CustomTextField(
+                    controller: _dialCodeController,
+                    hint: '+33',
+                    keyboardType: TextInputType.phone,
+                    onChanged: _onDialCodeChanged,
+                    fillColor: isDark ? const Color(0xFF0F0C29) : Colors.grey.shade50,
+                    textAlign: TextAlign.center,
+                  ),
                ),
                const SizedBox(width: 12),
                // National Number
