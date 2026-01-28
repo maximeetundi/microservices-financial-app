@@ -11,8 +11,8 @@
     <div class="relative w-full max-w-lg z-10 animate-fade-in-up">
       <!-- Logo -->
       <div class="text-center mb-6">
-        <NuxtLink to="/" class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
-          <img src="/logo.png" alt="Zekora" class="w-10 h-10 object-contain" />
+        <NuxtLink to="/" class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4 shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
+          <img src="/logo.png" alt="Zekora" class="w-14 h-14 object-contain" />
         </NuxtLink>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-1 tracking-tight">Créer votre compte</h1>
         <p class="text-gray-600 dark:text-indigo-200/70 text-sm">Rejoignez Zekora en quelques étapes</p>
