@@ -162,7 +162,7 @@ func main() {
 			protected.PUT("/wallets/:wallet_id", walletHandler.UpdateWallet)
 			protected.GET("/wallets/:wallet_id/balance", walletHandler.GetBalance)
 			protected.GET("/wallets/:wallet_id/transactions", walletHandler.GetWalletTransactions)
-			protected.GET("/wallets/:id/address", addressHandler.GetDepositAddress) // New Endpoint
+			protected.GET("/wallets/:wallet_id/address", addressHandler.GetDepositAddress) // New Endpoint
 			protected.POST("/wallets/:wallet_id/freeze", walletHandler.FreezeWallet)
 			protected.POST("/wallets/:wallet_id/unfreeze", walletHandler.UnfreezeWallet)
 

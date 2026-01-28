@@ -29,7 +29,7 @@ func NewAddressHandler(ws *services.WalletService, cs *services.CryptoService) *
 // @Success 200 {object} map[string]string
 // @Router /wallets/{id}/address [get]
 func (h *AddressHandler) GetDepositAddress(c *gin.Context) {
-	walletID := c.Param("id")
+	walletID := c.Param("wallet_id")
 	network := c.DefaultQuery("network", "") // Optional network
 
 	// 1. Get Wallet
