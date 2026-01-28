@@ -59,6 +59,18 @@ func JWTAuth(secret string) gin.HandlerFunc {
 	}
 }
 
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("user_role")
+		if !exists || role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
@@ -72,7 +84,7 @@ func SecurityHeaders() gin.HandlerFunc {
 func RateLimiter() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		
+
 		mu.Lock()
 		limiter, exists := rateLimiters[ip]
 		if !exists {
