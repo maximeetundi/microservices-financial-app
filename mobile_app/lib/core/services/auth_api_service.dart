@@ -5,16 +5,20 @@ import '../api/api_endpoints.dart';
 class AuthApiService {
   final ApiClient _client = ApiClient();
   
-  /// Connexion avec email et mot de passe
-  Future<Map<String, dynamic>> login(String email, String password, {String? totpCode}) async {
+  /// Connexion avec email/téléphone et mot de passe
+  Future<Map<String, dynamic>> login({
+    String? email,
+    String? phone, 
+    required String password, 
+    String? totpCode,
+  }) async {
     final body = {
-      'email': email,
       'password': password,
     };
     
-    if (totpCode != null) {
-      body['two_fa_code'] = totpCode;
-    }
+    if (email != null) body['email'] = email;
+    if (phone != null) body['phone'] = phone;
+    if (totpCode != null) body['two_fa_code'] = totpCode;
 
     final response = await _client.post(
       ApiEndpoints.login,

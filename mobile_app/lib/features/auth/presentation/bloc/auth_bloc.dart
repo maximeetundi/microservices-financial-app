@@ -15,20 +15,22 @@ abstract class AuthEvent extends Equatable {
 }
 
 class SignInEvent extends AuthEvent {
-  final String email;
+  final String? email;
+  final String? phone;
   final String password;
   final String? totpCode;
   final bool rememberMe;
 
   const SignInEvent({
-    required this.email,
+    this.email,
+    this.phone,
     required this.password,
     this.totpCode,
     this.rememberMe = false,
   });
 
   @override
-  List<Object?> get props => [email, password, totpCode, rememberMe];
+  List<Object?> get props => [email, phone, password, totpCode, rememberMe];
 }
 
 class SignUpEvent extends AuthEvent {
@@ -189,8 +191,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       final result = await _apiService.auth.login(
-        event.email, 
-        event.password,
+        email: event.email,
+        phone: event.phone, 
+        password: event.password,
         totpCode: event.totpCode,
       );
       
@@ -239,7 +242,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       
       // Auto-login after registration
-      final loginResult = await _apiService.auth.login(event.email, event.password);
+      final loginResult = await _apiService.auth.login(email: event.email, password: event.password);
       
       final userData = loginResult['user'] as Map<String, dynamic>;
       final user = User.fromJson(userData);

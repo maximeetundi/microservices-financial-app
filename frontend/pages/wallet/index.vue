@@ -640,7 +640,7 @@ const availableNetworks = computed(() => {
     
     if (currency === 'USDT') return ['TRC20', 'ERC20', 'BEP20']
     if (currency === 'ETH') return ['ERC20', 'BEP20']
-    if (currency === 'BTC') return ['BTC', 'SEGWIT']
+    if (currency === 'BTC') return ['BTC', 'SEGWIT', 'TESTNET']
     if (currency === 'TRX') return ['TRC20']
     return []
 })

@@ -27,9 +27,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _passwordController = TextEditingController();
   final _totpController = TextEditingController();
   
+  // Phone Login State
+  String _loginMethod = 'phone'; // 'phone' or 'email'
+  final _phoneController = TextEditingController();
+  final _dialCodeController = TextEditingController(text: '+225');
+  String? _selectedCountry = 'CI';
+
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _showTOTP = false;
+  // _showTOTP is removed in favor of Modal
   bool _biometricsAvailable = false;
   String? _errorMessage;
   
@@ -45,6 +51,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     super.initState();
     _checkBiometrics();
     _initBlobAnimations();
+  }
+
+  String _getFlagEmoji(String countryCode) {
+    return countryCode.toUpperCase().replaceAllMapped(RegExp(r'[A-Z]'),
+        (match) => String.fromCharCode(match.group(0)!.codeUnitAt(0) + 127397));
   }
 
   void _initBlobAnimations() {
@@ -64,6 +75,136 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     )..repeat(reverse: true);
   }
 
+  void _showCountryPicker(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = AppConstants.countries.where((c) {
+               final q = searchQuery.toLowerCase();
+               return c['name']!.toLowerCase().contains(q) || c['dial_code']!.contains(q);
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                   Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un pays...',
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
+                        prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      onChanged: (v) => setModalState(() => searchQuery = v),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => Divider(color: isDark ? Colors.white10 : Colors.grey.shade100),
+                      itemBuilder: (context, index) {
+                        final country = filtered[index];
+                        final isSelected = country['code'] == _selectedCountry;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          onTap: () {
+                            _onCountryChanged(country['code']);
+                            Navigator.pop(context);
+                          },
+                          leading: Text(
+                            _getFlagEmoji(country['code']!),
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          title: Text(
+                            country['name']!,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          trailing: isSelected 
+                              ? const Icon(Icons.check, color: AppTheme.primaryColor) 
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _onCountryChanged(String? value) {
+    setState(() {
+      _selectedCountry = value;
+      if (value != null) {
+        final country = AppConstants.countries.firstWhere(
+            (c) => c['code'] == value, 
+            orElse: () => {'dial_code': ''}
+        );
+        final dialCode = country['dial_code'] ?? '';
+        if (_dialCodeController.text != dialCode) {
+           _dialCodeController.text = dialCode;
+        }
+      }
+    });
+  }
+
+  void _onDialCodeChanged(String value) {
+    if (!value.startsWith('+')) value = '+$value';
+    
+    // Find matching country
+    final priorityMap = {'+1': 'US', '+33': 'FR', '+225': 'CI'}; // Simplified priority
+    String? matched;
+    
+    if (priorityMap.containsKey(value)) {
+      matched = priorityMap[value];
+    } else {
+      final country = AppConstants.countries.firstWhere(
+        (c) => c['dial_code'] == value,
+        orElse: () => {},
+      );
+      if (country.isNotEmpty) matched = country['code'];
+    }
+
+    if (matched != null && matched != _selectedCountry) {
+       setState(() => _selectedCountry = matched);
+    }
+  }
+
+  void _onPhoneChanged(String value) {
+      // Basic formatter if needed, or leave raw
+  }
+
   Future<void> _checkBiometrics() async {
     try {
       final bool isAvailable = await _localAuth.canCheckBiometrics;
@@ -79,6 +220,107 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     }
   }
 
+  void _showTOTPModal(String? tempToken) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64, height: 64,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF6366F1).withOpacity(0.2) : const Color(0xFFEEF2FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(child: Text("🔐", style: TextStyle(fontSize: 32))),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Authentification 2FA",
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Entrez le code généré par votre application Google Authenticator",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey : Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                    controller: _totpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    autofocus: true,
+                    style: GoogleFonts.robotoMono(
+                        fontSize: 24,
+                        letterSpacing: 8,
+                        color: isDark ? Colors.white : Colors.black
+                    ),
+                    decoration: InputDecoration(
+                        hintText: '000000',
+                        counterText: '',
+                        filled: true,
+                        fillColor: isDark ? Colors.black26 : Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none
+                        )
+                    ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                           Navigator.pop(context);
+                           context.read<AuthBloc>().add(const SignOutEvent()); // Reset state potentially
+                        }, 
+                        child: Text("Annuler", style: TextStyle(color: isDark ? Colors.white60 : Colors.grey)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () {
+                           Navigator.pop(context);
+                           _handleLogin(); // Retry login with code
+                        },
+                        child: const Text("Vérifier", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -88,7 +330,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: BoxDecoration(
-          // Match web background gradient
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -99,10 +340,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
         child: Stack(
           children: [
-            // Animated Blob Backgrounds (matching web)
             _buildAnimatedBlobs(size, isDark),
             
-            // Main Content
             BlocListener<AuthBloc, AuthState>(
               listener: (context, state) {
                 if (state is AuthenticatedState) {
@@ -110,10 +349,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 } else if (state is AuthErrorState) {
                   setState(() => _errorMessage = state.message);
                 } else if (state is Auth2FARequiredState) {
-                  setState(() {
-                    _showTOTP = true;
-                    _errorMessage = 'Veuillez entrer votre code d\'authentification.';
-                  });
+                  _showTOTPModal(state.tempToken);
                 }
               },
               child: SafeArea(
@@ -122,11 +358,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
-                        // Logo Section
                         _buildLogoSection(isDark),
                         const SizedBox(height: 32),
                         
-                        // Login Card (Glass Container)
                         GlassContainer(
                           padding: const EdgeInsets.all(32),
                           borderRadius: 24,
@@ -141,56 +375,47 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Email Field
-                                _buildInputLabel('Adresse email', Icons.alternate_email_rounded, isDark),
-                                const SizedBox(height: 8),
-                                _buildTextField(
-                                  controller: _emailController,
-                                  hint: 'exemple@email.com',
-                                  keyboardType: TextInputType.emailAddress,
-                                  isDark: isDark,
-                                ),
+                                // Login Tabs
+                                _buildTabs(isDark),
+                                const SizedBox(height: 24),
+                                
+                                // Conditional Input
+                                if (_loginMethod == 'phone')
+                                  _buildPhoneInput(isDark)
+                                else ...[
+                                  _buildInputLabel('Adresse email', Icons.alternate_email_rounded, isDark),
+                                  const SizedBox(height: 8),
+                                  _buildTextField(
+                                    controller: _emailController,
+                                    hint: 'exemple@email.com',
+                                    keyboardType: TextInputType.emailAddress,
+                                    isDark: isDark,
+                                  ),
+                                ],
                                 
                                 const SizedBox(height: 24),
                                 
-                                // Password Field
                                 _buildInputLabel('Mot de passe', Icons.lock_outline_rounded, isDark),
                                 const SizedBox(height: 8),
                                 _buildPasswordField(isDark),
                                 
-                                // 2FA Field
-                                if (_showTOTP) ...[
-                                  const SizedBox(height: 24),
-                                  _buildInputLabel('Code d\'authentification', Icons.security_rounded, isDark),
-                                  const SizedBox(height: 8),
-                                  _buildTotpField(isDark),
-                                ],
-                                
                                 const SizedBox(height: 16),
-                                
-                                // Remember Me & Forgot Password
                                 _buildRememberForgotRow(isDark),
                                 
-                                // Error Message
                                 if (_errorMessage != null) ...[
                                   const SizedBox(height: 16),
                                   _buildErrorBanner(),
                                 ],
                                 
                                 const SizedBox(height: 32),
-                                
-                                // Login Button
                                 _buildLoginButton(isDark),
                                 
-                                // Biometric Login
                                 if (_biometricsAvailable) ...[
                                   const SizedBox(height: 16),
                                   _buildBiometricButton(isDark),
                                 ],
                                 
                                 const SizedBox(height: 32),
-                                
-                                // Register Link
                                 _buildRegisterLink(isDark),
                               ],
                             ),
@@ -198,8 +423,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         ),
                         
                         const SizedBox(height: 32),
-                        
-                        // Footer Links
                         _buildFooterLinks(isDark),
                       ],
                     ),
@@ -208,7 +431,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ),
             
-            // Theme Toggle Button (top right)
             Positioned(
               top: MediaQuery.of(context).padding.top + 16,
               right: 16,
@@ -217,6 +439,115 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTabs(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+         color: isDark ? Colors.black26 : Colors.grey.shade100,
+         borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+           Expanded(
+             child: GestureDetector(
+               onTap: () => setState(() => _loginMethod = 'phone'),
+               child: Container(
+                 padding: const EdgeInsets.symmetric(vertical: 10),
+                 decoration: BoxDecoration(
+                   color: _loginMethod == 'phone' 
+                       ? (isDark ? const Color(0xFF6366F1) : Colors.white) 
+                       : Colors.transparent,
+                   borderRadius: BorderRadius.circular(8),
+                   boxShadow: _loginMethod == 'phone' && !isDark ? [BoxShadow(color: Colors.black12, blurRadius: 4)] : [],
+                 ),
+                 alignment: Alignment.center,
+                 child: Text("Téléphone", style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _loginMethod == 'phone' 
+                        ? (isDark ? Colors.white : Colors.black) 
+                        : (isDark ? Colors.white54 : Colors.grey)
+                 )),
+               ),
+             ),
+           ),
+           Expanded(
+             child: GestureDetector(
+               onTap: () => setState(() => _loginMethod = 'email'),
+               child: Container(
+                 padding: const EdgeInsets.symmetric(vertical: 10),
+                 decoration: BoxDecoration(
+                   color: _loginMethod == 'email' 
+                       ? (isDark ? const Color(0xFF6366F1) : Colors.white) 
+                       : Colors.transparent,
+                   borderRadius: BorderRadius.circular(8),
+                   boxShadow: _loginMethod == 'email' && !isDark ? [BoxShadow(color: Colors.black12, blurRadius: 4)] : [],
+                 ),
+                 alignment: Alignment.center,
+                 child: Text("Email", style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _loginMethod == 'email' 
+                        ? (isDark ? Colors.white : Colors.black) 
+                        : (isDark ? Colors.white54 : Colors.grey)
+                 )),
+               ),
+             ),
+           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneInput(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+         _buildInputLabel('Numéro de téléphone', Icons.phone_android_rounded, isDark),
+         const SizedBox(height: 8),
+         Row(
+           children: [
+             // Country Dial Code
+             GestureDetector(
+               onTap: () => _showCountryPicker(context, isDark),
+               child: Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                 decoration: BoxDecoration(
+                   color: isDark ? Colors.black.withOpacity(0.2) : const Color(0xFFF9FAFB),
+                   borderRadius: BorderRadius.circular(12),
+                   border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFD1D5DB)),
+                 ),
+                 child: Row(
+                   children: [
+                      Text(_selectedCountry != null ? _getFlagEmoji(_selectedCountry!) : '🌍', style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 50,
+                        child: TextField(
+                          controller: _dialCodeController,
+                          enabled: false,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                          decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.grey),
+                   ],
+                 ),
+               ),
+             ),
+             const SizedBox(width: 12),
+             Expanded(
+               child: _buildTextField(
+                  controller: _phoneController,
+                  hint: 'Ex: 0102030405',
+                  isDark: isDark,
+                  keyboardType: TextInputType.phone
+               ),
+             ),
+           ],
+         ),
+      ],
     );
   }
 
@@ -734,18 +1065,41 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   void _handleLogin() {
     setState(() => _errorMessage = null);
     
-    final email = _emailController.text.trim();
     final password = _passwordController.text;
     final totpCode = _totpController.text.trim();
     
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Veuillez remplir tous les champs.');
+    // Check password always
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Veuillez entrer votre mot de passe.');
       return;
+    }
+    
+    String? email;
+    String? phone;
+    
+    if (_loginMethod == 'email') {
+      email = _emailController.text.trim();
+      if (email.isEmpty) {
+        setState(() => _errorMessage = 'Veuillez entrer votre email.');
+        return;
+      }
+    } else {
+      final number = _phoneController.text.trim();
+      if (number.isEmpty) {
+         setState(() => _errorMessage = 'Veuillez entrer votre numéro de téléphone.');
+         return;
+      }
+      // Combine dial code and number if needed, or send as is if backend handles it?
+      // Backend expects 'phone'. Usually FULL E.164.
+      // RegisterPage does logic. Here I'll just concat.
+      // Note: DialCodeController has text like "+225".
+      phone = '${_dialCodeController.text}$number';
     }
     
     context.read<AuthBloc>().add(
       SignInEvent(
         email: email,
+        phone: phone,
         password: password,
         totpCode: totpCode.isNotEmpty ? totpCode : null,
         rememberMe: _rememberMe,
