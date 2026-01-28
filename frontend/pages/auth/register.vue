@@ -116,17 +116,59 @@
                     </svg>
                     Pays
                   </label>
-                  <div class="relative">
-                    <select
-                      v-model="form.country"
-                      required
-                      class="input-premium w-full bg-gray-50 dark:bg-black/20 focus:bg-white dark:focus:bg-black/30 border-gray-300 dark:border-white/10 focus:border-indigo-500 dark:focus:border-indigo-500/50 text-gray-900 dark:text-white appearance-none px-4"
+                  <div class="relative" ref="countryDropdownRef">
+                    <!-- Trigger -->
+                    <div 
+                        @click="isCountryDropdownOpen = !isCountryDropdownOpen"
+                        class="input-premium w-full flex items-center justify-between cursor-pointer bg-gray-50 dark:bg-black/20 border-gray-300 dark:border-white/10 text-gray-900 dark:text-white px-4 py-3 border rounded-xl"
+                        :class="{'ring-2 ring-indigo-500 border-transparent': isCountryDropdownOpen}"
                     >
-                      <option value="" disabled class="text-gray-400">Sélectionner votre pays</option>
-                      <option v-for="country in countries" :key="country.code" :value="country.code" class="text-gray-900 dark:text-white bg-white dark:bg-slate-900">
-                        {{ country.name }}
-                      </option>
-                    </select>
+                        <span class="flex items-center gap-2" :class="{'text-gray-400': !form.country}">
+                            <span v-if="form.country">{{ getFlagEmoji(form.country) }}</span>
+                            {{ selectedCountryName || 'Sélectionner votre pays' }}
+                        </span>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform duration-200" :class="{'rotate-180': isCountryDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+
+                    <!-- Dropdown -->
+                    <div v-if="isCountryDropdownOpen" class="absolute z-50 w-full mt-2 bg-white dark:bg-[#1a1b26] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
+                        <!-- Search -->
+                        <div class="p-2 border-b border-gray-100 dark:border-white/5 sticky top-0 bg-white dark:bg-[#1a1b26]">
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                                <input 
+                                    v-model="countrySearch"
+                                    ref="searchInput"
+                                    type="text" 
+                                    placeholder="Rechercher..." 
+                                    class="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-white/5 border border-transparent focus:bg-white dark:focus:bg-black/30 focus:border-indigo-500 rounded-lg text-sm transition-all outline-none text-gray-900 dark:text-white"
+                                    @click.stop
+                                />
+                            </div>
+                        </div>
+                        
+                        <!-- List -->
+                        <div class="max-h-60 overflow-y-auto custom-scrollbar">
+                           <div 
+                                v-for="country in filteredCountries" 
+                                :key="country.code"
+                                @click="selectCountry(country)"
+                                class="px-4 py-2.5 hover:bg-indigo-50 dark:hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors"
+                                :class="{'bg-indigo-50/50 dark:bg-white/5': form.country === country.code}"
+                           >
+                                <span class="text-xl">{{ getFlagEmoji(country.code) }}</span> 
+                                <span class="text-gray-700 dark:text-gray-200">{{ country.name }}</span>
+                                <span v-if="form.country === country.code" class="ml-auto text-indigo-500">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </span>
+                           </div>
+                           <div v-if="filteredCountries.length === 0" class="p-4 text-center text-gray-500 text-sm">
+                               Aucun résultat
+                           </div>
+                        </div>
+                    </div>
                   </div>
                 </div>
 
@@ -389,6 +431,59 @@ const nextStep = () => {
   currentStep.value++
 }
 
+const isCountryDropdownOpen = ref(false)
+const countrySearch = ref('')
+const countryDropdownRef = ref(null)
+const searchInput = ref(null)
+
+const getFlagEmoji = (countryCode) => {
+  if (!countryCode) return '🌍'
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0))
+  return String.fromCodePoint(...codePoints)
+}
+
+const filteredCountries = computed(() => {
+  if (!countrySearch.value) return countries
+  const lower = countrySearch.value.toLowerCase()
+  return countries.filter(c => c.name.toLowerCase().includes(lower))
+})
+
+const selectedCountryName = computed(() => {
+    const c = countries.find(c => c.code === form.value.country)
+    return c ? c.name : ''
+})
+
+const selectCountry = (country) => {
+    form.value.country = country.code
+    isCountryDropdownOpen.value = false
+    countrySearch.value = ''
+}
+
+// Close on click outside
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside)
+})
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside)
+})
+
+const handleClickOutside = (event) => {
+    if (countryDropdownRef.value && !countryDropdownRef.value.contains(event.target)) {
+        isCountryDropdownOpen.value = false
+    }
+}
+
+watch(isCountryDropdownOpen, (val) => {
+    if (val) {
+        nextTick(() => {
+            searchInput.value?.focus()
+        })
+    }
+})
+
 const handleSubmit = async () => {
   error.value = ''
   success.value = ''
@@ -410,6 +505,7 @@ const handleSubmit = async () => {
     // Construct E.164 phone number
     const finalPhone = parsePhoneNumber(`${phoneCode.value}${phoneNumber.value}`, form.value.country).number
     
+    // Ensure Country is 2 chars (it should be from our list)
     const response = await $fetch(`${apiUrl}/auth-service/api/v1/auth/register`, {
       method: 'POST',
       body: {
