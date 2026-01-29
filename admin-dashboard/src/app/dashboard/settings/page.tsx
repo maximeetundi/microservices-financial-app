@@ -131,7 +131,7 @@ export default function FeeManagementPage() {
                 getSystemSettings()
             ]);
 
-            const feesData = feeRes.data || [];
+            const feesData = feeRes.data?.fees || [];
             const settingsData = settingRes.data?.settings || [];
 
             // Adapt Settings to FeeConfig interface for unified UI
