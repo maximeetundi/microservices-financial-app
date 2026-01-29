@@ -25,6 +25,22 @@ import {
     syncPlatformCryptoWallet
 } from '@/lib/api';
 
+const safeFormatCurrency = (amount: number, currency: string) => {
+    try {
+        const code = currency === 'FCFA' ? 'XOF' : currency;
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: code
+        }).format(amount);
+    } catch (e) {
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
+        }).format(amount) + ' ' + currency;
+    }
+};
+
 export default function PlatformAccountsPage() {
     const [activeTab, setActiveTab] = useState<'fiat' | 'crypto' | 'transactions'>('crypto'); // Default to crypto for verification
     const [loading, setLoading] = useState(true);
@@ -150,10 +166,7 @@ export default function PlatformAccountsPage() {
     const CompactBalance = ({ amount, currency }: { amount: number, currency: string }) => {
         const [showFull, setShowFull] = useState(false);
 
-        const fullValue = new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: currency === 'FCFA' ? 'XOF' : currency
-        }).format(amount);
+        const fullValue = safeFormatCurrency(amount, currency);
 
         const getCompact = () => {
             if (amount >= 1_000_000_000) return (amount / 1_000_000_000).toFixed(2).replace(/\.00$/, '') + ' Md';
@@ -184,10 +197,7 @@ export default function PlatformAccountsPage() {
     };
 
     const formatCurrency = (amount: number, currency: string) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: currency === 'FCFA' ? 'XOF' : currency
-        }).format(amount);
+        return safeFormatCurrency(amount, currency);
     };
 
     // Helper for Crypto Icons/Badges
