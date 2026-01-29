@@ -770,6 +770,11 @@ func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress s
 	currency := strings.ToUpper(fromWallet.Currency)
 	log.Printf("[CryptoService] CreateTransaction: %f %s from wallet %s to %s", amount, currency, fromWallet.ID, toAddress)
 
+	// Validate address for non-memo currencies that need UTXOs (BTC etc)
+	if fromWallet.WalletAddress == nil || *fromWallet.WalletAddress == "" {
+		return "", fmt.Errorf("source wallet %s has no address", fromWallet.ID)
+	}
+
 	// Self-custody mode: Sign locally and broadcast via FailoverProvider (Tatum -> BlockCypher -> RPC)
 	// The wallet must have an encrypted private key stored
 	if fromWallet.PrivateKeyEncrypted == nil || *fromWallet.PrivateKeyEncrypted == "" {
@@ -788,7 +793,7 @@ func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress s
 	var signedTxHex string
 	switch {
 	case currency == "BTC" || currency == "LTC" || currency == "BCH" || currency == "DOGE":
-		signedTxHex, err = s.signBitcoinLikeTx(privateKey, fromWallet.WalletAddress, toAddress, amount, currency)
+		signedTxHex, err = s.signBitcoinLikeTx(privateKey, *fromWallet.WalletAddress, toAddress, amount, currency)
 	case currency == "ETH" || currency == "USDT" || currency == "USDC" || currency == "BNB":
 		signedTxHex, err = s.signEthereumTx(privateKey, toAddress, amount, currency, gasPrice)
 	case currency == "TRX":
@@ -821,7 +826,7 @@ func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress s
 // Signing stubs - These would need full implementation with proper blockchain libraries
 // For now, they return errors indicating the feature is not yet implemented
 
-func (s *CryptoService) signBitcoinLikeTx(privateKey string, fromAddr *string, toAddr string, amount float64, currency string) (string, error) {
+func (s *CryptoService) signBitcoinLikeTx(privateKey string, fromAddr string, toAddr string, amount float64, currency string) (string, error) {
 	// TODO: Implement using btcd/wire and btcutil for transaction building
 	// Requires: UTXO lookup, fee estimation, script building
 	return "", fmt.Errorf("Bitcoin-like signing not yet implemented - use Tatum virtual accounts for %s", currency)
@@ -871,12 +876,12 @@ func (s *CryptoService) CreateTransactionFromPlatformWallet(
 	currency := strings.ToUpper(hotWallet.Currency)
 	log.Printf("[CryptoService] CreateTransactionFromPlatformWallet: %.8f %s to %s", amount, currency, toAddress)
 
-	if hotWallet.PrivateKeyEncrypted == nil || *hotWallet.PrivateKeyEncrypted == "" {
+	if hotWallet.EncryptedPrivateKey == "" {
 		return "", fmt.Errorf("platform wallet %s has no encrypted private key", hotWallet.ID)
 	}
 
 	// Decrypt the platform wallet's private key
-	privateKey, err := s.DecryptStoredPrivateKey(*hotWallet.PrivateKeyEncrypted)
+	privateKey, err := s.DecryptStoredPrivateKey(hotWallet.EncryptedPrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt platform wallet private key: %w", err)
 	}
@@ -885,7 +890,7 @@ func (s *CryptoService) CreateTransactionFromPlatformWallet(
 	var signedTxHex string
 	switch {
 	case currency == "BTC" || currency == "LTC" || currency == "BCH" || currency == "DOGE":
-		signedTxHex, err = s.signBitcoinLikeTx(privateKey, &hotWallet.Address, toAddress, amount, currency)
+		signedTxHex, err = s.signBitcoinLikeTx(privateKey, hotWallet.Address, toAddress, amount, currency)
 	case currency == "ETH" || currency == "USDT" || currency == "USDC" || currency == "BNB":
 		signedTxHex, err = s.signEthereumTx(privateKey, toAddress, amount, currency, gasPrice)
 	case currency == "TRX":
