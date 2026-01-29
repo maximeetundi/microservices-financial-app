@@ -64,8 +64,15 @@ func (s *SystemConfigService) GetConfig(key string) (models.SystemConfig, bool) 
 	return c, ok
 }
 
-// IsTestnetEnabled checks global switch
+// IsTestnetEnabled checks global switch in system_settings
 func (s *SystemConfigService) IsTestnetEnabled() bool {
+	// Check shared config from admin dashboard
+	val, err := s.repo.GetSystemSetting("crypto_network")
+	if err == nil && val == "testnet" {
+		return true
+	}
+
+	// Fallback/Legacy
 	if c, ok := s.GetConfig("system_testnet_enabled"); ok {
 		return c.IsEnabled
 	}

@@ -135,3 +135,14 @@ func (r *ConfigRepository) IncrementUserUsage(userID, periodKey, currency string
 	}
 	return nil
 }
+
+// GetSystemSetting retrieves a value from the shared system_settings table (managed by exchange-service)
+func (r *ConfigRepository) GetSystemSetting(key string) (string, error) {
+	var value string
+	query := `SELECT value FROM system_settings WHERE key = $1`
+	err := r.db.QueryRow(query, key).Scan(&value)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
+}
