@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
 	btcbase58 "github.com/btcsuite/btcutil/base58"
 	"github.com/ethereum/go-ethereum/common"
