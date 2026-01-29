@@ -84,8 +84,7 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	paymentRepo := repository.NewPaymentRequestRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
-	paymentRepo := repository.NewPaymentRequestRepository(db)
-	feeRepo := repository.NewFeeRepository(db)
+
 	platformRepo := repository.NewPlatformAccountRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
