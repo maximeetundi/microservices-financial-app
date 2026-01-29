@@ -439,39 +439,88 @@ func (c *Consumer) handlePaymentEvent(ctx context.Context, event *messaging.Even
 		c.kafkaClient.Publish(ctx, messaging.TopicPaymentEvents, envelope)
 	}
 
+	// Rollback helper with retries
+	attemptRollback := func(walletID string, amount float64, operation string, requestID string) bool {
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			err := c.walletService.balanceService.UpdateBalance(walletID, amount, operation)
+			if err == nil {
+				log.Printf("[ROLLBACK] Successfully rolled back %s %.4f for request %s (attempt %d)", operation, amount, requestID, i+1)
+				return true
+			}
+			log.Printf("[ROLLBACK] Attempt %d/%d failed for request %s: %v", i+1, maxRetries, requestID, err)
+		}
+		return false
+	}
+
 	var updateErr error
+	var debitSucceeded bool
 
 	// Handle Debit
 	if req.DebitAmount > 0 && req.FromWalletID != "" {
 		updateErr = c.walletService.balanceService.UpdateBalance(req.FromWalletID, req.DebitAmount, "debit")
 		if updateErr != nil {
-			log.Printf("Failed to process payment debit for %s: %v", req.RequestID, updateErr)
+			log.Printf("[PAYMENT] Failed to process debit for %s: %v", req.RequestID, updateErr)
 			publishStatus("failed", fmt.Sprintf("Debit failed: %v", updateErr))
 			return nil
 		}
+		debitSucceeded = true
+		log.Printf("[PAYMENT] Debit successful: %.4f from wallet %s (request: %s)", req.DebitAmount, req.FromWalletID, req.RequestID)
 	}
 
 	// Handle Credit
 	if req.CreditAmount > 0 && req.ToWalletID != "" {
 		updateErr = c.walletService.balanceService.UpdateBalance(req.ToWalletID, req.CreditAmount, "credit")
 		if updateErr != nil {
-			log.Printf("Failed to process payment credit for %s: %v", req.RequestID, updateErr)
+			log.Printf("[PAYMENT] Failed to process credit for %s: %v", req.RequestID, updateErr)
 
-			// If we also did a debit, we should ideally rollback, but for MVP we log critical error.
-			// In a real system, we'd use a saga or 2PC, or reverse the debit.
-			if req.DebitAmount > 0 {
-				log.Printf("CRITICAL: Debit succeeded but credit failed for %s. Funds may be lost/stuck.", req.RequestID)
-				// Attempt rollback
-				c.walletService.balanceService.UpdateBalance(req.FromWalletID, req.DebitAmount, "credit")
+			// CRITICAL: Attempt rollback if debit succeeded
+			if debitSucceeded {
+				log.Printf("[PAYMENT] CRITICAL: Debit succeeded but credit failed for %s - initiating rollback", req.RequestID)
+				log.Printf("[PAYMENT] Transaction details: Debit=%.4f from %s, Credit=%.4f to %s",
+					req.DebitAmount, req.FromWalletID, req.CreditAmount, req.ToWalletID)
+
+				rollbackSuccess := attemptRollback(req.FromWalletID, req.DebitAmount, "credit", req.RequestID)
+
+				if rollbackSuccess {
+					log.Printf("[PAYMENT] Rollback completed successfully for request %s", req.RequestID)
+					publishStatus("failed", fmt.Sprintf("Credit failed, debit rolled back: %v", updateErr))
+				} else {
+					// CRITICAL ERROR - Manual intervention required
+					log.Printf("[PAYMENT] CRITICAL ERROR: Rollback FAILED for request %s", req.RequestID)
+					log.Printf("[PAYMENT] CRITICAL: Manual intervention required!")
+					log.Printf("[PAYMENT] CRITICAL: Lost funds: %.4f %s from wallet %s",
+						req.DebitAmount, req.Currency, req.FromWalletID)
+
+					// Publish critical error event for monitoring
+					criticalEvent := messaging.NewEventEnvelope("payment.critical_error", "wallet-service", map[string]interface{}{
+						"request_id":     req.RequestID,
+						"reference_id":   req.ReferenceID,
+						"type":           req.Type,
+						"from_wallet_id": req.FromWalletID,
+						"to_wallet_id":   req.ToWalletID,
+						"debit_amount":   req.DebitAmount,
+						"credit_amount":  req.CreditAmount,
+						"currency":       req.Currency,
+						"error":          "Rollback failed - manual intervention required",
+						"debit_error":    nil,
+						"credit_error":   updateErr.Error(),
+					})
+					c.kafkaClient.Publish(ctx, messaging.TopicPaymentEvents, criticalEvent)
+
+					publishStatus("failed", fmt.Sprintf("CRITICAL: Credit failed and rollback failed: %v", updateErr))
+				}
+			} else {
+				publishStatus("failed", fmt.Sprintf("Credit failed: %v", updateErr))
 			}
-
-			publishStatus("failed", fmt.Sprintf("Credit failed: %v", updateErr))
 			return nil
 		}
+		log.Printf("[PAYMENT] Credit successful: %.4f to wallet %s (request: %s)", req.CreditAmount, req.ToWalletID, req.RequestID)
 	}
 
 	// If successful
-	log.Printf("[Kafka] Successfully processed payment request %s", req.RequestID)
+	log.Printf("[PAYMENT] Successfully processed payment request %s (debit: %.4f, credit: %.4f)",
+		req.RequestID, req.DebitAmount, req.CreditAmount)
 	publishStatus("success", "")
 
 	return nil

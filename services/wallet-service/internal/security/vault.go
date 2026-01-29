@@ -7,11 +7,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -36,32 +40,105 @@ func GetVaultService() *VaultService {
 	return vaultInstance
 }
 
-// initialize sets up the master encryption key from environment or generates one
+// initialize sets up the master encryption key from multiple sources (priority order):
+// 1. WALLET_MASTER_KEY environment variable (hex-encoded, 64 chars)
+// 2. Fetch from HashiCorp Vault (secret/wallet-service/wallet_master_key)
+// 3. Generate random key for development (logged as warning)
 func (v *VaultService) initialize() {
-	// Get master key from environment (should be set securely in production)
-	masterKeyEnv := os.Getenv("WALLET_MASTER_KEY")
+	var keySource string
 
-	if masterKeyEnv == "" {
-		// For development: use a derived key from a secret
-		// In production, this MUST be set via environment variable or external vault (HashiCorp Vault, AWS KMS, etc.)
-		secret := os.Getenv("WALLET_SECRET")
-		if secret == "" {
-			secret = "default-dev-secret-change-in-production"
-		}
-		salt := os.Getenv("WALLET_SALT")
-		if salt == "" {
-			salt = "wallet-service-salt-v1"
-		}
-		// Derive a 256-bit key using PBKDF2
-		v.masterKey = pbkdf2.Key([]byte(secret), []byte(salt), 100000, 32, sha256.New)
-	} else {
-		// Decode the hex-encoded master key
+	// Priority 1: Direct environment variable
+	masterKeyEnv := os.Getenv("WALLET_MASTER_KEY")
+	if masterKeyEnv != "" {
 		decoded, err := hex.DecodeString(masterKeyEnv)
 		if err != nil || len(decoded) != 32 {
-			panic("Invalid WALLET_MASTER_KEY: must be 64 hex characters (256 bits)")
+			log.Fatalf("[SECURITY] Invalid WALLET_MASTER_KEY: must be 64 hex characters (256 bits)")
 		}
 		v.masterKey = decoded
+		keySource = "environment variable WALLET_MASTER_KEY"
+		log.Printf("[SECURITY] Master key loaded from %s", keySource)
+		return
 	}
+
+	// Priority 2: Fetch from HashiCorp Vault
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	vaultToken := os.Getenv("VAULT_TOKEN")
+
+	if vaultAddr != "" && vaultToken != "" {
+		key, err := v.fetchKeyFromVault(vaultAddr, vaultToken)
+		if err == nil && key != "" {
+			decoded, err := hex.DecodeString(key)
+			if err == nil && len(decoded) == 32 {
+				v.masterKey = decoded
+				keySource = "HashiCorp Vault (secret/wallet-service)"
+				log.Printf("[SECURITY] Master key loaded from %s", keySource)
+				return
+			}
+			log.Printf("[SECURITY] Warning: Key from Vault invalid, trying fallback...")
+		} else {
+			log.Printf("[SECURITY] Could not fetch key from Vault: %v, trying fallback...", err)
+		}
+	}
+
+	// Priority 3: PBKDF2 derivation from WALLET_SECRET/WALLET_SALT (if set)
+	secret := os.Getenv("WALLET_SECRET")
+	salt := os.Getenv("WALLET_SALT")
+
+	if secret != "" && salt != "" {
+		v.masterKey = pbkdf2.Key([]byte(secret), []byte(salt), 100000, 32, sha256.New)
+		keySource = "PBKDF2 derivation from WALLET_SECRET/WALLET_SALT"
+		log.Printf("[SECURITY] Master key derived via %s", keySource)
+		return
+	}
+
+	// Priority 4: Development fallback - generate random key
+	log.Printf("[SECURITY] WARNING: No secure key source found. Generating random development key.")
+	log.Printf("[SECURITY] WARNING: This key will be lost on restart! Do NOT use in production.")
+
+	randomKey := make([]byte, 32)
+	if _, err := rand.Read(randomKey); err != nil {
+		log.Fatalf("[SECURITY] FATAL: Failed to generate random key: %v", err)
+	}
+
+	v.masterKey = randomKey
+	keySource = "auto-generated random key (DEVELOPMENT ONLY)"
+	log.Printf("[SECURITY] Generated development key: %s...", hex.EncodeToString(randomKey)[:16])
+	log.Printf("[SECURITY] Master key source: %s", keySource)
+}
+
+// fetchKeyFromVault retrieves the wallet_master_key from HashiCorp Vault
+func (v *VaultService) fetchKeyFromVault(vaultAddr, vaultToken string) (string, error) {
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	req, err := http.NewRequest("GET", vaultAddr+"/v1/secret/wallet-service", nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("X-Vault-Token", vaultToken)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("vault returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Data map[string]interface{} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if key, ok := result.Data["wallet_master_key"].(string); ok {
+		return key, nil
+	}
+
+	return "", errors.New("wallet_master_key not found in vault response")
 }
 
 // EncryptPrivateKey encrypts a private key for secure storage

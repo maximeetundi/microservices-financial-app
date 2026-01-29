@@ -87,34 +87,61 @@ EXISTING_KEY=$(vault kv get -field=wallet_master_key secret/wallet-service 2>/de
 
 if [ -z "$EXISTING_KEY" ]; then
     echo "Generating new WALLET_MASTER_KEY..."
-    # Generate 32 bytes (64 hex chars)
-    NEW_KEY=$(hexdump -vn32 -e'4/4 "%08X" 1 "\n"' /dev/urandom | tr -d ' \n' | tr '[:upper:]' '[:lower:]')
     
-    # If hexdump fails (some alpine versions), try od or openssl
-    if [ -z "$NEW_KEY" ] || [ ${#NEW_KEY} -lt 64 ]; then
-        echo "hexdump failed or insufficient, trying od..."
-        NEW_KEY=$(od -N 32 -t x1 /dev/urandom | head -n 2 | awk '{print $2$3$4$5$6$7$8$9$10$11$12$13$14$15$16}' | tr -d '\n ')
+    # Method 1: Try openssl (most reliable)
+    if command -v openssl > /dev/null 2>&1; then
+        NEW_KEY=$(openssl rand -hex 32)
+        echo "Generated key using openssl"
+    # Method 2: Try /dev/urandom with dd
+    elif [ -r /dev/urandom ]; then
+        NEW_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | xxd -p | tr -d '\n ')
+        if [ -z "$NEW_KEY" ] || [ ${#NEW_KEY} -lt 64 ]; then
+            # xxd not available, try od
+            NEW_KEY=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')
+        fi
+        echo "Generated key using /dev/urandom"
+    # Method 3: Fallback to hexdump
+    else
+        NEW_KEY=$(hexdump -vn32 -e'4/4 "%08X" 1 "\n"' /dev/urandom | tr -d ' \n' | tr '[:upper:]' '[:lower:]')
+        echo "Generated key using hexdump fallback"
     fi
     
-    # Ensure we preserve existing secrets when writing new one
-    # Note: vault kv put replaces all keys in the path by default for v1, or adds version for v2.
-    # We should read existing, merge, and write back. 
-    # But since we just wrote tatum_api_key above, we can just write both.
+    # Validate key length
+    if [ -z "$NEW_KEY" ] || [ ${#NEW_KEY} -lt 64 ]; then
+        echo "ERROR: Failed to generate valid WALLET_MASTER_KEY (got ${#NEW_KEY} chars, need 64)"
+        exit 1
+    fi
     
-    # Better approach: Use patch if available or just re-write with both
-    # For now, let's just write/patch.
+    # Truncate to exactly 64 chars if longer
+    NEW_KEY=$(echo "$NEW_KEY" | head -c 64)
     
-    # Actually, let's just use "vault kv patch" if available (v2) or "vault kv put" merging data.
-    # The image is hashicorp/vault:latest, likely supports kv put directly.
-    # Re-writing tatum_key if needed is safer.
+    # Also generate WALLET_SECRET and WALLET_SALT for backward compatibility
+    if command -v openssl > /dev/null 2>&1; then
+        NEW_SECRET=$(openssl rand -base64 32)
+        NEW_SALT=$(openssl rand -base64 16)
+    else
+        NEW_SECRET=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)
+        NEW_SALT=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | base64)
+    fi
     
+    # Write all secrets to Vault
     vault kv put secret/wallet-service \
         tatum_api_key="${TATUM_API_KEY}" \
-        wallet_master_key="${NEW_KEY}"
+        wallet_master_key="${NEW_KEY}" \
+        wallet_secret="${NEW_SECRET}" \
+        wallet_salt="${NEW_SALT}"
         
-    echo "Generated and injected WALLET_MASTER_KEY: ${NEW_KEY:0:10}..."
+    echo "========================================"
+    echo "  SECURITY KEYS GENERATED SUCCESSFULLY"
+    echo "========================================"
+    echo "WALLET_MASTER_KEY: ${NEW_KEY:0:16}...${NEW_KEY:48:16}"
+    echo "WALLET_SECRET: ${NEW_SECRET:0:10}..."
+    echo "WALLET_SALT: ${NEW_SALT:0:10}..."
+    echo ""
+    echo "Keys stored in HashiCorp Vault at: secret/wallet-service"
+    echo "========================================"
 else
-    echo "WALLET_MASTER_KEY already exists in Vault."
+    echo "WALLET_MASTER_KEY already exists in Vault (${EXISTING_KEY:0:8}...)"
 fi
 
 # Create a dev token for services
