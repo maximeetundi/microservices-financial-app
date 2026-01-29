@@ -113,7 +113,7 @@ func main() {
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient)
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
-	platformService := services.NewPlatformAccountService(platformRepo)
+	platformService := services.NewPlatformAccountService(platformRepo, cryptoService)
 
 	// Seed platform accounts
 	if err := platformService.Initialize(); err != nil {

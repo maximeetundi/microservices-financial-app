@@ -348,6 +348,27 @@ func (r *PlatformAccountRepository) GetCryptoWalletsByCurrency(currency string) 
 	return wallets, nil
 }
 
+func (r *PlatformAccountRepository) GetCryptoWalletsByCurrencyType(currency, walletType string) ([]models.PlatformCryptoWallet, error) {
+	query := `SELECT id, currency, network, wallet_type, address, label, balance, min_balance, max_balance, priority, is_active, created_at, updated_at 
+			  FROM platform_crypto_wallets WHERE currency = $1 AND wallet_type = $2 AND is_active = true ORDER BY priority DESC`
+	rows, err := r.db.Query(query, currency, walletType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wallets []models.PlatformCryptoWallet
+	for rows.Next() {
+		var w models.PlatformCryptoWallet
+		err := rows.Scan(&w.ID, &w.Currency, &w.Network, &w.WalletType, &w.Address, &w.Label, &w.Balance, &w.MinBalance, &w.MaxBalance, &w.Priority, &w.IsActive, &w.CreatedAt, &w.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		wallets = append(wallets, w)
+	}
+	return wallets, nil
+}
+
 func (r *PlatformAccountRepository) CreateCryptoWallet(wallet *models.PlatformCryptoWallet) error {
 	wallet.ID = uuid.New().String()
 	wallet.CreatedAt = time.Now()

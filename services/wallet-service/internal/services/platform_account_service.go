@@ -9,66 +9,137 @@ import (
 )
 
 type PlatformAccountService struct {
-	repo *repository.PlatformAccountRepository
+	repo   *repository.PlatformAccountRepository
+	crypto *CryptoService
 }
 
-func NewPlatformAccountService(repo *repository.PlatformAccountRepository) *PlatformAccountService {
-	return &PlatformAccountService{repo: repo}
+func NewPlatformAccountService(repo *repository.PlatformAccountRepository, crypto *CryptoService) *PlatformAccountService {
+	return &PlatformAccountService{
+		repo:   repo,
+		crypto: crypto,
+	}
 }
 
 // Initialize seeds default platform accounts if they don't exist
 func (s *PlatformAccountService) Initialize() error {
-	log.Println("[Platform] Initializing platform accounts...")
+	log.Println("[Platform] Initializing platform accounts (Dual Wallet Architecture)...")
 
+	// --- 1. Fiat Accounts (Storage & Operational) ---
 	currencies := []string{"EUR", "USD", "GBP"}
 
-	// 1. Seed Reserve Accounts
 	for _, currency := range currencies {
-		exists, err := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeReserve)
-		if err == nil && exists != nil {
-			continue // Already exists
+		// A. Storage Account (Reserve) - 1 Billion
+		existsReserve, _ := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeReserve)
+		if existsReserve == nil {
+			log.Printf("[Platform] Creating Reserve (Storage) Account for %s", currency)
+			acct, err := s.CreateAccount(&models.CreatePlatformAccountRequest{
+				Currency:    currency,
+				AccountType: models.AccountTypeReserve,
+				Name:        fmt.Sprintf("Reserve %s Storage", currency),
+				MinBalance:  1000000.0,
+				MaxBalance:  0, // Unlimited
+				Priority:    100,
+				Description: "Cold storage / Reserve funds",
+			})
+			if err == nil && acct != nil {
+				// Seed with 1 Billion
+				s.AdminCreditAccount(acct.ID, 1000000000, "Initial Reserve Seeding (1B)", "system_init", "genesis_reserve")
+			}
 		}
 
-		log.Printf("[Platform] Creating default Reserve Account for %s", currency)
-		_, err = s.CreateAccount(&models.CreatePlatformAccountRequest{
-			Currency:    currency,
-			AccountType: models.AccountTypeReserve,
-			Name:        fmt.Sprintf("Reserve %s Main", currency),
-			Description: "Default liquid reserve for " + currency,
-			MinBalance:  1000.0,
-			MaxBalance:  1000000000.0,
-			Priority:    100, // High priority
-		})
-		if err != nil {
-			log.Printf("Error creating reserve account for %s: %v", currency, err)
-		} else {
-			// Seed with initial "fake" capital for testing if in dev mode
-			// In production this would be 0 and funded manually
-			// For this MVP, we credit it so the system works immediately
-			acc, _ := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeReserve)
-			if acc != nil {
-				_ = s.AdminCreditAccount(acc.ID, 1000000000, "Initial System Seeding", "system_init", "genesis")
+		// B. Operational Account (Hot) - 500 Million
+		existsOps, _ := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeOperations)
+		if existsOps == nil {
+			log.Printf("[Platform] Creating Operational Account for %s", currency)
+			acct, err := s.CreateAccount(&models.CreatePlatformAccountRequest{
+				Currency:    currency,
+				AccountType: models.AccountTypeOperations,
+				Name:        fmt.Sprintf("Operational %s Wallet", currency),
+				MinBalance:  10000.0,
+				MaxBalance:  0,
+				Priority:    90,
+				Description: "Active transactional funds",
+			})
+			if err == nil && acct != nil {
+				// Seed with 500 Million
+				s.AdminCreditAccount(acct.ID, 500000000, "Initial Ops Seeding (500M)", "system_init", "genesis_ops")
 			}
+		}
+
+		// C. Fees Account (Accumulator)
+		existsFee, _ := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeFees)
+		if existsFee == nil {
+			log.Printf("[Platform] Creating Fee Account for %s", currency)
+			s.CreateAccount(&models.CreatePlatformAccountRequest{
+				Currency:    currency,
+				AccountType: models.AccountTypeFees,
+				Name:        fmt.Sprintf("Fees %s Accumulator", currency),
+				Priority:    100,
+			})
 		}
 	}
 
-	// 2. Seed Fee Accounts
-	for _, currency := range currencies {
-		exists, err := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeFees)
-		if err == nil && exists != nil {
-			continue
+	// --- 2. Crypto Wallets (Cold & Hot) ---
+	// Comprehensive list including TON, XRP, and major EVM/Non-EVM chains
+	cryptoCurrencies := []string{
+		"BTC", "ETH", "SOL", "USDT", "BNB", "TRX", "MATIC",
+		"TON", "XRP", "LTC", "DOGE", "BCH", "USDC", // Major L1s & Stablecoins
+		"AVAX", "LINK", "UNI", "SHIB", "DAI", // Popular Alts/DeFi
+	}
+
+	for _, currency := range cryptoCurrencies {
+		// A. Cold Wallet (Storage)
+		// Check for existing Cold wallet
+		coldWallets, _ := s.repo.GetCryptoWalletsByCurrencyType(currency, models.WalletTypeCold)
+		if len(coldWallets) == 0 {
+			log.Printf("[Platform] Generating Cold Storage Wallet for %s...", currency)
+
+			// User ID "platform_cold" for Vault segregation
+			generated, err := s.crypto.GenerateWallet("platform_cold", currency)
+			if err == nil {
+				_, err = s.CreateCryptoWallet(&models.CreatePlatformCryptoWalletRequest{
+					Currency:   currency,
+					Network:    generated.Network,
+					WalletType: models.WalletTypeCold, // "Stocker"
+					Address:    generated.Address,
+					Label:      fmt.Sprintf("%s Cold Storage", currency),
+					MinBalance: 0,
+					MaxBalance: 0,
+					Priority:   100, // High priority for storage visibility
+				})
+				if err != nil {
+					log.Printf("Error registering cold wallet for %s: %v", currency, err)
+				}
+			} else {
+				log.Printf("Error generating cold keys for %s: %v", currency, err)
+			}
 		}
 
-		log.Printf("[Platform] Creating default Fee Account for %s", currency)
-		_, err = s.CreateAccount(&models.CreatePlatformAccountRequest{
-			Currency:    currency,
-			AccountType: models.AccountTypeFees,
-			Name:        fmt.Sprintf("Fees %s Accumulator", currency),
-			Description: "Accumulated fees for " + currency,
-			Priority:    100,
-		})
-		if err != nil {
-			log.Printf("Error creating fee account for %s: %v", currency, err)
+		// B. Hot Wallet (Operational)
+		// Check for existing Hot wallet
+		hotWallets, _ := s.repo.GetCryptoWalletsByCurrencyType(currency, models.WalletTypeHot)
+		if len(hotWallets) == 0 {
+			log.Printf("[Platform] Generating Hot Operational Wallet for %s...", currency)
+
+			// User ID "platform_hot" for Vault segregation
+			generated, err := s.crypto.GenerateWallet("platform_hot", currency)
+			if err == nil {
+				_, err = s.CreateCryptoWallet(&models.CreatePlatformCryptoWalletRequest{
+					Currency:   currency,
+					Network:    generated.Network,
+					WalletType: models.WalletTypeHot, // "Utiliser"
+					Address:    generated.Address,
+					Label:      fmt.Sprintf("%s Ops Wallet 1", currency),
+					MinBalance: 0,
+					MaxBalance: 0,
+					Priority:   90,
+				})
+				if err != nil {
+					log.Printf("Error registering hot wallet for %s: %v", currency, err)
+				}
+			} else {
+				log.Printf("Error generating hot keys for %s: %v", currency, err)
+			}
 		}
 	}
 

@@ -4,10 +4,18 @@ import { useState, useEffect } from 'react';
 import {
     AdjustmentsHorizontalIcon,
     ArrowPathIcon,
-    PlusIcon,
     PencilSquareIcon,
-    CheckIcon,
-    XMarkIcon
+    XMarkIcon,
+    CurrencyDollarIcon,
+    ArrowsRightLeftIcon,
+    BanknotesIcon,
+    GlobeAltIcon,
+    ShieldCheckIcon,
+    CreditCardIcon,
+    WalletIcon,
+    ChartBarIcon,
+    SwatchIcon,
+    Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { getFeeConfigs, updateFeeConfig, createFeeConfig } from '@/lib/api';
 
@@ -24,14 +32,69 @@ interface FeeConfig {
     updated_at: string;
 }
 
-export default function SettingsPage() {
+// ----------------------------------------------------------------------
+// CONSTANTS & HELPERS
+// ----------------------------------------------------------------------
+
+const CATEGORIES = {
+    CRYPTO: 'Crypto',
+    TRANSFER: 'Transferts',
+    FIAT: 'Fiat',
+    CARD: 'Cartes',
+    SYSTEM: 'Système'
+};
+
+const getCategory = (key: string): string => {
+    if (key.includes('crypto')) return CATEGORIES.CRYPTO;
+    if (key.includes('transfer') || key.includes('international')) return CATEGORIES.TRANSFER;
+    if (key.includes('card')) return CATEGORIES.CARD;
+    if (key.includes('fiat') || key.includes('deposit') || key.includes('withdrawal')) return CATEGORIES.FIAT;
+    return CATEGORIES.SYSTEM;
+};
+
+// Mapping des clés techniques vers des noms conviviaux
+const FRIENDLY_NAMES: Record<string, string> = {
+    'transfer_international': 'Virement International',
+    'crypto_withdrawal_btc': 'Retrait Bitcoin (BTC)',
+    'crypto_withdrawal_eth': 'Retrait Ethereum (ETH)',
+    'crypto_exchange_fee': 'Commission de Change',
+    'fiat_deposit_fee': 'Dépôt Espèces/Virement',
+    'card_issuance_fee': 'Création de Carte',
+    'card_monthly_fee': 'Mensualité Carte',
+    'transfer_p2p_fee': 'Transfert P2P',
+    'sms_notification_fee': 'Alerte SMS'
+};
+
+const getFriendlyName = (key: string, defaultName: string) => {
+    return FRIENDLY_NAMES[key] || defaultName;
+};
+
+const getIcon = (category: string) => {
+    switch (category) {
+        case CATEGORIES.CRYPTO: return <CurrencyDollarIcon className="w-6 h-6 text-amber-500" />;
+        case CATEGORIES.TRANSFER: return <ArrowsRightLeftIcon className="w-6 h-6 text-indigo-500" />;
+        case CATEGORIES.FIAT: return <BanknotesIcon className="w-6 h-6 text-emerald-500" />;
+        case CATEGORIES.CARD: return <CreditCardIcon className="w-6 h-6 text-purple-500" />;
+        default: return <Cog6ToothIcon className="w-6 h-6 text-slate-500" />;
+    }
+};
+
+// ----------------------------------------------------------------------
+// COMPONENTS
+// ----------------------------------------------------------------------
+
+export default function FeeManagementPage() {
+    // API State
     const [fees, setFees] = useState<FeeConfig[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // UI State
+    const [activeTab, setActiveTab] = useState<string>('ALL');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFee, setEditingFee] = useState<FeeConfig | null>(null);
     const [saving, setSaving] = useState(false);
 
-    // Form state
+    // Form State
     const [formData, setFormData] = useState({
         key: '',
         name: '',
@@ -51,11 +114,8 @@ export default function SettingsPage() {
         setLoading(true);
         try {
             const res = await getFeeConfigs();
-            if (res.data?.fees) {
-                setFees(res.data.fees);
-            } else {
-                setFees([]);
-            }
+            if (res.data?.fees) setFees(res.data.fees);
+            else setFees([]);
         } catch (error) {
             console.error('Failed to load fees', error);
         } finally {
@@ -78,253 +138,322 @@ export default function SettingsPage() {
         setIsModalOpen(true);
     };
 
-    const handleCreate = () => {
-        setEditingFee(null);
-        setFormData({
-            key: '',
-            name: '',
-            description: '',
-            type: 'percentage',
-            fixed_amount: 0,
-            percentage_amount: 0,
-            currency: 'EUR',
-            is_enabled: true
-        });
-        setIsModalOpen(true);
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
         try {
-            if (editingFee) {
-                await updateFeeConfig(editingFee.key, formData);
-            } else {
-                await createFeeConfig(formData);
-            }
+            if (editingFee) await updateFeeConfig(editingFee.key, formData);
+            else await createFeeConfig(formData);
+
             await loadFees();
             setIsModalOpen(false);
         } catch (error) {
             console.error('Failed to save fee', error);
-            alert('Failed to save settings');
+            alert('Erreur lors de la sauvegarde');
         } finally {
             setSaving(false);
         }
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('fr-FR', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    // Filter Logic
+    const tabs = [
+        { id: 'ALL', label: 'Vue d\'ensemble' },
+        { id: CATEGORIES.CRYPTO, label: 'Crypto-monnaies' },
+        { id: CATEGORIES.FIAT, label: 'Opérations Fiat' },
+        { id: CATEGORIES.TRANSFER, label: 'Transferts' },
+        { id: CATEGORIES.CARD, label: 'Cartes Bancaires' },
+        { id: CATEGORIES.SYSTEM, label: 'Autres' },
+    ];
+
+    const filteredFees = activeTab === 'ALL'
+        ? fees
+        : fees.filter(f => getCategory(f.key) === activeTab);
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Global Settings
-                    </h1>
-                    <p className="text-slate-500 mt-1">Configure global platform fees and limits</p>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={loadFees}
-                        className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-700 transition"
-                    >
-                        <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                    {/* <button 
-                        onClick={handleCreate} 
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        New Config
-                    </button> */}
+        <div className="min-h-screen bg-slate-50/50 pb-20">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-10 backdrop-blur-md bg-white/90">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Gestion des Tarifs</h1>
+                            <p className="text-slate-500 mt-2 font-medium">Configurez les frais et commissions de la plateforme</p>
+                        </div>
+                        <button
+                            onClick={loadFees}
+                            className={`p-3 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all ${loading ? 'animate-spin' : ''}`}
+                        >
+                            <ArrowPathIcon className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`
+                                    px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200
+                                    ${activeTab === tab.id
+                                        ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 translate-y-[-1px]'
+                                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'}
+                                `}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {fees.map((fee) => (
-                    <div key={fee.id} className="group relative bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{fee.name}</h3>
-                                <code className="text-xs text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded mt-1 block w-fit">{fee.key}</code>
-                            </div>
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${fee.is_enabled
-                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                    : 'bg-slate-100 text-slate-500 border border-slate-200'
-                                }`}>
-                                {fee.is_enabled ? 'Active' : 'Disabled'}
-                            </span>
-                        </div>
-
-                        <p className="text-sm text-slate-500 mb-6 h-10 line-clamp-2">{fee.description}</p>
-
-                        <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 group-hover:bg-indigo-50/30 group-hover:border-indigo-100 transition-colors">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Type</span>
-                                <span className="text-sm font-medium text-slate-700 capitalize">{fee.type}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Value</span>
-                                <div className="text-right">
-                                    {(fee.type === 'percentage' || fee.type === 'hybrid') && (
-                                        <div className="text-sm font-bold text-slate-900">{fee.percentage_amount}%</div>
-                                    )}
-                                    {(fee.type === 'flat' || fee.type === 'hybrid') && (
-                                        <div className="text-sm font-bold text-slate-900">
-                                            {fee.type === 'hybrid' && <span className="text-slate-400 font-normal mr-1">+</span>}
-                                            {fee.fixed_amount} {fee.currency}
-                                        </div>
-                                    )}
+            {/* Content */}
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                {activeTab === 'ALL' && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                        {/* Summary Cards */}
+                        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl shadow-indigo-200">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                                    <ChartBarIcon className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider">Total Configurations</p>
+                                    <p className="text-3xl font-black">{fees.length}</p>
                                 </div>
                             </div>
+                            <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-white/40 w-3/4"></div>
+                            </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                            <span className="text-xs text-slate-400">Updated: {formatDate(fee.updated_at)}</span>
-                            <button
-                                onClick={() => handleEdit(fee)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors text-xs font-semibold"
-                            >
-                                <PencilSquareIcon className="w-3.5 h-3.5" />
-                                Edit
-                            </button>
+                        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Configurations Actives</p>
+                            <p className="text-3xl font-black text-emerald-600">
+                                {fees.filter(f => f.is_enabled).length}
+                                <span className="text-lg text-slate-400 font-medium ml-2">/ {fees.length}</span>
+                            </p>
+                        </div>
+
+                        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Dernière mise à jour</p>
+                            <p className="text-lg font-bold text-slate-700">
+                                {fees.length > 0 ? new Date(fees[0].updated_at).toLocaleDateString() : '-'}
+                            </p>
                         </div>
                     </div>
-                ))}
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredFees.map((fee) => {
+                        const category = getCategory(fee.key);
+                        return (
+                            <div key={fee.id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col overflow-hidden">
+                                {/* Card Status Stripe */}
+                                <div className={`h-1.5 w-full ${fee.is_enabled ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-slate-200'}`} />
+
+                                <div className="p-6 flex-1 flex flex-col">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="flex gap-4">
+                                            <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-50 group-hover:scale-110 transition-all duration-300">
+                                                {getIcon(category)}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-900 text-lg leading-tight group-hover:text-indigo-700 transition-colors">
+                                                    {getFriendlyName(fee.key, fee.name)}
+                                                </h3>
+                                                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wide">
+                                                    {category}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-2 gap-3 mb-6">
+                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Comm. Variable</p>
+                                            <p className={`text-xl font-black ${fee.percentage_amount > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>
+                                                {fee.percentage_amount}%
+                                            </p>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Frais Fixes</p>
+                                            <p className={`text-xl font-black ${fee.fixed_amount > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                                                {fee.fixed_amount} <span className="text-xs font-bold text-slate-400">{fee.currency}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${fee.is_enabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                            <span className="text-xs font-semibold text-slate-500">{fee.is_enabled ? 'Actif' : 'Désactivé'}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleEdit(fee)}
+                                            className="text-sm font-bold text-indigo-600 hover:text-indigo-800 hover:underline decoration-2 underline-offset-2 transition-all flex items-center gap-1"
+                                        >
+                                            Configurer
+                                            <PencilSquareIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Modal */}
+            {/* Premium Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 className="font-bold text-lg text-slate-900">{editingFee ? 'Edit Configuration' : 'New Configuration'}</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition">
-                                <XMarkIcon className="w-5 h-5" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+                    <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-100">
+                        {/* Modal Header */}
+                        <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-extrabold text-2xl text-slate-900">
+                                    {editingFee ? 'Modifier le Tarif' : 'Nouveau Tarif'}
+                                </h3>
+                                <p className="text-slate-500 text-sm font-medium mt-1">
+                                    {editingFee ? `Configuration clé: ${editingFee.key}` : 'Créez une nouvelle règle de frais'}
+                                </p>
+                            </div>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition">
+                                <XMarkIcon className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Config Key</label>
-                                <input
-                                    type="text"
-                                    value={formData.key}
-                                    onChange={e => setFormData({ ...formData, key: e.target.value })}
-                                    disabled={!!editingFee}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-mono disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                    placeholder="e.g. transfer_fee_internal"
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                            {/* Main Info */}
+                            <div className="grid grid-cols-2 gap-6">
                                 <div className="col-span-2">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Display Name</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nom Affiché (Public)</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                        required
+                                        className="w-full px-5 py-3 bg-white border-2 border-slate-100 rounded-xl text-base font-semibold text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300"
+                                        placeholder="Ex: Frais de transaction standard"
                                     />
                                 </div>
 
+                                {/* Key (ReadOnly if editing) */}
                                 <div className="col-span-2">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Type</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {['flat', 'percentage', 'hybrid'].map(type => (
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Identifiant Technique</label>
+                                    <div className={`px-5 py-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-500 font-mono text-sm ${!editingFee ? 'hidden' : ''}`}>
+                                        {formData.key}
+                                    </div>
+                                    {!editingFee && (
+                                        <input
+                                            type="text"
+                                            value={formData.key}
+                                            onChange={e => setFormData({ ...formData, key: e.target.value })}
+                                            className="w-full px-5 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                                            placeholder="transfer_fee_example"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Pricing Engine */}
+                            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-6 flex items-center gap-2">
+                                    <SwatchIcon className="w-5 h-5 text-indigo-500" />
+                                    Moteur de Calcul
+                                </h4>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    {/* Type Selector */}
+                                    <div className="col-span-2 flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                                        {['percentage', 'flat', 'hybrid'].map(type => (
                                             <button
                                                 key={type}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, type })}
-                                                className={`px-3 py-2 text-sm font-medium rounded-lg border capitalize transition-all ${formData.type === type
-                                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                                    }`}
+                                                className={`flex-1 py-2 rounded-lg text-sm font-bold capitalize transition-all ${formData.type === type
+                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
                                             >
-                                                {type}
+                                                {type === 'percentage' ? 'Proportionnel (%)' : type === 'flat' ? 'Fixe' : 'Hybride'}
                                             </button>
                                         ))}
                                     </div>
-                                </div>
 
-                                {(formData.type !== 'flat') && (
+                                    {/* Values */}
+                                    {(formData.type !== 'flat') && (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Taux (%)</label>
+                                            <div className="relative group">
+                                                <input
+                                                    type="number" step="0.01" min="0" max="100"
+                                                    value={formData.percentage_amount}
+                                                    onChange={e => setFormData({ ...formData, percentage_amount: parseFloat(e.target.value) })}
+                                                    className="w-full px-5 py-3 bg-white border-2 border-slate-100 rounded-xl text-lg font-bold text-indigo-600 focus:outline-none focus:border-indigo-500 transition-all text-right pr-12"
+                                                />
+                                                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(formData.type !== 'percentage') && (
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Montant</label>
+                                                <input
+                                                    type="number" step="0.01" min="0"
+                                                    value={formData.fixed_amount}
+                                                    onChange={e => setFormData({ ...formData, fixed_amount: parseFloat(e.target.value) })}
+                                                    className="w-full px-5 py-3 bg-white border-2 border-slate-100 rounded-xl text-lg font-bold text-slate-900 focus:outline-none focus:border-indigo-500 transition-all text-right"
+                                                />
+                                            </div>
+                                            <div className="w-24">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devise</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.currency}
+                                                    onChange={e => setFormData({ ...formData, currency: e.target.value })}
+                                                    className="w-full px-5 py-3 bg-slate-100 rounded-xl text-lg font-bold text-slate-500 text-center border-2 border-transparent"
+                                                    readOnly // Simplify: usually locked to system default or need dropdown. Keeping readonly-ish look for now
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Activation Toggle */}
+                            <div className="flex items-center justify-between p-5 bg-white rounded-2xl border-2 border-slate-100 hover:border-indigo-100 transition-colors cursor-pointer" onClick={() => setFormData({ ...formData, is_enabled: !formData.is_enabled })}>
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-xl ${formData.is_enabled ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                        <ShieldCheckIcon className="w-6 h-6" />
+                                    </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Percentage</label>
-                                        <div className="relative">
-                                            <input
-                                                type="number" step="0.01" min="0" max="100"
-                                                value={formData.percentage_amount}
-                                                onChange={e => setFormData({ ...formData, percentage_amount: parseFloat(e.target.value) })}
-                                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pl-4 pr-8"
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-slate-400 font-medium">%</span>
-                                        </div>
+                                        <h4 className="font-bold text-slate-900">Activer cette règle</h4>
+                                        <p className="text-sm text-slate-500">Rend ces frais applicables immédiatement</p>
                                     </div>
-                                )}
-
-                                {(formData.type !== 'percentage') && (
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Fixed Amount</label>
-                                            <input
-                                                type="number" step="0.01" min="0"
-                                                value={formData.fixed_amount}
-                                                onChange={e => setFormData({ ...formData, fixed_amount: parseFloat(e.target.value) })}
-                                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                            />
-                                        </div>
-                                        <div className="w-24">
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Currency</label>
-                                            <input
-                                                type="text"
-                                                value={formData.currency}
-                                                onChange={e => setFormData({ ...formData, currency: e.target.value })}
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center font-medium uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <div>
-                                    <div className="text-sm font-semibold text-slate-900">Active Status</div>
-                                    <div className="text-xs text-slate-500">Enable or disable this fee rule</div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, is_enabled: !formData.is_enabled })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.is_enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                                >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
+                                <div className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${formData.is_enabled ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                                    <div className={`w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${formData.is_enabled ? 'translate-x-6' : ''}`} />
+                                </div>
                             </div>
 
-                            <div className="pt-2 flex justify-end gap-3">
+                            {/* Footer Actions */}
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                    className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
                                 >
-                                    Cancel
+                                    Annuler
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2"
+                                    className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
                                 >
-                                    {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-                                    Save Changes
+                                    {saving && <ArrowPathIcon className="w-5 h-5 animate-spin" />}
+                                    Sauvegarder
                                 </button>
                             </div>
                         </form>
