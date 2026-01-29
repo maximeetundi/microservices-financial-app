@@ -185,41 +185,41 @@ func (s *CryptoService) getHotWalletAddress(currency string) string {
 
 func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, error) {
 	// NON-CUSTODIAL IMPLEMENTATION
-	var address, privKeyHex, pubKeyHex string
+	var address, privKeyHex string
 	var err error
 
 	// Determine Chain Type based on Currency
 	switch strings.ToUpper(currency) {
 	// Bitcoin Family
 	case "BTC":
-		address, privKeyHex, pubKeyHex, err = s.generateBitcoinKeys()
+		address, privKeyHex, _, err = s.generateBitcoinKeys()
 
 	// Solana Family
 	case "SOL":
-		address, privKeyHex, pubKeyHex, err = s.generateSolanaKeys()
+		address, privKeyHex, _, err = s.generateSolanaKeys()
 
 	// TRON Family (TRX + TRC20 Tokens)
 	case "TRX", "USDT":
 		// USDT defaults to TRC20 (Tron) for low fees
-		address, privKeyHex, pubKeyHex, err = s.generateTronKeys()
+		address, privKeyHex, _, err = s.generateTronKeys()
 
 	// TON (The Open Network)
 	case "TON":
-		address, privKeyHex, pubKeyHex, err = s.generateTonKeys()
+		address, privKeyHex, _, err = s.generateTonKeys()
 
 	// XRP (Ripple)
 	case "XRP":
-		address, privKeyHex, pubKeyHex, err = s.generateXrpKeys()
+		address, privKeyHex, _, err = s.generateXrpKeys()
 
 	// Litecoin / Dogecoin / BCH (Bitcoin-like)
 	case "LTC", "DOGE", "BCH":
 		// For now, using Bitcoin-like generation (compatible curve)
-		address, privKeyHex, pubKeyHex, err = s.generateBitcoinKeys() // Simplified for prototype
+		address, privKeyHex, _, err = s.generateBitcoinKeys() // Simplified for prototype
 
 	// EVM Family (ETH + BSC + Polygon + Avalanche + ERC20/BEP20 Tokens)
 	case "ETH", "USDC", "BNB", "MATIC", "AVAX", "LINK", "UNI", "SHIB", "DAI", "CRO", "FTM":
 		// All these use Ethereum-compatible keys (Hex address starting with 0x)
-		address, privKeyHex, pubKeyHex, err = s.generateEthereumKeys()
+		address, privKeyHex, _, err = s.generateEthereumKeys()
 
 	default:
 		return nil, fmt.Errorf("unsupported currency: %s", currency)
