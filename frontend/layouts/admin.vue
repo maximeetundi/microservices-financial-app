@@ -53,18 +53,36 @@
           <span class="text-lg">🎫</span>
           <span>Événements</span>
         </NuxtLink>
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 cursor-not-allowed">
+        <NuxtLink to="/admin/kyc" 
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/kyc') }">
           <span class="text-lg">📋</span>
           <span>KYC</span>
-        </div>
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 cursor-not-allowed">
+        </NuxtLink>
+        <NuxtLink to="/admin/transactions" 
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/transactions') }">
           <span class="text-lg">💸</span>
           <span>Transactions</span>
-        </div>
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 cursor-not-allowed">
+        </NuxtLink>
+        <NuxtLink to="/admin/analytics" 
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/analytics') }">
           <span class="text-lg">📈</span>
           <span>Analytics</span>
-        </div>
+        </NuxtLink>
+        <NuxtLink to="/admin/platform" 
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/platform') }">
+          <span class="text-lg">🏦</span>
+          <span>Comptes Plateforme</span>
+        </NuxtLink>
+        <NuxtLink to="/admin/settings" 
+          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/50 transition-all"
+          :class="{ 'bg-indigo-500/20 text-indigo-400': isActive('/admin/settings') }">
+          <span class="text-lg">⚙️</span>
+          <span>Global Settings</span>
+        </NuxtLink>
       </nav>
 
       <!-- User Info -->

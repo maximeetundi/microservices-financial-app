@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
+	"github.com/gin-gonic/gin"
 )
 
 type PreferencesHandler struct {
@@ -294,5 +294,3 @@ func (h *PreferencesHandler) UploadKYCDocument(c *gin.Context) {
 		"file_url": fileURL,
 	})
 }
-
-

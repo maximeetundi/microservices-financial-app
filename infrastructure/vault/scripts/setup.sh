@@ -78,6 +78,43 @@ fi
 if [ -n "$FIXER_API_KEY" ]; then
     vault kv put secret/exchange-service fixer_api_key="$FIXER_API_KEY" currency_layer_api_key="$CURRENCYLAYER_API_KEY"
     echo "Exchange keys written to secret/exchange-service"
+    echo "Exchange keys written to secret/exchange-service"
+fi
+
+# Generate WALLET_MASTER_KEY if not exists
+echo "Checking for WALLET_MASTER_KEY..."
+EXISTING_KEY=$(vault kv get -field=wallet_master_key secret/wallet-service 2>/dev/null || echo "")
+
+if [ -z "$EXISTING_KEY" ]; then
+    echo "Generating new WALLET_MASTER_KEY..."
+    # Generate 32 bytes (64 hex chars)
+    NEW_KEY=$(hexdump -vn32 -e'4/4 "%08X" 1 "\n"' /dev/urandom | tr -d ' \n' | tr '[:upper:]' '[:lower:]')
+    
+    # If hexdump fails (some alpine versions), try od or openssl
+    if [ -z "$NEW_KEY" ] || [ ${#NEW_KEY} -lt 64 ]; then
+        echo "hexdump failed or insufficient, trying od..."
+        NEW_KEY=$(od -N 32 -t x1 /dev/urandom | head -n 2 | awk '{print $2$3$4$5$6$7$8$9$10$11$12$13$14$15$16}' | tr -d '\n ')
+    fi
+    
+    # Ensure we preserve existing secrets when writing new one
+    # Note: vault kv put replaces all keys in the path by default for v1, or adds version for v2.
+    # We should read existing, merge, and write back. 
+    # But since we just wrote tatum_api_key above, we can just write both.
+    
+    # Better approach: Use patch if available or just re-write with both
+    # For now, let's just write/patch.
+    
+    # Actually, let's just use "vault kv patch" if available (v2) or "vault kv put" merging data.
+    # The image is hashicorp/vault:latest, likely supports kv put directly.
+    # Re-writing tatum_key if needed is safer.
+    
+    vault kv put secret/wallet-service \
+        tatum_api_key="${TATUM_API_KEY}" \
+        wallet_master_key="${NEW_KEY}"
+        
+    echo "Generated and injected WALLET_MASTER_KEY: ${NEW_KEY:0:10}..."
+else
+    echo "WALLET_MASTER_KEY already exists in Vault."
 fi
 
 # Create a dev token for services

@@ -22,18 +22,24 @@ import (
 )
 
 var (
-	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestsTotal   = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
-	adminActionsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "admin_actions_total", Help: "Total admin actions"}, []string{"action", "admin"})
+	adminActionsTotal   = promauto.NewCounterVec(prometheus.CounterOpts{Name: "admin_actions_total", Help: "Total admin actions"}, []string{"action", "admin"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		if c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
 		start := time.Now()
 		c.Next()
 		status := strconv.Itoa(c.Writer.Status())
-		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
 		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
 	}
@@ -78,6 +84,11 @@ func main() {
 	// Initialize service
 	adminService := services.NewAdminService(repo, mongoRepo, kafkaClient, cfg)
 
+	// Initialize system settings (fees, etc)
+	if err := adminService.InitializeSettings(); err != nil {
+		log.Printf("Warning: Failed to initialize settings: %v", err)
+	}
+
 	// Initialize storage service for presigned URLs
 	storageService, err := services.NewStorageService(
 		cfg.MinioEndpoint,
@@ -110,7 +121,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), prometheusMiddleware())
 	router.Use(middleware.SecurityHeaders())
-	
+
 	// CORS configuration
 	router.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
@@ -174,6 +185,7 @@ func main() {
 		{
 			kyc.POST("/:id/approve", middleware.RequirePermission(models.PermApproveKYC), handler.ApproveKYC)
 			kyc.POST("/:id/reject", middleware.RequirePermission(models.PermRejectKYC), handler.RejectKYC)
+			kyc.GET("/requests", handler.GetAllKYCRequests)
 			// Secure document access - generates presigned URLs
 			kyc.POST("/document-url", kycHandler.GetDocumentURL)
 			kyc.POST("/download-url", kycHandler.GetDocumentDownloadURL)
@@ -221,6 +233,15 @@ func main() {
 			notifications.POST("/mark-all-read", notifHandler.MarkAllAsRead)
 			notifications.POST("", notifHandler.CreateNotification)
 			notifications.DELETE("/cleanup", notifHandler.DeleteOldNotifications)
+		}
+
+		// Fee Configuration
+		fees := protected.Group("/fees")
+		fees.Use(middleware.RequirePermission(models.PermManageSettings))
+		{
+			fees.GET("", handler.GetFeeConfigs)
+			fees.POST("", handler.CreateFeeConfig)
+			fees.PUT("/:key", handler.UpdateFeeConfig)
 		}
 
 		// Donations & Campaigns

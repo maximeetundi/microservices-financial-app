@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/services"
@@ -39,7 +40,7 @@ func (h *AdminHandler) Login(c *gin.Context) {
 
 func (h *AdminHandler) GetCurrentAdmin(c *gin.Context) {
 	adminID := c.GetString("admin_id")
-	
+
 	admin, err := h.service.GetAdmin(adminID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Admin not found"})
@@ -76,7 +77,7 @@ func (h *AdminHandler) CreateAdmin(c *gin.Context) {
 
 func (h *AdminHandler) GetAdmin(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	admin, err := h.service.GetAdmin(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Admin not found"})
@@ -101,7 +102,7 @@ func (h *AdminHandler) GetAllAdmins(c *gin.Context) {
 
 func (h *AdminHandler) UpdateAdmin(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req models.UpdateAdminRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -119,7 +120,7 @@ func (h *AdminHandler) UpdateAdmin(c *gin.Context) {
 
 func (h *AdminHandler) DeleteAdmin(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	// Prevent self-deletion
 	if id == c.GetString("admin_id") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete yourself"})
@@ -149,7 +150,7 @@ func (h *AdminHandler) GetRoles(c *gin.Context) {
 
 func (h *AdminHandler) GetRole(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	role, err := h.service.GetRole(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
@@ -188,7 +189,7 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 
 func (h *AdminHandler) BlockUser(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -224,7 +225,7 @@ func (h *AdminHandler) UnblockUser(c *gin.Context) {
 
 func (h *AdminHandler) ApproveKYC(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Level string `json:"level" binding:"required"`
 	}
@@ -245,7 +246,7 @@ func (h *AdminHandler) ApproveKYC(c *gin.Context) {
 
 func (h *AdminHandler) RejectKYC(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -280,6 +281,26 @@ func (h *AdminHandler) GetUserKYCDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"documents": docs})
 }
 
+// GetAllKYCRequests returns global KYC request list
+func (h *AdminHandler) GetAllKYCRequests(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	status := c.DefaultQuery("status", "all")
+
+	requests, total, err := h.service.GetAllKYCRequests(status, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch KYC requests"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"requests": requests,
+		"total":    total,
+		"limit":    limit,
+		"offset":   offset,
+	})
+}
+
 // ========== Transactions ==========
 
 func (h *AdminHandler) GetTransactions(c *gin.Context) {
@@ -297,7 +318,7 @@ func (h *AdminHandler) GetTransactions(c *gin.Context) {
 
 func (h *AdminHandler) BlockTransaction(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -318,7 +339,7 @@ func (h *AdminHandler) BlockTransaction(c *gin.Context) {
 
 func (h *AdminHandler) RefundTransaction(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -354,7 +375,7 @@ func (h *AdminHandler) GetCards(c *gin.Context) {
 
 func (h *AdminHandler) FreezeCard(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -375,7 +396,7 @@ func (h *AdminHandler) FreezeCard(c *gin.Context) {
 
 func (h *AdminHandler) BlockCard(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -411,7 +432,7 @@ func (h *AdminHandler) GetWallets(c *gin.Context) {
 
 func (h *AdminHandler) FreezeWallet(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -450,4 +471,54 @@ func (h *AdminHandler) logAction(c *gin.Context, action, resource, resourceID st
 	adminID := c.GetString("admin_id")
 	adminEmail := c.GetString("admin_email")
 	h.service.CreateAuditLog(adminID, adminEmail, action, resource, resourceID, "", c.ClientIP(), c.Request.UserAgent())
+}
+
+// ========== Fee Configuration ==========
+
+func (h *AdminHandler) GetFeeConfigs(c *gin.Context) {
+	configs, err := h.service.GetFeeConfigs()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"fees": configs})
+}
+
+func (h *AdminHandler) UpdateFeeConfig(c *gin.Context) {
+	key := c.Param("key")
+	var req models.UpdateFeeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	adminID := c.GetString("admin_id")
+	if err := h.service.UpdateFeeConfig(key, req, adminID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.logAction(c, "update_fee", "fees", key)
+	c.JSON(http.StatusOK, gin.H{"message": "Fee updated"})
+}
+
+func (h *AdminHandler) CreateFeeConfig(c *gin.Context) {
+	var req models.FeeConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set defaults
+	req.CreatedAt = time.Now()
+	req.UpdatedAt = time.Now()
+	req.UpdatedBy = c.GetString("admin_id")
+
+	if err := h.service.CreateFeeConfig(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.logAction(c, "create_fee", "fees", req.Key)
+	c.JSON(http.StatusCreated, gin.H{"fee": req})
 }

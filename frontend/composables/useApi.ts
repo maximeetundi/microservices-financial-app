@@ -538,6 +538,25 @@ export const adminPlatformAPI = {
     getReconciliation: () => api.get('/wallet-service/api/v1/admin/platform/reconciliation'),
 }
 
+// ========== Admin Users & KYC ==========
+export const adminUserAPI = {
+    getUsers: (limit = 20, offset = 0) =>
+        api.get(`/admin-service/api/v1/admin/users?limit=${limit}&offset=${offset}`),
+    unlockPin: (userId: string) => api.post(`/auth-service/api/v1/admin/users/${userId}/unlock-pin`), // stays in auth-service
+}
+
+export const adminKYCAPI = {
+    getRequests: (status = 'all', limit = 20, offset = 0) =>
+        api.get(`/admin-service/api/v1/admin/kyc/requests?status=${status}&limit=${limit}&offset=${offset}`),
+    reviewRequest: (docId: string, status: 'approved' | 'rejected', reason?: string) => {
+        if (status === 'approved') {
+            return api.post(`/admin-service/api/v1/admin/kyc/${docId}/approve`, { level: 'full' }) // Default to full level
+        } else {
+            return api.post(`/admin-service/api/v1/admin/kyc/${docId}/reject`, { reason: reason || 'Document rejected' })
+        }
+    }
+}
+
 // ========== Support ==========
 export const supportAPI = {
     // Get all conversations for the current user
@@ -750,6 +769,14 @@ export const enterpriseAPI = {
     // Data Export (required before deletion)
     exportData: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export`, { responseType: 'blob' }),
     getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
+    getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
+}
+
+// ========== Global Admin Fees (Admin Service) ==========
+export const adminGlobalFeeAPI = {
+    getAll: () => api.get('/admin-service/api/v1/admin/fees'),
+    create: (data: any) => api.post('/admin-service/api/v1/admin/fees', data),
+    update: (key: string, data: any) => api.put(`/admin-service/api/v1/admin/fees/${key}`, data),
 }
 
 // === MESSAGING API ===
@@ -786,6 +813,7 @@ export const useApi = () => {
         adminPaymentApi: adminPaymentAPI,
         adminFeeApi: adminFeeAPI,
         adminPlatformApi: adminPlatformAPI,
+        adminGlobalFeeApi: adminGlobalFeeAPI,
         supportApi: supportAPI,
         notificationApi: notificationAPI,
         ticketApi: ticketAPI,

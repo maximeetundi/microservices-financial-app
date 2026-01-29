@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
+	"github.com/google/uuid"
 )
 
 type PreferencesRepository struct {
@@ -46,7 +46,7 @@ func (r *PreferencesRepository) CreateDefaultPreferences(userID string) (*models
 // CreateDefaultPreferencesWithCountry creates default preferences with currency based on country
 func (r *PreferencesRepository) CreateDefaultPreferencesWithCountry(userID, countryCode string) (*models.UserPreferences, error) {
 	currency := getCurrencyForCountry(countryCode)
-	
+
 	prefs := &models.UserPreferences{
 		ID:               uuid.New().String(),
 		UserID:           userID,
@@ -422,7 +422,7 @@ func (r *PreferencesRepository) GetKYCDocuments(userID string) ([]models.KYCDocu
 		var doc models.KYCDocument
 		err := rows.Scan(
 			&doc.ID, &doc.UserID, &doc.Type, &doc.IdentitySubType, &doc.FileName, &doc.FilePath, &doc.FileSize,
-			&doc.MimeType, &doc.DocumentNumber, &doc.ExpiryDate, &doc.Status, &doc.RejectionReason, 
+			&doc.MimeType, &doc.DocumentNumber, &doc.ExpiryDate, &doc.Status, &doc.RejectionReason,
 			&doc.ReviewedAt, &doc.ReviewedBy, &doc.UploadedAt, &doc.CreatedAt,
 		)
 		if err != nil {
@@ -437,3 +437,5 @@ func (r *PreferencesRepository) GetKYCDocuments(userID string) ([]models.KYCDocu
 	return docs, nil
 }
 
+// Helper needed since we don't import strconv in this file
+// I will actually add strconv to imports first to be clean.
