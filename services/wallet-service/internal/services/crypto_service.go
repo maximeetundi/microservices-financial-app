@@ -116,6 +116,115 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 	}, nil
 }
 
+// --- Bitcoin ---
+// --- Bitcoin (Native SegWit - Bech32) ---
+// Helper to get params based on config
+func (s *CryptoService) getBitcoinParams() *chaincfg.Params {
+	if s.config.CryptoNetwork == "testnet" {
+		return &chaincfg.TestNet3Params
+	}
+	return &chaincfg.MainNetParams
+}
+
+// --- Bitcoin (Native SegWit - Bech32) ---
+func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
+	privKey, _ := btcec.NewPrivateKey(btcec.S256())
+	privKeyHex := hex.EncodeToString(privKey.Serialize())
+	pubKey := privKey.PubKey()
+	pubKeyCompressed := pubKey.SerializeCompressed()
+	pubKeyHex := hex.EncodeToString(pubKeyCompressed)
+
+	params := s.getBitcoinParams()
+
+	// Generate Witness Public Key Hash (P2WPKH)
+	// 1. Hash160(PubKeyCompressed)
+	pubKeyHash := btcutil.Hash160(pubKeyCompressed)
+
+	// 2. Create Witness Address (bc1q... or tb1q...)
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash, params)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return addr.EncodeAddress(), privKeyHex, pubKeyHex, nil
+}
+
+func (s *CryptoService) deriveBitcoinAddress(pubKeyHex, network string) (string, error) {
+	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
+	if err != nil {
+		return "", err
+	}
+
+	// Determine params based on requested network
+	var params *chaincfg.Params
+	if strings.HasPrefix(strings.ToUpper(network), "TEST") || s.config.CryptoNetwork == "testnet" {
+		if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
+			// If user specifically asked for Mainnet equivalents despite testnet config,
+			// we could theoretically return mainnet, but let's stick to safe defaults.
+			// Usually "SEGWIT" implies Mainnet in UI.
+			// If network == "TESTNET", definitely testnet.
+		}
+
+		if strings.ToUpper(network) == "TESTNET" {
+			params = &chaincfg.TestNet3Params
+		} else if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
+			params = &chaincfg.MainNetParams
+		} else {
+			// Default fallback to config
+			params = s.getBitcoinParams()
+		}
+	} else {
+		// Mainnet Config
+		if strings.ToUpper(network) == "TESTNET" {
+			params = &chaincfg.TestNet3Params
+		} else {
+			params = &chaincfg.MainNetParams
+		}
+	}
+
+	// PubKey to Address
+	// 1. Hash160
+	pubKeyHash := btcutil.Hash160(pubKeyBytes)
+
+	// 2. Create Address
+	addr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash, params)
+	if err != nil {
+		return "", err
+	}
+	return addr.EncodeAddress(), nil
+}
+
+// --- Ethereum / BSC ---
+func (s *CryptoService) generateEthereumKeys() (string, string, string, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return "", "", "", err
+	}
+	privKeyBytes := crypto.FromECDSA(privateKey)
+	privKeyHex := hex.EncodeToString(privKeyBytes)
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", "", "", fmt.Errorf("error casting public key to ECDSA")
+	}
+	pubKeyBytes := crypto.FromECDSAPub(publicKeyECDSA)
+	pubKeyHex := hex.EncodeToString(pubKeyBytes)
+	address := crypto.PubkeyToAddress(*publicKeyECDSA).Hex()
+	return address, privKeyHex, pubKeyHex, nil
+}
+
+// --- Solana ---
+func (s *CryptoService) generateSolanaKeys() (string, string, string, error) {
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", "", "", err
+	}
+	address := base58.Encode(pubKey)
+	privKeyStr := base58.Encode(privKey)
+	pubKeyStr := base58.Encode(pubKey)
+	return address, privKeyStr, pubKeyStr, nil
+}
+
 // --- TON (The Open Network) ---
 func (s *CryptoService) generateTonKeys() (string, string, string, error) {
 	// TON uses Ed25519

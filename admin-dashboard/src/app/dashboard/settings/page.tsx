@@ -245,8 +245,76 @@ export default function FeeManagementPage() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {activeTab === CATEGORIES.SYSTEM && (
+                        // Hardcoded System Toggles for UI Verification if not in DB yet
+                        ['system_maintenance_mode', 'system_testnet_enabled', 'system_notifications', 'system_signup_enabled'].map(sysKey => {
+                            const existing = fees.find(f => f.key === sysKey);
+                            const label = {
+                                'system_maintenance_mode': 'Mode Maintenance',
+                                'system_testnet_enabled': 'Réseaux de Test (Testnet)',
+                                'system_notifications': 'Notifications Système',
+                                'system_signup_enabled': 'Inscriptions Utilisateurs'
+                            }[sysKey] || sysKey;
+
+                            const description = {
+                                'system_maintenance_mode': 'Suspend l\'accès utilisateur pour maintenance.',
+                                'system_testnet_enabled': 'Affiche les portefeuilles de test (BTC Test, Sepolia...)',
+                                'system_notifications': 'Active les alertes globales',
+                                'system_signup_enabled': 'Autorise les nouveaux comptes'
+                            }[sysKey];
+
+                            const isEnabled = existing ? existing.is_enabled : false;
+
+                            return (
+                                <div key={sysKey} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col overflow-hidden">
+                                    <div className={`h-1.5 w-full ${isEnabled ? 'bg-gradient-to-r from-indigo-400 to-purple-500' : 'bg-slate-200'}`} />
+                                    <div className="p-6 flex-1 flex flex-col">
+                                        <div className="flex gap-4 mb-4">
+                                            <div className={`p-3 rounded-2xl transition-all duration-300 ${isEnabled ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}>
+                                                <AdjustmentsHorizontalIcon className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-900 text-lg leading-tight">{label}</h3>
+                                                <p className="text-sm text-slate-500 mt-1">{description}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${isEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                {isEnabled ? 'Activé' : 'Désactivé'}
+                                            </span>
+                                            <button
+                                                onClick={() => {
+                                                    // Create dummy config if not exists, or update
+                                                    const payload = {
+                                                        key: sysKey,
+                                                        name: label,
+                                                        description: description,
+                                                        type: 'system_toggle',
+                                                        is_enabled: !isEnabled,
+                                                        fixed_amount: 0,
+                                                        percentage_amount: 0,
+                                                        currency: 'USD'
+                                                    };
+                                                    if (existing) handleEdit({ ...existing, is_enabled: !isEnabled } as FeeConfig);
+                                                    else {
+                                                        createFeeConfig(payload).then(loadFees);
+                                                    }
+                                                }}
+                                                className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${isEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                                            >
+                                                <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${isEnabled ? 'translate-x-6' : ''}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+
                     {filteredFees.map((fee) => {
                         const category = getCategory(fee.key);
+                        if (category === CATEGORIES.SYSTEM) return null; // Handled above specifically
                         return (
                             <div key={fee.id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col overflow-hidden">
                                 {/* Card Status Stripe */}

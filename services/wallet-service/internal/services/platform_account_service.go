@@ -80,11 +80,12 @@ func (s *PlatformAccountService) Initialize() error {
 	}
 
 	// --- 2. Crypto Wallets (Cold & Hot) ---
-	// Comprehensive list including TON, XRP, and major EVM/Non-EVM chains
+	// Comprehensive list including Mainnet and Testnet variants
 	cryptoCurrencies := []string{
 		"BTC", "ETH", "SOL", "USDT", "BNB", "TRX", "MATIC",
 		"TON", "XRP", "LTC", "DOGE", "BCH", "USDC", // Major L1s & Stablecoins
 		"AVAX", "LINK", "UNI", "SHIB", "DAI", // Popular Alts/DeFi
+		"BTC_TEST", "ETH_TEST", "SOL_TEST", "BNB_TEST", "MATIC_TEST", // Explicit Testnets
 	}
 
 	for _, currency := range cryptoCurrencies {
