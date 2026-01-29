@@ -129,6 +129,35 @@ func (r *FeeRepository) seedDefaults() error {
 			Type:        "percentage",
 			Percentage:  0,
 		},
+		// System Toggles
+		{
+			Key:         "system_testnet_enabled",
+			Description: "Enable Testnet Networks (BTC Testnet, Sepolia)",
+			Type:        "system_toggle", // Special type handled by frontend
+			Percentage:  0,
+			IsActive:    false, // Disabled by default
+		},
+		{
+			Key:         "system_maintenance_mode",
+			Description: "Enable System Maintenance Mode",
+			Type:        "system_toggle",
+			Percentage:  0,
+			IsActive:    false,
+		},
+		{
+			Key:         "system_signup_enabled",
+			Description: "Enable User Registration",
+			Type:        "system_toggle",
+			Percentage:  0,
+			IsActive:    true,
+		},
+		{
+			Key:         "system_notifications",
+			Description: "Enable Global Notifications",
+			Type:        "system_toggle",
+			Percentage:  0,
+			IsActive:    true,
+		},
 	}
 
 	for _, config := range defaults {
