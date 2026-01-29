@@ -17,7 +17,8 @@ import {
     SwatchIcon,
     Cog6ToothIcon,
     UserIcon,
-    BuildingOfficeIcon
+    BuildingOfficeIcon,
+    ShoppingBagIcon
 } from '@heroicons/react/24/outline';
 import { getFeeConfigs, updateFeeConfig, createFeeConfig } from '@/lib/api';
 
@@ -44,7 +45,8 @@ const CATEGORIES = {
     FIAT: 'Fiat',
     CARD: 'Cartes',
     SYSTEM: 'Système',
-    LIMITS: 'Limites'
+    LIMITS: 'Limites',
+    SERVICES: 'Services'
 };
 
 const getCategory = (key: string): string => {
@@ -52,6 +54,7 @@ const getCategory = (key: string): string => {
     if (key.includes('transfer') || key.includes('international')) return CATEGORIES.TRANSFER;
     if (key.includes('card')) return CATEGORIES.CARD;
     if (key.includes('fiat') || key.includes('deposit') || key.includes('withdrawal')) return CATEGORIES.FIAT;
+    if (key.includes('donation') || key.includes('ecommerce') || key.includes('event') || key.includes('bill') || key.includes('mobile') || key.includes('association') || key.includes('crowdfunding')) return CATEGORIES.SERVICES;
     return CATEGORIES.SYSTEM;
 };
 
@@ -65,7 +68,15 @@ const FRIENDLY_NAMES: Record<string, string> = {
     'card_issuance_fee': 'Création de Carte',
     'card_monthly_fee': 'Mensualité Carte',
     'transfer_p2p_fee': 'Transfert P2P',
-    'sms_notification_fee': 'Alerte SMS'
+    'sms_notification_fee': 'Alerte SMS',
+    'donation_fee': 'Dons',
+    'ecommerce_purchase_fee': 'Achats E-commerce',
+    'event_ticket_fee': 'Billetterie Événements',
+    'bill_payment_fee': 'Paiement de Factures',
+    'mobile_money_cashin_fee': 'Dépôt Mobile Money',
+    'mobile_money_cashout_fee': 'Retrait Mobile Money',
+    'association_membership_fee': 'Adhésion Association',
+    'crowdfunding_contribution_fee': 'Contribution Participative'
 };
 
 const getFriendlyName = (key: string, defaultName: string) => {
@@ -78,6 +89,7 @@ const getIcon = (category: string) => {
         case CATEGORIES.TRANSFER: return <ArrowsRightLeftIcon className="w-6 h-6 text-indigo-500" />;
         case CATEGORIES.FIAT: return <BanknotesIcon className="w-6 h-6 text-emerald-500" />;
         case CATEGORIES.CARD: return <CreditCardIcon className="w-6 h-6 text-purple-500" />;
+        case CATEGORIES.SERVICES: return <ShoppingBagIcon className="w-6 h-6 text-pink-500" />;
         default: return <Cog6ToothIcon className="w-6 h-6 text-slate-500" />;
     }
 };
@@ -165,6 +177,7 @@ export default function FeeManagementPage() {
         { id: CATEGORIES.FIAT, label: 'Opérations Fiat' },
         { id: CATEGORIES.TRANSFER, label: 'Transferts' },
         { id: CATEGORIES.CARD, label: 'Cartes Bancaires' },
+        { id: CATEGORIES.SERVICES, label: 'Services' },
         { id: CATEGORIES.SYSTEM, label: 'Autres' },
     ];
 

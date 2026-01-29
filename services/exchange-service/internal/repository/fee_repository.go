@@ -80,6 +80,55 @@ func (r *FeeRepository) seedDefaults() error {
 			Type:        "percentage",
 			Percentage:  0, // Free by default
 		},
+		// New fees
+		{
+			Key:         "donation_fee",
+			Description: "Fee on donations received",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "ecommerce_purchase_fee",
+			Description: "Fee on e-commerce purchases",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "event_ticket_fee",
+			Description: "Fee on event ticket sales",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "bill_payment_fee",
+			Description: "Fee for paying bills",
+			Type:        "flat",
+			FixedAmount: 0,
+		},
+		{
+			Key:         "mobile_money_cashin_fee",
+			Description: "Fee for Mobile Money deposits",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "mobile_money_cashout_fee",
+			Description: "Fee for Mobile Money withdrawals",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "association_membership_fee",
+			Description: "Fee on association membership payments",
+			Type:        "percentage",
+			Percentage:  0,
+		},
+		{
+			Key:         "crowdfunding_contribution_fee",
+			Description: "Fee on crowdfunding contributions",
+			Type:        "percentage",
+			Percentage:  0,
+		},
 	}
 
 	for _, config := range defaults {
