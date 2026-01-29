@@ -136,9 +136,14 @@ export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
 // Fees & Settings
+// Fees
 export const getFeeConfigs = () => api.get('/fees');
 export const updateFeeConfig = (key: string, data: any) => api.put(`/fees/${key}`, data);
 export const createFeeConfig = (data: any) => api.post('/fees', data);
+
+// System Settings
+export const getSystemSettings = () => api.get('/settings');
+export const updateSystemSetting = (data: any) => api.put('/settings', data);
 
 // Platform Accounts & Wallets
 export const getPlatformAccounts = () => api.get('/platform/accounts');
