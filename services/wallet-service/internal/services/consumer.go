@@ -13,15 +13,17 @@ import (
 
 // Consumer handles Kafka message consumption for wallet-service
 type Consumer struct {
-	kafkaClient   *messaging.KafkaClient
-	walletService *WalletService
+	kafkaClient         *messaging.KafkaClient
+	walletService       *WalletService
+	systemConfigService *SystemConfigService
 }
 
 // NewConsumer creates a new Kafka consumer
-func NewConsumer(kafkaClient *messaging.KafkaClient, walletService *WalletService) *Consumer {
+func NewConsumer(kafkaClient *messaging.KafkaClient, walletService *WalletService, systemConfigService *SystemConfigService) *Consumer {
 	return &Consumer{
-		kafkaClient:   kafkaClient,
-		walletService: walletService,
+		kafkaClient:         kafkaClient,
+		walletService:       walletService,
+		systemConfigService: systemConfigService,
 	}
 }
 
@@ -50,6 +52,11 @@ func (c *Consumer) Start() error {
 	// Subscribe to payment events (requests from other services)
 	if err := c.kafkaClient.Subscribe(messaging.TopicPaymentEvents, c.handlePaymentEvent); err != nil {
 		log.Printf("Warning: Failed to subscribe to payment events: %v", err)
+	}
+
+	// Subscribe to system events
+	if err := c.kafkaClient.Subscribe(messaging.TopicSystemEvents, c.handleSystemEvent); err != nil {
+		log.Printf("Warning: Failed to subscribe to system events: %v", err)
 	}
 
 	log.Println("[Kafka] Wallet service consumers started")
@@ -196,7 +203,7 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 	if userEvent.UserID != "" {
 		// Determine currency
 		currency := "USD" // Default
-		
+
 		// Prioritize explicit currency from event if available
 		if userEvent.Currency != "" {
 			currency = userEvent.Currency
@@ -220,7 +227,7 @@ func (c *Consumer) handleUserEvent(ctx context.Context, event *messaging.EventEn
 			log.Printf("Failed to create default wallet (Currency: %s): %v", currency, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -230,62 +237,112 @@ func getCurrencyByCountry(countryCode string) string {
 	// === EUROPE ===
 	case "AT", "BE", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PT", "SK", "SI", "ES":
 		return "EUR"
-	case "GB", "GBR": return "GBP"
-	case "CH", "CHE": return "CHF"
-	case "SE", "SWE": return "SEK"
-	case "NO", "NOR": return "NOK"
-	case "DK", "DNK": return "DKK"
-	case "PL", "POL": return "PLN"
-	case "CZ", "CZE": return "CZK"
-	case "HU", "HUN": return "HUF"
-	case "RO", "ROU": return "RON"
-	case "BG", "BGR": return "BGN"
-	case "HR", "HRV": return "HRK"
-	case "RU", "RUS": return "RUB" // Russia
-	case "UA", "UKR": return "UAH"
-	case "BY", "BLR": return "BYN"
+	case "GB", "GBR":
+		return "GBP"
+	case "CH", "CHE":
+		return "CHF"
+	case "SE", "SWE":
+		return "SEK"
+	case "NO", "NOR":
+		return "NOK"
+	case "DK", "DNK":
+		return "DKK"
+	case "PL", "POL":
+		return "PLN"
+	case "CZ", "CZE":
+		return "CZK"
+	case "HU", "HUN":
+		return "HUF"
+	case "RO", "ROU":
+		return "RON"
+	case "BG", "BGR":
+		return "BGN"
+	case "HR", "HRV":
+		return "HRK"
+	case "RU", "RUS":
+		return "RUB" // Russia
+	case "UA", "UKR":
+		return "UAH"
+	case "BY", "BLR":
+		return "BYN"
 
 	// === NORTH AMERICA ===
-	case "US", "USA": return "USD"
-	case "CA", "CAN": return "CAD"
-	case "MX", "MEX": return "MXN"
+	case "US", "USA":
+		return "USD"
+	case "CA", "CAN":
+		return "CAD"
+	case "MX", "MEX":
+		return "MXN"
 
 	// === SOUTH AMERICA ===
-	case "BR", "BRA": return "BRL"
-	case "AR", "ARG": return "ARS"
-	case "CL", "CHL": return "CLP"
-	case "CO", "COL": return "COP"
-	case "PE", "PER": return "PEN"
-	case "UY", "URY": return "UYU"
-	case "VE", "VEN": return "VES"
-	case "BO", "BOL": return "BOB"
-	case "PY", "PRY": return "PYG"
+	case "BR", "BRA":
+		return "BRL"
+	case "AR", "ARG":
+		return "ARS"
+	case "CL", "CHL":
+		return "CLP"
+	case "CO", "COL":
+		return "COP"
+	case "PE", "PER":
+		return "PEN"
+	case "UY", "URY":
+		return "UYU"
+	case "VE", "VEN":
+		return "VES"
+	case "BO", "BOL":
+		return "BOB"
+	case "PY", "PRY":
+		return "PYG"
 
 	// === ASIA ===
-	case "CN", "CHN": return "CNY" // China
-	case "JP", "JPN": return "JPY" // Japan
-	case "KR", "KOR": return "KRW" // South Korea
-	case "KP", "PRK": return "KPW" // North Korea
-	case "IN", "IND": return "INR"
-	case "ID", "IDN": return "IDR"
-	case "MY", "MYS": return "MYR"
-	case "SG", "SGP": return "SGD"
-	case "TH", "THA": return "THB"
-	case "VN", "VNM": return "VND"
-	case "PH", "PHL": return "PHP"
-	case "PK", "PAK": return "PKR"
-	case "BD", "BGD": return "BDT"
-	case "HK", "HKD": return "HKD"
-	case "TW", "TWN": return "TWD"
-	case "AF", "AFG": return "AFN" // Afghanistan
-	case "IR", "IRN": return "IRR" // Iran
-	case "IQ", "IRQ": return "IQD"
-	case "LB", "LBN": return "LBP"
-	case "IL", "ISR": return "ILS" // Israel
-	case "SA", "SAU": return "SAR"
-	case "AE", "ARE": return "AED"
-	case "QA", "QAT": return "QAR"
-	case "TR", "TUR": return "TRY"
+	case "CN", "CHN":
+		return "CNY" // China
+	case "JP", "JPN":
+		return "JPY" // Japan
+	case "KR", "KOR":
+		return "KRW" // South Korea
+	case "KP", "PRK":
+		return "KPW" // North Korea
+	case "IN", "IND":
+		return "INR"
+	case "ID", "IDN":
+		return "IDR"
+	case "MY", "MYS":
+		return "MYR"
+	case "SG", "SGP":
+		return "SGD"
+	case "TH", "THA":
+		return "THB"
+	case "VN", "VNM":
+		return "VND"
+	case "PH", "PHL":
+		return "PHP"
+	case "PK", "PAK":
+		return "PKR"
+	case "BD", "BGD":
+		return "BDT"
+	case "HK", "HKD":
+		return "HKD"
+	case "TW", "TWN":
+		return "TWD"
+	case "AF", "AFG":
+		return "AFN" // Afghanistan
+	case "IR", "IRN":
+		return "IRR" // Iran
+	case "IQ", "IRQ":
+		return "IQD"
+	case "LB", "LBN":
+		return "LBP"
+	case "IL", "ISR":
+		return "ILS" // Israel
+	case "SA", "SAU":
+		return "SAR"
+	case "AE", "ARE":
+		return "AED"
+	case "QA", "QAT":
+		return "QAR"
+	case "TR", "TUR":
+		return "TRY"
 
 	// === AFRICA ===
 	// CFA Franc BEAC (CEMAC)
@@ -294,26 +351,44 @@ func getCurrencyByCountry(countryCode string) string {
 	// CFA Franc BCEAO (UEMOA)
 	case "CI", "CIV", "BJ", "BEN", "BF", "BFA", "GW", "GNB", "ML", "MLI", "NE", "NER", "SN", "SEN", "TG", "TGO":
 		return "XOF"
-	case "NG", "NGA": return "NGN" // Nigeria
-	case "ZA", "ZAF": return "ZAR" // South Africa
-	case "EG", "EGY": return "EGP" // Egypt
-	case "MA", "MAR": return "MAD" // Morocco
-	case "KE", "KEN": return "KES"
-	case "GH", "GHA": return "GHS"
-	case "DZ", "DZA": return "DZD"
-	case "TN", "TUN": return "TND"
-	case "ET", "ETH": return "ETB"
-	case "RW", "RWF": return "RWF"
-	case "UG", "UGA": return "UGX"
-	case "TZ", "TZA": return "TZS"
-	case "AO", "AGO": return "AOA"
-	case "MZ", "MOZ": return "MZN"
-	case "ZW", "ZWE": return "ZWL" // Zimbabwe
-	case "CD", "COD": return "CDF"
+	case "NG", "NGA":
+		return "NGN" // Nigeria
+	case "ZA", "ZAF":
+		return "ZAR" // South Africa
+	case "EG", "EGY":
+		return "EGP" // Egypt
+	case "MA", "MAR":
+		return "MAD" // Morocco
+	case "KE", "KEN":
+		return "KES"
+	case "GH", "GHA":
+		return "GHS"
+	case "DZ", "DZA":
+		return "DZD"
+	case "TN", "TUN":
+		return "TND"
+	case "ET", "ETH":
+		return "ETB"
+	case "RW", "RWF":
+		return "RWF"
+	case "UG", "UGA":
+		return "UGX"
+	case "TZ", "TZA":
+		return "TZS"
+	case "AO", "AGO":
+		return "AOA"
+	case "MZ", "MOZ":
+		return "MZN"
+	case "ZW", "ZWE":
+		return "ZWL" // Zimbabwe
+	case "CD", "COD":
+		return "CDF"
 
 	// === OCEANIA ===
-	case "AU", "AUS": return "AUD"
-	case "NZ", "NZL": return "NZD"
+	case "AU", "AUS":
+		return "AUD"
+	case "NZ", "NZL":
+		return "NZD"
 
 	default:
 		return "USD"
@@ -381,7 +456,7 @@ func (c *Consumer) handlePaymentEvent(ctx context.Context, event *messaging.Even
 		updateErr = c.walletService.balanceService.UpdateBalance(req.ToWalletID, req.CreditAmount, "credit")
 		if updateErr != nil {
 			log.Printf("Failed to process payment credit for %s: %v", req.RequestID, updateErr)
-			
+
 			// If we also did a debit, we should ideally rollback, but for MVP we log critical error.
 			// In a real system, we'd use a saga or 2PC, or reverse the debit.
 			if req.DebitAmount > 0 {
@@ -389,7 +464,7 @@ func (c *Consumer) handlePaymentEvent(ctx context.Context, event *messaging.Even
 				// Attempt rollback
 				c.walletService.balanceService.UpdateBalance(req.FromWalletID, req.DebitAmount, "credit")
 			}
-			
+
 			publishStatus("failed", fmt.Sprintf("Credit failed: %v", updateErr))
 			return nil
 		}
@@ -399,5 +474,45 @@ func (c *Consumer) handlePaymentEvent(ctx context.Context, event *messaging.Even
 	log.Printf("[Kafka] Successfully processed payment request %s", req.RequestID)
 	publishStatus("success", "")
 
+	return nil
+}
+
+// handleSystemEvent processes system configuration updates
+func (c *Consumer) handleSystemEvent(ctx context.Context, event *messaging.EventEnvelope) error {
+	if event.Type != messaging.EventConfigUpdated {
+		return nil
+	}
+
+	log.Printf("[Kafka] Processing system config event: %s", event.ID)
+
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		return err
+	}
+
+	var configEvent messaging.ConfigUpdatedEvent
+	if err := json.Unmarshal(dataBytes, &configEvent); err != nil {
+		log.Printf("Failed to unmarshal config event: %v", err)
+		return err
+	}
+
+	// Map to model
+	cfg := models.SystemConfig{
+		Key:              configEvent.Key,
+		Value:            configEvent.Value,
+		FixedAmount:      configEvent.FixedAmount,
+		PercentageAmount: configEvent.PercentageAmount,
+		IsEnabled:        configEvent.IsEnabled,
+		UpdatedAt:        event.Timestamp,
+	}
+
+	if err := c.systemConfigService.UpdateLocalConfig(cfg); err != nil {
+		log.Printf("Failed to update local config cache: %v", err)
+		// Don't return error to retry endlessly if it's a logic/db error, but maybe beneficial?
+		// For now, log and continue.
+		return nil
+	}
+
+	log.Printf("[Kafka] Updated system config: %s", cfg.Key)
 	return nil
 }

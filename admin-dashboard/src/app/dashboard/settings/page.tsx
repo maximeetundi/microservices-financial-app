@@ -15,7 +15,9 @@ import {
     WalletIcon,
     ChartBarIcon,
     SwatchIcon,
-    Cog6ToothIcon
+    Cog6ToothIcon,
+    UserIcon,
+    BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { getFeeConfigs, updateFeeConfig, createFeeConfig } from '@/lib/api';
 
@@ -41,7 +43,8 @@ const CATEGORIES = {
     TRANSFER: 'Transferts',
     FIAT: 'Fiat',
     CARD: 'Cartes',
-    SYSTEM: 'Système'
+    SYSTEM: 'Système',
+    LIMITS: 'Limites'
 };
 
 const getCategory = (key: string): string => {
@@ -246,70 +249,89 @@ export default function FeeManagementPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {activeTab === CATEGORIES.SYSTEM && (
-                        // Hardcoded System Toggles for UI Verification if not in DB yet
-                        ['system_maintenance_mode', 'system_testnet_enabled', 'system_notifications', 'system_signup_enabled'].map(sysKey => {
-                            const existing = fees.find(f => f.key === sysKey);
-                            const label = {
-                                'system_maintenance_mode': 'Mode Maintenance',
-                                'system_testnet_enabled': 'Réseaux de Test (Testnet)',
-                                'system_notifications': 'Notifications Système',
-                                'system_signup_enabled': 'Inscriptions Utilisateurs'
-                            }[sysKey] || sysKey;
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Hardcoded System Toggles for UI Verification */}
+                            {[
+                                { key: 'system_maintenance_mode', label: 'Mode Maintenance', desc: 'Suspend l\'accès utilisateur pour maintenance.', color: 'bg-red-500' },
+                                { key: 'system_testnet_enabled', label: 'Réseaux de Test (Testnet)', desc: 'Active BTC Testnet, Sepolia, etc. pour le développement.', color: 'bg-orange-500' },
+                                { key: 'system_signup_enabled', label: 'Inscriptions', desc: 'Autoriser les nouveaux utilisateurs à s\'inscrire.', color: 'bg-emerald-500' },
+                                { key: 'system_notifications', label: 'Notifications Globales', desc: 'Activer les emails et push notifications.', color: 'bg-blue-500' }
+                            ].map(sys => {
+                                const existing = fees.find(f => f.key === sys.key);
+                                const isEnabled = existing ? existing.is_enabled : false;
 
-                            const description = {
-                                'system_maintenance_mode': 'Suspend l\'accès utilisateur pour maintenance.',
-                                'system_testnet_enabled': 'Affiche les portefeuilles de test (BTC Test, Sepolia...)',
-                                'system_notifications': 'Active les alertes globales',
-                                'system_signup_enabled': 'Autorise les nouveaux comptes'
-                            }[sysKey];
-
-                            const isEnabled = existing ? existing.is_enabled : false;
-
-                            return (
-                                <div key={sysKey} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col overflow-hidden">
-                                    <div className={`h-1.5 w-full ${isEnabled ? 'bg-gradient-to-r from-indigo-400 to-purple-500' : 'bg-slate-200'}`} />
-                                    <div className="p-6 flex-1 flex flex-col">
-                                        <div className="flex gap-4 mb-4">
-                                            <div className={`p-3 rounded-2xl transition-all duration-300 ${isEnabled ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}>
+                                return (
+                                    <div key={sys.key} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className={`p-3 rounded-xl ${isEnabled ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}>
                                                 <AdjustmentsHorizontalIcon className="w-6 h-6" />
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-900 text-lg leading-tight">{label}</h3>
-                                                <p className="text-sm text-slate-500 mt-1">{description}</p>
+                                            <div onClick={() => {
+                                                const payload = {
+                                                    key: sys.key, name: sys.label, description: sys.desc, type: 'system_toggle',
+                                                    is_enabled: !isEnabled, fixed_amount: 0, percentage_amount: 0, currency: 'USD'
+                                                };
+                                                if (existing) handleEdit({ ...existing, is_enabled: !isEnabled } as FeeConfig);
+                                                else createFeeConfig(payload).then(loadFees);
+                                            }} className={`w-12 h-6 rounded-full cursor-pointer transition-colors relative ${isEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                                                <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isEnabled ? 'translate-x-6' : ''}`} />
                                             </div>
                                         </div>
+                                        <h3 className="font-bold text-slate-900 mb-1">{sys.label}</h3>
+                                        <p className="text-sm text-slate-500">{sys.desc}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
-                                        <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${isEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                {isEnabled ? 'Activé' : 'Désactivé'}
-                                            </span>
-                                            <button
-                                                onClick={() => {
-                                                    // Create dummy config if not exists, or update
-                                                    const payload = {
-                                                        key: sysKey,
-                                                        name: label,
-                                                        description: description,
-                                                        type: 'system_toggle',
-                                                        is_enabled: !isEnabled,
-                                                        fixed_amount: 0,
-                                                        percentage_amount: 0,
-                                                        currency: 'USD'
-                                                    };
-                                                    if (existing) handleEdit({ ...existing, is_enabled: !isEnabled } as FeeConfig);
-                                                    else {
-                                                        createFeeConfig(payload).then(loadFees);
-                                                    }
-                                                }}
-                                                className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${isEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                                            >
-                                                <div className={`absolute top-1 left-1 bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${isEnabled ? 'translate-x-6' : ''}`} />
-                                            </button>
+                    {activeTab === CATEGORIES.LIMITS && (
+                        <div className="space-y-8">
+                            {/* Limits configuration for different Tiers */}
+                            {['PARTICULIER', 'ENTREPRISE'].map(type => (
+                                <div key={type} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                            {type === 'PARTICULIER' ? <UserIcon className="w-5 h-5 text-indigo-600" /> : <BuildingOfficeIcon className="w-5 h-5 text-emerald-600" />}
+                                            Comptes {type === 'PARTICULIER' ? 'Particuliers' : 'Entreprises'}
+                                        </h3>
+                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Configuration des Plafonds</span>
+                                    </div>
+                                    <div className="p-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            {['Niveau Standard (KYC 1)', 'Niveau Vérifié (KYC 2)', 'Niveau Premium (KYC 3)'].map((level, idx) => (
+                                                <div key={idx} className="p-5 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all group">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <span className="text-xs font-bold uppercase text-slate-500 bg-slate-100 px-2 py-1 rounded">{level}</span>
+                                                        <PencilSquareIcon className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 cursor-pointer" />
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Plafond Journalier</div>
+                                                            <div className="font-mono font-bold text-slate-800 text-lg">
+                                                                {type === 'ENTREPRISE' ? (25000 * (idx + 1)).toLocaleString() : (1000 * (idx + 1)).toLocaleString()} €
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Plafond Mensuel</div>
+                                                            <div className="font-mono font-bold text-slate-800">
+                                                                {type === 'ENTREPRISE' ? (100000 * (idx + 1)).toLocaleString() : (5000 * (idx + 1)).toLocaleString()} €
+                                                            </div>
+                                                        </div>
+                                                        <div className="pt-3 border-t border-slate-100 mt-3">
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Limite Solde</div>
+                                                            <div className="font-mono font-bold text-emerald-600">
+                                                                {idx === 2 ? 'Illimité' : (type === 'ENTREPRISE' ? (500000 * (idx + 1)).toLocaleString() + ' €' : (10000 * (idx + 1)).toLocaleString() + ' €')}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
-                            );
-                        })
+                            ))}
+                        </div>
                     )}
 
                     {filteredFees.map((fee) => {

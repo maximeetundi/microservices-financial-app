@@ -13,12 +13,13 @@ import (
 )
 
 type WalletService struct {
-	walletRepo      *repository.WalletRepository
-	transactionRepo *repository.TransactionRepository
-	cryptoService   *CryptoService
-	balanceService  *BalanceService
-	feeService      *FeeService
-	kafkaClient     *messaging.KafkaClient
+	walletRepo          *repository.WalletRepository
+	transactionRepo     *repository.TransactionRepository
+	cryptoService       *CryptoService
+	balanceService      *BalanceService
+	feeService          *FeeService
+	kafkaClient         *messaging.KafkaClient
+	systemConfigService *SystemConfigService
 }
 
 func NewWalletService(
@@ -28,14 +29,16 @@ func NewWalletService(
 	balanceService *BalanceService,
 	feeService *FeeService,
 	kafkaClient *messaging.KafkaClient,
+	systemConfigService *SystemConfigService,
 ) *WalletService {
 	return &WalletService{
-		walletRepo:      walletRepo,
-		transactionRepo: transactionRepo,
-		cryptoService:   cryptoService,
-		balanceService:  balanceService,
-		feeService:      feeService,
-		kafkaClient:     kafkaClient,
+		walletRepo:          walletRepo,
+		transactionRepo:     transactionRepo,
+		cryptoService:       cryptoService,
+		balanceService:      balanceService,
+		feeService:          feeService,
+		kafkaClient:         kafkaClient,
+		systemConfigService: systemConfigService,
 	}
 }
 
@@ -474,6 +477,13 @@ func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error
 		if wallet.Balance < req.Amount {
 			return fmt.Errorf("insufficient balance")
 		}
+
+		// Enforce Limits
+		// TODO: Fetch real KYC level from Auth Service or User local cache
+		kycLevel := "standard" // Default
+		if err := s.systemConfigService.CheckLimits(req.UserID, kycLevel, req.Currency, req.Amount); err != nil {
+			return fmt.Errorf("limit exceeded: %w", err)
+		}
 	}
 
 	// Update balance
@@ -511,6 +521,11 @@ func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error
 		// Ideally we should transactionally update both.
 		// For now, return error so caller can retry or handle failure.
 		return fmt.Errorf("failed to create transaction record: %w", err)
+	}
+
+	// Record Usage for Debit
+	if req.Type == "debit" {
+		s.systemConfigService.RecordUsage(req.UserID, req.Currency, req.Amount)
 	}
 
 	// Publish event
@@ -559,6 +574,13 @@ func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*m
 		return nil, fmt.Errorf("insufficient balance: %.2f available, %.2f required (including fee %.2f)", fromWallet.Balance, totalPayload, fee)
 	}
 
+	// Enforce Limits (on Source User)
+	// TODO: Fetch real KYC level
+	kycLevel := "standard"
+	if err := s.systemConfigService.CheckLimits(userID, kycLevel, fromWallet.Currency, totalPayload); err != nil {
+		return nil, fmt.Errorf("limit exceeded: %w", err)
+	}
+
 	// Deduct from source (Amount + Fee)
 	if err := s.walletRepo.UpdateBalanceWithTransaction(req.FromWalletID, totalPayload, "send"); err != nil {
 		return nil, fmt.Errorf("failed to deduct from source: %w", err)
@@ -594,6 +616,9 @@ func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*m
 	if err := s.transactionRepo.Create(transaction); err != nil {
 		return nil, fmt.Errorf("failed to create transaction record: %w", err)
 	}
+
+	// Record Usage
+	s.systemConfigService.RecordUsage(userID, fromWallet.Currency, totalPayload)
 
 	// Publish event
 	s.publishTransactionEvent("transaction.completed", transaction)

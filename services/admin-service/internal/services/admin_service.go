@@ -498,7 +498,42 @@ func (s *AdminService) UpdateFeeConfig(key string, req models.UpdateFeeRequest, 
 		return errors.New("fee configuration not found")
 	}
 
-	return s.repo.UpdateFeeConfig(key, req, updatedBy)
+	err = s.repo.UpdateFeeConfig(key, req, updatedBy)
+	if err != nil {
+		return err
+	}
+
+	// Fetch updated config to publish event
+	updatedConfig, err := s.repo.GetFeeConfigByKey(key)
+	if err == nil {
+		eventData := messaging.ConfigUpdatedEvent{
+			Key:              updatedConfig.Key,
+			Type:             string(updatedConfig.Type),
+			FixedAmount:      updatedConfig.FixedAmount,
+			PercentageAmount: updatedConfig.PercentageAmount,
+			IsEnabled:        updatedConfig.IsEnabled,
+			UpdatedBy:        updatedBy,
+		}
+		// Use simplified value for system/limit types if needed, but fields are enough
+		s.publishEvent(messaging.EventConfigUpdated, map[string]interface{}{
+			"event": eventData, // Wrap in map or send struct directly? publishEvent takes map[string]interface{}.
+			// Wait, publishEvent logic: envelope := messaging.NewEventEnvelope(eventType, "admin-service", data)
+			// So I can pass the struct as data.
+			// BUT s.publishEvent signature: func (s *AdminService) publishEvent(eventType string, data map[string]interface{})
+			// It enforces map[string]interface{}. I should change that helper or just convert manually.
+			// Helper is:
+			// func (s *AdminService) publishEvent(eventType string, data map[string]interface{}) { ... }
+			// I'll just pass the fields in the map for now to avoid changing the helper signature which might affect other calls.
+			"key":               updatedConfig.Key,
+			"type":              string(updatedConfig.Type),
+			"fixed_amount":      updatedConfig.FixedAmount,
+			"percentage_amount": updatedConfig.PercentageAmount,
+			"is_enabled":        updatedConfig.IsEnabled,
+			"updated_by":        updatedBy,
+		})
+	}
+
+	return nil
 }
 
 func (s *AdminService) CreateFeeConfig(c *models.FeeConfig) error {
@@ -507,7 +542,22 @@ func (s *AdminService) CreateFeeConfig(c *models.FeeConfig) error {
 	if existing != nil {
 		return errors.New("fee configuration key already exists")
 	}
-	return s.repo.CreateFeeConfig(c)
+
+	err := s.repo.CreateFeeConfig(c)
+	if err != nil {
+		return err
+	}
+
+	s.publishEvent(messaging.EventConfigUpdated, map[string]interface{}{
+		"key":               c.Key,
+		"type":              string(c.Type),
+		"fixed_amount":      c.FixedAmount,
+		"percentage_amount": c.PercentageAmount,
+		"is_enabled":        c.IsEnabled,
+		"updated_by":        c.UpdatedBy,
+	})
+
+	return nil
 }
 
 func (s *AdminService) InitializeSettings() error {
@@ -517,32 +567,120 @@ func (s *AdminService) InitializeSettings() error {
 	}
 
 	// Seed default fees if empty
-	configs, _ := s.repo.GetFeeConfigs()
-	if len(configs) == 0 {
-		defaults := []models.FeeConfig{
-			{
-				ID: uuid.New().String(), Key: "transfer_internal", Name: "Internal Transfer Fee",
-				Description: "Fee for transfers between users", Type: models.FeeTypePercentage,
-				PercentageAmount: 0.5, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
-			},
-			{
-				ID: uuid.New().String(), Key: "transfer_international", Name: "International Transfer Fee",
-				Description: "Fee for international transfers", Type: models.FeeTypeHybrid,
-				FixedAmount: 5.0, PercentageAmount: 1.5, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
-			},
-			{
-				ID: uuid.New().String(), Key: "crypto_withdrawal_btc", Name: "Bitcoin Withdrawal Fee",
-				Description: "Network fee for BTC withdrawals", Type: models.FeeTypeFlat,
-				FixedAmount: 0.0005, Currency: "BTC", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
-			},
-			{
-				ID: uuid.New().String(), Key: "crypto_exchange", Name: "Crypto Exchange Fee",
-				Description: "Fee for exchanging currencies", Type: models.FeeTypePercentage,
-				PercentageAmount: 1.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
-			},
-		}
+	// Define all default configurations
+	defaults := []models.FeeConfig{
+		// --- System Settings ---
+		{
+			ID: uuid.New().String(), Key: "system_testnet_enabled", Name: "Testnet Enabled",
+			Description: "Enable crypto testnet networks", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "system_maintenance_mode", Name: "Maintenance Mode",
+			Description: "Enable system-wide maintenance mode", Type: models.FeeTypeSystem,
+			IsEnabled: false, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "system_signup_enabled", Name: "Signup Enabled",
+			Description: "Allow new user registrations", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
 
-		for _, c := range defaults {
+		// --- Default Fees ---
+		{
+			ID: uuid.New().String(), Key: "transfer_internal", Name: "Internal Transfer Fee",
+			Description: "Fee for transfers between users", Type: models.FeeTypePercentage,
+			PercentageAmount: 0.5, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "transfer_international", Name: "International Transfer Fee",
+			Description: "Fee for international transfers", Type: models.FeeTypeHybrid,
+			FixedAmount: 5.0, PercentageAmount: 1.5, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "crypto_withdrawal_btc", Name: "Bitcoin Withdrawal Fee",
+			Description: "Network fee for BTC withdrawals", Type: models.FeeTypeFlat,
+			FixedAmount: 0.0005, Currency: "BTC", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "crypto_exchange", Name: "Crypto Exchange Fee",
+			Description: "Fee for exchanging currencies", Type: models.FeeTypePercentage,
+			PercentageAmount: 1.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Limits: Guest (Tier 0) ---
+		{
+			ID: uuid.New().String(), Key: "limit_daily_guest", Name: "Guest Daily Limit",
+			Description: "Daily transaction limit for Guest users", Type: models.FeeTypeLimit,
+			FixedAmount: 1000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_monthly_guest", Name: "Guest Monthly Limit",
+			Description: "Monthly transaction limit for Guest users", Type: models.FeeTypeLimit,
+			FixedAmount: 5000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_max_balance_guest", Name: "Guest Max Balance",
+			Description: "Maximum wallet balance for Guest users", Type: models.FeeTypeLimit,
+			FixedAmount: 2000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Limits: Standard (Tier 1) ---
+		{
+			ID: uuid.New().String(), Key: "limit_daily_standard", Name: "Standard Daily Limit",
+			Description: "Daily transaction limit for Standard users", Type: models.FeeTypeLimit,
+			FixedAmount: 10000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_monthly_standard", Name: "Standard Monthly Limit",
+			Description: "Monthly transaction limit for Standard users", Type: models.FeeTypeLimit,
+			FixedAmount: 50000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_max_balance_standard", Name: "Standard Max Balance",
+			Description: "Maximum wallet balance for Standard users", Type: models.FeeTypeLimit,
+			FixedAmount: 20000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Limits: Verified (Tier 2) ---
+		{
+			ID: uuid.New().String(), Key: "limit_daily_verified", Name: "Verified Daily Limit",
+			Description: "Daily transaction limit for Verified users", Type: models.FeeTypeLimit,
+			FixedAmount: 100000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_monthly_verified", Name: "Verified Monthly Limit",
+			Description: "Monthly transaction limit for Verified users", Type: models.FeeTypeLimit,
+			FixedAmount: 500000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_max_balance_verified", Name: "Verified Max Balance",
+			Description: "Maximum wallet balance for Verified users", Type: models.FeeTypeLimit,
+			FixedAmount: 1000000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Limits: Enterprise (Tier 3) ---
+		{
+			ID: uuid.New().String(), Key: "limit_daily_enterprise", Name: "Enterprise Daily Limit",
+			Description: "Daily transaction limit for Enterprise users", Type: models.FeeTypeLimit,
+			FixedAmount: 1000000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_monthly_enterprise", Name: "Enterprise Monthly Limit",
+			Description: "Monthly transaction limit for Enterprise users", Type: models.FeeTypeLimit,
+			FixedAmount: 5000000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "limit_max_balance_enterprise", Name: "Enterprise Max Balance",
+			Description: "Maximum wallet balance for Enterprise users", Type: models.FeeTypeLimit,
+			FixedAmount: 10000000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+	}
+
+	for _, c := range defaults {
+		// Check if exists
+		if _, err := s.repo.GetFeeConfigByKey(c.Key); err != nil {
+			// If error (likely not found), create it
 			s.repo.CreateFeeConfig(&c)
 		}
 	}

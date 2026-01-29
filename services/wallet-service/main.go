@@ -84,7 +84,10 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	paymentRepo := repository.NewPaymentRequestRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
+	paymentRepo := repository.NewPaymentRequestRepository(db)
+	feeRepo := repository.NewFeeRepository(db)
 	platformRepo := repository.NewPlatformAccountRepository(db)
+	configRepo := repository.NewConfigRepository(db)
 
 	// Initialize wallet tables
 	if err := walletRepo.InitSchema(); err != nil {
@@ -106,12 +109,18 @@ func main() {
 		log.Printf("Warning: Failed to initialize platform account tables: %v", err)
 	}
 
+	// Initialize config tables
+	if err := configRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to initialize config tables: %v", err)
+	}
+
 	// Initialize services
 	feeService := services.NewFeeService(feeRepo)
 	cryptoService := services.NewCryptoService(cfg)
 	exchangeClient := services.NewExchangeClient()
+	systemConfigService := services.NewSystemConfigService(configRepo)
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
-	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient)
+	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient, systemConfigService)
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
 	platformService := services.NewPlatformAccountService(platformRepo, cryptoService)
 
@@ -121,7 +130,7 @@ func main() {
 	}
 
 	// Start Kafka consumer for inter-service communication
-	consumer := services.NewConsumer(kafkaClient, walletService)
+	consumer := services.NewConsumer(kafkaClient, walletService, systemConfigService)
 	if err := consumer.Start(); err != nil {
 		log.Printf("Warning: Failed to start Kafka consumer: %v", err)
 	}

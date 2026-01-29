@@ -188,6 +188,8 @@ const (
 	FeeTypeFlat       FeeType = "flat"
 	FeeTypePercentage FeeType = "percentage"
 	FeeTypeHybrid     FeeType = "hybrid"
+	FeeTypeSystem     FeeType = "system"
+	FeeTypeLimit      FeeType = "limit"
 )
 
 // FeeConfig represents a dynamic fee configuration

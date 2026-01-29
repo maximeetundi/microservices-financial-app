@@ -175,3 +175,20 @@ type NotificationEvent struct {
 	Data      map[string]interface{} `json:"data,omitempty"`
 	ActionUrl string                 `json:"action_url,omitempty"`
 }
+
+const (
+	// System event types
+	EventConfigUpdated = "config.updated"
+)
+
+// === System Events ===
+
+type ConfigUpdatedEvent struct {
+	Key              string  `json:"key"`
+	Type             string  `json:"type"`
+	Value            string  `json:"value,omitempty"` // simplified value representation
+	FixedAmount      float64 `json:"fixed_amount,omitempty"`
+	PercentageAmount float64 `json:"percentage_amount,omitempty"`
+	IsEnabled        bool    `json:"is_enabled"`
+	UpdatedBy        string  `json:"updated_by"`
+}

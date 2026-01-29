@@ -34,6 +34,9 @@ const (
 
 	// Audit topics
 	TopicAuditEvents = "audit.events"
+
+	// System topics - NEW
+	TopicSystemEvents = "system.events"
 )
 
 // Event type constants
@@ -54,9 +57,9 @@ const (
 	EventTransferFailed    = "transfer.failed"
 
 	// Exchange event types
-	EventExchangeInitiated = "exchange.initiated"
-	EventExchangeCompleted = "exchange.completed"
-	EventExchangeFailed    = "exchange.failed"
+	EventExchangeInitiated   = "exchange.initiated"
+	EventExchangeCompleted   = "exchange.completed"
+	EventExchangeFailed      = "exchange.failed"
 	EventFiatExchangeRequest = "fiat_exchange.request"
 
 	// Payment event types
