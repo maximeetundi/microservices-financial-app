@@ -56,9 +56,10 @@ func NewCryptoService(cfg *config.Config, systemConfig *SystemConfigService) *Cr
 }
 
 type CryptoWallet struct {
-	Address  string `json:"address"`
-	Currency string `json:"currency"`
-	Network  string `json:"network"`
+	Address             string `json:"address"`
+	Currency            string `json:"currency"`
+	Network             string `json:"network"`
+	EncryptedPrivateKey string `json:"-"` // Internal use only
 }
 
 // isTestnet checks dynamic system config first, falls back to static config
@@ -228,16 +229,17 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 		return nil, err
 	}
 
-	// Store in Vault
-	err = s.storeKeyPairInVault(userID, currency, privKeyHex, pubKeyHex, address)
+	// Encrypt Private Key for DB Storage (Envelope Encryption)
+	encryptedKey, err := s.EncryptPrivateKey(privKeyHex, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to secure keys in vault: %w", err)
+		return nil, fmt.Errorf("failed to encrypt private key: %w", err)
 	}
 
 	return &CryptoWallet{
-		Address:  address,
-		Currency: currency,
-		Network:  s.getNetworkForCurrency(currency),
+		Address:             address,
+		Currency:            currency,
+		Network:             s.getNetworkForCurrency(currency),
+		EncryptedPrivateKey: encryptedKey,
 	}, nil
 }
 
@@ -259,6 +261,8 @@ func (s *CryptoService) generateBitcoinKeys() (string, string, string, error) {
 	pubKeyCompressed := pubKey.SerializeCompressed()
 	pubKeyHex := hex.EncodeToString(pubKeyCompressed)
 
+	isTest := s.isTestnet()
+	log.Printf("[CryptoService] Generating Bitcoin Keys. IsTestnet=%v (Config: %s)", isTest, s.config.CryptoNetwork)
 	params := s.getBitcoinParams()
 
 	// Generate Witness Public Key Hash (P2WPKH)

@@ -86,9 +86,9 @@ func (s *WalletService) CreateWallet(userID string, req *models.CreateWalletRequ
 		}
 
 		// Private Key is stored in Vault by CryptoService
-		vaultMsg := "VAULT_SECURED"
+		// Private Key is stored in DB (Encrypted)
 		wallet.WalletAddress = &cryptoWallet.Address
-		wallet.PrivateKeyEncrypted = &vaultMsg
+		wallet.PrivateKeyEncrypted = &cryptoWallet.EncryptedPrivateKey
 
 		// Use Address as ExternalID for lookups (Non-Custodial)
 		wallet.ExternalID = cryptoWallet.Address
