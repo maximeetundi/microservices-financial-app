@@ -53,23 +53,56 @@ interface SidebarProps {
     children: React.ReactNode;
 }
 
-const navigation = [
-    { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
-    { name: 'Comptes Plateforme', href: '/dashboard/platform', icon: BuildingOfficeIcon },
-    { name: 'Entreprises', href: '/dashboard/enterprises', icon: BuildingOfficeIcon },
-    { name: 'Utilisateurs', href: '/dashboard/users', icon: UsersIcon },
-    { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowsRightLeftIcon },
-    { name: 'Cartes', href: '/dashboard/cards', icon: CreditCardIcon },
-    { name: 'Portefeuilles', href: '/dashboard/wallets', icon: WalletIcon },
-    { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-    { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
-    { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
-    { name: 'Événements', href: '/dashboard/events', icon: SparklesIcon },
-    { name: 'Associations', href: '/dashboard/associations', icon: UsersIcon },
-    { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
-    { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
-    { name: 'Configuration', href: '/dashboard/settings', icon: AdjustmentsHorizontalIcon },
+const navigationSections = [
+    {
+        title: 'Tableau de bord',
+        items: [
+            { name: 'Vue d\'ensemble', href: '/dashboard', icon: HomeIcon },
+            { name: 'Comptes Plateforme', href: '/dashboard/platform', icon: BuildingOfficeIcon },
+        ]
+    },
+    {
+        title: 'Opérations',
+        items: [
+            { name: 'Utilisateurs', href: '/dashboard/users', icon: UsersIcon },
+            { name: 'Entreprises', href: '/dashboard/enterprises', icon: BuildingOfficeIcon },
+            { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowsRightLeftIcon },
+            { name: 'Portefeuilles', href: '/dashboard/wallets', icon: WalletIcon },
+            { name: 'Cartes', href: '/dashboard/cards', icon: CreditCardIcon },
+        ]
+    },
+    {
+        title: 'Paiements',
+        items: [
+            { name: 'Agrégateurs', href: '/dashboard/aggregators', icon: AdjustmentsHorizontalIcon, badge: 'Nouveau' },
+            { name: 'Mode Test', href: '/dashboard/test-mode', icon: SparklesIcon, badge: 'Dev' },
+        ]
+    },
+    {
+        title: 'Compliance',
+        items: [
+            { name: 'KYC', href: '/dashboard/kyc', icon: ShieldCheckIcon },
+            { name: 'Associations', href: '/dashboard/associations', icon: UsersIcon },
+        ]
+    },
+    {
+        title: 'Support & Comm.',
+        items: [
+            { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
+            { name: 'Support', href: '/dashboard/support', icon: ChatBubbleLeftRightIcon },
+            { name: 'Événements', href: '/dashboard/events', icon: SparklesIcon },
+        ]
+    },
+    {
+        title: 'Système',
+        items: [
+            { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
+            { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
+            { name: 'Configuration', href: '/dashboard/settings', icon: AdjustmentsHorizontalIcon },
+        ]
+    },
 ];
+
 
 // Helper function to get relative time
 function getRelativeTime(dateString: string): string {
@@ -252,32 +285,64 @@ export default function DashboardLayout({ children }: SidebarProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-                    {navigation.map((item) => {
-                        const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                onClick={closeMobileMenu}
-                                className={clsx(
-                                    'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                                    isActive
-                                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
-                                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                )}
-                            >
-                                <item.icon className={clsx(
-                                    'w-5 h-5 transition-transform',
-                                    isActive && 'scale-110'
-                                )} />
-                                {item.name}
-                                {isActive && (
-                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                )}
-                            </Link>
-                        );
-                    })}
+                <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
+                    {navigationSections.map((section, sectionIndex) => (
+                        <div key={section.title}>
+                            {/* Section Title */}
+                            <p className="px-4 mb-2 text-xs font-semibold text-slate-400/80 uppercase tracking-wider">
+                                {section.title}
+                            </p>
+
+                            {/* Section Items */}
+                            <div className="space-y-1">
+                                {section.items.map((item) => {
+                                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={closeMobileMenu}
+                                            className={clsx(
+                                                'group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                                                isActive
+                                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                            )}
+                                        >
+                                            <item.icon className={clsx(
+                                                'w-5 h-5 transition-all duration-200',
+                                                isActive ? 'scale-110' : 'group-hover:scale-105'
+                                            )} />
+                                            <span className="flex-1">{item.name}</span>
+
+                                            {/* Badge for new features */}
+                                            {item.badge && (
+                                                <span className={clsx(
+                                                    'px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wide',
+                                                    item.badge === 'Nouveau'
+                                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                                        : item.badge === 'Dev'
+                                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                                            : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                                )}>
+                                                    {item.badge}
+                                                </span>
+                                            )}
+
+                                            {isActive && (
+                                                <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Section Divider (except last) */}
+                            {sectionIndex < navigationSections.length - 1 && (
+                                <div className="mt-4 mx-4 border-t border-white/5" />
+                            )}
+                        </div>
+                    ))}
                 </nav>
 
                 {/* User Profile */}

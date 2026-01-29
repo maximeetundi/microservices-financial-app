@@ -1,92 +1,328 @@
 package providers
 
 import (
+	"log"
 	"os"
 	"strconv"
+
+	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 )
 
 // Config holds all provider configurations
+// Priority order: 1. Vault, 2. Environment variables
 type Config struct {
 	Flutterwave FlutterwaveConfig
 	Thunes      ThunesConfig
 	Stripe      StripeConfig
+	PayPal      PayPalConfig
+	MTNMomo     MTNMomoConfig
+	OrangeMoney OrangeMoneyConfig
+	Pesapal     PesapalConfig
+	Chipper     ChipperConfig
 	CryptoRails CryptoRailsConfig
 }
 
-// LoadConfig loads provider configuration from environment variables
+// LoadConfig loads provider configuration prioritizing Vault over environment variables
+// This is the recommended configuration loading method for production
 func LoadConfig() *Config {
+	// Try to initialize Vault client
+	vaultClient, err := secrets.NewVaultClient()
+	if err != nil {
+		log.Printf("[Config] Vault unavailable, falling back to environment variables: %v", err)
+		return LoadConfigFromEnv()
+	}
+
+	// Seed default secrets if needed (for fresh installations)
+	if err := vaultClient.SeedDefaultAggregatorSecrets(); err != nil {
+		log.Printf("[Config] Warning: Failed to seed default secrets: %v", err)
+	}
+
+	return LoadConfigFromVault(vaultClient)
+}
+
+// LoadConfigFromVault loads all configurations from HashiCorp Vault
+func LoadConfigFromVault(vaultClient *secrets.VaultClient) *Config {
+	log.Println("[Config] Loading configurations from Vault...")
+
 	poolThreshold, _ := strconv.ParseFloat(getEnv("CRYPTO_POOL_THRESHOLD", "500"), 64)
 	poolEnabled, _ := strconv.ParseBool(getEnv("CRYPTO_POOL_ENABLED", "true"))
-	
+
+	cfg := &Config{}
+
+	// Load Stripe from Vault
+	if stripeSecrets, err := vaultClient.GetStripeSecrets(); err == nil {
+		cfg.Stripe = StripeConfig{
+			SecretKey:      stripeSecrets.SecretKey,
+			PublishableKey: stripeSecrets.PublishableKey,
+			WebhookSecret:  stripeSecrets.WebhookSecret,
+			BaseURL:        stripeSecrets.BaseURL,
+		}
+		log.Println("[Config] ✅ Loaded Stripe config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Stripe secrets not available in Vault: %v", err)
+		cfg.Stripe = loadStripeFromEnv()
+	}
+
+	// Load Flutterwave from Vault
+	if flwSecrets, err := vaultClient.GetFlutterwaveSecrets(); err == nil {
+		cfg.Flutterwave = FlutterwaveConfig{
+			SecretKey:   flwSecrets.SecretKey,
+			PublicKey:   flwSecrets.PublicKey,
+			EncryptKey:  flwSecrets.EncryptKey,
+			BaseURL:     flwSecrets.BaseURL,
+			CallbackURL: getEnv("FLUTTERWAVE_CALLBACK_URL", ""), // Callback URL from env (per-deployment)
+		}
+		log.Println("[Config] ✅ Loaded Flutterwave config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Flutterwave secrets not available in Vault: %v", err)
+		cfg.Flutterwave = loadFlutterwaveFromEnv()
+	}
+
+	// Load PayPal from Vault
+	if paypalSecrets, err := vaultClient.GetPayPalSecrets(); err == nil {
+		cfg.PayPal = PayPalConfig{
+			ClientID:     paypalSecrets.ClientID,
+			ClientSecret: paypalSecrets.ClientSecret,
+			WebhookID:    paypalSecrets.WebhookID,
+			BaseURL:      paypalSecrets.BaseURL,
+			Mode:         paypalSecrets.Mode,
+		}
+		log.Println("[Config] ✅ Loaded PayPal config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ PayPal secrets not available in Vault: %v", err)
+	}
+
+	// Load Thunes from Vault
+	if thunesSecrets, err := vaultClient.GetThunesSecrets(); err == nil {
+		cfg.Thunes = ThunesConfig{
+			APIKey:      thunesSecrets.APIKey,
+			APISecret:   thunesSecrets.APISecret,
+			BaseURL:     thunesSecrets.BaseURL,
+			CallbackURL: thunesSecrets.CallbackURL,
+		}
+		log.Println("[Config] ✅ Loaded Thunes config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Thunes secrets not available in Vault: %v", err)
+		cfg.Thunes = loadThunesFromEnv()
+	}
+
+	// Load MTN MoMo from Vault
+	if mtnSecrets, err := vaultClient.GetMTNMomoSecrets(); err == nil {
+		cfg.MTNMomo = MTNMomoConfig{
+			SubscriptionKey: mtnSecrets.SubscriptionKey,
+			APIUser:         mtnSecrets.APIUser,
+			APIKey:          mtnSecrets.APIKey,
+			BaseURL:         mtnSecrets.BaseURL,
+			Environment:     mtnSecrets.Environment,
+			CallbackURL:     getEnv("MTN_CALLBACK_URL", ""),
+		}
+		log.Println("[Config] ✅ Loaded MTN MoMo config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ MTN MoMo secrets not available in Vault: %v", err)
+	}
+
+	// Load Orange Money from Vault
+	if orangeSecrets, err := vaultClient.GetOrangeMoneySecrets(); err == nil {
+		cfg.OrangeMoney = OrangeMoneyConfig{
+			ClientID:     orangeSecrets.ClientID,
+			ClientSecret: orangeSecrets.ClientSecret,
+			MerchantKey:  orangeSecrets.MerchantKey,
+			BaseURL:      orangeSecrets.BaseURL,
+		}
+		log.Println("[Config] ✅ Loaded Orange Money config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Orange Money secrets not available in Vault: %v", err)
+	}
+
+	// Load Pesapal from Vault
+	if pesapalSecrets, err := vaultClient.GetPesapalSecrets(); err == nil {
+		cfg.Pesapal = PesapalConfig{
+			ConsumerKey:    pesapalSecrets.ConsumerKey,
+			ConsumerSecret: pesapalSecrets.ConsumerSecret,
+			BaseURL:        pesapalSecrets.BaseURL,
+		}
+		log.Println("[Config] ✅ Loaded Pesapal config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Pesapal secrets not available in Vault: %v", err)
+	}
+
+	// Load Chipper from Vault
+	if chipperSecrets, err := vaultClient.GetChipperSecrets(); err == nil {
+		cfg.Chipper = ChipperConfig{
+			APIKey:    chipperSecrets.APIKey,
+			APISecret: chipperSecrets.APISecret,
+			BaseURL:   chipperSecrets.BaseURL,
+		}
+		log.Println("[Config] ✅ Loaded Chipper config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Chipper secrets not available in Vault: %v", err)
+	}
+
+	// Load CryptoRails from Vault (Circle, Binance)
+	cfg.CryptoRails = loadCryptoRailsFromVault(vaultClient, poolThreshold, poolEnabled)
+
+	log.Println("[Config] Configuration loading complete")
+	return cfg
+}
+
+// loadCryptoRailsFromVault loads crypto rails config from Vault
+func loadCryptoRailsFromVault(vaultClient *secrets.VaultClient, poolThreshold float64, poolEnabled bool) CryptoRailsConfig {
+	cfg := CryptoRailsConfig{
+		UseInternalPoolThreshold: poolThreshold,
+		InternalPoolEnabled:      poolEnabled,
+		PreferredStablecoin:      getEnv("PREFERRED_STABLECOIN", "USDC"),
+		EthereumWallet:           getEnv("ETH_WALLET_ADDRESS", ""),
+		TronWallet:               getEnv("TRX_WALLET_ADDRESS", ""),
+		PolygonWallet:            getEnv("MATIC_WALLET_ADDRESS", ""),
+	}
+
+	// Load Circle from Vault
+	if circleSecrets, err := vaultClient.GetCircleSecrets(); err == nil {
+		cfg.CircleAPIKey = circleSecrets.APIKey
+		cfg.CircleBaseURL = circleSecrets.BaseURL
+		log.Println("[Config] ✅ Loaded Circle config from Vault")
+	} else {
+		cfg.CircleAPIKey = getEnv("CIRCLE_API_KEY", "")
+		cfg.CircleBaseURL = getEnv("CIRCLE_BASE_URL", "https://api.circle.com/v1")
+	}
+
+	// Load Binance from Vault
+	if binanceSecrets, err := vaultClient.GetBinanceSecrets(); err == nil {
+		cfg.BinanceAPIKey = binanceSecrets.APIKey
+		cfg.BinanceAPISecret = binanceSecrets.APISecret
+		cfg.BinanceBaseURL = binanceSecrets.BaseURL
+		log.Println("[Config] ✅ Loaded Binance config from Vault")
+	} else {
+		cfg.BinanceAPIKey = getEnv("BINANCE_API_KEY", "")
+		cfg.BinanceAPISecret = getEnv("BINANCE_API_SECRET", "")
+		cfg.BinanceBaseURL = getEnv("BINANCE_BASE_URL", "https://api.binance.com")
+	}
+
+	return cfg
+}
+
+// LoadConfigFromEnv loads configuration from environment variables only
+// Used as fallback when Vault is unavailable
+func LoadConfigFromEnv() *Config {
+	log.Println("[Config] Loading configurations from environment variables...")
+
+	poolThreshold, _ := strconv.ParseFloat(getEnv("CRYPTO_POOL_THRESHOLD", "500"), 64)
+	poolEnabled, _ := strconv.ParseBool(getEnv("CRYPTO_POOL_ENABLED", "true"))
+
 	return &Config{
-		Flutterwave: FlutterwaveConfig{
-			// Flutterwave API Keys - Get from https://dashboard.flutterwave.com/settings/api
-			SecretKey:   getEnv("FLUTTERWAVE_SECRET_KEY", ""),
-			PublicKey:   getEnv("FLUTTERWAVE_PUBLIC_KEY", ""),
-			EncryptKey:  getEnv("FLUTTERWAVE_ENCRYPT_KEY", ""),
-			BaseURL:     getEnv("FLUTTERWAVE_BASE_URL", "https://api.flutterwave.com/v3"),
-			CallbackURL: getEnv("FLUTTERWAVE_CALLBACK_URL", ""),
-		},
-		Thunes: ThunesConfig{
-			// Thunes API Keys - Get from https://portal.thunes.com
-			APIKey:      getEnv("THUNES_API_KEY", ""),
-			APISecret:   getEnv("THUNES_API_SECRET", ""),
-			BaseURL:     getEnv("THUNES_BASE_URL", "https://api.thunes.com/v2"),
-			CallbackURL: getEnv("THUNES_CALLBACK_URL", ""),
-		},
-		Stripe: StripeConfig{
-			// Stripe API Keys - Get from https://dashboard.stripe.com/apikeys
-			SecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
-			PublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY", ""),
-			WebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
-			BaseURL:        getEnv("STRIPE_BASE_URL", "https://api.stripe.com/v1"),
-		},
+		Flutterwave: loadFlutterwaveFromEnv(),
+		Thunes:      loadThunesFromEnv(),
+		Stripe:      loadStripeFromEnv(),
 		CryptoRails: CryptoRailsConfig{
-			// Circle USDC API - Get from https://developers.circle.com
-			CircleAPIKey:  getEnv("CIRCLE_API_KEY", ""),
-			CircleBaseURL: getEnv("CIRCLE_BASE_URL", "https://api.circle.com/v1"),
-			
-			// Binance API - Get from https://www.binance.com/en/my/settings/api-management
-			BinanceAPIKey:    getEnv("BINANCE_API_KEY", ""),
-			BinanceAPISecret: getEnv("BINANCE_API_SECRET", ""),
-			BinanceBaseURL:   getEnv("BINANCE_BASE_URL", "https://api.binance.com"),
-			
-			// Internal pool settings
+			CircleAPIKey:             getEnv("CIRCLE_API_KEY", ""),
+			CircleBaseURL:            getEnv("CIRCLE_BASE_URL", "https://api.circle.com/v1"),
+			BinanceAPIKey:            getEnv("BINANCE_API_KEY", ""),
+			BinanceAPISecret:         getEnv("BINANCE_API_SECRET", ""),
+			BinanceBaseURL:           getEnv("BINANCE_BASE_URL", "https://api.binance.com"),
 			UseInternalPoolThreshold: poolThreshold,
 			InternalPoolEnabled:      poolEnabled,
 			PreferredStablecoin:      getEnv("PREFERRED_STABLECOIN", "USDC"),
-			
-			// Wallet addresses for receiving crypto
-			EthereumWallet: getEnv("ETH_WALLET_ADDRESS", ""),
-			TronWallet:     getEnv("TRX_WALLET_ADDRESS", ""),
-			PolygonWallet:  getEnv("MATIC_WALLET_ADDRESS", ""),
+			EthereumWallet:           getEnv("ETH_WALLET_ADDRESS", ""),
+			TronWallet:               getEnv("TRX_WALLET_ADDRESS", ""),
+			PolygonWallet:            getEnv("MATIC_WALLET_ADDRESS", ""),
 		},
+	}
+}
+
+func loadStripeFromEnv() StripeConfig {
+	return StripeConfig{
+		SecretKey:      getEnv("STRIPE_SECRET_KEY", ""),
+		PublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY", ""),
+		WebhookSecret:  getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		BaseURL:        getEnv("STRIPE_BASE_URL", "https://api.stripe.com/v1"),
+	}
+}
+
+func loadFlutterwaveFromEnv() FlutterwaveConfig {
+	return FlutterwaveConfig{
+		SecretKey:   getEnv("FLUTTERWAVE_SECRET_KEY", ""),
+		PublicKey:   getEnv("FLUTTERWAVE_PUBLIC_KEY", ""),
+		EncryptKey:  getEnv("FLUTTERWAVE_ENCRYPT_KEY", ""),
+		BaseURL:     getEnv("FLUTTERWAVE_BASE_URL", "https://api.flutterwave.com/v3"),
+		CallbackURL: getEnv("FLUTTERWAVE_CALLBACK_URL", ""),
+	}
+}
+
+func loadThunesFromEnv() ThunesConfig {
+	return ThunesConfig{
+		APIKey:      getEnv("THUNES_API_KEY", ""),
+		APISecret:   getEnv("THUNES_API_SECRET", ""),
+		BaseURL:     getEnv("THUNES_BASE_URL", "https://api.thunes.com/v2"),
+		CallbackURL: getEnv("THUNES_CALLBACK_URL", ""),
 	}
 }
 
 // InitializeRouter creates and configures the zone router with all providers
 func InitializeRouter(cfg *Config) *ZoneRouter {
 	router := NewZoneRouter()
-	
-	// Register Flutterwave (Africa)
-	if cfg.Flutterwave.SecretKey != "" {
-		flutterwave := NewFlutterwaveProvider(cfg.Flutterwave)
-		router.RegisterProvider(flutterwave)
-	}
-	
-	// Register Thunes (Global)
-	if cfg.Thunes.APIKey != "" {
-		thunes := NewThunesProvider(cfg.Thunes)
-		router.RegisterProvider(thunes)
-	}
-	
+
 	// Register Stripe (Europe, North America)
-	if cfg.Stripe.SecretKey != "" {
+	if cfg.Stripe.SecretKey != "" && !isPlaceholder(cfg.Stripe.SecretKey) {
 		stripe := NewStripeProvider(cfg.Stripe)
 		router.RegisterProvider(stripe)
+		log.Println("[Router] Registered Stripe provider")
 	}
-	
+
+	// Register Flutterwave (Africa)
+	if cfg.Flutterwave.SecretKey != "" && !isPlaceholder(cfg.Flutterwave.SecretKey) {
+		flutterwave := NewFlutterwaveProvider(cfg.Flutterwave)
+		router.RegisterProvider(flutterwave)
+		log.Println("[Router] Registered Flutterwave provider")
+	}
+
+	// Register PayPal (Global)
+	if cfg.PayPal.ClientID != "" && !isPlaceholder(cfg.PayPal.ClientID) {
+		paypal := NewPayPalProvider(cfg.PayPal)
+		router.RegisterProvider(paypal)
+		log.Println("[Router] Registered PayPal provider")
+	}
+
+	// Register Thunes (Global)
+	if cfg.Thunes.APIKey != "" && !isPlaceholder(cfg.Thunes.APIKey) {
+		thunes := NewThunesProvider(cfg.Thunes)
+		router.RegisterProvider(thunes)
+		log.Println("[Router] Registered Thunes provider")
+	}
+
+	// Register MTN MoMo (Africa)
+	if cfg.MTNMomo.SubscriptionKey != "" && !isPlaceholder(cfg.MTNMomo.SubscriptionKey) {
+		mtn := NewMTNMomoProvider(cfg.MTNMomo)
+		router.RegisterProvider(mtn)
+		log.Println("[Router] Registered MTN MoMo provider")
+	}
+
+	// Register Orange Money (Africa)
+	if cfg.OrangeMoney.ClientID != "" && !isPlaceholder(cfg.OrangeMoney.ClientID) {
+		orange := NewOrangeMoneyProvider(cfg.OrangeMoney)
+		router.RegisterProvider(orange)
+		log.Println("[Router] Registered Orange Money provider")
+	}
+
+	// Register Pesapal (East Africa)
+	if cfg.Pesapal.ConsumerKey != "" && !isPlaceholder(cfg.Pesapal.ConsumerKey) {
+		pesapal := NewPesapalProvider(cfg.Pesapal)
+		router.RegisterProvider(pesapal)
+		log.Println("[Router] Registered Pesapal provider")
+	}
+
+	// Register Chipper Cash (Africa)
+	if cfg.Chipper.APIKey != "" && !isPlaceholder(cfg.Chipper.APIKey) {
+		chipper := NewChipperProvider(cfg.Chipper)
+		router.RegisterProvider(chipper)
+		log.Println("[Router] Registered Chipper Cash provider")
+	}
+
 	return router
+}
+
+// isPlaceholder checks if a value is a placeholder that should not be used
+func isPlaceholder(value string) bool {
+	return len(value) > 8 && value[0:8] == "REPLACE_"
 }
 
 // InitializeCryptoRails creates the crypto rails provider

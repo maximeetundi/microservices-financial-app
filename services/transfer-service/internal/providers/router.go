@@ -28,7 +28,7 @@ var CountryZone = map[string]Zone{
 	"TG": ZoneAfrica, "BF": ZoneAfrica, "ML": ZoneAfrica, "NE": ZoneAfrica,
 	"CD": ZoneAfrica, "GA": ZoneAfrica, "CG": ZoneAfrica, "MW": ZoneAfrica,
 	"EG": ZoneAfrica, "MA": ZoneAfrica, "TN": ZoneAfrica,
-	
+
 	// Europe (SEPA)
 	"AT": ZoneEurope, "BE": ZoneEurope, "BG": ZoneEurope, "HR": ZoneEurope,
 	"CY": ZoneEurope, "CZ": ZoneEurope, "DK": ZoneEurope, "EE": ZoneEurope,
@@ -38,33 +38,33 @@ var CountryZone = map[string]Zone{
 	"PL": ZoneEurope, "PT": ZoneEurope, "RO": ZoneEurope, "SK": ZoneEurope,
 	"SI": ZoneEurope, "ES": ZoneEurope, "SE": ZoneEurope, "GB": ZoneEurope,
 	"CH": ZoneEurope, "NO": ZoneEurope,
-	
+
 	// North America
 	"US": ZoneNorthAmerica, "CA": ZoneNorthAmerica,
-	
+
 	// Asia
 	"PH": ZoneAsia, "ID": ZoneAsia, "VN": ZoneAsia, "TH": ZoneAsia,
 	"MY": ZoneAsia, "SG": ZoneAsia, "IN": ZoneAsia, "BD": ZoneAsia,
 	"PK": ZoneAsia, "NP": ZoneAsia, "LK": ZoneAsia, "JP": ZoneAsia,
 	"HK": ZoneAsia, "CN": ZoneAsia, "KR": ZoneAsia,
-	
+
 	// Latin America
 	"MX": ZoneLatinAmerica, "BR": ZoneLatinAmerica, "CO": ZoneLatinAmerica,
 	"PE": ZoneLatinAmerica, "CL": ZoneLatinAmerica, "AR": ZoneLatinAmerica,
-	
+
 	// Middle East
 	"AE": ZoneMiddleEast, "SA": ZoneMiddleEast, "KW": ZoneMiddleEast,
 	"QA": ZoneMiddleEast, "BH": ZoneMiddleEast, "OM": ZoneMiddleEast,
-	
+
 	// Oceania
 	"AU": ZoneOceania, "NZ": ZoneOceania,
 }
 
 // ZoneRouter routes payouts to the appropriate provider
 type ZoneRouter struct {
-	providers map[string]PayoutProvider
+	providers    map[string]PayoutProvider
 	zonePriority map[Zone][]string // Provider priority per zone
-	mu        sync.RWMutex
+	mu           sync.RWMutex
 }
 
 // NewZoneRouter creates a new zone router with providers
@@ -72,13 +72,13 @@ func NewZoneRouter() *ZoneRouter {
 	return &ZoneRouter{
 		providers: make(map[string]PayoutProvider),
 		zonePriority: map[Zone][]string{
-			ZoneAfrica:       {"flutterwave", "thunes"},
-			ZoneEurope:       {"stripe", "thunes"},
-			ZoneNorthAmerica: {"stripe", "thunes"},
-			ZoneAsia:         {"thunes", "stripe"},
-			ZoneLatinAmerica: {"thunes"},
-			ZoneMiddleEast:   {"thunes"},
-			ZoneOceania:      {"stripe", "thunes"},
+			ZoneAfrica:       {"flutterwave", "mtn_momo", "orange_money", "chipper", "pesapal", "thunes"},
+			ZoneEurope:       {"stripe", "paypal", "thunes"},
+			ZoneNorthAmerica: {"stripe", "paypal", "thunes"},
+			ZoneAsia:         {"thunes", "stripe", "paypal"},
+			ZoneLatinAmerica: {"paypal", "thunes"},
+			ZoneMiddleEast:   {"thunes", "paypal"},
+			ZoneOceania:      {"stripe", "paypal", "thunes"},
 		},
 	}
 }
@@ -102,20 +102,20 @@ func (r *ZoneRouter) GetZone(country string) Zone {
 func (r *ZoneRouter) GetProvider(country string, method PayoutMethod) (PayoutProvider, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	zone := r.GetZone(country)
 	providerNames, ok := r.zonePriority[zone]
 	if !ok {
 		return nil, fmt.Errorf("no providers configured for zone %s", zone)
 	}
-	
+
 	// Try each provider in priority order
 	for _, name := range providerNames {
 		provider, exists := r.providers[name]
 		if !exists {
 			continue
 		}
-		
+
 		// Check if provider supports the country
 		supported := false
 		for _, c := range provider.GetSupportedCountries() {
@@ -124,14 +124,14 @@ func (r *ZoneRouter) GetProvider(country string, method PayoutMethod) (PayoutPro
 				break
 			}
 		}
-		
+
 		if supported {
 			// Check if provider supports the method
 			methods, err := provider.GetAvailableMethods(context.Background(), country)
 			if err != nil {
 				continue
 			}
-			
+
 			for _, m := range methods {
 				if m.Method == method {
 					return provider, nil
@@ -139,7 +139,7 @@ func (r *ZoneRouter) GetProvider(country string, method PayoutMethod) (PayoutPro
 			}
 		}
 	}
-	
+
 	return nil, fmt.Errorf("no provider available for country %s with method %s", country, method)
 }
 
@@ -147,23 +147,23 @@ func (r *ZoneRouter) GetProvider(country string, method PayoutMethod) (PayoutPro
 func (r *ZoneRouter) GetAvailableMethodsForCountry(ctx context.Context, country string) ([]AvailableMethod, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	methodMap := make(map[PayoutMethod]AvailableMethod)
-	
+
 	zone := r.GetZone(country)
 	providerNames := r.zonePriority[zone]
-	
+
 	for _, name := range providerNames {
 		provider, exists := r.providers[name]
 		if !exists {
 			continue
 		}
-		
+
 		methods, err := provider.GetAvailableMethods(ctx, country)
 		if err != nil {
 			continue
 		}
-		
+
 		// Add methods (first provider wins for each method type)
 		for _, m := range methods {
 			if _, exists := methodMap[m.Method]; !exists {
@@ -171,12 +171,12 @@ func (r *ZoneRouter) GetAvailableMethodsForCountry(ctx context.Context, country 
 			}
 		}
 	}
-	
+
 	result := make([]AvailableMethod, 0, len(methodMap))
 	for _, m := range methodMap {
 		result = append(result, m)
 	}
-	
+
 	return result, nil
 }
 
@@ -204,12 +204,12 @@ func (r *ZoneRouter) CreatePayout(ctx context.Context, req *PayoutRequest) (*Pay
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate recipient
 	if err := provider.ValidateRecipient(ctx, req); err != nil {
 		return nil, err
 	}
-	
+
 	// Create payout
 	return provider.CreatePayout(ctx, req)
 }
@@ -219,10 +219,10 @@ func (r *ZoneRouter) GetPayoutStatus(ctx context.Context, referenceID, providerN
 	r.mu.RLock()
 	provider, exists := r.providers[providerName]
 	r.mu.RUnlock()
-	
+
 	if !exists {
 		return nil, fmt.Errorf("provider %s not found", providerName)
 	}
-	
+
 	return provider.GetPayoutStatus(ctx, referenceID)
 }

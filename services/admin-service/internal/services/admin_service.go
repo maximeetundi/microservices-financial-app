@@ -573,7 +573,7 @@ func (s *AdminService) InitializeSettings() error {
 		{
 			ID: uuid.New().String(), Key: "system_testnet_enabled", Name: "Testnet Enabled",
 			Description: "Enable crypto testnet networks", Type: models.FeeTypeSystem,
-			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+			IsEnabled: false, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
 		},
 		{
 			ID: uuid.New().String(), Key: "system_maintenance_mode", Name: "Maintenance Mode",

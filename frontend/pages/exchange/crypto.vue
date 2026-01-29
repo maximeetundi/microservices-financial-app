@@ -382,6 +382,15 @@ const showNotification = (type, message) => {
 // Map store rates to list usable by UI
 const markets = computed(() => {
     if (cryptoRates.value.length === 0) return []
+    
+    // Fiat currencies to exclude from crypto market display
+    const fiatCurrencies = new Set([
+        'USD', 'EUR', 'GBP', 'XOF', 'XAF', 'NGN', 'ZAR', 'GHS', 'KES',
+        'CAD', 'AUD', 'JPY', 'CNY', 'HKD', 'SGD', 'NZD', 'INR', 'KRW',
+        'CHF', 'SEK', 'NOK', 'DKK', 'AED', 'SAR', 'TRY', 'RUB',
+        'BRL', 'MXN', 'ARS', 'CLP', 'MAD'
+    ])
+    
     return cryptoRates.value.map(r => {
         // Parse symbol, e.g., "BTC/USD" -> "BTC"
         let symbol = r.symbol || r.pair || ''
@@ -391,6 +400,9 @@ const markets = computed(() => {
         if (!symbol) return null // Skip invalid entries
         
         const base = symbol.includes('/') ? symbol.split('/')[0] : symbol
+        
+        // Skip fiat currencies - they should not appear in crypto market prices
+        if (fiatCurrencies.has(base)) return null
         
         return {
             symbol: base,

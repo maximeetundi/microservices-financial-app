@@ -113,7 +113,7 @@ func (r *FeeRepository) seedDefaults() error {
 			_, err := r.db.Exec(`
 				INSERT INTO fee_configs (id, key, description, type, percentage, fixed_amount, currency, min_fee, max_fee, is_active)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			`, id, config.Key, config.Description, config.Type, config.Percentage, config.FixedAmount, "USD", 0, 0, true)
+			`, id, config.Key, config.Description, config.Type, config.Percentage, config.FixedAmount, "USD", 0, 0, config.IsActive)
 			if err != nil {
 				return fmt.Errorf("failed to seed fee config %s: %w", config.Key, err)
 			}
