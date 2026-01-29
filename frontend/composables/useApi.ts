@@ -801,6 +801,7 @@ export const messagingAPI = {
 // ========== System Config ==========
 export const systemConfigAPI = {
     getPublicConfig: () => api.get('/wallet-service/api/v1/public/config'),
+    getNetworks: (currency: string) => api.get(`/wallet-service/api/v1/public/networks?currency=${currency}`),
 }
 
 export const useApi = () => {

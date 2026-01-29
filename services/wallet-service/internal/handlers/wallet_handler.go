@@ -15,13 +15,15 @@ type WalletHandler struct {
 	walletService       *services.WalletService
 	balanceService      *services.BalanceService
 	systemConfigService *services.SystemConfigService
+	cryptoService       *services.CryptoService // Injected
 }
 
-func NewWalletHandler(walletService *services.WalletService, balanceService *services.BalanceService, systemConfigService *services.SystemConfigService) *WalletHandler {
+func NewWalletHandler(walletService *services.WalletService, balanceService *services.BalanceService, systemConfigService *services.SystemConfigService, cryptoService *services.CryptoService) *WalletHandler {
 	return &WalletHandler{
 		walletService:       walletService,
 		balanceService:      balanceService,
 		systemConfigService: systemConfigService,
+		cryptoService:       cryptoService,
 	}
 }
 
@@ -70,6 +72,17 @@ func (h *WalletHandler) GetPublicConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"testnet_enabled": isTestnet,
 	})
+}
+
+func (h *WalletHandler) GetNetworks(c *gin.Context) {
+	currency := c.Query("currency")
+	if currency == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "currency query parameter is required"})
+		return
+	}
+
+	networks := h.cryptoService.GetAvailableNetworks(currency)
+	c.JSON(http.StatusOK, gin.H{"networks": networks})
 }
 
 func (h *WalletHandler) DeleteWallet(c *gin.Context) {

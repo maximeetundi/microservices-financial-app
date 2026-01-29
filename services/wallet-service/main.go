@@ -135,7 +135,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	walletHandler := handlers.NewWalletHandler(walletService, balanceService, systemConfigService)
+	walletHandler := handlers.NewWalletHandler(walletService, balanceService, systemConfigService, cryptoService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
 	adminPlatformHandler := handlers.NewAdminPlatformHandler(platformService)
@@ -278,6 +278,7 @@ func main() {
 
 		// Public configuration endpoint
 		api.GET("/public/config", walletHandler.GetPublicConfig)
+		api.GET("/public/networks", walletHandler.GetNetworks)
 	}
 
 	port := os.Getenv("PORT")

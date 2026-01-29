@@ -697,23 +697,24 @@ const availableNetworks = computed(() => {
        return ['ERC20', 'BEP20', 'TRC20']
     }
     if (currency === 'ETH') {
-       if (isTestnet) return ['ERC20', 'BEP20', 'SEPOLIA', 'GOERLI']
+       console.log('ETH Networks check. isTestnet:', isTestnet)
+       if (isTestnet) return ['ERC20', 'BEP20', 'SEPOLIA (Testnet)', 'GOERLI (Testnet)']
        return ['ERC20', 'BEP20']
     }
     if (currency === 'BTC') {
-       if (isTestnet) return ['BTC', 'SEGWIT', 'TESTNET']
+       if (isTestnet) return ['BTC', 'SEGWIT', 'TESTNET (Testnet)']
        return ['BTC', 'SEGWIT']
     }
     if (currency === 'TRX') {
-       if (isTestnet) return ['TRC20', 'SHASTA']
+       if (isTestnet) return ['TRC20', 'SHASTA (Testnet)']
        return ['TRC20']
     }
     if (currency === 'SOL') {
-       if (isTestnet) return ['SOLANA', 'DEVNET']
+       if (isTestnet) return ['SOLANA', 'DEVNET (Testnet)']
        return ['SOLANA']
     }
     if (currency === 'BNB') {
-       if (isTestnet) return ['BEP20', 'BSC-TESTNET']
+       if (isTestnet) return ['BEP20', 'BSC-TESTNET (Testnet)']
        return ['BEP20']
     }
     

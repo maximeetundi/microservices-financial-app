@@ -69,6 +69,53 @@ func (s *CryptoService) isTestnet() bool {
 	return s.config.CryptoNetwork == "testnet"
 }
 
+// GetAvailableNetworks returns the list of valid networks for a currency based on system config
+func (s *CryptoService) GetAvailableNetworks(currency string) []string {
+	isTestnet := s.isTestnet()
+	currency = strings.ToUpper(currency)
+
+	switch currency {
+	case "USDT", "USDC":
+		if isTestnet {
+			return []string{"ERC20", "BEP20", "TRC20", "SEPOLIA (Testnet)", "BSC-TESTNET (Testnet)", "SHASTA (Testnet)"}
+		}
+		return []string{"ERC20", "BEP20", "TRC20"}
+	case "ETH":
+		if isTestnet {
+			return []string{"ERC20", "BEP20", "SEPOLIA (Testnet)", "GOERLI (Testnet)"}
+		}
+		return []string{"ERC20", "BEP20"}
+	case "BTC":
+		if isTestnet {
+			return []string{"BTC", "SEGWIT", "TESTNET (Testnet)"}
+		}
+		return []string{"BTC", "SEGWIT"}
+	case "TRX":
+		if isTestnet {
+			return []string{"TRC20", "SHASTA (Testnet)"}
+		}
+		return []string{"TRC20"}
+	case "SOL":
+		if isTestnet {
+			return []string{"SOLANA", "DEVNET (Testnet)"}
+		}
+		return []string{"SOLANA"}
+	case "BNB":
+		if isTestnet {
+			return []string{"BEP20", "BSC-TESTNET (Testnet)"}
+		}
+		return []string{"BEP20"}
+	}
+
+	// Default for others (MATIC, AVAX, etc)
+	if isTestnet {
+		return []string{"MAINNET", "TESTNET (Testnet)"}
+	}
+	// For mainnet-only or unsupported, maybe empty or just MAINNET?
+	// Sticking to frontend logic:
+	return []string{}
+}
+
 func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, error) {
 	// NON-CUSTODIAL IMPLEMENTATION
 	var address, privKeyHex, pubKeyHex string
