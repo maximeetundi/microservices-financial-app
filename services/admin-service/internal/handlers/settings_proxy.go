@@ -8,6 +8,7 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/config"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type SettingsProxyHandler struct {
@@ -27,21 +28,14 @@ func NewSettingsProxyHandler(cfg *config.Config) *SettingsProxyHandler {
 // ProxyRequest forwards the request to the exchange service
 func (h *SettingsProxyHandler) ProxyRequest(c *gin.Context) {
 	// Target: {ExchangeServiceURL}/api/v1/admin/settings
-	// Incoming: /api/v1/admin/settings[/...]
-
-	// We might have path parameters handled by Gin if we register specific routes,
-	// or we can use wildcard.
-	// Since main.go will likely register GET/PUT /settings separately, we should make this generic or handle path construction.
-
 	targetURL := h.config.ExchangeServiceURL + "/api/v1/admin/settings"
 
-	// If path param key is present in context (e.g. /settings/:key)
 	key := c.Param("key")
 	if key != "" {
 		targetURL += "/" + key
 	}
 
-	// Prepare request
+	// Prepare request body
 	var body io.Reader
 	if c.Request.Body != nil {
 		bodyBytes, _ := io.ReadAll(c.Request.Body)
@@ -55,9 +49,18 @@ func (h *SettingsProxyHandler) ProxyRequest(c *gin.Context) {
 		return
 	}
 
-	// Copy headers
+	// Generate internal token for Exchange Service
+	// Exchange Service expects a user token with role=admin signed with JWT_SECRET
+	token, err := h.generateProxyToken(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate proxy auth token"})
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Copy other headers
 	for k, v := range c.Request.Header {
-		if k == "Host" || k == "Content-Length" || k == "Connection" {
+		if k == "Host" || k == "Content-Length" || k == "Connection" || k == "Authorization" {
 			continue
 		}
 		req.Header[k] = v
@@ -77,4 +80,26 @@ func (h *SettingsProxyHandler) ProxyRequest(c *gin.Context) {
 
 	c.Status(resp.StatusCode)
 	io.Copy(c.Writer, resp.Body)
+}
+
+func (h *SettingsProxyHandler) generateProxyToken(c *gin.Context) (string, error) {
+	adminID := c.GetString("admin_id")
+	email := c.GetString("email") // Check if email is stored as 'email' or 'admin_email'
+	if email == "" {
+		email = c.GetString("admin_email")
+	}
+
+	// Claims expected by Exchange Service middleware
+	claims := jwt.MapClaims{
+		"user_id":   adminID, // Map admin_id to user_id
+		"email":     email,
+		"role":      "admin",                                // Force admin role
+		"kyc_level": 3,                                      // Assume full access
+		"exp":       time.Now().Add(1 * time.Minute).Unix(), // Short lived
+		"iat":       time.Now().Unix(),
+		"type":      "access",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(h.config.JWTSecret))
 }

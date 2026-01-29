@@ -420,6 +420,7 @@ services:
       - KAFKA_BROKERS=kafka:9092
       - KAFKA_GROUP_ID=admin-service-group
       - ADMIN_JWT_SECRET=admin_ultra_secure_jwt_secret_2024
+      - JWT_SECRET=ultra_secure_jwt_secret_key_2024
       - AUTH_SERVICE_URL=http://auth-service:8081
       - WALLET_SERVICE_URL=http://wallet-service:8083
       - TRANSFER_SERVICE_URL=http://transfer-service:8084

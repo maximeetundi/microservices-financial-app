@@ -24,6 +24,7 @@ type Config struct {
 	// JWT (separate from user JWT)
 	AdminJWTSecret     string
 	AdminJWTExpiration string
+	JWTSecret          string // Common user JWT secret for internal calls
 
 	// Services URLs (for direct API calls when needed)
 	AuthServiceURL         string
@@ -59,6 +60,7 @@ func Load() *Config {
 
 		AdminJWTSecret:     getEnv("ADMIN_JWT_SECRET", "admin_ultra_secure_jwt_secret_2024"),
 		AdminJWTExpiration: getEnv("ADMIN_JWT_EXPIRATION", "8h"),
+		JWTSecret:          getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 
 		AuthServiceURL:         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
 		WalletServiceURL:       getEnv("WALLET_SERVICE_URL", "http://localhost:8083"),
