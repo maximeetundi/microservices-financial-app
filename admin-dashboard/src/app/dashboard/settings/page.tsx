@@ -25,6 +25,7 @@ import { getFeeConfigs, updateFeeConfig, createFeeConfig } from '@/lib/api';
 interface FeeConfig {
     id: string;
     key: string;
+    value?: string; // Add value field for system settings
     name: string;
     description: string;
     type: string; // flat, percentage, hybrid
@@ -209,12 +210,21 @@ export default function FeeManagementPage() {
                             {/* Hardcoded System Toggles for UI Verification */}
                             {[
                                 { key: 'system_maintenance_mode', label: 'Mode Maintenance', desc: 'Suspend l\'accès utilisateur pour maintenance.', color: 'bg-red-500' },
-                                { key: 'system_testnet_enabled', label: 'Réseaux de Test (Testnet)', desc: 'Active BTC Testnet, Sepolia, etc. pour le développement.', color: 'bg-orange-500' },
+                                { key: 'crypto_network', label: 'Réseaux de Test (Testnet)', desc: 'Active BTC Testnet, Sepolia, etc. pour le développement.', color: 'bg-orange-500' },
                                 { key: 'system_signup_enabled', label: 'Inscriptions', desc: 'Autoriser les nouveaux utilisateurs à s\'inscrire.', color: 'bg-emerald-500' },
                                 { key: 'system_notifications', label: 'Notifications Globales', desc: 'Activer les emails et push notifications.', color: 'bg-blue-500' }
                             ].map(sys => {
                                 const existing = fees.find(f => f.key === sys.key);
-                                const isEnabled = existing ? existing.is_enabled : false;
+
+                                // Special logic for crypto_network (string value) vs boolean toggles
+                                let isEnabled = false;
+                                if (sys.key === 'crypto_network') {
+                                    isEnabled = existing ? existing.value === 'testnet' : false;
+                                } else {
+                                    isEnabled = existing ? existing.is_enabled : false;
+                                    // Note: if backend doesn't support is_enabled for system_settings, this fallbacks might need review for other keys
+                                    // but specifically fixing crypto_network now.
+                                }
 
                                 return (
                                     <div key={sys.key} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
@@ -223,12 +233,28 @@ export default function FeeManagementPage() {
                                                 <AdjustmentsHorizontalIcon className="w-6 h-6" />
                                             </div>
                                             <div onClick={() => {
-                                                const payload = {
-                                                    key: sys.key, name: sys.label, description: sys.desc, type: 'system_toggle',
-                                                    is_enabled: !isEnabled, fixed_amount: 0, percentage_amount: 0, currency: 'USD'
+                                                let payload: any = {
+                                                    key: sys.key,
+                                                    name: sys.label,
+                                                    description: sys.desc,
+                                                    type: 'system_toggle',
+                                                    currency: 'USD',
+                                                    fixed_amount: 0,
+                                                    percentage_amount: 0
                                                 };
-                                                if (existing) handleEdit({ ...existing, is_enabled: !isEnabled } as FeeConfig);
-                                                else createFeeConfig(payload).then(loadFees);
+
+                                                if (sys.key === 'crypto_network') {
+                                                    payload.value = isEnabled ? 'mainnet' : 'testnet'; // Toggle
+                                                    // Ensure we keep existing other fields if needed, but 'value' is what matters
+                                                } else {
+                                                    payload.is_enabled = !isEnabled;
+                                                }
+
+                                                if (existing) {
+                                                    handleEdit({ ...existing, ...payload } as FeeConfig);
+                                                } else {
+                                                    createFeeConfig(payload).then(loadFees);
+                                                }
                                             }} className={`w-12 h-6 rounded-full cursor-pointer transition-colors relative ${isEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}>
                                                 <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isEnabled ? 'translate-x-6' : ''}`} />
                                             </div>
