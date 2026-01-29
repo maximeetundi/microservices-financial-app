@@ -25,7 +25,15 @@ func (s *PlatformAccountService) Initialize() error {
 	log.Println("[Platform] Initializing platform accounts (Dual Wallet Architecture)...")
 
 	// --- 1. Fiat Accounts (Storage & Operational) ---
-	currencies := []string{"EUR", "USD", "GBP"}
+	// Expanded list to cover global regions as requested
+	currencies := []string{
+		"EUR", "USD", "GBP",
+		"XOF", "XAF", "NGN", "ZAR", "GHS", "KES", // Africa
+		"CAD", "AUD", "JPY", "CNY", "HKD", "SGD", "NZD", "INR", "KRW", // Asia/Pacific
+		"CHF", "SEK", "NOK", "DKK", // Europe (Non-Euro)
+		"AED", "SAR", "TRY", "RUB", // Middle East/Eastern Europe
+		"BRL", "MXN", "ARS", "CLP", // Americas
+	}
 
 	for _, currency := range currencies {
 		// A. Storage Account (Reserve) - 1 Billion

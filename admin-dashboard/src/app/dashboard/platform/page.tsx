@@ -146,6 +146,43 @@ export default function PlatformAccountsPage() {
         }
     };
 
+    // Helper Component for Compact Display
+    const CompactBalance = ({ amount, currency }: { amount: number, currency: string }) => {
+        const [showFull, setShowFull] = useState(false);
+
+        const fullValue = new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: currency === 'FCFA' ? 'XOF' : currency
+        }).format(amount);
+
+        const getCompact = () => {
+            if (amount >= 1_000_000_000) return (amount / 1_000_000_000).toFixed(2).replace(/\.00$/, '') + ' Md';
+            if (amount >= 1_000_000) return (amount / 1_000_000).toFixed(2).replace(/\.00$/, '') + ' M';
+            return fullValue;
+        };
+
+        return (
+            <div
+                className="cursor-pointer relative group inline-flex items-baseline gap-1"
+                onClick={() => setShowFull(!showFull)}
+                title="Cliquez pour basculer"
+            >
+                <span className={`font-mono font-bold tracking-tight ${amount < 0 ? 'text-red-500' : ''}`}>
+                    {showFull ? fullValue : getCompact()}
+                </span>
+                {!showFull && amount >= 1_000_000 && (
+                    <span className="text-[10px] text-slate-400 font-normal uppercase">{currency}</span>
+                )}
+                {/* Hover Tooltip */}
+                {!showFull && amount >= 1_000_000 && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                        {fullValue}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const formatCurrency = (amount: number, currency: string) => {
         return new Intl.NumberFormat('fr-FR', {
             style: 'currency',
@@ -286,7 +323,7 @@ export default function PlatformAccountsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="font-mono font-bold text-slate-900">
-                                                {wallet.balance} <span className="text-slate-500 text-xs">{wallet.currency}</span>
+                                                <CompactBalance amount={Number(wallet.balance) || 0} currency={wallet.currency} />
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -322,8 +359,8 @@ export default function PlatformAccountsPage() {
                                     <BanknotesIcon className="w-6 h-6" />
                                 </div>
                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${account.account_type === 'reserve' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                                        account.account_type === 'operations' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                            'bg-slate-50 text-slate-600 border-slate-200'
+                                    account.account_type === 'operations' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                        'bg-slate-50 text-slate-600 border-slate-200'
                                     }`}>
                                     {account.account_type === 'reserve' ? 'Réserve (Stockage)' :
                                         account.account_type === 'operations' ? 'Opérationnel' :
@@ -333,7 +370,7 @@ export default function PlatformAccountsPage() {
 
                             <h3 className="font-bold text-slate-900 text-lg mb-1 line-clamp-1">{account.name}</h3>
                             <div className="text-3xl font-extrabold text-slate-800 mb-6 tracking-tight">
-                                {formatCurrency(account.balance, account.currency)}
+                                <CompactBalance amount={account.balance} currency={account.currency} />
                             </div>
 
                             <div className="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
