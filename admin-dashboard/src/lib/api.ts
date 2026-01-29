@@ -151,6 +151,7 @@ export const createPlatformCryptoWallet = (data: any) => api.post('/platform/cry
 export const syncPlatformCryptoWallet = (id: string) => api.put(`/platform/crypto-wallets/${id}/sync`);
 
 export const getPlatformTransactions = (limit = 50, offset = 0) => api.get(`/platform/transactions?limit=${limit}&offset=${offset}`);
+export const getPlatformWalletTransactions = (walletId: string, limit = 50, offset = 0) => api.get(`/platform/crypto-wallets/${walletId}/transactions?limit=${limit}&offset=${offset}`);
 export const getPlatformReconciliation = () => api.get('/platform/reconciliation');
 
 

@@ -200,7 +200,13 @@ export default function PlatformAccountsPage() {
         return safeFormatCurrency(amount, currency);
     };
 
-    // Helper for Crypto Icons/Badges
+    // Helper for Crypto Icons
+    const getCryptoIcon = (currency: string) => {
+        const symbol = currency.toLowerCase();
+        // Fallback or use a reliable CDN
+        return `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${symbol}.png`;
+    };
+
     const getNetworkBadge = (network: string) => {
         const n = network.toLowerCase();
         let color = 'bg-slate-100 text-slate-600';
@@ -297,8 +303,16 @@ export default function PlatformAccountsPage() {
                                     <tr key={wallet.id} className="hover:bg-slate-50/80 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 border border-slate-200">
-                                                    {wallet.currency.substring(0, 2)}
+                                                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 p-2 overflow-hidden">
+                                                    <img
+                                                        src={getCryptoIcon(wallet.currency)}
+                                                        alt={wallet.currency}
+                                                        className="w-full h-full object-contain"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).style.display = 'none';
+                                                            (e.target as HTMLImageElement).parentElement!.innerText = wallet.currency.substring(0, 2);
+                                                        }}
+                                                    />
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-slate-900">{wallet.label || wallet.currency}</div>
@@ -337,12 +351,20 @@ export default function PlatformAccountsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleSync(wallet.id)}
-                                                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors"
-                                            >
-                                                Sync
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleSync(wallet.id)}
+                                                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors"
+                                                >
+                                                    Sync
+                                                </button>
+                                                <button
+                                                    onClick={() => { setSelectedAccount(wallet); setOpMode('credit'); setShowCreditDebit(true); }} // Reusing CreditDebit for now as wrapper
+                                                    className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold hover:bg-indigo-100 transition-colors"
+                                                >
+                                                    Détails
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -574,12 +596,19 @@ export default function PlatformAccountsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
                     <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-slide-up">
                         <h2 className={`text-2xl font-bold mb-6 ${opMode === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {opMode === 'credit' ? 'Créditer Compte' : 'Débiter Compte'}
+                            {opMode === 'credit' ? 'Créditer / Recevoir' : 'Débiter / Envoyer'}
                         </h2>
-                        <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <div className="text-sm text-slate-500 font-bold uppercase mb-1">Compte Cible</div>
-                            <div className="font-bold text-slate-900 text-lg">{selectedAccount.name || selectedAccount.label || selectedAccount.currency}</div>
-                            <div className="text-sm text-slate-600 font-mono mt-1">{selectedAccount.currency} ({selectedAccount.account_type || selectedAccount.wallet_type})</div>
+                        <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-4">
+                            {selectedAccount.network ? (
+                                <div className="w-12 h-12 p-2 bg-white rounded-full border border-slate-100 mb-0">
+                                    <img src={getCryptoIcon(selectedAccount.currency)} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                </div>
+                            ) : null}
+                            <div>
+                                <div className="text-sm text-slate-500 font-bold uppercase mb-1">Compte Cible</div>
+                                <div className="font-bold text-slate-900 text-lg">{selectedAccount.name || selectedAccount.label || selectedAccount.currency}</div>
+                                <div className="text-sm text-slate-600 font-mono mt-1">{selectedAccount.currency} ({selectedAccount.account_type || selectedAccount.wallet_type})</div>
+                            </div>
                         </div>
 
                         <form onSubmit={handleOperation} className="space-y-6">
@@ -598,6 +627,16 @@ export default function PlatformAccountsPage() {
                                 <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     value={opForm.description} onChange={e => setOpForm({ ...opForm, description: e.target.value })} required placeholder="Ex: Injection de liquidité initiale" />
                             </div>
+
+                            {/* Address Display for Credit (Receive) on Crypto */}
+                            {opMode === 'credit' && selectedAccount.network && (
+                                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm">
+                                    <div className="font-bold text-blue-700 mb-1">Adresse de réception :</div>
+                                    <code className="block break-all font-mono text-blue-600 bg-white p-2 rounded border border-blue-100">
+                                        {selectedAccount.address}
+                                    </code>
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-3 mt-8">
                                 <button type="button" onClick={() => setShowCreditDebit(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition-colors">Annuler</button>
