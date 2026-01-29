@@ -8,14 +8,15 @@ import (
 )
 
 type Config struct {
-	Environment  string
-	Port         string
-	DBUrl        string
-	RedisURL     string
-	KafkaBrokers string
-	KafkaGroupID string
-	JWTSecret    string
-	BaseURL      string
+	Environment    string
+	Port           string
+	DBUrl          string
+	RedisURL       string
+	KafkaBrokers   string
+	KafkaGroupID   string
+	JWTSecret      string
+	AdminJWTSecret string
+	BaseURL        string
 
 	// Tatum settings
 	TatumAPIKey  string
@@ -44,14 +45,15 @@ func Load() *Config {
 	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
 
 	cfg := &Config{
-		Environment:  getEnv("ENVIRONMENT", "development"),
-		Port:         getEnv("PORT", "8083"),
-		DBUrl:        getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
-		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
-		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "wallet-service-group"),
-		JWTSecret:    getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		BaseURL:      getEnv("BASE_URL", "https://api.app.tech-afm.com/wallet-service"),
+		Environment:    getEnv("ENVIRONMENT", "development"),
+		Port:           getEnv("PORT", "8083"),
+		DBUrl:          getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),
+		KafkaBrokers:   getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID:   getEnv("KAFKA_GROUP_ID", "wallet-service-group"),
+		JWTSecret:      getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
+		AdminJWTSecret: getEnv("ADMIN_JWT_SECRET", "admin_ultra_secure_jwt_secret_2024"),
+		BaseURL:        getEnv("BASE_URL", "https://api.app.tech-afm.com/wallet-service"),
 
 		// Tatum settings
 		TatumAPIKey:  getEnv("TATUM_API_KEY", ""),

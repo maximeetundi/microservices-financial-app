@@ -24,7 +24,7 @@ var (
 	mu           sync.RWMutex
 )
 
-func JWTAuth(secret string) gin.HandlerFunc {
+func JWTAuth(secret string, adminSecret ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := extractToken(c)
 		if tokenString == "" {
@@ -33,29 +33,45 @@ func JWTAuth(secret string) gin.HandlerFunc {
 			return
 		}
 
+		// Try standard user token first
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
 
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
+		if err == nil && token.Valid {
+			if claims, ok := token.Claims.(*Claims); ok {
+				c.Set("user_id", claims.UserID)
+				c.Set("user_email", claims.Email)
+				c.Set("user_role", claims.Role)
+				c.Set("kyc_level", claims.KYCLevel)
+				c.Next()
+				return
+			}
 		}
 
-		claims, ok := token.Claims.(*Claims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			c.Abort()
-			return
+		// If user token fails and we have an admin secret, try that
+		if len(adminSecret) > 0 {
+			// Parse as MapClaims since Admin token structure is different
+			adminToken, adminErr := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(adminSecret[0]), nil
+			})
+
+			if adminErr == nil && adminToken.Valid {
+				if claims, ok := adminToken.Claims.(jwt.MapClaims); ok {
+					// Check if it's actually an admin token
+					if claims["type"] == "admin" {
+						c.Set("user_id", claims["admin_id"])
+						c.Set("user_email", claims["email"])
+						c.Set("user_role", "admin") // Force admin role
+						c.Next()
+						return
+					}
+				}
+			}
 		}
 
-		c.Set("user_id", claims.UserID)
-		c.Set("user_email", claims.Email)
-		c.Set("user_role", claims.Role)
-		c.Set("kyc_level", claims.KYCLevel)
-
-		c.Next()
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.Abort()
 	}
 }
 

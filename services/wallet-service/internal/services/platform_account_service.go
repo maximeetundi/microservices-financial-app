@@ -16,6 +16,65 @@ func NewPlatformAccountService(repo *repository.PlatformAccountRepository) *Plat
 	return &PlatformAccountService{repo: repo}
 }
 
+// Initialize seeds default platform accounts if they don't exist
+func (s *PlatformAccountService) Initialize() error {
+	log.Println("[Platform] Initializing platform accounts...")
+
+	currencies := []string{"EUR", "USD", "GBP"}
+
+	// 1. Seed Reserve Accounts
+	for _, currency := range currencies {
+		exists, err := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeReserve)
+		if err == nil && exists != nil {
+			continue // Already exists
+		}
+
+		log.Printf("[Platform] Creating default Reserve Account for %s", currency)
+		_, err = s.CreateAccount(&models.CreatePlatformAccountRequest{
+			Currency:    currency,
+			AccountType: models.AccountTypeReserve,
+			Name:        fmt.Sprintf("Reserve %s Main", currency),
+			Description: "Default liquid reserve for " + currency,
+			MinBalance:  1000.0,
+			MaxBalance:  1000000000.0,
+			Priority:    100, // High priority
+		})
+		if err != nil {
+			log.Printf("Error creating reserve account for %s: %v", currency, err)
+		} else {
+			// Seed with initial "fake" capital for testing if in dev mode
+			// In production this would be 0 and funded manually
+			// For this MVP, we credit it so the system works immediately
+			acc, _ := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeReserve)
+			if acc != nil {
+				_ = s.AdminCreditAccount(acc.ID, 1000000000, "Initial System Seeding", "system_init", "genesis")
+			}
+		}
+	}
+
+	// 2. Seed Fee Accounts
+	for _, currency := range currencies {
+		exists, err := s.repo.GetAccountByCurrencyType(currency, models.AccountTypeFees)
+		if err == nil && exists != nil {
+			continue
+		}
+
+		log.Printf("[Platform] Creating default Fee Account for %s", currency)
+		_, err = s.CreateAccount(&models.CreatePlatformAccountRequest{
+			Currency:    currency,
+			AccountType: models.AccountTypeFees,
+			Name:        fmt.Sprintf("Fees %s Accumulator", currency),
+			Description: "Accumulated fees for " + currency,
+			Priority:    100,
+		})
+		if err != nil {
+			log.Printf("Error creating fee account for %s: %v", currency, err)
+		}
+	}
+
+	return nil
+}
+
 // ==================== Platform Fiat Accounts ====================
 
 func (s *PlatformAccountService) GetAllAccounts() ([]models.PlatformAccount, error) {

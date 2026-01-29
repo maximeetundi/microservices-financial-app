@@ -115,6 +115,11 @@ func main() {
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
 	platformService := services.NewPlatformAccountService(platformRepo)
 
+	// Seed platform accounts
+	if err := platformService.Initialize(); err != nil {
+		log.Printf("Warning: Failed to initialize platform seed data: %v", err)
+	}
+
 	// Start Kafka consumer for inter-service communication
 	consumer := services.NewConsumer(kafkaClient, walletService)
 	if err := consumer.Start(); err != nil {
@@ -162,7 +167,7 @@ func main() {
 	{
 		// Protected routes - use Group to get RouterGroup type
 		protected := api.Group("")
-		protected.Use(middleware.JWTAuth(cfg.JWTSecret))
+		protected.Use(middleware.JWTAuth(cfg.JWTSecret, cfg.AdminJWTSecret))
 		{
 			protected.GET("/wallets", walletHandler.GetWallets)
 			protected.POST("/wallets", walletHandler.CreateWallet)

@@ -8,23 +8,23 @@ type Config struct {
 	// Server
 	Port        string
 	Environment string
-	
+
 	// Database (separate admin database)
-	AdminDBURL  string
-	MainDBURL   string  // Read-only access to main database
-	MongoDBURI  string  // Access to Mongo databases (Donations, Tickets)
-	
+	AdminDBURL string
+	MainDBURL  string // Read-only access to main database
+	MongoDBURI string // Access to Mongo databases (Donations, Tickets)
+
 	// Redis
-	RedisURL    string
-	
+	RedisURL string
+
 	// Kafka
 	KafkaBrokers string
 	KafkaGroupID string
-	
+
 	// JWT (separate from user JWT)
 	AdminJWTSecret     string
 	AdminJWTExpiration string
-	
+
 	// Services URLs (for direct API calls when needed)
 	AuthServiceURL         string
 	WalletServiceURL       string
@@ -48,18 +48,18 @@ func Load() *Config {
 	return &Config{
 		Port:        getEnv("PORT", "8088"),
 		Environment: getEnv("ENVIRONMENT", "development"),
-		
-		AdminDBURL:  getEnv("ADMIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank_admin?sslmode=disable"),
-		MainDBURL:   getEnv("MAIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		MongoDBURI:  getEnv("MONGODB_URI", "mongodb://localhost:27017"),
-		
+
+		AdminDBURL: getEnv("ADMIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank_admin?sslmode=disable"),
+		MainDBURL:  getEnv("MAIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		MongoDBURI: getEnv("MONGODB_URI", "mongodb://localhost:27017"),
+
 		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
 		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "admin-service-group"),
-		
+
 		AdminJWTSecret:     getEnv("ADMIN_JWT_SECRET", "admin_ultra_secure_jwt_secret_2024"),
 		AdminJWTExpiration: getEnv("ADMIN_JWT_EXPIRATION", "8h"),
-		
+
 		AuthServiceURL:         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
 		WalletServiceURL:       getEnv("WALLET_SERVICE_URL", "http://localhost:8083"),
 		TransferServiceURL:     getEnv("TRANSFER_SERVICE_URL", "http://localhost:8084"),
@@ -83,4 +83,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

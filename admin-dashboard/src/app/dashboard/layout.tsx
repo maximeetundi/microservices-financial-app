@@ -22,6 +22,7 @@ import {
     ExclamationTriangleIcon,
     UserIcon,
     BuildingOfficeIcon,
+    AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { logout } from '@/lib/api';
@@ -53,7 +54,8 @@ interface SidebarProps {
 }
 
 const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
+    { name: 'Comptes Plateforme', href: '/dashboard/platform', icon: BuildingOfficeIcon },
     { name: 'Entreprises', href: '/dashboard/enterprises', icon: BuildingOfficeIcon },
     { name: 'Utilisateurs', href: '/dashboard/users', icon: UsersIcon },
     { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowsRightLeftIcon },
@@ -66,6 +68,7 @@ const navigation = [
     { name: 'Associations', href: '/dashboard/associations', icon: UsersIcon },
     { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
     { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
+    { name: 'Configuration', href: '/dashboard/settings', icon: AdjustmentsHorizontalIcon },
 ];
 
 // Helper function to get relative time

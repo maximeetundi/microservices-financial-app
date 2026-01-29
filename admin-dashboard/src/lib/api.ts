@@ -135,6 +135,26 @@ export const getRoles = () => api.get('/roles');
 export const getAuditLogs = (limit = 100, offset = 0) =>
     api.get(`/logs?limit=${limit}&offset=${offset}`);
 
+// Fees & Settings
+export const getFeeConfigs = () => api.get('/fees');
+export const updateFeeConfig = (key: string, data: any) => api.put(`/fees/${key}`, data);
+export const createFeeConfig = (data: any) => api.post('/fees', data);
+
+// Platform Accounts & Wallets
+export const getPlatformAccounts = () => api.get('/platform/accounts');
+export const createPlatformAccount = (data: any) => api.post('/platform/accounts', data);
+export const creditPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/credit`, data);
+export const debitPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/debit`, data);
+
+export const getPlatformCryptoWallets = () => api.get('/platform/crypto-wallets');
+export const createPlatformCryptoWallet = (data: any) => api.post('/platform/crypto-wallets', data);
+export const syncPlatformCryptoWallet = (id: string) => api.put(`/platform/crypto-wallets/${id}/sync`);
+
+export const getPlatformTransactions = (limit = 50, offset = 0) => api.get(`/platform/transactions?limit=${limit}&offset=${offset}`);
+export const getPlatformReconciliation = () => api.get('/platform/reconciliation');
+
+
+
 // Support Tickets - route through the same API gateway as admin
 // The support-service is accessible via Kong at /support-service
 // In production, use the main API gateway (same as admin but replace admin-service path)

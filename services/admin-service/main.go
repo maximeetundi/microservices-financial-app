@@ -140,6 +140,9 @@ func main() {
 		public.POST("/login", handler.Login)
 	}
 
+	// Platform Proxy Handler
+	proxyHandler := handlers.NewPlatformProxyHandler(cfg)
+
 	// Protected routes (require admin auth)
 	protected := router.Group("/api/v1/admin")
 	protected.Use(middleware.AdminAuth(cfg.AdminJWTSecret))
@@ -267,6 +270,14 @@ func main() {
 			payments.POST("/:id/countries", paymentHandler.AddProviderCountry)
 			payments.DELETE("/:id/countries/:country", paymentHandler.RemoveProviderCountry)
 		}
+
+		// Platform Accounts Proxy
+		// Forward /platform/* to wallet-service
+		platform := protected.Group("/platform")
+		{
+			platform.Any("/*path", proxyHandler.ProxyRequest)
+		}
+
 	}
 
 	// Public endpoint for payment methods (no auth required for wallet)
