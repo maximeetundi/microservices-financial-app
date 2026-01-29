@@ -1,21 +1,22 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
-	"fmt"
-	"log"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/pem"
 
-	"github.com/gin-gonic/gin"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/services"
+	"github.com/gin-gonic/gin"
+	"github.com/nyaruka/phonenumbers"
 )
 
 type AuthHandler struct {
@@ -82,6 +83,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// Validate phone number
+	parsedNum, err := phonenumbers.Parse(req.Phone, req.Country)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid phone number format"})
+		return
+	}
+	if !phonenumbers.IsValidNumber(parsedNum) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid phone number for the specified country"})
+		return
+	}
+
 	user, err := h.authService.Register(&req)
 	if err != nil {
 		if strings.Contains(err.Error(), "already registered") {
@@ -99,7 +111,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		// if err == nil {
 		// 	h.emailService.SendVerificationEmail(user.Email, token)
 		// }
-		
+
 		// Send verification SMS
 		if user.Phone != "" {
 			code, err := h.smsService.SendVerificationCode(user.Phone)
@@ -138,12 +150,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		if strings.Contains(err.Error(), "2FA code required") {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": err.Error(),
+				"error":        err.Error(),
 				"requires_2fa": true,
 			})
 			return
 		}
-		
+
 		if strings.Contains(err.Error(), "locked") {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
 			return
@@ -291,7 +303,7 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	}
 
 	userEmail, _ := c.Get("user_email")
-	
+
 	// Generate TOTP secret and QR code
 	totpSetup, err := h.totpService.GenerateSecret(userEmail.(string), "Zekora")
 	if err != nil {
@@ -402,7 +414,7 @@ func (h *AuthHandler) GetSessions(c *gin.Context) {
 	enrichedSessions := make([]gin.H, len(sessions))
 	for i, session := range sessions {
 		browser, os, deviceType := parseUserAgent(session.UserAgent)
-		
+
 		enrichedSessions[i] = gin.H{
 			"id":          session.ID,
 			"ip_address":  session.IPAddress,
@@ -548,22 +560,22 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":              user.ID,
-		"email":           user.Email,
-		"first_name":      user.FirstName,
-		"last_name":       user.LastName,
-		"phone":           user.Phone,
-		"country":         user.Country,
-		"date_of_birth":   user.DateOfBirth,
-		"kyc_level":       user.KYCLevel,
-		"kyc_status":      user.KYCStatus,
-		"two_fa_enabled":  user.TwoFAEnabled,
-		"email_verified":  user.EmailVerified,
-		"phone_verified":  user.PhoneVerified,
-		"is_active":       user.IsActive,
-		"has_pin":         user.HasPin,
-		"created_at":      user.CreatedAt,
-		"last_login_at":   user.LastLoginAt,
+		"id":             user.ID,
+		"email":          user.Email,
+		"first_name":     user.FirstName,
+		"last_name":      user.LastName,
+		"phone":          user.Phone,
+		"country":        user.Country,
+		"date_of_birth":  user.DateOfBirth,
+		"kyc_level":      user.KYCLevel,
+		"kyc_status":     user.KYCStatus,
+		"two_fa_enabled": user.TwoFAEnabled,
+		"email_verified": user.EmailVerified,
+		"phone_verified": user.PhoneVerified,
+		"is_active":      user.IsActive,
+		"has_pin":        user.HasPin,
+		"created_at":     user.CreatedAt,
+		"last_login_at":  user.LastLoginAt,
 	})
 }
 
@@ -579,7 +591,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Prevent updating sensitive fields via this endpoint
 	delete(req, "password")
 	delete(req, "role")
@@ -802,7 +814,7 @@ func (h *AuthHandler) CheckPinStatus(c *gin.Context) {
 	c.Header("Expires", "0")
 
 	c.JSON(http.StatusOK, gin.H{
-		"has_pin": hasPin,
+		"has_pin":  hasPin,
 		"required": true,
 	})
 }
