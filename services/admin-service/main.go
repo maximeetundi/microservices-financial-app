@@ -247,6 +247,16 @@ func main() {
 			fees.PUT("/:key", handler.UpdateFeeConfig)
 		}
 
+		// System Settings (Proxied to Exchange Service)
+		settingsProxy := handlers.NewSettingsProxyHandler(cfg)
+		settings := protected.Group("/settings")
+		settings.Use(middleware.RequirePermission(models.PermManageSettings))
+		{
+			settings.GET("", settingsProxy.ProxyRequest)
+			settings.PUT("", settingsProxy.ProxyRequest)
+			settings.GET("/:key", settingsProxy.ProxyRequest)
+		}
+
 		// Donations & Campaigns
 		protected.GET("/campaigns", handler.GetCampaigns)
 		protected.GET("/donations", handler.GetDonations)
