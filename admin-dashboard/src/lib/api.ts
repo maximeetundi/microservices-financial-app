@@ -154,6 +154,7 @@ export const debitPlatformAccount = (id: string, data: any) => api.post(`/platfo
 export const getPlatformCryptoWallets = () => api.get('/platform/crypto-wallets');
 export const createPlatformCryptoWallet = (data: any) => api.post('/platform/crypto-wallets', data);
 export const syncPlatformCryptoWallet = (id: string) => api.put(`/platform/crypto-wallets/${id}/sync`);
+export const consolidateUserFunds = (data: { target_type: string, amount: number, currency: string }) => api.post('/platform/crypto-wallets/consolidate', data);
 
 export const getPlatformTransactions = (limit = 50, offset = 0) => api.get(`/platform/transactions?limit=${limit}&offset=${offset}`);
 export const getPlatformWalletTransactions = (walletId: string, limit = 50, offset = 0) => api.get(`/platform/crypto-wallets/${walletId}/transactions?limit=${limit}&offset=${offset}`);

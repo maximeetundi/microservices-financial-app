@@ -69,6 +69,11 @@ func (r *WalletRepository) InitSchema() error {
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS key_hash VARCHAR(64)",
+		// Hybrid deposit system fields
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS deposit_memo VARCHAR(64)",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS sweep_status VARCHAR(20) DEFAULT 'none'",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS last_swept_at TIMESTAMP",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS pending_sweep_amount DECIMAL(20, 8) DEFAULT 0",
 	}
 
 	for _, query := range migrations {
@@ -105,6 +110,33 @@ func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, e
 			return nil, fmt.Errorf("wallet not found")
 		}
 		return nil, fmt.Errorf("failed to get wallet: %w", err)
+	}
+
+	return &wallet, nil
+}
+
+// GetByAddress finds a wallet by its blockchain address
+func (r *WalletRepository) GetByAddress(address string) (*models.Wallet, error) {
+	query := `
+		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+			   wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id, created_at, updated_at
+		FROM wallets 
+		WHERE wallet_address = $1 AND is_active = true
+	`
+
+	var wallet models.Wallet
+	err := r.db.QueryRow(query, address).Scan(
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
+		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.ExternalID,
+		&wallet.CreatedAt, &wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Return nil, nil to indicate not found (for webhook handling)
+		}
+		return nil, fmt.Errorf("failed to get wallet by address: %w", err)
 	}
 
 	return &wallet, nil
@@ -389,4 +421,136 @@ func (r *WalletRepository) GetUserCountry(userID string) (string, error) {
 		return "", err
 	}
 	return country, nil
+}
+
+// ==================== Sweep System Methods ====================
+
+// GetWalletsNeedingSweep returns all wallets with pending sweep amounts
+func (r *WalletRepository) GetWalletsNeedingSweep() ([]models.Wallet, error) {
+	query := `
+		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+			   wallet_address, private_key_encrypted, name, is_active, is_hidden,
+			   external_id, deposit_memo, sweep_status, last_swept_at, pending_sweep_amount,
+			   created_at, updated_at
+		FROM wallets 
+		WHERE pending_sweep_amount > 0 
+		  AND is_active = true 
+		  AND wallet_type = 'crypto'
+		  AND (sweep_status IS NULL OR sweep_status != 'pending')
+		ORDER BY pending_sweep_amount DESC
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get wallets needing sweep: %w", err)
+	}
+	defer rows.Close()
+
+	var wallets []models.Wallet
+	for rows.Next() {
+		var wallet models.Wallet
+		var sweepStatus sql.NullString
+		var depositMemo sql.NullString
+		var lastSweptAt sql.NullTime
+
+		err := rows.Scan(
+			&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+			&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
+			&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden,
+			&wallet.ExternalID, &depositMemo, &sweepStatus, &lastSweptAt, &wallet.PendingSweepAmount,
+			&wallet.CreatedAt, &wallet.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		if sweepStatus.Valid {
+			wallet.SweepStatus = sweepStatus.String
+		}
+		if depositMemo.Valid {
+			wallet.DepositMemo = &depositMemo.String
+		}
+		if lastSweptAt.Valid {
+			wallet.LastSweptAt = &lastSweptAt.Time
+		}
+
+		wallets = append(wallets, wallet)
+	}
+
+	return wallets, nil
+}
+
+// UpdateSweepStatus updates the sweep status and clears the pending amount
+func (r *WalletRepository) UpdateSweepStatus(walletID, status string, sweptAmount float64) error {
+	query := `
+		UPDATE wallets 
+		SET sweep_status = $1, 
+			pending_sweep_amount = pending_sweep_amount - $2,
+			last_swept_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $3
+	`
+
+	_, err := r.db.Exec(query, status, sweptAmount, walletID)
+	if err != nil {
+		return fmt.Errorf("failed to update sweep status: %w", err)
+	}
+	return nil
+}
+
+// AddPendingSweepAmount adds to the pending sweep amount (after a deposit)
+func (r *WalletRepository) AddPendingSweepAmount(walletID string, amount float64) error {
+	query := `
+		UPDATE wallets 
+		SET pending_sweep_amount = pending_sweep_amount + $1,
+			sweep_status = 'pending',
+			updated_at = NOW()
+		WHERE id = $2
+	`
+
+	_, err := r.db.Exec(query, amount, walletID)
+	if err != nil {
+		return fmt.Errorf("failed to add pending sweep amount: %w", err)
+	}
+	return nil
+}
+
+// UpdateDepositMemo sets the deposit memo for a wallet
+func (r *WalletRepository) UpdateDepositMemo(walletID, memo string) error {
+	query := `UPDATE wallets SET deposit_memo = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(query, memo, walletID)
+	return err
+}
+
+// GetByDepositMemo finds a wallet by its deposit memo (for XRP/XLM/TON webhooks)
+func (r *WalletRepository) GetByDepositMemo(memo, currency string) (*models.Wallet, error) {
+	query := `
+		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+			   wallet_address, name, is_active, is_hidden, deposit_memo, created_at, updated_at
+		FROM wallets 
+		WHERE deposit_memo = $1 AND currency = $2 AND is_active = true
+	`
+
+	var wallet models.Wallet
+	var depositMemo sql.NullString
+
+	err := r.db.QueryRow(query, memo, currency).Scan(
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
+		&wallet.Name, &wallet.IsActive, &wallet.IsHidden, &depositMemo,
+		&wallet.CreatedAt, &wallet.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get wallet by deposit memo: %w", err)
+	}
+
+	if depositMemo.Valid {
+		wallet.DepositMemo = &depositMemo.String
+	}
+
+	return &wallet, nil
 }

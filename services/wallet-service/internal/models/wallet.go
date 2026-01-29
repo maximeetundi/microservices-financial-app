@@ -8,21 +8,28 @@ import (
 // SECURITY: Private keys for crypto wallets are ALWAYS encrypted with AES-256-GCM
 // The plaintext private key is NEVER stored in the database
 type Wallet struct {
-	ID                  string    `json:"id" db:"id"`
-	UserID              string    `json:"user_id" db:"user_id"`
-	Currency            string    `json:"currency" db:"currency"`
-	WalletType          string    `json:"wallet_type" db:"wallet_type"` // fiat, crypto
-	Balance             float64   `json:"balance" db:"balance"`
-	FrozenBalance       float64   `json:"frozen_balance" db:"frozen_balance"`
-	WalletAddress       *string   `json:"wallet_address,omitempty" db:"wallet_address"`
-	PrivateKeyEncrypted *string   `json:"-" db:"private_key_encrypted"` // NEVER exposed - encrypted with vault
-	KeyHash             *string   `json:"-" db:"key_hash"`              // SHA-256 hash for verification
-	Name                *string   `json:"name,omitempty" db:"name"`
-	IsActive            bool      `json:"is_active" db:"is_active"`
-	IsHidden            bool      `json:"is_hidden" db:"is_hidden"`
-	ExternalID          string    `json:"external_id" db:"external_id"` // Link to Tatum Account ID
-	CreatedAt           time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
+	ID                  string  `json:"id" db:"id"`
+	UserID              string  `json:"user_id" db:"user_id"`
+	Currency            string  `json:"currency" db:"currency"`
+	WalletType          string  `json:"wallet_type" db:"wallet_type"` // fiat, crypto
+	Balance             float64 `json:"balance" db:"balance"`
+	FrozenBalance       float64 `json:"frozen_balance" db:"frozen_balance"`
+	WalletAddress       *string `json:"wallet_address,omitempty" db:"wallet_address"`
+	PrivateKeyEncrypted *string `json:"-" db:"private_key_encrypted"` // NEVER exposed - encrypted with vault
+	KeyHash             *string `json:"-" db:"key_hash"`              // SHA-256 hash for verification
+	Name                *string `json:"name,omitempty" db:"name"`
+	IsActive            bool    `json:"is_active" db:"is_active"`
+	IsHidden            bool    `json:"is_hidden" db:"is_hidden"`
+	ExternalID          string  `json:"external_id" db:"external_id"` // Blockchain address or internal reference (self-custody)
+
+	// Hybrid deposit system fields
+	DepositMemo        *string    `json:"deposit_memo,omitempty" db:"deposit_memo"`       // Unique memo for XRP/XLM/TON deposits
+	SweepStatus        string     `json:"sweep_status" db:"sweep_status"`                 // none, pending, completed
+	LastSweptAt        *time.Time `json:"last_swept_at,omitempty" db:"last_swept_at"`     // Last sweep timestamp
+	PendingSweepAmount float64    `json:"pending_sweep_amount" db:"pending_sweep_amount"` // Amount waiting to be swept
+
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type Transaction struct {

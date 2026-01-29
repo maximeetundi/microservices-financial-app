@@ -461,3 +461,95 @@ func (s *PlatformAccountService) SelectBestCryptoWalletForCredit(currency, netwo
 func (s *PlatformAccountService) SelectBestCryptoWalletForDebit(currency, network string, amount float64) (*models.PlatformCryptoWallet, error) {
 	return s.repo.SelectCryptoWalletForDebit(currency, network, amount)
 }
+
+// ==================== Platform Crypto Wallet Operations ====================
+
+// CreditCryptoWallet credits a platform crypto wallet (used when receiving funds or admin consolidation)
+func (s *PlatformAccountService) CreditCryptoWallet(walletID string, amount float64, description string) error {
+	return s.repo.CreditCryptoWallet(walletID, amount)
+}
+
+// DebitCryptoWallet debits a platform crypto wallet (used when sending funds)
+func (s *PlatformAccountService) DebitCryptoWallet(walletID string, amount float64, description string) error {
+	return s.repo.DebitCryptoWallet(walletID, amount)
+}
+
+// GetCryptoWalletWithPrivateKey retrieves a crypto wallet including its encrypted private key
+// SECURITY: Only used internally for transaction signing
+func (s *PlatformAccountService) GetCryptoWalletWithPrivateKey(walletID string) (*models.PlatformCryptoWallet, error) {
+	return s.repo.GetCryptoWalletByID(walletID)
+}
+
+// ==================== Admin Consolidation Operations ====================
+
+// ConsolidateUserFundsRequest represents a request to move funds from user wallets to platform wallets
+type ConsolidateUserFundsRequest struct {
+	UserWalletID string  `json:"user_wallet_id"`
+	TargetType   string  `json:"target_type"` // "hot" or "cold"
+	Amount       float64 `json:"amount"`
+	Currency     string  `json:"currency"`
+	Network      string  `json:"network"`
+	AdminID      string  `json:"admin_id"`
+}
+
+// ConsolidateUserFunds moves funds from a user wallet to platform hot/cold wallet
+// NOTE: This is a DB-only operation - the actual crypto remains on the user's generated address
+// which is owned by the platform. This adjusts the accounting.
+func (s *PlatformAccountService) ConsolidateUserFunds(req *ConsolidateUserFundsRequest) error {
+	log.Printf("[Platform] Consolidating %.8f %s from user wallet %s to %s wallet",
+		req.Amount, req.Currency, req.UserWalletID, req.TargetType)
+
+	// Select the best target platform wallet based on priority and capacity
+	targetWallet, err := s.repo.SelectCryptoWalletForCredit(req.Currency, req.Network, req.Amount)
+	if err != nil {
+		return fmt.Errorf("failed to select target wallet: %w", err)
+	}
+
+	// Verify it's the right type
+	if targetWallet.WalletType != req.TargetType {
+		// Try to find a wallet of the specific type
+		wallets, err := s.repo.GetCryptoWalletsByCurrencyType(req.Currency, req.TargetType)
+		if err != nil || len(wallets) == 0 {
+			return fmt.Errorf("no %s wallet available for %s", req.TargetType, req.Currency)
+		}
+		// Pick the first one with highest priority
+		targetWallet = &wallets[0]
+	}
+
+	// Credit the platform wallet (DB update)
+	err = s.repo.CreditCryptoWallet(targetWallet.ID, req.Amount)
+	if err != nil {
+		return fmt.Errorf("failed to credit platform wallet: %w", err)
+	}
+
+	// Record the transaction in the ledger
+	tx := &models.PlatformTransaction{
+		CreditAccountID:   targetWallet.ID,
+		CreditAccountType: models.AccTypePlatformCrypto,
+		DebitAccountID:    req.UserWalletID,
+		DebitAccountType:  models.AccTypeUserWallet,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		OperationType:     models.OpTypeConsolidation,
+		ReferenceType:     "consolidation",
+		ReferenceID:       req.UserWalletID,
+		Description:       fmt.Sprintf("Consolidation from user wallet to %s wallet", req.TargetType),
+		PerformedBy:       req.AdminID,
+	}
+
+	err = s.repo.CreateTransaction(tx)
+	if err != nil {
+		// Log but don't fail - the balance update is done
+		log.Printf("[Platform] Warning: Failed to record consolidation transaction: %v", err)
+	}
+
+	log.Printf("[Platform] ✅ Consolidated %.8f %s to %s wallet %s",
+		req.Amount, req.Currency, req.TargetType, targetWallet.Label)
+
+	return nil
+}
+
+// GetCryptoWalletsByCurrencyType returns all wallets for a currency/type combo
+func (s *PlatformAccountService) GetCryptoWalletsByCurrencyType(currency, walletType string) ([]models.PlatformCryptoWallet, error) {
+	return s.repo.GetCryptoWalletsByCurrencyType(currency, walletType)
+}

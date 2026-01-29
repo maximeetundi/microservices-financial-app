@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -11,10 +12,14 @@ import (
 
 type AdminPlatformHandler struct {
 	platformService *services.PlatformAccountService
+	cryptoService   *services.CryptoService
 }
 
-func NewAdminPlatformHandler(platformService *services.PlatformAccountService) *AdminPlatformHandler {
-	return &AdminPlatformHandler{platformService: platformService}
+func NewAdminPlatformHandler(platformService *services.PlatformAccountService, cryptoService *services.CryptoService) *AdminPlatformHandler {
+	return &AdminPlatformHandler{
+		platformService: platformService,
+		cryptoService:   cryptoService,
+	}
 }
 
 // ==================== Platform Fiat Accounts ====================
@@ -152,21 +157,87 @@ func (h *AdminPlatformHandler) CreateCryptoWallet(c *gin.Context) {
 	c.JSON(http.StatusCreated, wallet)
 }
 
-// SyncCryptoWalletBalance updates the balance from blockchain (placeholder)
+// SyncCryptoWalletBalance synchronizes balance from blockchain
 func (h *AdminPlatformHandler) SyncCryptoWalletBalance(c *gin.Context) {
 	id := c.Param("id")
 
-	// TODO: Implement actual blockchain balance sync via Tatum or other provider
-	// For now, just return success with current balance
 	wallet, err := h.platformService.GetCryptoWalletByID(id)
 	if err != nil || wallet == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
 		return
 	}
 
+	if wallet.Address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wallet has no address configured"})
+		return
+	}
+
+	// Use CryptoService/FailoverProvider to fetch blockchain balance
+	blockchainBalance, err := h.cryptoService.GetBlockchainBalance(wallet.Currency, wallet.Address)
+	if err != nil {
+		log.Printf("[AdminPlatform] Failed to sync balance for wallet %s: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch blockchain balance"})
+		return
+	}
+
+	previousBalance := wallet.Balance
+
+	// Update balance in database
+	err = h.platformService.UpdateCryptoWalletBalance(id, blockchainBalance)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update balance in database"})
+		return
+	}
+
+	log.Printf("[AdminPlatform] Synced balance for wallet %s: %.8f -> %.8f %s",
+		wallet.Label, previousBalance, blockchainBalance, wallet.Currency)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Balance sync not implemented yet",
-		"wallet":  wallet,
+		"message":          "Balance synced successfully",
+		"wallet_id":        id,
+		"previous_balance": previousBalance,
+		"new_balance":      blockchainBalance,
+		"currency":         wallet.Currency,
+	})
+}
+
+// ==================== Admin Consolidation ====================
+
+// ConsolidateFunds moves user wallet funds to platform hot/cold wallet (DB only)
+func (h *AdminPlatformHandler) ConsolidateFunds(c *gin.Context) {
+	adminID := c.GetString("user_id") // From JWT
+
+	var req services.ConsolidateUserFundsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.AdminID = adminID
+
+	// Validate target type
+	if req.TargetType != "hot" && req.TargetType != "cold" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "target_type must be 'hot' or 'cold'"})
+		return
+	}
+
+	// Validate amount
+	if req.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "amount must be positive"})
+		return
+	}
+
+	err := h.platformService.ConsolidateUserFunds(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "Funds consolidated successfully",
+		"user_wallet_id": req.UserWalletID,
+		"target_type":    req.TargetType,
+		"amount":         req.Amount,
+		"currency":       req.Currency,
 	})
 }
 

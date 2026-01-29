@@ -130,13 +130,15 @@ const (
 
 // Operation types constants
 const (
-	OpTypeExchange    = "exchange"
-	OpTypeDeposit     = "deposit"
-	OpTypeWithdrawal  = "withdrawal"
-	OpTypeFee         = "fee"
-	OpTypeAdminCredit = "admin_credit"
-	OpTypeAdminDebit  = "admin_debit"
-	OpTypeTransfer    = "transfer"
+	OpTypeExchange      = "exchange"
+	OpTypeDeposit       = "deposit"
+	OpTypeWithdrawal    = "withdrawal"
+	OpTypeFee           = "fee"
+	OpTypeAdminCredit   = "admin_credit"
+	OpTypeAdminDebit    = "admin_debit"
+	OpTypeTransfer      = "transfer"
+	OpTypeConsolidation = "consolidation" // Admin moving funds to hot/cold
+	OpTypeCryptoSend    = "crypto_send"   // External crypto send via hot wallet
 )
 
 // Account type constants for transaction tracking

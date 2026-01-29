@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     BanknotesIcon,
     QrCodeIcon,
@@ -22,7 +22,8 @@ import {
     createPlatformCryptoWallet,
     creditPlatformAccount,
     debitPlatformAccount,
-    syncPlatformCryptoWallet
+    syncPlatformCryptoWallet,
+    consolidateUserFunds
 } from '@/lib/api';
 
 const safeFormatCurrency = (amount: number, currency: string) => {
@@ -51,10 +52,10 @@ export default function PlatformAccountsPage() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [reconciliation, setReconciliation] = useState<any>({});
 
-    // Modals
     const [showCreateFiat, setShowCreateFiat] = useState(false);
     const [showCreateCrypto, setShowCreateCrypto] = useState(false);
     const [showCreditDebit, setShowCreditDebit] = useState(false);
+    const [showConsolidate, setShowConsolidate] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<any>(null);
     const [opMode, setOpMode] = useState<'credit' | 'debit'>('credit');
 
@@ -84,6 +85,12 @@ export default function PlatformAccountsPage() {
         amount: 0,
         description: '',
         reference: ''
+    });
+
+    const [consolidateForm, setConsolidateForm] = useState({
+        target_type: 'hot',
+        amount: 0,
+        currency: 'ETH'
     });
 
     useEffect(() => {
@@ -159,6 +166,19 @@ export default function PlatformAccountsPage() {
             loadData(); // Refresh to see update if immediate
         } catch (error) {
             alert('Échec de la synchronisation');
+        }
+    };
+
+    const handleConsolidate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await consolidateUserFunds(consolidateForm);
+            alert('Consolidation lancée avec succès');
+            setShowConsolidate(false);
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert('Échec de la consolidation des fonds');
         }
     };
 
@@ -249,9 +269,14 @@ export default function PlatformAccountsPage() {
                         </button>
                     )}
                     {activeTab === 'crypto' && (
-                        <button onClick={() => setShowCreateCrypto(true)} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all">
-                            <PlusIcon className="w-5 h-5" /> Ajouter Wallet
-                        </button>
+                        <>
+                            <button onClick={() => setShowConsolidate(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-bold shadow-sm transition-all">
+                                <BanknotesIcon className="w-5 h-5" /> Consolider Fonds
+                            </button>
+                            <button onClick={() => setShowCreateCrypto(true)} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all">
+                                <PlusIcon className="w-5 h-5" /> Ajouter Wallet
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -308,7 +333,7 @@ export default function PlatformAccountsPage() {
                                                         src={getCryptoIcon(wallet.currency)}
                                                         alt={wallet.currency}
                                                         className="w-full h-full object-contain"
-                                                        onError={(e) => {
+                                                        onError={(e: any) => {
                                                             (e.target as HTMLImageElement).style.display = 'none';
                                                             (e.target as HTMLImageElement).parentElement!.innerText = wallet.currency.substring(0, 2);
                                                         }}
@@ -510,13 +535,13 @@ export default function PlatformAccountsPage() {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nom du Compte</label>
                                 <input className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-semibold"
-                                    value={fiatForm.name} onChange={e => setFiatForm({ ...fiatForm, name: e.target.value })} required placeholder="Ex: Réserve Principale EUR" />
+                                    value={fiatForm.name} onChange={(e: any) => setFiatForm({ ...fiatForm, name: e.target.value })} required placeholder="Ex: Réserve Principale EUR" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devise</label>
                                     <select className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-medium outline-none"
-                                        value={fiatForm.currency} onChange={e => setFiatForm({ ...fiatForm, currency: e.target.value })}>
+                                        value={fiatForm.currency} onChange={(e: any) => setFiatForm({ ...fiatForm, currency: e.target.value })}>
                                         <option value="EUR">EUR</option>
                                         <option value="USD">USD</option>
                                         <option value="FCFA">FCFA</option>
@@ -526,7 +551,7 @@ export default function PlatformAccountsPage() {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Type</label>
                                     <select className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-medium outline-none"
-                                        value={fiatForm.account_type} onChange={e => setFiatForm({ ...fiatForm, account_type: e.target.value })}>
+                                        value={fiatForm.account_type} onChange={(e: any) => setFiatForm({ ...fiatForm, account_type: e.target.value })}>
                                         <option value="reserve">Réserve (Stockage)</option>
                                         <option value="operations">Opérationnel</option>
                                         <option value="fees">Frais (Accumulateur)</option>
@@ -552,12 +577,12 @@ export default function PlatformAccountsPage() {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devise / Token</label>
                                     <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold uppercase transition-all"
-                                        value={cryptoForm.currency} onChange={e => setCryptoForm({ ...cryptoForm, currency: e.target.value.toUpperCase() })} required placeholder="Ex: ETH" />
+                                        value={cryptoForm.currency} onChange={(e: any) => setCryptoForm({ ...cryptoForm, currency: e.target.value.toUpperCase() })} required placeholder="Ex: ETH" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Réseau</label>
                                     <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold uppercase transition-all"
-                                        value={cryptoForm.network} onChange={e => setCryptoForm({ ...cryptoForm, network: e.target.value.toLowerCase() })} required placeholder="Ex: ethereum" />
+                                        value={cryptoForm.network} onChange={(e: any) => setCryptoForm({ ...cryptoForm, network: e.target.value.toLowerCase() })} required placeholder="Ex: ethereum" />
                                 </div>
                             </div>
 
@@ -580,7 +605,7 @@ export default function PlatformAccountsPage() {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Label (Optionnel)</label>
                                 <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-medium transition-all"
-                                    value={cryptoForm.label} onChange={e => setCryptoForm({ ...cryptoForm, label: e.target.value })} placeholder="Ex: ETH Hot Wallet 2" />
+                                    value={cryptoForm.label} onChange={(e: any) => setCryptoForm({ ...cryptoForm, label: e.target.value })} placeholder="Ex: ETH Hot Wallet 2" />
                             </div>
 
                             <div className="flex justify-end gap-3 mt-8">
@@ -591,6 +616,58 @@ export default function PlatformAccountsPage() {
                     </div>
                 </div>
             )}
+            {/* Consolidate Funds Modal */}
+            {showConsolidate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-slide-up">
+                        <h2 className="text-2xl font-bold mb-6 text-slate-900 flex items-center gap-2">
+                            <BanknotesIcon className="w-6 h-6 text-indigo-600" />
+                            Consolider Fonds Utilisateurs
+                        </h2>
+                        <p className="text-sm text-slate-500 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            Cette opération va balayer les fonds disponibles sur les portefeuilles virtuels des utilisateurs vers le portefeuille de plateforme sélectionné.
+                            Seuls les montants excédant les seuils minimums seront transférés (interne base de données).
+                        </p>
+                        <form onSubmit={handleConsolidate} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devise</label>
+                                    <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold uppercase transition-all"
+                                        value={consolidateForm.currency} onChange={(e: any) => setConsolidateForm({ ...consolidateForm, currency: e.target.value.toUpperCase() })} required placeholder="Ex: ETH" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cible</label>
+                                    <select className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-medium outline-none"
+                                        value={consolidateForm.target_type} onChange={(e: any) => setConsolidateForm({ ...consolidateForm, target_type: e.target.value })}>
+                                        <option value="hot">Hot Wallet</option>
+                                        <option value="cold">Cold Wallet</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Montant Minimum à Consolider</label>
+                                <div className="relative">
+                                    <input type="number" step="any" min="0" className="w-full pl-4 pr-16 py-3 border border-slate-200 rounded-xl text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                        value={consolidateForm.amount} onChange={(e: any) => setConsolidateForm({ ...consolidateForm, amount: parseFloat(e.target.value) })} required placeholder="0.00" />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                                        {consolidateForm.currency}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">Laissez 0 pour tout consolider.</p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setShowConsolidate(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition-colors">Annuler</button>
+                                <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-500/30 transition-all">
+                                    Lancer Consolidation
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Credit/Debit Operation Modal */}
             {showCreditDebit && selectedAccount && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
@@ -616,7 +693,7 @@ export default function PlatformAccountsPage() {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Montant</label>
                                 <div className="relative">
                                     <input type="number" step="any" min="0" className="w-full pl-4 pr-16 py-3 border border-slate-200 rounded-xl text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                        value={opForm.amount} onChange={e => setOpForm({ ...opForm, amount: parseFloat(e.target.value) })} required placeholder="0.00" />
+                                        value={opForm.amount} onChange={(e: any) => setOpForm({ ...opForm, amount: parseFloat(e.target.value) })} required placeholder="0.00" />
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
                                         {selectedAccount.currency}
                                     </div>
@@ -625,7 +702,7 @@ export default function PlatformAccountsPage() {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Motif</label>
                                 <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                    value={opForm.description} onChange={e => setOpForm({ ...opForm, description: e.target.value })} required placeholder="Ex: Injection de liquidité initiale" />
+                                    value={opForm.description} onChange={(e: any) => setOpForm({ ...opForm, description: e.target.value })} required placeholder="Ex: Injection de liquidité initiale" />
                             </div>
 
                             {/* Address Display for Credit (Receive) on Crypto */}

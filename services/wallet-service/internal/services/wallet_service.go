@@ -18,6 +18,7 @@ type WalletService struct {
 	cryptoService       *CryptoService
 	balanceService      *BalanceService
 	feeService          *FeeService
+	platformService     *PlatformAccountService // Platform hot/cold wallet management
 	kafkaClient         *messaging.KafkaClient
 	systemConfigService *SystemConfigService
 }
@@ -28,6 +29,7 @@ func NewWalletService(
 	cryptoService *CryptoService,
 	balanceService *BalanceService,
 	feeService *FeeService,
+	platformService *PlatformAccountService,
 	kafkaClient *messaging.KafkaClient,
 	systemConfigService *SystemConfigService,
 ) *WalletService {
@@ -37,6 +39,7 @@ func NewWalletService(
 		cryptoService:       cryptoService,
 		balanceService:      balanceService,
 		feeService:          feeService,
+		platformService:     platformService,
 		kafkaClient:         kafkaClient,
 		systemConfigService: systemConfigService,
 	}
@@ -250,11 +253,99 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 		return nil, fmt.Errorf("wallet is not a crypto wallet")
 	}
 
+	// Validate destination address
+	if !s.cryptoService.ValidateAddress(req.ToAddress, wallet.Currency) {
+		return nil, fmt.Errorf("invalid destination address")
+	}
+
+	// Check if this is an INTERNAL transfer (destination is another platform user)
+	destinationWallet, _ := s.walletRepo.GetByAddress(req.ToAddress)
+	isInternalTransfer := destinationWallet != nil
+
+	if isInternalTransfer {
+		// ==================== INTERNAL TRANSFER (DB ONLY) ====================
+		// No blockchain transaction needed - just update balances in database
+		return s.processInternalCryptoTransfer(wallet, destinationWallet, req)
+	}
+
+	// ==================== EXTERNAL TRANSFER (VIA HOT WALLET) ====================
+	return s.processExternalCryptoTransfer(wallet, userID, req)
+}
+
+// processInternalCryptoTransfer handles transfers between platform users (DB only, no blockchain)
+func (s *WalletService) processInternalCryptoTransfer(fromWallet, toWallet *models.Wallet, req *models.SendCryptoRequest) (*models.Transaction, error) {
+	// Calculate platform fee only (no blockchain fee for internal transfers)
+	platformFee, err := s.feeService.CalculateFee("transfer_internal", req.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate platform fee: %w", err)
+	}
+	totalDebit := req.Amount + platformFee
+
 	// Validate sufficient balance
-	totalAmount := req.Amount
+	err = s.balanceService.ValidateSufficientBalance(fromWallet.ID, totalDebit, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// Debit source wallet
+	err = s.walletRepo.UpdateBalanceWithTransaction(fromWallet.ID, totalDebit, "send")
+	if err != nil {
+		return nil, fmt.Errorf("failed to debit source wallet: %w", err)
+	}
+
+	// Credit destination wallet
+	err = s.walletRepo.UpdateBalanceWithTransaction(toWallet.ID, req.Amount, "receive")
+	if err != nil {
+		// Rollback source debit
+		s.walletRepo.UpdateBalanceWithTransaction(fromWallet.ID, totalDebit, "receive")
+		return nil, fmt.Errorf("failed to credit destination wallet: %w", err)
+	}
+
+	// Create transaction record (no blockchain hash - internal)
+	description := "Internal platform transfer"
+	if req.Note != nil {
+		description = *req.Note
+	}
+
+	transaction := &models.Transaction{
+		FromWalletID:    &fromWallet.ID,
+		ToWalletID:      &toWallet.ID,
+		TransactionType: "transfer_internal",
+		Amount:          req.Amount,
+		Fee:             platformFee,
+		Currency:        fromWallet.Currency,
+		Status:          "completed", // Instant completion for internal transfers
+		Description:     &description,
+	}
+
+	// Add metadata indicating internal transfer
+	metadata := map[string]interface{}{
+		"transfer_type":    "internal",
+		"to_address":       req.ToAddress,
+		"destination_user": toWallet.UserID,
+		"blockchain_tx":    false,
+	}
+	metadataJSON, _ := json.Marshal(metadata)
+	metadataStr := string(metadataJSON)
+	transaction.Metadata = &metadataStr
+
+	err = s.transactionRepo.Create(transaction)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transaction record: %w", err)
+	}
+
+	// Publish event
+	s.publishTransactionEvent("transaction.completed", transaction)
+
+	return transaction, nil
+}
+
+// processExternalCryptoTransfer handles transfers to external addresses (via platform hot wallet)
+func (s *WalletService) processExternalCryptoTransfer(wallet *models.Wallet, userID string, req *models.SendCryptoRequest) (*models.Transaction, error) {
+	// Estimate blockchain fees
 	estimatedFee, err := s.cryptoService.EstimateTransactionFee(wallet.Currency, req.Amount, "normal")
-	if err == nil {
-		totalAmount += estimatedFee.EstimatedFee
+	if err != nil {
+		estimatedFee = &models.CryptoTransactionEstimate{EstimatedFee: 0}
 	}
 
 	// Calculate platform fee
@@ -262,27 +353,24 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate platform fee: %w", err)
 	}
-	totalAmount += platformFee
 
-	err = s.balanceService.ValidateSufficientBalance(walletID, totalAmount, false)
+	totalAmount := req.Amount + estimatedFee.EstimatedFee + platformFee
+
+	// Validate sufficient balance
+	err = s.balanceService.ValidateSufficientBalance(wallet.ID, totalAmount, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate destination address
-	if !s.cryptoService.ValidateAddress(req.ToAddress, wallet.Currency) {
-		return nil, fmt.Errorf("invalid destination address")
-	}
-
-	// Freeze the amount
-	err = s.balanceService.FreezeAmount(walletID, totalAmount)
+	// Freeze the amount in user's wallet
+	err = s.balanceService.FreezeAmount(wallet.ID, totalAmount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to freeze amount: %w", err)
 	}
 
 	// Create pending transaction
 	transaction := &models.Transaction{
-		FromWalletID:    &walletID,
+		FromWalletID:    &wallet.ID,
 		TransactionType: "send",
 		Amount:          req.Amount,
 		Fee:             estimatedFee.EstimatedFee + platformFee,
@@ -293,8 +381,10 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 
 	// Create metadata
 	metadata := map[string]interface{}{
-		"to_address": req.ToAddress,
-		"gas_price":  req.GasPrice,
+		"transfer_type": "external",
+		"to_address":    req.ToAddress,
+		"gas_price":     req.GasPrice,
+		"blockchain_tx": true,
 	}
 
 	// Auto-detect network from address
@@ -303,31 +393,38 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 	metadata["network_variant"] = networkInfo.Variant
 	metadata["network_env"] = networkInfo.Network
 
-	// Safety Check for Bitcoin Testnet vs Mainnet
-	if networkInfo.Type == "BTC" && networkInfo.Network == "testnet" && !strings.Contains(strings.ToLower(wallet.Currency), "test") {
-		// Just a warning log for now, could block in strict mode
-		fmt.Printf("WARNING: Sending to BTC Testnet address from potentially Mainnet wallet: %s\n", req.ToAddress)
-	}
-
 	metadataJSON, _ := json.Marshal(metadata)
 	metadataStr := string(metadataJSON)
 	transaction.Metadata = &metadataStr
 
 	err = s.transactionRepo.Create(transaction)
 	if err != nil {
-		// Unfreeze amount on error
-		s.balanceService.UnfreezeAmount(walletID, totalAmount)
+		s.balanceService.UnfreezeAmount(wallet.ID, totalAmount)
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	// Create blockchain transaction
-	txHash, err := s.cryptoService.CreateTransaction(wallet, req.ToAddress, req.Amount, req.GasPrice)
+	// Select platform hot wallet for this currency
+	hotWallet, err := s.platformService.SelectBestCryptoWalletForDebit(wallet.Currency, "", req.Amount)
 	if err != nil {
-		// Update transaction status to failed
 		s.transactionRepo.UpdateStatus(transaction.ID, "failed", nil)
-		s.balanceService.UnfreezeAmount(walletID, totalAmount)
+		s.balanceService.UnfreezeAmount(wallet.ID, totalAmount)
+		return nil, fmt.Errorf("no hot wallet available for %s: %w", wallet.Currency, err)
+	}
+
+	// Create blockchain transaction from hot wallet to destination
+	txHash, err := s.cryptoService.CreateTransactionFromPlatformWallet(hotWallet, req.ToAddress, req.Amount, req.GasPrice)
+	if err != nil {
+		s.transactionRepo.UpdateStatus(transaction.ID, "failed", nil)
+		s.balanceService.UnfreezeAmount(wallet.ID, totalAmount)
 		return nil, fmt.Errorf("failed to create blockchain transaction: %w", err)
 	}
+
+	// Debit the user's balance (DB)
+	s.balanceService.UnfreezeAmount(wallet.ID, totalAmount)
+	s.walletRepo.UpdateBalanceWithTransaction(wallet.ID, totalAmount, "send")
+
+	// Debit the platform hot wallet balance (DB)
+	s.platformService.DebitCryptoWallet(hotWallet.ID, req.Amount, fmt.Sprintf("External send to %s", req.ToAddress))
 
 	// Update transaction with blockchain hash
 	transaction.BlockchainTxHash = &txHash
@@ -340,14 +437,32 @@ func (s *WalletService) SendCrypto(walletID, userID string, req *models.SendCryp
 }
 
 func (s *WalletService) ProcessCryptoDeposit(address, txHash, currency string, amount float64) error {
-	// Find wallet by address
-	// This would require a new repository method to find wallet by address
-	// For now, we'll simulate this
+	// Find wallet by blockchain address
+	wallet, err := s.walletRepo.GetByAddress(address)
+	if err != nil {
+		return fmt.Errorf("failed to lookup wallet by address: %w", err)
+	}
+	if wallet == nil {
+		// Not a known address - could be platform wallet or unknown
+		// Log but don't error - might be deposit to platform cold wallet
+		return nil
+	}
 
-	// Get wallet by address (mock implementation)
-	walletID := "mock-wallet-id" // In reality, query by address
+	// Check for duplicate transaction (idempotency via txHash)
+	existingTx, _ := s.transactionRepo.GetByBlockchainHash(txHash)
+	if existingTx != nil {
+		// Transaction already processed, skip
+		return nil
+	}
 
-	// Create deposit transaction
+	// Verify currency match
+	if strings.ToUpper(currency) != wallet.Currency {
+		return fmt.Errorf("currency mismatch: webhook %s vs wallet %s", currency, wallet.Currency)
+	}
+
+	walletID := wallet.ID
+
+	// Create deposit transaction in pending state
 	transaction := &models.Transaction{
 		ToWalletID:       &walletID,
 		TransactionType:  "deposit",
@@ -358,12 +473,12 @@ func (s *WalletService) ProcessCryptoDeposit(address, txHash, currency string, a
 		BlockchainTxHash: &txHash,
 	}
 
-	err := s.transactionRepo.Create(transaction)
+	err = s.transactionRepo.Create(transaction)
 	if err != nil {
 		return fmt.Errorf("failed to create deposit transaction: %w", err)
 	}
 
-	// Check confirmations and update balance when confirmed
+	// Monitor blockchain confirmations asynchronously
 	go s.monitorTransactionConfirmations(transaction.ID, txHash, currency)
 
 	return nil

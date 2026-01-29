@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -26,7 +28,7 @@ import (
 
 type CryptoService struct {
 	config       *config.Config
-	blockchain   BlockchainProvider
+	blockchain   BlockchainProvider // FailoverProvider (Tatum -> BlockCypher -> RPC)
 	vaultClient  *secrets.VaultClient
 	systemConfig *SystemConfigService
 }
@@ -37,12 +39,12 @@ func NewCryptoService(cfg *config.Config, systemConfig *SystemConfigService) *Cr
 		log.Printf("Warning: Vault client could not be initialized in CryptoService: %v", err)
 	}
 
-	// Initialize Providers
+	// Initialize Providers for FailoverProvider
 	tatum := NewTatumProvider(cfg)
 	blockcypher := NewBlockCypherProvider(cfg)
 	rpcProvider := NewRpcProvider(cfg)
 
-	// Create Failover Manager
+	// Create Failover Manager - tries providers in order until one succeeds
 	failover := NewFailoverProvider(tatum, blockcypher, rpcProvider)
 
 	return &CryptoService{
@@ -114,6 +116,70 @@ func (s *CryptoService) GetAvailableNetworks(currency string) []string {
 	// For mainnet-only or unsupported, maybe empty or just MAINNET?
 	// Sticking to frontend logic:
 	return []string{}
+}
+
+// ==================== Hybrid Deposit System Helpers ====================
+
+// RequiresMemo returns true for currencies that support memo/tag deposits
+// These currencies use a single hot wallet address + unique memo per user
+func (s *CryptoService) RequiresMemo(currency string) bool {
+	currency = strings.ToUpper(currency)
+	switch currency {
+	case "XRP", "XLM", "TON", "EOS", "ATOM", "HBAR":
+		return true
+	default:
+		return false
+	}
+}
+
+// GenerateDepositMemo generates a unique deposit memo/tag for a user
+// XRP uses numeric destination tags, others use alphanumeric
+func (s *CryptoService) GenerateDepositMemo(userID, currency string) string {
+	currency = strings.ToUpper(currency)
+
+	// Create a deterministic but unique memo based on userID
+	// Hash the userID to create a consistent memo
+	hash := sha256.Sum256([]byte(userID + "_" + currency + "_deposit"))
+
+	switch currency {
+	case "XRP":
+		// XRP destination tags are 32-bit unsigned integers
+		// Use first 4 bytes of hash, ensure it's non-zero
+		tag := uint32(hash[0])<<24 | uint32(hash[1])<<16 | uint32(hash[2])<<8 | uint32(hash[3])
+		if tag == 0 {
+			tag = 1 // Destination tag 0 is often invalid
+		}
+		return fmt.Sprintf("%d", tag)
+	default:
+		// For XLM, TON, etc. use alphanumeric (first 12 chars of hex hash)
+		return hex.EncodeToString(hash[:6])
+	}
+}
+
+// GetDepositInfo returns the deposit address and memo for a currency
+// For memo-based currencies, returns the hot wallet address + unique memo
+// For address-based currencies, returns the user's individual deposit address
+func (s *CryptoService) GetDepositInfo(currency, userAddress, userID string) (address string, memo string, usesMemo bool) {
+	if s.RequiresMemo(currency) {
+		// Get hot wallet address for this currency from platform accounts
+		// In production, this would query the platform_crypto_wallets table
+		// For now, return a placeholder that should be configured
+		hotWalletAddress := s.getHotWalletAddress(currency)
+		depositMemo := s.GenerateDepositMemo(userID, currency)
+		return hotWalletAddress, depositMemo, true
+	}
+
+	// For non-memo currencies, use the user's individual address
+	return userAddress, "", false
+}
+
+// getHotWalletAddress returns the platform hot wallet address for a currency
+// This should be configured in the database/config
+func (s *CryptoService) getHotWalletAddress(currency string) string {
+	// In production, this would query platform_crypto_wallets table
+	// For now, return environment-based or configured addresses
+	// TODO: Integrate with PlatformAccountService
+	return fmt.Sprintf("HOT_WALLET_%s_NOT_CONFIGURED", currency)
 }
 
 func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, error) {
@@ -296,36 +362,129 @@ func (s *CryptoService) generateTonKeys() (string, string, string, error) {
 	privKeyHex := hex.EncodeToString(privKey)
 	pubKeyHex := hex.EncodeToString(pubKey)
 
-	// Simulated TON Address Generation (Base64url safe or Raw hex)
-	// Real TON address: <workchain_id>:<hash_of_state_init>
-	// We simulate a valid-looking structure: "EQ" + base64(hash)
+	// TON Address Generation (Friendly format)
+	// Format: [flags:1][workchain:1][hash:32][crc16:2]
+	// Total 36 bytes, encoded in Base64url
 
-	// 1. Hash Public Key (SHA256)
-	hash := btcutil.Hash160(pubKey) // Using existing util
+	// 1. Hash Public Key (SHA256) - 32 bytes
+	hashBytes := sha256.Sum256(pubKey)
 
-	// 2. Encode to Base64 (TON Friendly format usually starts with EQ or UQ)
-	// We use UrlEncoding to mimic the standard friendly address
-	// Note: Without the full TON lib, this is a distinct, recognizable format for the system
-	encoded := base58.Encode(hash) // Using Base58 as users are familiar, though TON is Base64
-	address := fmt.Sprintf("EQ%s-SimulatedTON", encoded[:20])
+	// 2. Build raw address
+	// Flags: 0x11 = bounceable, 0x51 = non-bounceable, 0x91 = test bounceable
+	flags := byte(0x11)     // Bounceable mainnet
+	workchain := byte(0x00) // Basechain (workchain 0)
+
+	if s.isTestnet() {
+		flags = byte(0x91) // Test bounceable
+	}
+
+	// Build 34-byte address buffer
+	addressData := make([]byte, 34)
+	addressData[0] = flags
+	addressData[1] = workchain
+	copy(addressData[2:], hashBytes[:])
+
+	// 3. Calculate CRC16-CCITT checksum
+	crc := s.crc16CCITT(addressData)
+
+	// 4. Append CRC16 (big-endian)
+	fullAddress := append(addressData, byte(crc>>8), byte(crc&0xff))
+
+	// 5. Encode to Base64url (RFC 4648)
+	address := base64.RawURLEncoding.EncodeToString(fullAddress)
+
+	// Add standard EQ prefix indicator (the full address contains it in encoding)
+	// TON friendly addresses look like: EQDtFpEwcFAEcRe5mLVh2N6C0x-P_ZM...
 
 	return address, privKeyHex, pubKeyHex, nil
 }
 
+// crc16CCITT calculates CRC16-CCITT checksum (used by TON)
+func (s *CryptoService) crc16CCITT(data []byte) uint16 {
+	crc := uint16(0x0000)
+	polynomial := uint16(0x1021)
+
+	for _, b := range data {
+		crc ^= uint16(b) << 8
+		for i := 0; i < 8; i++ {
+			if crc&0x8000 != 0 {
+				crc = (crc << 1) ^ polynomial
+			} else {
+				crc <<= 1
+			}
+		}
+	}
+	return crc
+}
+
 // --- XRP (Ripple) ---
+// XRP uses secp256k1 with a specific Base58 alphabet (rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz)
 func (s *CryptoService) generateXrpKeys() (string, string, string, error) {
-	// XRP uses specialized encoding (Base58 with different alphabet)
-	// Here we use Bitcoin keys (ECDSA secp256k1) which are mathematically compatible
-	// but we prefix address with 'r'
-	addr, priv, pub, err := s.generateBitcoinKeys()
-	if err != nil {
-		return "", "", "", err
+	// 1. Generate secp256k1 key pair
+	privKey, _ := btcec.NewPrivateKey(btcec.S256())
+	privKeyHex := hex.EncodeToString(privKey.Serialize())
+	pubKey := privKey.PubKey()
+	pubKeyCompressed := pubKey.SerializeCompressed()
+	pubKeyHex := hex.EncodeToString(pubKeyCompressed)
+
+	// 2. XRP Address = Base58Check(AccountID)
+	// AccountID = RIPEMD160(SHA256(PubKeyCompressed))
+	accountID := btcutil.Hash160(pubKeyCompressed) // 20 bytes
+
+	// 3. Build payload: [prefix:1][accountID:20][checksum:4]
+	// XRP account prefix = 0x00
+	payload := make([]byte, 25)
+	payload[0] = 0x00 // Account prefix
+	copy(payload[1:21], accountID)
+
+	// 4. Calculate checksum: first 4 bytes of SHA256(SHA256(prefix + accountID))
+	hash1 := sha256.Sum256(payload[:21])
+	hash2 := sha256.Sum256(hash1[:])
+	copy(payload[21:], hash2[:4])
+
+	// 5. Encode using Ripple's Base58 alphabet
+	address := s.encodeXrpBase58(payload)
+
+	return address, privKeyHex, pubKeyHex, nil
+}
+
+// encodeXrpBase58 encodes bytes using Ripple's Base58 alphabet
+// Ripple alphabet: rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz
+func (s *CryptoService) encodeXrpBase58(input []byte) string {
+	const alphabet = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+
+	// Count leading zeros
+	leadingZeros := 0
+	for _, b := range input {
+		if b == 0 {
+			leadingZeros++
+		} else {
+			break
+		}
 	}
 
-	// Convert BTC address format to XRP-like 'r' address for distinction
-	// Real XRP address generation is slightly different, but this suffices for management
-	xrpAddr := "r" + addr[1:]
-	return xrpAddr, priv, pub, nil
+	// Convert to big integer and encode
+	var result []byte
+	for len(input) > 0 {
+		var carry int
+		var newInput []byte
+		for _, b := range input {
+			carry = carry*256 + int(b)
+			if len(newInput) > 0 || carry >= 58 {
+				newInput = append(newInput, byte(carry/58))
+			}
+			carry = carry % 58
+		}
+		result = append([]byte{alphabet[carry]}, result...)
+		input = newInput
+	}
+
+	// Add leading 'r' characters for leading zeros (in Ripple alphabet, 'r' = 0)
+	for i := 0; i < leadingZeros; i++ {
+		result = append([]byte{'r'}, result...)
+	}
+
+	return string(result)
 }
 
 // --- TRON (TRX / TRC20) ---
@@ -564,6 +723,12 @@ func (s *CryptoService) GetBalance(address, currency string) (float64, error) {
 	return s.blockchain.GetBalance(currency, address)
 }
 
+// GetBlockchainBalance fetches the current blockchain balance for an address
+// This is an alias of GetBalance for semantic clarity in admin operations
+func (s *CryptoService) GetBlockchainBalance(currency, address string) (float64, error) {
+	return s.blockchain.GetBalance(currency, address)
+}
+
 // EncryptPrivateKey encrypts a private key for database storage
 // This provides defense-in-depth alongside the external vault
 func (s *CryptoService) EncryptPrivateKey(privateKey, _ string) (string, error) {
@@ -591,22 +756,184 @@ func (s *CryptoService) DecryptPrivateKey(encryptedKey string) (string, error) {
 }
 
 func (s *CryptoService) CreateTransaction(fromWallet *models.Wallet, toAddress string, amount float64, gasPrice *int64) (string, error) {
-	// 1. Fetch Key from Vault (s.vaultClient.GetSecret)
-	// 2. Sign locally
-	// 3. Broadcast using s.blockchain.BroadcastTransaction(...)
+	// Validate inputs
+	if fromWallet == nil {
+		return "", fmt.Errorf("source wallet is nil")
+	}
+	if toAddress == "" {
+		return "", fmt.Errorf("destination address is required")
+	}
+	if amount <= 0 {
+		return "", fmt.Errorf("amount must be positive")
+	}
 
-	// Mock implementation
-	return "0xMOCK_TX_HASH_SIGNED_LOCALLY", nil
+	currency := strings.ToUpper(fromWallet.Currency)
+	log.Printf("[CryptoService] CreateTransaction: %f %s from wallet %s to %s", amount, currency, fromWallet.ID, toAddress)
+
+	// Self-custody mode: Sign locally and broadcast via FailoverProvider (Tatum -> BlockCypher -> RPC)
+	// The wallet must have an encrypted private key stored
+	if fromWallet.PrivateKeyEncrypted == nil || *fromWallet.PrivateKeyEncrypted == "" {
+		return "", fmt.Errorf("wallet %s has no encrypted private key - cannot sign transaction", fromWallet.ID)
+	}
+
+	log.Printf("[CryptoService] Using self-custody signing for %s", currency)
+
+	// Step 1: Decrypt private key
+	privateKey, err := s.DecryptStoredPrivateKey(*fromWallet.PrivateKeyEncrypted)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt private key: %w", err)
+	}
+
+	// Step 2: Build and sign transaction based on currency type
+	var signedTxHex string
+	switch {
+	case currency == "BTC" || currency == "LTC" || currency == "BCH" || currency == "DOGE":
+		signedTxHex, err = s.signBitcoinLikeTx(privateKey, fromWallet.WalletAddress, toAddress, amount, currency)
+	case currency == "ETH" || currency == "USDT" || currency == "USDC" || currency == "BNB":
+		signedTxHex, err = s.signEthereumTx(privateKey, toAddress, amount, currency, gasPrice)
+	case currency == "TRX":
+		signedTxHex, err = s.signTronTx(privateKey, toAddress, amount)
+	case currency == "SOL":
+		signedTxHex, err = s.signSolanaTx(privateKey, toAddress, amount)
+	case currency == "XRP":
+		signedTxHex, err = s.signXrpTx(privateKey, toAddress, amount)
+	case currency == "TON":
+		signedTxHex, err = s.signTonTx(privateKey, toAddress, amount)
+	default:
+		return "", fmt.Errorf("direct signing not implemented for currency: %s", currency)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	// Step 3: Broadcast via FailoverProvider (tries Tatum -> BlockCypher -> RPC)
+	log.Printf("[CryptoService] Broadcasting signed transaction via FailoverProvider")
+	txHash, err := s.blockchain.BroadcastTransaction(currency, signedTxHex)
+	if err != nil {
+		return "", fmt.Errorf("failed to broadcast transaction: %w", err)
+	}
+
+	log.Printf("[CryptoService] Transaction broadcast successful. TxHash: %s", txHash)
+	return txHash, nil
+}
+
+// Signing stubs - These would need full implementation with proper blockchain libraries
+// For now, they return errors indicating the feature is not yet implemented
+
+func (s *CryptoService) signBitcoinLikeTx(privateKey string, fromAddr *string, toAddr string, amount float64, currency string) (string, error) {
+	// TODO: Implement using btcd/wire and btcutil for transaction building
+	// Requires: UTXO lookup, fee estimation, script building
+	return "", fmt.Errorf("Bitcoin-like signing not yet implemented - use Tatum virtual accounts for %s", currency)
+}
+
+func (s *CryptoService) signEthereumTx(privateKey, toAddr string, amount float64, currency string, gasPrice *int64) (string, error) {
+	// TODO: Implement using go-ethereum for transaction signing
+	// This is the most straightforward to implement with crypto.Sign
+	return "", fmt.Errorf("Ethereum signing not yet implemented - use Tatum virtual accounts for %s", currency)
+}
+
+func (s *CryptoService) signTronTx(privateKey, toAddr string, amount float64) (string, error) {
+	// TODO: Implement using TRON protobuf transaction format
+	return "", fmt.Errorf("TRON signing not yet implemented - use Tatum virtual accounts")
+}
+
+func (s *CryptoService) signSolanaTx(privateKey, toAddr string, amount float64) (string, error) {
+	// TODO: Implement using solana-go library
+	return "", fmt.Errorf("Solana signing not yet implemented - use Tatum virtual accounts")
+}
+
+func (s *CryptoService) signXrpTx(privateKey, toAddr string, amount float64) (string, error) {
+	// TODO: Implement using XRP transaction format
+	return "", fmt.Errorf("XRP signing not yet implemented - use Tatum virtual accounts")
+}
+
+func (s *CryptoService) signTonTx(privateKey, toAddr string, amount float64) (string, error) {
+	// TODO: Implement using TON cell serialization
+	return "", fmt.Errorf("TON signing not yet implemented - use Tatum virtual accounts")
+}
+
+// DecryptStoredPrivateKey decrypts an encrypted private key from database storage
+func (s *CryptoService) DecryptStoredPrivateKey(encryptedKey string) (string, error) {
+	vault := security.GetVaultService()
+	return vault.DecryptPrivateKey(encryptedKey)
+}
+
+// CreateTransactionFromPlatformWallet creates a blockchain transaction from a platform hot wallet
+// This is used for external sends where the user's balance is debited in DB
+// but the actual blockchain transaction comes from the platform's hot wallet
+func (s *CryptoService) CreateTransactionFromPlatformWallet(
+	hotWallet *models.PlatformCryptoWallet,
+	toAddress string,
+	amount float64,
+	gasPrice *int64,
+) (string, error) {
+	currency := strings.ToUpper(hotWallet.Currency)
+	log.Printf("[CryptoService] CreateTransactionFromPlatformWallet: %.8f %s to %s", amount, currency, toAddress)
+
+	if hotWallet.PrivateKeyEncrypted == nil || *hotWallet.PrivateKeyEncrypted == "" {
+		return "", fmt.Errorf("platform wallet %s has no encrypted private key", hotWallet.ID)
+	}
+
+	// Decrypt the platform wallet's private key
+	privateKey, err := s.DecryptStoredPrivateKey(*hotWallet.PrivateKeyEncrypted)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt platform wallet private key: %w", err)
+	}
+
+	// Build and sign the transaction
+	var signedTxHex string
+	switch {
+	case currency == "BTC" || currency == "LTC" || currency == "BCH" || currency == "DOGE":
+		signedTxHex, err = s.signBitcoinLikeTx(privateKey, &hotWallet.Address, toAddress, amount, currency)
+	case currency == "ETH" || currency == "USDT" || currency == "USDC" || currency == "BNB":
+		signedTxHex, err = s.signEthereumTx(privateKey, toAddress, amount, currency, gasPrice)
+	case currency == "TRX":
+		signedTxHex, err = s.signTronTx(privateKey, toAddress, amount)
+	case currency == "SOL":
+		signedTxHex, err = s.signSolanaTx(privateKey, toAddress, amount)
+	case currency == "XRP":
+		signedTxHex, err = s.signXrpTx(privateKey, toAddress, amount)
+	case currency == "TON":
+		signedTxHex, err = s.signTonTx(privateKey, toAddress, amount)
+	default:
+		return "", fmt.Errorf("unsupported currency for platform wallet transaction: %s", currency)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to sign transaction: %w", err)
+	}
+
+	// Broadcast via FailoverProvider
+	log.Printf("[CryptoService] Broadcasting platform wallet transaction via FailoverProvider")
+	txHash, err := s.blockchain.BroadcastTransaction(currency, signedTxHex)
+	if err != nil {
+		return "", fmt.Errorf("failed to broadcast transaction: %w", err)
+	}
+
+	log.Printf("[CryptoService] ✅ Platform wallet transaction broadcast. TxHash: %s", txHash)
+	return txHash, nil
 }
 
 func (s *CryptoService) GetMinimumConfirmations(currency string) int {
-	if strings.ToUpper(currency) == "SOL" {
+	switch strings.ToUpper(currency) {
+	case "SOL":
 		return 1
+	case "XRP", "TRX":
+		return 1
+	case "ETH", "USDT", "USDC", "BNB":
+		return 12
+	case "BTC":
+		return 6
+	default:
+		return 6
 	}
-	return 6
 }
 
 func (s *CryptoService) GetTransactionStatus(txHash, currency string) (string, int, error) {
+	// TODO: Implement actual blockchain status check via Tatum or RPC
+	// For now, return mock values
+	log.Printf("[CryptoService] GetTransactionStatus called for %s (currency: %s) - returning mock data", txHash, currency)
 	return "confirmed", 12, nil
 }
 

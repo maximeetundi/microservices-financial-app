@@ -119,9 +119,9 @@ func main() {
 	systemConfigService := services.NewSystemConfigService(configRepo)
 	cryptoService := services.NewCryptoService(cfg, systemConfigService)
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
-	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient, systemConfigService)
-	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
 	platformService := services.NewPlatformAccountService(platformRepo, cryptoService)
+	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, platformService, kafkaClient, systemConfigService)
+	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)
 
 	// Seed platform accounts
 	if err := platformService.Initialize(); err != nil {
@@ -138,7 +138,7 @@ func main() {
 	walletHandler := handlers.NewWalletHandler(walletService, balanceService, systemConfigService, cryptoService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
-	adminPlatformHandler := handlers.NewAdminPlatformHandler(platformService)
+	adminPlatformHandler := handlers.NewAdminPlatformHandler(platformService, cryptoService)
 	addressHandler := handlers.NewAddressHandler(walletService, cryptoService)
 
 	// Setup Gin
@@ -248,6 +248,7 @@ func main() {
 				admin.GET("/platform/crypto-wallets/:id", adminPlatformHandler.GetCryptoWallet)
 				admin.POST("/platform/crypto-wallets", adminPlatformHandler.CreateCryptoWallet)
 				admin.PUT("/platform/crypto-wallets/:id/sync", adminPlatformHandler.SyncCryptoWalletBalance)
+				admin.POST("/platform/crypto-wallets/consolidate", adminPlatformHandler.ConsolidateFunds)
 
 				// Platform Transactions & Reconciliation
 				admin.GET("/platform/transactions", adminPlatformHandler.GetTransactions)
