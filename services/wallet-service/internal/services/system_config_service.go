@@ -90,7 +90,6 @@ func (s *SystemConfigService) CheckLimits(userID, kycLevel, currency string, amo
 
 	dailyKey := fmt.Sprintf("limit_daily_%s", suffix)
 	monthlyKey := fmt.Sprintf("limit_monthly_%s", suffix)
-	maxBalKey := fmt.Sprintf("limit_max_balance_%s", suffix) // Not checking max balance here, usually on receive.
 
 	// 1. Get Limits
 	dailyLimitVal := s.getLimitValue(dailyKey, 1000)     // Default 1000
