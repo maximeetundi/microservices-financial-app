@@ -559,6 +559,47 @@ export default function PlatformAccountsPage() {
                     </div>
                 </div>
             )}
+            {/* Credit/Debit Operation Modal */}
+            {showCreditDebit && selectedAccount && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl animate-slide-up">
+                        <h2 className={`text-2xl font-bold mb-6 ${opMode === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {opMode === 'credit' ? 'Créditer Compte' : 'Débiter Compte'}
+                        </h2>
+                        <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="text-sm text-slate-500 font-bold uppercase mb-1">Compte Cible</div>
+                            <div className="font-bold text-slate-900 text-lg">{selectedAccount.name || selectedAccount.label || selectedAccount.currency}</div>
+                            <div className="text-sm text-slate-600 font-mono mt-1">{selectedAccount.currency} ({selectedAccount.account_type || selectedAccount.wallet_type})</div>
+                        </div>
+
+                        <form onSubmit={handleOperation} className="space-y-6">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Montant</label>
+                                <div className="relative">
+                                    <input type="number" step="any" min="0" className="w-full pl-4 pr-16 py-3 border border-slate-200 rounded-xl text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                        value={opForm.amount} onChange={e => setOpForm({ ...opForm, amount: parseFloat(e.target.value) })} required placeholder="0.00" />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                                        {selectedAccount.currency}
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Motif</label>
+                                <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    value={opForm.description} onChange={e => setOpForm({ ...opForm, description: e.target.value })} required placeholder="Ex: Injection de liquidité initiale" />
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setShowCreditDebit(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition-colors">Annuler</button>
+                                <button type="submit"
+                                    className={`px-6 py-2.5 text-white rounded-xl font-bold shadow-lg transition-all ${opMode === 'credit' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
+                                    Confirmer {opMode === 'credit' ? 'Crédit' : 'Débit'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
