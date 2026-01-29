@@ -115,9 +115,9 @@ func main() {
 
 	// Initialize services
 	feeService := services.NewFeeService(feeRepo)
-	cryptoService := services.NewCryptoService(cfg)
 	exchangeClient := services.NewExchangeClient()
 	systemConfigService := services.NewSystemConfigService(configRepo)
+	cryptoService := services.NewCryptoService(cfg, systemConfigService)
 	balanceService := services.NewBalanceService(walletRepo, redisClient, exchangeClient, kafkaClient)
 	walletService := services.NewWalletService(walletRepo, transactionRepo, cryptoService, balanceService, feeService, kafkaClient, systemConfigService)
 	merchantService := services.NewMerchantPaymentService(paymentRepo, walletService, feeService, cfg, kafkaClient)

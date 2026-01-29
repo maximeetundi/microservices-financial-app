@@ -25,13 +25,13 @@ import (
 )
 
 type CryptoService struct {
-	config      *config.Config
-	blockchain  BlockchainProvider // Abstraction for redundancy
-	vaultClient *secrets.VaultClient
-	// Legacy tatum field removed, use blockchain provider
+	config       *config.Config
+	blockchain   BlockchainProvider
+	vaultClient  *secrets.VaultClient
+	systemConfig *SystemConfigService
 }
 
-func NewCryptoService(cfg *config.Config) *CryptoService {
+func NewCryptoService(cfg *config.Config, systemConfig *SystemConfigService) *CryptoService {
 	vc, err := secrets.NewVaultClient()
 	if err != nil {
 		log.Printf("Warning: Vault client could not be initialized in CryptoService: %v", err)
@@ -43,13 +43,13 @@ func NewCryptoService(cfg *config.Config) *CryptoService {
 	rpcProvider := NewRpcProvider(cfg)
 
 	// Create Failover Manager
-	// Priorities: Tatum -> BlockCypher (BTC) -> RPC (ETH/BSC) -> (Others)
 	failover := NewFailoverProvider(tatum, blockcypher, rpcProvider)
 
 	return &CryptoService{
-		config:      cfg,
-		blockchain:  failover,
-		vaultClient: vc,
+		config:       cfg,
+		blockchain:   failover,
+		vaultClient:  vc,
+		systemConfig: systemConfig,
 	}
 }
 
@@ -57,6 +57,16 @@ type CryptoWallet struct {
 	Address  string `json:"address"`
 	Currency string `json:"currency"`
 	Network  string `json:"network"`
+}
+
+// isTestnet checks dynamic system config first, falls back to static config
+func (s *CryptoService) isTestnet() bool {
+	if s.systemConfig != nil {
+		if s.systemConfig.IsTestnetEnabled() {
+			return true
+		}
+	}
+	return s.config.CryptoNetwork == "testnet"
 }
 
 func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, error) {
@@ -122,7 +132,7 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 // --- Bitcoin (Native SegWit - Bech32) ---
 // Helper to get params based on config
 func (s *CryptoService) getBitcoinParams() *chaincfg.Params {
-	if s.config.CryptoNetwork == "testnet" {
+	if s.isTestnet() {
 		return &chaincfg.TestNet3Params
 	}
 	return &chaincfg.MainNetParams
@@ -159,7 +169,7 @@ func (s *CryptoService) deriveBitcoinAddress(pubKeyHex, network string) (string,
 
 	// Determine params based on requested network
 	var params *chaincfg.Params
-	if strings.HasPrefix(strings.ToUpper(network), "TEST") || s.config.CryptoNetwork == "testnet" {
+	if strings.HasPrefix(strings.ToUpper(network), "TEST") || s.isTestnet() {
 		if strings.ToUpper(network) == "SEGWIT" || strings.ToUpper(network) == "BTC" {
 			// If user specifically asked for Mainnet equivalents despite testnet config,
 			// we could theoretically return mainnet, but let's stick to safe defaults.
@@ -296,7 +306,7 @@ func (s *CryptoService) generateTronKeys() (string, string, string, error) {
 
 	// Determine prefix based on config
 	prefix := byte(0x41)
-	if s.config.CryptoNetwork == "testnet" {
+	if s.isTestnet() {
 		prefix = byte(0xa0)
 	}
 
@@ -473,7 +483,7 @@ func (s *CryptoService) DetectAddressNetwork(address string) NetworkDetectionRes
 func (s *CryptoService) getNetworkForCurrency(currency string) string {
 	switch strings.ToUpper(currency) {
 	case "BTC":
-		if s.config.CryptoNetwork == "testnet" {
+		if s.isTestnet() {
 			return "bitcoin-testnet"
 		}
 		return "bitcoin-mainnet"

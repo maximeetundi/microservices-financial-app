@@ -69,7 +69,7 @@ func (s *SystemConfigService) IsTestnetEnabled() bool {
 	if c, ok := s.GetConfig("system_testnet_enabled"); ok {
 		return c.IsEnabled
 	}
-	return true // Default safely to true or false? Defaulting to true for dev safety?? No, usually false. But let's say true for now as requested.
+	return false // Default safely to false (Mainnet)
 }
 
 // CheckLimits verifies if a transaction is within limits for a user
