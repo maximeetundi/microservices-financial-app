@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { walletAPI } from '~/composables/useApi'
+import { walletAPI, systemConfigAPI } from '~/composables/useApi'
 import { useExchangeStore } from './exchange'
 
 interface Wallet {
@@ -19,6 +19,7 @@ interface WalletState {
     loading: boolean
     error: string | null
     lastUpdated: number | null
+    testnetEnabled: boolean
 }
 
 export const useWalletStore = defineStore('wallet', {
@@ -28,7 +29,8 @@ export const useWalletStore = defineStore('wallet', {
         cryptoBalance: 0,
         loading: false,
         error: null,
-        lastUpdated: null
+        lastUpdated: null,
+        testnetEnabled: false
     }),
 
     actions: {
@@ -48,6 +50,7 @@ export const useWalletStore = defineStore('wallet', {
                         this.totalBalance = parsed.totalBalance || 0
                         this.cryptoBalance = parsed.cryptoBalance || 0
                         this.lastUpdated = parsed.lastUpdated
+                        this.testnetEnabled = parsed.testnetEnabled || false
                     } catch (e) {
                         console.error('Failed to parse cached wallet store', e)
                     }
@@ -65,10 +68,15 @@ export const useWalletStore = defineStore('wallet', {
             try {
                 // Fetch wallets and rates in parallel
                 const exchangeStore = useExchangeStore()
-                const [walletResponse, _] = await Promise.all([
+                const [walletResponse, configResponse, _] = await Promise.all([
                     walletAPI.getAll(),
+                    systemConfigAPI.getPublicConfig(),
                     exchangeStore.fetchRates()
                 ])
+
+                if (configResponse.data) {
+                    this.testnetEnabled = configResponse.data.testnet_enabled
+                }
 
                 if (walletResponse.data && walletResponse.data.wallets) {
                     this.wallets = walletResponse.data.wallets.map((w: any) => ({
@@ -119,7 +127,8 @@ export const useWalletStore = defineStore('wallet', {
                     wallets: this.wallets,
                     totalBalance: this.totalBalance,
                     cryptoBalance: this.cryptoBalance,
-                    lastUpdated: this.lastUpdated
+                    lastUpdated: this.lastUpdated,
+                    testnetEnabled: this.testnetEnabled
                 }))
             }
         }

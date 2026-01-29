@@ -135,7 +135,7 @@ func main() {
 	}
 
 	// Initialize handlers
-	walletHandler := handlers.NewWalletHandler(walletService, balanceService)
+	walletHandler := handlers.NewWalletHandler(walletService, balanceService, systemConfigService)
 	merchantHandler := handlers.NewMerchantPaymentHandler(merchantService)
 	adminFeeHandler := handlers.NewAdminFeeHandler(feeService)
 	adminPlatformHandler := handlers.NewAdminPlatformHandler(platformService)
@@ -275,6 +275,9 @@ func main() {
 			webhooks.POST("/crypto/deposit", walletHandler.HandleCryptoDeposit)
 			webhooks.POST("/tatum", walletHandler.HandleTatumWebhook)
 		}
+
+		// Public configuration endpoint
+		api.GET("/public/config", walletHandler.GetPublicConfig)
 	}
 
 	port := os.Getenv("PORT")

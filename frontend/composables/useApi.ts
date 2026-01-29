@@ -798,6 +798,11 @@ export const messagingAPI = {
     }),
 }
 
+// ========== System Config ==========
+export const systemConfigAPI = {
+    getPublicConfig: () => api.get('/wallet-service/api/v1/public/config'),
+}
+
 export const useApi = () => {
     const apiObject = {
         authApi: authAPI,

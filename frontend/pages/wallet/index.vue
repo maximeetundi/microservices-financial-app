@@ -689,9 +689,8 @@ const availableNetworks = computed(() => {
     if (!selectedWallet.value) return []
     const currency = selectedWallet.value.currency
     
-    // Check global config for testnet mode
-    const config = useRuntimeConfig()
-    const isTestnet = config.public.cryptoNetwork === 'testnet'
+    // Check dynamic config for testnet mode
+    const isTestnet = walletStore.testnetEnabled
 
     if (currency === 'USDT' || currency === 'USDC') {
        if (isTestnet) return ['ERC20', 'BEP20', 'TRC20', 'SEPOLIA-ERC20', 'BSC-TESTNET', 'SHASTA-TRC20']
