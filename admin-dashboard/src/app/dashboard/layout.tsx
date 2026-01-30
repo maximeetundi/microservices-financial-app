@@ -53,7 +53,19 @@ interface SidebarProps {
     children: React.ReactNode;
 }
 
-const navigationSections = [
+interface NavigationItem {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: string;
+}
+
+interface NavigationSection {
+    title: string;
+    items: NavigationItem[];
+}
+
+const navigationSections: NavigationSection[] = [
     {
         title: 'Tableau de bord',
         items: [
