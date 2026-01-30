@@ -26,6 +26,11 @@ type WalletServiceClient interface {
 	GetWalletByUserAndCurrency(ctx context.Context, userID, currency string) (*WalletInfo, error)
 }
 
+// PlatformAccountService interface for platform operations
+type PlatformAccountService interface {
+	DebitPlatformHotWallet(ctx context.Context, currency string, amount float64, reference, description string) error
+}
+
 // WalletInfo represents wallet information
 type WalletInfo struct {
 	ID       string  `json:"id"`
