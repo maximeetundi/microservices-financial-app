@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { getDashboard, getUsers, getTransactions, getKycDocuments } from '@/lib/api';
+import { getDashboard } from '@/lib/api';
 import Link from 'next/link';
 import { format, subDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
