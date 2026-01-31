@@ -63,6 +63,11 @@ func main() {
 	}
 	defer mainDB.Close()
 
+	// Seed provider instances (needs access to both Admin and Main DBs)
+	if err := database.SeedProviderInstances(adminDB, mainDB); err != nil {
+		log.Printf("Warning: failed to seed provider instances: %v", err)
+	}
+
 	// Initialize MongoDB
 	mongoClient, err := database.InitializeMongoDB(cfg.MongoDBURI)
 	if err != nil {

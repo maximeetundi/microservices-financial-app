@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -210,11 +211,6 @@ func createAdminTables(db *sql.DB) error {
 	// Seed default payment providers
 	if err := seedDefaultProviders(db); err != nil {
 		log.Printf("Warning: failed to seed payment providers: %v", err)
-	}
-
-	// Seed default provider instances (one per provider with Vault path)
-	if err := seedDefaultProviderInstances(db); err != nil {
-		log.Printf("Warning: failed to seed provider instances: %v", err)
 	}
 
 	return nil
@@ -557,7 +553,6 @@ func seedDefaultProviders(db *sql.DB) error {
 			RETURNING id
 		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo, mockKey, mockSecret).Scan(&providerID)
 
-
 		if err != nil {
 			log.Printf("Failed to upsert provider %s: %v", p.Name, err)
 			continue
@@ -588,13 +583,29 @@ func seedDefaultProviders(db *sql.DB) error {
 	return nil
 }
 
-// seedDefaultProviderInstances creates a default instance for each payment provider
-// These instances have placeholder Vault paths that admin should configure with real API keys
-func seedDefaultProviderInstances(db *sql.DB) error {
+// SeedProviderInstances creates a default instance for each payment provider
+// These instances have placeholder Vault paths and are linked to a default Hot Wallet
+func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 	log.Println("[Database] Seeding default provider instances...")
 
-	// Get all providers
-	rows, err := db.Query(`SELECT id, name, display_name FROM payment_providers`)
+	// 1. Get a default Hot Wallet (Operations Account) from Main DB
+	var hotWalletID string
+	// Try to find an XOF operations account first
+	err := mainDB.QueryRow(`SELECT id FROM platform_accounts WHERE type = 'operations' AND currency = 'XOF' LIMIT 1`).Scan(&hotWalletID)
+	if err != nil {
+		// If not found, try any operations account
+		err = mainDB.QueryRow(`SELECT id FROM platform_accounts WHERE type = 'operations' LIMIT 1`).Scan(&hotWalletID)
+		if err != nil {
+			log.Printf("[Database] ⚠️ Warning: No 'operations' hot wallet found in Main DB. Instances will be created without a linked wallet.")
+		} else {
+			log.Printf("[Database] Found fallback operations hot wallet: %s", hotWalletID)
+		}
+	} else {
+		log.Printf("[Database] Found XOF operations hot wallet: %s", hotWalletID)
+	}
+
+	// 2. Get all providers from Admin DB
+	rows, err := adminDB.Query(`SELECT id, name, display_name FROM payment_providers`)
 	if err != nil {
 		return fmt.Errorf("failed to get providers: %w", err)
 	}
@@ -615,35 +626,62 @@ func seedDefaultProviderInstances(db *sql.DB) error {
 		providers = append(providers, p)
 	}
 
+	// 3. Seed Instances
 	for _, p := range providers {
-		// Create default instance with Vault path placeholder using Upsert logic
-		// We use name + provider_id as unique constraint ideally, but here we check existence manually or just insert if not exists
-		// To be safe and ensure 'Instance Principale' always exists and is active:
-
 		vaultPath := fmt.Sprintf("secret/aggregators/%s/default", p.Name)
+		instanceName := "Instance Principale"
 
-		// Check if "Instance Principale" exists for this provider
+		// Check if "Instance Principale" exists
 		var instanceID string
-		err := db.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, "Instance Principale").Scan(&instanceID)
+		err := adminDB.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, instanceName).Scan(&instanceID)
 
-			// Create it
-			_, err = db.Exec(`
+		if err == sql.ErrNoRows {
+			// Create new instance
+			var args []interface{}
+			query := `
 				INSERT INTO provider_instances 
-					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
-				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active')
-			`, p.ID, "Instance Principale", vaultPath)
+					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status, hot_wallet_id)
+				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active', $4)
+			`
+			args = append(args, p.ID, instanceName, vaultPath)
+
+			if hotWalletID != "" {
+				args = append(args, hotWalletID)
+			} else {
+				args = append(args, nil)
+			}
+
+			_, err = adminDB.Exec(query, args...)
 			if err != nil {
 				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
 			} else {
-				log.Printf("[Database] ✅ Created default active instance for: %s", p.DisplayName)
+				log.Printf("[Database] ✅ Created default active instance for: %s (Wallet: %s)", p.DisplayName, hotWalletID)
 			}
 		} else if err == nil {
-			// Update it to ensure it's active and healthy
-			_, err = db.Exec(`
+			// Update existing instance
+			// Ensure it is active, primary, and has the correct vault path.
+			// Update hot_wallet_id ONLY if it's currently null and we have a valid one.
+
+			var args []interface{}
+			query := `
 				UPDATE provider_instances 
-				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1, health_status = 'active'
-				WHERE id = $2
-			`, vaultPath, instanceID)
+				SET is_active = TRUE, 
+					is_primary = TRUE, 
+					vault_secret_path = $1, 
+					health_status = 'active',
+					hot_wallet_id = COALESCE(hot_wallet_id, $2)
+				WHERE id = $3
+			`
+
+			// If hotWalletID is empty, pass nil (though COALESCE with nil does nothing useful, it's safe)
+			var walletArg interface{} = nil
+			if hotWalletID != "" {
+				walletArg = hotWalletID
+			}
+
+			args = append(args, vaultPath, walletArg, instanceID)
+
+			_, err = adminDB.Exec(query, args...)
 			if err != nil {
 				log.Printf("[Database] Failed to update instance for %s: %v", p.Name, err)
 			} else {
