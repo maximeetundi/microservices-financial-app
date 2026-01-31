@@ -533,3 +533,29 @@ func (p *PayPalProvider) GetAvailableMethods(ctx context.Context, country string
 		{Code: "paypal_paylater", Name: "Pay Later", Type: "credit"},
 	}, nil
 }
+
+func (p *PayPalProvider) GetBanks(ctx context.Context, country string) ([]Bank, error) {
+	return []Bank{}, nil
+}
+
+func (p *PayPalProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
+	return []MobileOperator{}, nil
+}
+
+func (p *PayPalProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
+	if req.RecipientEmail == "" {
+		return fmt.Errorf("recipient email is required for PayPal")
+	}
+	return nil
+}
+
+func (p *PayPalProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	// Simple quote simulation
+	return &PayoutResponse{
+		ProviderName: "paypal",
+		Status:       PayoutStatusPending,
+		Fee:          0,
+		TotalAmount:  req.Amount,
+	}, nil
+}
+}

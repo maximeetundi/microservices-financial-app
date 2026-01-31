@@ -307,6 +307,38 @@ func (m *MTNMomoProvider) CancelPayout(ctx context.Context, referenceID string) 
 	return fmt.Errorf("MTN MoMo cancellation not supported")
 }
 
+func (m *MTNMomoProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
+	return []AvailableMethod{
+		{Code: "mtn_momo", Name: "MTN Mobile Money", Type: "mobile"},
+	}, nil
+}
+
+func (m *MTNMomoProvider) GetBanks(ctx context.Context, country string) ([]Bank, error) {
+	return []Bank{}, nil
+}
+
+func (m *MTNMomoProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
+	return []MobileOperator{
+		{Code: "mtn", Name: "MTN", Countries: m.GetSupportedCountries()},
+	}, nil
+}
+
+func (m *MTNMomoProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
+	if req.RecipientPhone == "" {
+		return fmt.Errorf("recipient phone is required for MTN MoMo")
+	}
+	return nil
+}
+
+func (m *MTNMomoProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return &PayoutResponse{
+		ProviderName: m.GetName(),
+		Status:       PayoutStatusPending,
+		Fee:          0, // Calculate based on amount if needed
+		TotalAmount:  req.Amount,
+	}, nil
+}
+
 // ==================== ORANGE MONEY PROVIDER ====================
 
 // OrangeMoneyConfig holds Orange Money API configuration
@@ -523,6 +555,38 @@ func (o *OrangeMoneyProvider) GetTransactionStatus(ctx context.Context, orderID,
 // CancelPayout cancels a pending payout
 func (o *OrangeMoneyProvider) CancelPayout(ctx context.Context, referenceID string) error {
 	return fmt.Errorf("Orange Money cancellation not supported")
+}
+
+func (o *OrangeMoneyProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
+	return []AvailableMethod{
+		{Code: "orange_money", Name: "Orange Money", Type: "mobile"},
+	}, nil
+}
+
+func (o *OrangeMoneyProvider) GetBanks(ctx context.Context, country string) ([]Bank, error) {
+	return []Bank{}, nil
+}
+
+func (o *OrangeMoneyProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
+	return []MobileOperator{
+		{Code: "orange", Name: "Orange", Countries: o.GetSupportedCountries()},
+	}, nil
+}
+
+func (o *OrangeMoneyProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
+	if req.RecipientPhone == "" {
+		return fmt.Errorf("recipient phone is required for Orange Money")
+	}
+	return nil
+}
+
+func (o *OrangeMoneyProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return &PayoutResponse{
+		ProviderName: o.GetName(),
+		Status:       PayoutStatusPending,
+		Fee:          0,
+		TotalAmount:  req.Amount,
+	}, nil
 }
 
 // ==================== PESAPAL PROVIDER ====================
@@ -761,6 +825,36 @@ func (p *PesapalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) 
 // CancelPayout cancels a pending payout
 func (p *PesapalProvider) CancelPayout(ctx context.Context, referenceID string) error {
 	return fmt.Errorf("Pesapal cancellation not supported")
+}
+
+func (p *PesapalProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
+	return []AvailableMethod{
+		{Code: "pesapal", Name: "Pesapal", Type: "mobile"},
+	}, nil
+}
+
+func (p *PesapalProvider) GetBanks(ctx context.Context, country string) ([]Bank, error) {
+	return []Bank{}, nil
+}
+
+func (p *PesapalProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
+	return []MobileOperator{}, nil
+}
+
+func (p *PesapalProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
+	if req.RecipientEmail == "" && req.RecipientPhone == "" {
+		return fmt.Errorf("recipient email or phone is required for Pesapal")
+	}
+	return nil
+}
+
+func (p *PesapalProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return &PayoutResponse{
+		ProviderName: p.GetName(),
+		Status:       PayoutStatusPending,
+		Fee:          0,
+		TotalAmount:  req.Amount,
+	}, nil
 }
 
 // ==================== CHIPPER CASH PROVIDER ====================
