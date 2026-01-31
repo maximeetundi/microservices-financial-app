@@ -190,11 +190,13 @@ type Wallet struct {
 
 // MobileMoneyRequest for mobile money operations
 type MobileMoneyRequest struct {
-	Provider string  `json:"provider" binding:"required"`
-	Phone    string  `json:"phone" binding:"required"`
-	Amount   float64 `json:"amount" binding:"required,gt=0"`
-	Currency string  `json:"currency" binding:"required"`
-	WalletID string  `json:"wallet_id" binding:"required"`
+	Provider    string  `json:"provider" binding:"required"`
+	Phone       string  `json:"phone" binding:"required"`
+	Country     string  `json:"country" binding:"required,len=2"`
+	Amount      float64 `json:"amount" binding:"required,gt=0"`
+	Currency    string  `json:"currency" binding:"required"`
+	WalletID    string  `json:"wallet_id" binding:"required"`
+	Description string  `json:"description,omitempty"`
 }
 
 // MobileMoneyResponse for mobile money operations

@@ -605,8 +605,8 @@ func (s *MobileMoneyService) Send(req *models.MobileMoneyRequest) (*models.Mobil
 		ReferenceID:      generateReferenceID(), // Or req.ReferenceID if available
 		Amount:           req.Amount,
 		Currency:         req.Currency,
-		RecipientPhone:   req.RecipientPhone,
-		RecipientCountry: req.RecipientCountry, // Need to add Country to request model if missing
+		RecipientPhone:   req.Phone,
+		RecipientCountry: req.Country, // Country added to request model
 		PayoutMethod:     providers.PayoutMethodMobileMoney,
 		MobileOperator:   req.Provider, // Map provider name if needed
 		Narration:        req.Description,
