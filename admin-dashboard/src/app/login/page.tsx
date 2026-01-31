@@ -68,23 +68,23 @@ export default function LoginPage() {
                         </div>
 
                         <h2 className="text-4xl font-bold mb-6 leading-tight">
-                            Gérez votre plateforme<br />
+                            Pilotage complet de l'écosystème<br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-                                en toute simplicité
+                                Zekora Finance
                             </span>
                         </h2>
 
                         <p className="text-lg text-slate-300 mb-10">
-                            Accédez à votre tableau de bord administrateur pour superviser
-                            les opérations, gérer les utilisateurs et assurer la sécurité de la plateforme.
+                            Connectez-vous à l'espace d'administration pour gérer les flux financiers,
+                            superviser les utilisateurs et configurer les services en temps réel.
                         </p>
 
                         {/* Features */}
                         <div className="space-y-4">
                             {[
-                                { icon: ShieldCheckIcon, text: 'Sécurité renforcée & 2FA' },
-                                { icon: SparklesIcon, text: 'Interface intuitive' },
-                                { icon: LockClosedIcon, text: 'Accès contrôlé par rôles' },
+                                { icon: ShieldCheckIcon, text: 'Monitoring des Transactions' },
+                                { icon: SparklesIcon, text: 'Gestion de la Liquidité' },
+                                { icon: LockClosedIcon, text: 'Audit & Conformité' },
                             ].map((feature, i) => (
                                 <div key={i} className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
