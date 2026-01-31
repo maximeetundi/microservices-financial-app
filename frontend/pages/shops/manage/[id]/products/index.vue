@@ -1,5 +1,4 @@
 <template>
-  <template>
   <ShopLayout>
     <div class="products-page">
     <!-- Page Header -->
@@ -137,7 +136,6 @@
       </div>
     </div>
   </div>
-</template>
   </ShopLayout>
 </template>
 

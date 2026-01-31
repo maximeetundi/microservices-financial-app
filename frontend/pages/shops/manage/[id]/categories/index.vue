@@ -1,5 +1,4 @@
 <template>
-  <template>
   <ShopLayout>
     <div class="categories-page">
     <!-- Page Header -->
@@ -142,7 +141,6 @@
       </div>
     </Teleport>
   </div>
-</template>
   </ShopLayout>
 </template>
 
