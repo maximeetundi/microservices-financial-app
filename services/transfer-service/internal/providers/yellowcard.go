@@ -118,17 +118,17 @@ func (p *YellowCardProvider) GetBanks(ctx context.Context, country string) ([]Ba
 func (p *YellowCardProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
 	operators := map[string][]MobileOperator{
 		"GH": {
-			{Code: "MTN", Name: "MTN Mobile Money", Country: "GH", NumberPrefix: []string{"23", "24", "54", "55"}},
-			{Code: "VODAFONE", Name: "Vodafone Cash", Country: "GH", NumberPrefix: []string{"20", "50"}},
-			{Code: "AIRTELTIGO", Name: "AirtelTigo Money", Country: "GH", NumberPrefix: []string{"26", "27", "56", "57"}},
+			{Code: "MTN", Name: "MTN Mobile Money", Countries: []string{"GH"}, NumberPrefix: []string{"23", "24", "54", "55"}},
+			{Code: "VODAFONE", Name: "Vodafone Cash", Countries: []string{"GH"}, NumberPrefix: []string{"20", "50"}},
+			{Code: "AIRTELTIGO", Name: "AirtelTigo Money", Countries: []string{"GH"}, NumberPrefix: []string{"26", "27", "56", "57"}},
 		},
 		"KE": {
-			{Code: "MPESA", Name: "M-Pesa", Country: "KE", NumberPrefix: []string{"07", "01"}},
-			{Code: "AIRTEL", Name: "Airtel Money", Country: "KE", NumberPrefix: []string{"073", "078"}},
+			{Code: "MPESA", Name: "M-Pesa", Countries: []string{"KE"}, NumberPrefix: []string{"07", "01"}},
+			{Code: "AIRTEL", Name: "Airtel Money", Countries: []string{"KE"}, NumberPrefix: []string{"073", "078"}},
 		},
 		"UG": {
-			{Code: "MTN", Name: "MTN Mobile Money", Country: "UG", NumberPrefix: []string{"77", "78"}},
-			{Code: "AIRTEL", Name: "Airtel Money", Country: "UG", NumberPrefix: []string{"70", "75"}},
+			{Code: "MTN", Name: "MTN Mobile Money", Countries: []string{"UG"}, NumberPrefix: []string{"77", "78"}},
+			{Code: "AIRTEL", Name: "Airtel Money", Countries: []string{"UG"}, NumberPrefix: []string{"70", "75"}},
 		},
 	}
 
@@ -139,8 +139,8 @@ func (p *YellowCardProvider) GetMobileOperators(ctx context.Context, country str
 }
 
 func (p *YellowCardProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
-	if req.RecipientPhone == "" && req.BankAccountNumber == "" {
-		return fmt.Errorf("recipient phone or bank account required")
+	if req.RecipientPhone == "" && req.AccountNumber == "" {
+		return fmt.Errorf("recipient phone or bank account number required")
 	}
 	return nil
 }
@@ -172,11 +172,10 @@ func (p *YellowCardProvider) GetQuote(ctx context.Context, req *PayoutRequest) (
 		return &PayoutResponse{
 			ProviderName:      "yellowcard",
 			ProviderReference: "",
-			Amount:            req.Amount,
-			Currency:          req.Currency,
+			AmountReceived:    req.Amount,
+			ReceivedCurrency:  req.Currency,
 			Fee:               fee,
-			TotalAmount:       req.Amount + fee,
-			Status:            "quote",
+			Status:            PayoutStatusPending,
 		}, nil
 	}
 
