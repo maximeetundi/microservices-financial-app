@@ -830,3 +830,67 @@ CREATE INDEX IF NOT EXISTS idx_association_treasury_assoc ON association_treasur
 CREATE INDEX IF NOT EXISTS idx_association_loans_assoc ON association_loans(association_id);
 CREATE INDEX IF NOT EXISTS idx_association_loans_borrower ON association_loans(borrower_id);
 CREATE INDEX IF NOT EXISTS idx_association_meetings_assoc ON association_meetings(association_id);
+
+
+-- =====================================================
+-- PLATFORM ACCOUNTS (Hot Wallets & Reserves)
+-- Moved here to ensure availability before service startup
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS platform_accounts (
+    id VARCHAR(36) PRIMARY KEY, -- JSON/Go UUID string
+    currency VARCHAR(10) NOT NULL,
+    account_type VARCHAR(50) NOT NULL, -- reserve, operational, fees
+    name VARCHAR(100) NOT NULL,
+    balance DECIMAL(20, 8) DEFAULT 0,
+    min_balance DECIMAL(20, 8) DEFAULT 0,
+    max_balance DECIMAL(20, 8) DEFAULT 0,
+    priority INT DEFAULT 50,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for platform accounts
+CREATE INDEX IF NOT EXISTS idx_platform_accounts_type ON platform_accounts(account_type);
+CREATE INDEX IF NOT EXISTS idx_platform_accounts_currency ON platform_accounts(currency);
+
+-- Seed Platform Accounts
+INSERT INTO platform_accounts (id, currency, account_type, name, description, priority, balance) VALUES
+-- FCFA
+(gen_random_uuid()::text, 'FCFA', 'reserve', 'Réserve FCFA Principal', 'Réserve principale en FCFA', 100, 1000000000),
+(gen_random_uuid()::text, 'FCFA', 'fees', 'Frais collectés FCFA', 'Frais de transaction collectés', 100, 0),
+(gen_random_uuid()::text, 'FCFA', 'operations', 'Opérations FCFA', 'Compte opérationnel pour retraits/dépôts', 80, 100000000),
+-- EUR
+(gen_random_uuid()::text, 'EUR', 'reserve', 'Réserve EUR', 'Réserve principale en EUR', 100, 1000000),
+(gen_random_uuid()::text, 'EUR', 'fees', 'Frais collectés EUR', 'Frais de transaction en EUR', 100, 0),
+(gen_random_uuid()::text, 'EUR', 'operations', 'Opérations EUR', 'Compte opérationnel EUR', 80, 50000),
+-- USD
+(gen_random_uuid()::text, 'USD', 'reserve', 'Réserve USD', 'Réserve principale en USD', 100, 1000000),
+(gen_random_uuid()::text, 'USD', 'fees', 'Frais collectés USD', 'Frais de transaction en USD', 100, 0),
+(gen_random_uuid()::text, 'USD', 'operations', 'Opérations USD', 'Compte opérationnel USD', 80, 50000),
+-- XOF
+(gen_random_uuid()::text, 'XOF', 'reserve', 'Réserve XOF', 'Réserve principale en XOF', 100, 1000000000),
+(gen_random_uuid()::text, 'XOF', 'fees', 'Frais collectés XOF', 'Frais de transaction en XOF', 100, 0),
+(gen_random_uuid()::text, 'XOF', 'operations', 'Opérations XOF', 'Compte opérationnel pour retraits/dépôts XOF', 80, 100000000),
+-- XAF
+(gen_random_uuid()::text, 'XAF', 'reserve', 'Réserve XAF', 'Réserve principale en XAF', 100, 1000000000),
+(gen_random_uuid()::text, 'XAF', 'fees', 'Frais collectés XAF', 'Frais de transaction en XAF', 100, 0),
+(gen_random_uuid()::text, 'XAF', 'operations', 'Opérations XAF', 'Compte opérationnel pour retraits/dépôts XAF', 80, 100000000),
+-- NGN
+(gen_random_uuid()::text, 'NGN', 'reserve', 'Réserve NGN', 'Réserve principale en NGN', 100, 1000000000),
+(gen_random_uuid()::text, 'NGN', 'fees', 'Frais collectés NGN', 'Frais de transaction en NGN', 100, 0),
+(gen_random_uuid()::text, 'NGN', 'operations', 'Opérations NGN', 'Compte opérationnel pour retraits/dépôts NGN', 80, 500000000),
+-- GHS
+(gen_random_uuid()::text, 'GHS', 'reserve', 'Réserve GHS', 'Réserve principale en GHS', 100, 1000000000),
+(gen_random_uuid()::text, 'GHS', 'fees', 'Frais collectés GHS', 'Frais de transaction en GHS', 100, 0),
+(gen_random_uuid()::text, 'GHS', 'operations', 'Opérations GHS', 'Compte opérationnel pour retraits/dépôts GHS', 80, 10000000),
+-- KES
+(gen_random_uuid()::text, 'KES', 'reserve', 'Réserve KES', 'Réserve principale en KES', 100, 1000000000),
+(gen_random_uuid()::text, 'KES', 'fees', 'Frais collectés KES', 'Frais de transaction en KES', 100, 0),
+(gen_random_uuid()::text, 'KES', 'operations', 'Opérations KES', 'Compte opérationnel pour retraits/dépôts KES', 80, 100000000),
+-- ZAR
+(gen_random_uuid()::text, 'ZAR', 'reserve', 'Réserve ZAR', 'Réserve principale en ZAR', 100, 1000000000),
+(gen_random_uuid()::text, 'ZAR', 'operations', 'Opérations ZAR', 'Compte opérationnel pour retraits/dépôts ZAR', 80, 10000000)
+ON CONFLICT DO NOTHING;
