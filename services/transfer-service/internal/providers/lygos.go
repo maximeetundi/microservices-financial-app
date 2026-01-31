@@ -70,14 +70,14 @@ func (p *LygosProvider) GetMobileOperators(ctx context.Context, country string) 
 	switch country {
 	case "CI":
 		return []MobileOperator{
-			{Code: "ORANGE_CI", Name: "Orange Money", Country: "CI", NumberPrefix: []string{"07"}},
-			{Code: "MTN_CI", Name: "MTN Mobile Money", Country: "CI", NumberPrefix: []string{"05"}},
-			{Code: "MOOV_CI", Name: "Moov Money", Country: "CI", NumberPrefix: []string{"01"}},
+			{Code: "ORANGE_CI", Name: "Orange Money", Countries: []string{"CI"}, NumberPrefix: []string{"07"}},
+			{Code: "MTN_CI", Name: "MTN Mobile Money", Countries: []string{"CI"}, NumberPrefix: []string{"05"}},
+			{Code: "MOOV_CI", Name: "Moov Money", Countries: []string{"CI"}, NumberPrefix: []string{"01"}},
 		}, nil
 	case "SN":
 		return []MobileOperator{
-			{Code: "ORANGE_SN", Name: "Orange Money", Country: "SN", NumberPrefix: []string{"77", "78"}},
-			{Code: "WAVE_SN", Name: "Wave", Country: "SN", NumberPrefix: []string{"70"}},
+			{Code: "ORANGE_SN", Name: "Orange Money", Countries: []string{"SN"}, NumberPrefix: []string{"77", "78"}},
+			{Code: "WAVE_SN", Name: "Wave", Countries: []string{"SN"}, NumberPrefix: []string{"70"}},
 		}, nil
 	default:
 		return []MobileOperator{}, nil
@@ -96,11 +96,10 @@ func (p *LygosProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*Payo
 	return &PayoutResponse{
 		ProviderName:      "lygos",
 		ProviderReference: "",
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
-		Status:            "quote",
+		Status:            PayoutStatusPending, // Using PayoutStatusPending for "quote" as closest equivalent or need a Quote status
 	}, nil
 }
 

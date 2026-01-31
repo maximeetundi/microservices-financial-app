@@ -146,7 +146,6 @@ func (p *DemoProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*P
 		AmountReceived:    req.Amount,
 		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
 		Status:            PayoutStatusCompleted, // Demo always succeeds
 	}, nil
 }
