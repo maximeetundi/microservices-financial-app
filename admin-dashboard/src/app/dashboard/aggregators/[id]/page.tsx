@@ -48,9 +48,9 @@ export default function AggregatorInstancesPage() {
     const [showLinkWalletModal, setShowLinkWalletModal] = useState(false);
     const [selectedInstance, setSelectedInstance] = useState<ProviderInstance | null>(null);
     const [hotWallets, setHotWallets] = useState<PlatformAccount[]>([]);
+    const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
-
-    // Form states
+    const [selectedWalletId, setSelectedWalletId] = useState('');
     const [newInstance, setNewInstance] = useState({
         name: '',
         vault_secret_path: '',
@@ -58,8 +58,6 @@ export default function AggregatorInstancesPage() {
         is_primary: false,
         priority: 50,
     });
-
-    const [selectedWalletId, setSelectedWalletId] = useState('');
 
     useEffect(() => {
         if (providerId) {
@@ -78,10 +76,36 @@ export default function AggregatorInstancesPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setProviderName(data.display_name || data.name);
+                setProviderName(data.provider.display_name || data.provider.name);
+                setCountries(data.provider.countries || []);
             }
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    const toggleCountry = async (countryCode: string, isActive: boolean) => {
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+
+            // Assuming endpoint structure based on standard conventions in this project
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries/${countryCode}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_active: isActive })
+            });
+
+            if (response.ok) {
+                loadProviderDetails(); // Reload to get updated state
+            } else {
+                alert('Erreur lors de la modification du pays');
+            }
+        } catch (e) {
+            console.error('Error toggling country:', e);
         }
     };
 
@@ -106,7 +130,6 @@ export default function AggregatorInstancesPage() {
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
             const token = localStorage.getItem('admin_token');
-            // Mocking endpoint structure based on proxy
             const response = await fetch(`${API_URL}/api/v1/admin/platform/accounts?type=operations`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -124,8 +147,6 @@ export default function AggregatorInstancesPage() {
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
             const token = localStorage.getItem('admin_token');
-
-            // Auto-generate vault path if empty based on name
             const path = newInstance.vault_secret_path || `secret/aggregators/${providerName.toLowerCase().replace(/\s+/g, '_')}/${newInstance.name.toLowerCase().replace(/\s+/g, '_')}`;
 
             const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`, {
@@ -198,6 +219,15 @@ export default function AggregatorInstancesPage() {
         }
     };
 
+    const getFlagEmoji = (countryCode: string) => {
+        if (!countryCode) return '🏳️';
+        const codePoints = countryCode
+            .toUpperCase()
+            .split('')
+            .map(char => 127397 + char.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+    };
+
     return (
         <div className="space-y-6 animate-fadeIn">
             {/* Header */}
@@ -210,8 +240,8 @@ export default function AggregatorInstancesPage() {
                         <ArrowLeftIcon className="w-5 h-5" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Instances: {providerName}</h1>
-                        <p className="text-gray-500 text-sm">Gérez les clés API et les connexions wallets</p>
+                        <h1 className="text-2xl font-bold text-gray-900">{providerName}</h1>
+                        <p className="text-gray-500 text-sm">Gestion des instances et des pays</p>
                     </div>
                 </div>
                 <button
@@ -223,8 +253,42 @@ export default function AggregatorInstancesPage() {
                 </button>
             </div>
 
+            {/* Countries Management Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Pays Supportés</h2>
+                {countries.length === 0 ? (
+                    <p className="text-gray-500 italic">Aucun pays configuré pour cet agrégateur.</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {countries.map((country: any) => (
+                            <div key={country.country_code} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{getFlagEmoji(country.country_code)}</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{country.country_name}</p>
+                                        <p className="text-xs text-gray-500">{country.currency}</p>
+                                    </div>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={country.is_active}
+                                        onChange={(e) => toggleCountry(country.country_code, e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">Instances Configurées</h2>
+
             {/* List */}
             {loading ? (
+
                 <div className="flex justify-center py-12">
                     <div className="spinner w-8 h-8" />
                 </div>
@@ -258,7 +322,7 @@ export default function AggregatorInstancesPage() {
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Santé</span>
                                     <span className={`font-medium ${inst.health_status === 'healthy' ? 'text-emerald-600' :
-                                            inst.health_status === 'error' ? 'text-red-600' : 'text-gray-500'
+                                        inst.health_status === 'error' ? 'text-red-600' : 'text-gray-500'
                                         }`}>
                                         {inst.health_status}
                                     </span>

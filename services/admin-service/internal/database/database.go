@@ -532,12 +532,17 @@ func seedDefaultProviders(db *sql.DB) error {
 		currencies := `["XOF", "XAF", "NGN", "EUR", "USD"]`
 		var providerID string
 
+		// Generate random keys for mockup
+		mockKey := fmt.Sprintf("pk_test_%s", uuid.New().String())
+		mockSecret := fmt.Sprintf("sk_test_%s", uuid.New().String())
+
 		// Use ON CONFLICT to update existing providers if they exist
 		err := db.QueryRow(`
 			INSERT INTO payment_providers 
 			(name, display_name, provider_type, api_base_url, logo_url, 
-			 supported_currencies, capability, is_demo_mode, is_active)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+			 supported_currencies, capability, is_demo_mode, is_active,
+			 api_key_encrypted, api_secret_encrypted)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9, $10)
 			ON CONFLICT (name) DO UPDATE SET
 				display_name = EXCLUDED.display_name,
 				provider_type = EXCLUDED.provider_type,
@@ -546,9 +551,12 @@ func seedDefaultProviders(db *sql.DB) error {
 				supported_currencies = EXCLUDED.supported_currencies,
 				capability = EXCLUDED.capability,
 				is_demo_mode = EXCLUDED.is_demo_mode,
-				is_active = TRUE
+				is_active = TRUE,
+				api_key_encrypted = COALESCE(payment_providers.api_key_encrypted, EXCLUDED.api_key_encrypted),
+				api_secret_encrypted = COALESCE(payment_providers.api_secret_encrypted, EXCLUDED.api_secret_encrypted)
 			RETURNING id
-		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo).Scan(&providerID)
+		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo, mockKey, mockSecret).Scan(&providerID)
+
 
 		if err != nil {
 			log.Printf("Failed to upsert provider %s: %v", p.Name, err)
@@ -618,23 +626,22 @@ func seedDefaultProviderInstances(db *sql.DB) error {
 		var instanceID string
 		err := db.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, "Instance Principale").Scan(&instanceID)
 
-		if err == sql.ErrNoRows {
 			// Create it
 			_, err = db.Exec(`
 				INSERT INTO provider_instances 
 					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
-				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'unknown')
+				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active')
 			`, p.ID, "Instance Principale", vaultPath)
 			if err != nil {
 				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
 			} else {
-				log.Printf("[Database] ✅ Created default instance for: %s", p.DisplayName)
+				log.Printf("[Database] ✅ Created default active instance for: %s", p.DisplayName)
 			}
 		} else if err == nil {
-			// Update it to ensure it's active
+			// Update it to ensure it's active and healthy
 			_, err = db.Exec(`
 				UPDATE provider_instances 
-				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1
+				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1, health_status = 'active'
 				WHERE id = $2
 			`, vaultPath, instanceID)
 			if err != nil {

@@ -9,7 +9,9 @@ import {
     MagnifyingGlassIcon,
     ArrowPathIcon,
     TrashIcon,
+    Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 interface Aggregator {
     id: string;
@@ -307,6 +309,15 @@ export default function AggregatorsPage() {
                                                 }`}
                                         />
                                     </button>
+
+                                    {/* Configure Button */}
+                                    <Link
+                                        href={`/dashboard/aggregators/${agg.id}`}
+                                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-1"
+                                        title="Configurer"
+                                    >
+                                        <Cog6ToothIcon className="w-5 h-5" />
+                                    </Link>
 
                                     {/* Delete Button (Demo only) */}
                                     {(agg.provider_code === 'demo' || agg.provider_name === 'demo') && (
