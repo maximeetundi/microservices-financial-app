@@ -245,11 +245,11 @@ func (h *PaymentHandler) UpdatePaymentProvider(c *gin.Context) {
 func (h *PaymentHandler) DeletePaymentProvider(c *gin.Context) {
 	id := c.Param("id")
 
-	// Don't allow deleting demo provider
+	// Only allow deleting demo provider
 	var name string
 	h.db.QueryRow("SELECT name FROM payment_providers WHERE id = $1", id).Scan(&name)
-	if name == "demo" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete demo provider"})
+	if name != "demo" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only demo provider can be deleted"})
 		return
 	}
 

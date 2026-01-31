@@ -8,6 +8,7 @@ import {
     ExclamationTriangleIcon,
     MagnifyingGlassIcon,
     ArrowPathIcon,
+    TrashIcon,
 } from '@heroicons/react/24/outline';
 
 interface Aggregator {
@@ -139,6 +140,30 @@ export default function AggregatorsPage() {
             loadAggregators();
         } catch (error) {
             console.error('Error toggling withdraw:', error);
+        }
+    };
+
+    const deleteAggregator = async (id: string) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet agrégateur ? Cette action est irréversible.')) return;
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+
+            const response = await fetch(`${API_URL}/api/v1/admin/aggregators/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                loadAggregators();
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        } catch (error) {
+            console.error('Error deleting aggregator:', error);
         }
     };
 
@@ -282,6 +307,17 @@ export default function AggregatorsPage() {
                                                 }`}
                                         />
                                     </button>
+
+                                    {/* Delete Button (Demo only) */}
+                                    {(agg.provider_code === 'demo' || agg.provider_name === 'demo') && (
+                                        <button
+                                            onClick={() => deleteAggregator(agg.id)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"
+                                            title="Supprimer"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

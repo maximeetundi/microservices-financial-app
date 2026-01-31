@@ -27,21 +27,36 @@ const PROVIDER_DISPLAY_NAMES: Record<string, { label: string; icon: string; colo
     // Mobile Money Africa
     'orange_money': { label: 'Orange Money', icon: '🟠', color: 'orange', category: 'mobile_money' },
     'orange_money_ci': { label: 'Orange Money', icon: '🟠', color: 'orange', category: 'mobile_money' },
+    'orange_money_cm': { label: 'Orange Money', icon: '🟠', color: 'orange', category: 'mobile_money' },
+    'orange_money_sn': { label: 'Orange Money', icon: '🟠', color: 'orange', category: 'mobile_money' },
+
     'mtn_momo': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
     'mtn_ci': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+    'mtn_cm': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+    'mtn_sn': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+    'mtn_bj': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+    'mtn_gh': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+    'mtn_za': { label: 'MTN MoMo', icon: '🟡', color: 'yellow', category: 'mobile_money' },
+
     'wave': { label: 'Wave', icon: '🌊', color: 'blue', category: 'mobile_money' },
     'wave_ci': { label: 'Wave', icon: '🌊', color: 'blue', category: 'mobile_money' },
+    'wave_sn': { label: 'Wave', icon: '🌊', color: 'blue', category: 'mobile_money' },
+
     'moov': { label: 'Moov Money', icon: '🔵', color: 'blue', category: 'mobile_money' },
     'moov_ci': { label: 'Moov Money', icon: '🔵', color: 'blue', category: 'mobile_money' },
+    'moov_bj': { label: 'Moov Money', icon: '🔵', color: 'blue', category: 'mobile_money' },
+    'moov_tg': { label: 'Moov Money', icon: '🔵', color: 'blue', category: 'mobile_money' },
 
-    // Aggregators (show as Mobile Money)
-    'flutterwave': { label: 'Mobile Money', icon: '📱', color: 'orange', category: 'mobile_money' },
-    'cinetpay': { label: 'Mobile Money', icon: '📱', color: 'green', category: 'mobile_money' },
+    // Aggregators (Tiers)
+    'cinetpay': { label: 'CinetPay', icon: '💳', color: 'green', category: 'mobile_money' },
+    'flutterwave': { label: 'Flutterwave', icon: '🦋', color: 'orange', category: 'international' },
+    'lygos': { label: 'Lygos', icon: '🦁', color: 'purple', category: 'mobile_money' },
+    'fedapay': { label: 'FedaPay', icon: '🔄', color: 'blue', category: 'mobile_money' },
     'yellowcard': { label: 'Yellow Card', icon: '💛', color: 'yellow', category: 'mobile_money' },
 
     // International
     'paypal': { label: 'PayPal', icon: '🅿️', color: 'blue', category: 'international' },
-    'stripe': { label: 'Carte Bancaire', icon: '💳', color: 'purple', category: 'card' },
+    'stripe': { label: 'Carte Bancaire (Stripe)', icon: '💳', color: 'purple', category: 'card' },
 
     // Bank
     'bank_transfer': { label: 'Virement Bancaire', icon: '🏦', color: 'emerald', category: 'bank' },

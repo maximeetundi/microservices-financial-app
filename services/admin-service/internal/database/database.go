@@ -314,47 +314,45 @@ func seedDefaultProviders(db *sql.DB) error {
 				{"SN", "Sénégal", "XOF"},
 			},
 		},
-		{
-			Name:        "yellowcard",
-			DisplayName: "Yellow Card",
-			Type:        "mobile_money",
-			BaseURL:     "https://api.yellowcard.io/v1",
-			LogoURL:     "/icons/aggregators/yellowcard.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
-				{"NG", "Nigeria", "NGN"},
-				{"GH", "Ghana", "GHS"},
-				{"KE", "Kenya", "KES"},
-				{"ZA", "South Africa", "ZAR"},
-				{"UG", "Uganda", "UGX"},
-				{"TZ", "Tanzania", "TZS"},
-			},
-		},
+
+		// --- Orange Money ---
 		{
 			Name:        "orange_money_ci",
 			DisplayName: "Orange Money CI",
 			Type:        "mobile_money",
 			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
-			LogoURL:     "/icons/aggregators/orange.svg",
+			LogoURL:     "/icons/aggregators/orange_money.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"CI", "Côte d'Ivoire", "XOF"},
 			},
 		},
 		{
-			Name:        "orange_money_sn",
-			DisplayName: "Orange Money SN",
+			Name:        "orange_money_cm",
+			DisplayName: "Orange Money Cameroun",
 			Type:        "mobile_money",
 			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
-			LogoURL:     "/icons/aggregators/orange.svg",
+			LogoURL:     "/icons/aggregators/orange_money.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CM", "Cameroun", "XAF"},
+			},
+		},
+		{
+			Name:        "orange_money_sn",
+			DisplayName: "Orange Money Sénégal",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
+			LogoURL:     "/icons/aggregators/orange_money.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"SN", "Sénégal", "XOF"},
 			},
 		},
+		// --- MTN Mobile Money ---
 		{
 			Name:        "mtn_ci",
-			DisplayName: "MTN CI",
+			DisplayName: "MTN MoMo CI",
 			Type:        "mobile_money",
 			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
 			LogoURL:     "/icons/aggregators/mtn.svg",
@@ -365,7 +363,7 @@ func seedDefaultProviders(db *sql.DB) error {
 		},
 		{
 			Name:        "mtn_cm",
-			DisplayName: "MTN Cameroun",
+			DisplayName: "MTN MoMo Cameroun",
 			Type:        "mobile_money",
 			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
 			LogoURL:     "/icons/aggregators/mtn.svg",
@@ -375,30 +373,88 @@ func seedDefaultProviders(db *sql.DB) error {
 			},
 		},
 		{
-			Name:        "mtn_gh",
-			DisplayName: "MTN Ghana",
+			Name:        "mtn_sn",
+			DisplayName: "MTN MoMo Sénégal", // (Free Money uses MTN rails sometimes or separate?) Assuming MTN SN here for seeding
 			Type:        "mobile_money",
 			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
 			LogoURL:     "/icons/aggregators/mtn.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
-				{"GH", "Ghana", "GHS"},
+				{"SN", "Sénégal", "XOF"},
 			},
 		},
 		{
-			Name:        "mtn_za",
-			DisplayName: "MTN South Africa",
+			Name:        "mtn_bj",
+			DisplayName: "MTN MoMo Bénin",
 			Type:        "mobile_money",
 			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
 			LogoURL:     "/icons/aggregators/mtn.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
-				{"ZA", "South Africa", "ZAR"},
+				{"BJ", "Bénin", "XOF"},
 			},
 		},
+		// --- Wave ---
+		{
+			Name:        "wave_ci",
+			DisplayName: "Wave CI",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.wave.com/v1",
+			LogoURL:     "/icons/aggregators/wave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "wave_sn",
+			DisplayName: "Wave Sénégal",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.wave.com/v1",
+			LogoURL:     "/icons/aggregators/wave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"SN", "Sénégal", "XOF"},
+			},
+		},
+		// --- Moov Money ---
+		{
+			Name:        "moov_ci",
+			DisplayName: "Moov Money CI",
+			Type:        "mobile_money",
+			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush", // Generic Sandbox URL found
+			LogoURL:     "/icons/aggregators/moov.svg",                                                // Need to ensure this icon exists or use generic
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "moov_bj",
+			DisplayName: "Moov Money Bénin",
+			Type:        "mobile_money",
+			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush",
+			LogoURL:     "/icons/aggregators/moov.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"BJ", "Bénin", "XOF"},
+			},
+		},
+		{
+			Name:        "moov_tg",
+			DisplayName: "Moov Money Togo",
+			Type:        "mobile_money",
+			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush",
+			LogoURL:     "/icons/aggregators/moov.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"TG", "Togo", "XOF"},
+			},
+		},
+		// --- Cards ---
 		{
 			Name:        "stripe",
-			DisplayName: "Stripe",
+			DisplayName: "Stripe / Carte Bancaire",
 			Type:        "card",
 			BaseURL:     "https://api.stripe.com/v1",
 			LogoURL:     "/icons/aggregators/stripe.svg",
@@ -406,7 +462,68 @@ func seedDefaultProviders(db *sql.DB) error {
 			Countries: []struct{ Code, Name, Currency string }{
 				{"US", "United States", "USD"},
 				{"FR", "France", "EUR"},
-				{"GB", "United Kingdom", "GBP"},
+				{"CI", "Côte d'Ivoire", "XOF"}, // Stripe supports CI merchants
+			},
+		},
+		// --- Aggregators (Tiers) ---
+		{
+			Name:        "cinetpay",
+			DisplayName: "CinetPay",
+			Type:        "mobile_money",
+			BaseURL:     "https://api-checkout.cinetpay.com/v2/payment",
+			LogoURL:     "/icons/aggregators/cinetpay.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+				{"SN", "Sénégal", "XOF"},
+				{"CM", "Cameroun", "XAF"},
+				{"BF", "Burkina Faso", "XOF"},
+				{"ML", "Mali", "XOF"},
+				{"TG", "Togo", "XOF"},
+			},
+		},
+		{
+			Name:        "flutterwave",
+			DisplayName: "Flutterwave",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.flutterwave.com/v3",
+			LogoURL:     "/icons/aggregators/flutterwave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"NG", "Nigeria", "NGN"},
+				{"GH", "Ghana", "GHS"},
+				{"KE", "Kenya", "KES"},
+				{"ZA", "South Africa", "ZAR"},
+				{"UG", "Uganda", "UGX"},
+				{"TZ", "Tanzania", "TZS"},
+				{"RW", "Rwanda", "RWF"},
+			},
+		},
+		{
+			Name:        "fedapay",
+			DisplayName: "FedaPay",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.fedapay.com/v1", // Sandbox: https://sandbox-api.fedapay.com/v1
+			LogoURL:     "/icons/aggregators/fedapay.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"BJ", "Bénin", "XOF"},
+				{"TG", "Togo", "XOF"},
+				{"NE", "Niger", "XOF"},
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "lygos",
+			DisplayName: "Lygos",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.lygosapp.com/v1",
+			LogoURL:     "/icons/aggregators/lygos.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"LR", "Liberia", "LRD"},
+				{"CI", "Côte d'Ivoire", "XOF"},
+				// Supports 13+ countries
 			},
 		},
 	}
@@ -428,7 +545,8 @@ func seedDefaultProviders(db *sql.DB) error {
 				logo_url = EXCLUDED.logo_url,
 				supported_currencies = EXCLUDED.supported_currencies,
 				capability = EXCLUDED.capability,
-				is_demo_mode = EXCLUDED.is_demo_mode
+				is_demo_mode = EXCLUDED.is_demo_mode,
+				is_active = TRUE
 			RETURNING id
 		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo).Scan(&providerID)
 
@@ -490,29 +608,40 @@ func seedDefaultProviderInstances(db *sql.DB) error {
 	}
 
 	for _, p := range providers {
-		// Check if instance already exists for this provider
-		var exists bool
-		err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM provider_instances WHERE provider_id = $1)`, p.ID).Scan(&exists)
-		if err != nil {
-			log.Printf("[Database] Error checking instance for %s: %v", p.Name, err)
-			continue
-		}
-		if exists {
-			continue // Skip if instance already exists
-		}
+		// Create default instance with Vault path placeholder using Upsert logic
+		// We use name + provider_id as unique constraint ideally, but here we check existence manually or just insert if not exists
+		// To be safe and ensure 'Instance Principale' always exists and is active:
 
-		// Create default instance with Vault path placeholder
 		vaultPath := fmt.Sprintf("secret/aggregators/%s/default", p.Name)
-		_, err = db.Exec(`
-			INSERT INTO provider_instances 
-			(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
-			VALUES ($1, $2, $3, TRUE, TRUE, 50, 'unknown')
-		`, p.ID, "Instance Principale", vaultPath)
 
-		if err != nil {
-			log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
-		} else {
-			log.Printf("[Database] ✅ Seeded default instance for: %s", p.DisplayName)
+		// Check if "Instance Principale" exists for this provider
+		var instanceID string
+		err := db.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, "Instance Principale").Scan(&instanceID)
+
+		if err == sql.ErrNoRows {
+			// Create it
+			_, err = db.Exec(`
+				INSERT INTO provider_instances 
+					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
+				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'unknown')
+			`, p.ID, "Instance Principale", vaultPath)
+			if err != nil {
+				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
+			} else {
+				log.Printf("[Database] ✅ Created default instance for: %s", p.DisplayName)
+			}
+		} else if err == nil {
+			// Update it to ensure it's active
+			_, err = db.Exec(`
+				UPDATE provider_instances 
+				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1
+				WHERE id = $2
+			`, vaultPath, instanceID)
+			if err != nil {
+				log.Printf("[Database] Failed to update instance for %s: %v", p.Name, err)
+			} else {
+				log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
+			}
 		}
 	}
 
