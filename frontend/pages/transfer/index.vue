@@ -121,9 +121,14 @@
               <div class="space-y-2">
                 <label class="block text-sm font-medium text-muted">Opérateur</label>
                 <select v-model="form.provider" class="input-field">
-                  <option value="orange">Orange Money</option>
-                  <option value="mtn">MTN MoMo</option>
-                  <option value="wave">Wave</option>
+                  <option value="" disabled>Choisir un opérateur</option>
+                  <option 
+                    v-for="p in paymentProviders.filter(prov => prov.category === 'mobile_money' || prov.category === 'demo')" 
+                    :key="p.id" 
+                    :value="p.name"
+                  >
+                    {{ p.displayLabel }} <span v-if="p.is_demo_mode">(Test)</span>
+                  </option>
                 </select>
               </div>
             </div>
@@ -228,10 +233,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useModal } from '~/composables/useModal'
 import { usePin } from '~/composables/usePin'
+import { usePaymentProviders } from '~/composables/usePaymentProviders'
 
 const { walletApi, userApi, transferApi } = useApi()
 const modal = useModal()
 const { requirePin, checkPinStatus } = usePin()
+const { providers: paymentProviders, loadProviders: loadPaymentProviders } = usePaymentProviders()
 
 const transferTypes = [
   { id: 'p2p', name: 'Interne (P2P)', icon: '👤' },
@@ -484,6 +491,16 @@ onMounted(() => {
   fetchWallets()
   // Check PIN status on mount
   checkPinStatus()
+  
+  // Initial load of providers
+  loadPaymentProviders(form.value.country)
+})
+
+watch(() => form.value.country, (newCountry) => {
+  if (newCountry) {
+    loadPaymentProviders(newCountry)
+    form.value.provider = '' // Reset provider when country changes
+  }
 })
 
 definePageMeta({

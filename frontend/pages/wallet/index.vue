@@ -832,7 +832,6 @@ const fetchDepositAddress = async () => {
 }
 
 // Watch network change
-import { watch } from 'vue'
 watch(selectedNetwork, (newVal) => {
     if (newVal) fetchDepositAddress()
 })
