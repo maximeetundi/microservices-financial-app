@@ -1,5 +1,7 @@
 <template>
-  <div class="categories-page">
+  <template>
+  <ShopLayout>
+    <div class="categories-page">
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-content">
@@ -141,11 +143,14 @@
     </Teleport>
   </div>
 </template>
+  </ShopLayout>
+</template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi, type Category } from '@/composables/useShopApi'
+import ShopLayout from '@/components/shops/ShopLayout.vue'
 
 const route = useRoute()
 const shopApi = useShopApi()
@@ -261,7 +266,7 @@ onMounted(fetchCategories)
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'shop-admin'
+  layout: 'dashboard'
 })
 </script>
 

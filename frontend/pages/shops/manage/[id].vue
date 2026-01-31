@@ -1,175 +1,178 @@
 <template>
-  <div class="shop-dashboard">
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Chargement de votre boutique...</p>
-    </div>
+  <ShopLayout>
+    <div class="shop-dashboard">
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement de votre boutique...</p>
+      </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="error-state">
-      <div class="error-icon">⚠️</div>
-      <h2>Une erreur est survenue</h2>
-      <p>{{ error }}</p>
-      <NuxtLink to="/shops/my-shops" class="btn-primary">Retour aux boutiques</NuxtLink>
-    </div>
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">⚠️</div>
+        <h2>Une erreur est survenue</h2>
+        <p>{{ error }}</p>
+        <NuxtLink to="/shops/my-shops" class="btn-primary">Retour aux boutiques</NuxtLink>
+      </div>
 
-    <div v-else-if="shop" class="dashboard-content">
-      <!-- Breadcrumb -->
-      <nav class="breadcrumb">
-        <NuxtLink to="/shops" class="breadcrumb-item">Marketplace</NuxtLink>
-        <span class="separator">/</span>
-        <NuxtLink to="/shops/my-shops" class="breadcrumb-item">Mes Boutiques</NuxtLink>
-        <span class="separator">/</span>
-        <span class="current">{{ shop.name }}</span>
-      </nav>
+      <div v-else-if="shop" class="dashboard-content">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+          <NuxtLink to="/shops" class="breadcrumb-item">Marketplace</NuxtLink>
+          <span class="separator">/</span>
+          <NuxtLink to="/shops/my-shops" class="breadcrumb-item">Mes Boutiques</NuxtLink>
+          <span class="separator">/</span>
+          <span class="current">{{ shop.name }}</span>
+        </nav>
 
-      <!-- Shop Header Banner -->
-      <div class="shop-header">
-        <div class="header-bg">
-          <div class="gradient-overlay"></div>
-          <img v-if="shop.banner_url" :src="shop.banner_url" class="banner-img" alt="Banner">
-        </div>
-        
-        <div class="header-content">
-          <div class="shop-identity">
-            <div class="shop-logo">
-              <img v-if="shop.logo_url" :src="shop.logo_url" alt="Logo">
-              <div v-else class="logo-placeholder">{{ shop.name.charAt(0) }}</div>
-            </div>
-            <div class="shop-text">
-              <div class="flex items-center gap-3">
-                <h1>{{ shop.name }}</h1>
-                <span :class="['status-badge', shop.status]">{{ getStatusLabel(shop.status) }}</span>
-              </div>
-              <p class="description">{{ shop.description || 'Ajoutez une description pour vos clients' }}</p>
-              <div class="meta-info">
-                <span>📅 Créée le {{ formatDate(shop.created_at) }}</span>
-                <span class="divider">•</span>
-                <span>🌍 {{ shop.is_public ? 'Publique' : 'Privée' }}</span>
-              </div>
-            </div>
+        <!-- Shop Header Banner -->
+        <div class="shop-header">
+          <div class="header-bg">
+            <div class="gradient-overlay"></div>
+            <img v-if="shop.banner_url" :src="shop.banner_url" class="banner-img" alt="Banner">
           </div>
           
-          <div class="header-actions">
-            <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="btn-glass">
-              <EyeIcon class="w-5 h-5" />
-              Voir la boutique
-            </NuxtLink>
-            <NuxtLink :to="`/shops/manage/${slug}/settings`" class="btn-primary">
-              <Cog6ToothIcon class="w-5 h-5" />
-              Paramètres
-            </NuxtLink>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-card primary">
-          <div class="stat-icon-wrapper">
-            <CurrencyEuroIcon class="w-6 h-6" />
-          </div>
-          <div class="stat-details">
-            <span class="stat-label">Chiffre d'affaires (Mois)</span>
-            <span class="stat-value">{{ formatPrice(shop.stats?.total_revenue || 0, shop.currency) }}</span>
-            <span class="stat-trend positive">↗ +12% vs mois dernier</span>
-          </div>
-          <div class="stat-chart-placeholder"></div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon-wrapper blue">
-            <shopping-bag-icon class="w-6 h-6" />
-          </div>
-          <div class="stat-details">
-            <span class="stat-label">Commandes</span>
-            <span class="stat-value">{{ shop.stats?.total_orders || 0 }}</span>
-            <span class="stat-sub">0 en attente</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon-wrapper purple">
-            <TagIcon class="w-6 h-6" />
-          </div>
-          <div class="stat-details">
-            <span class="stat-label">Produits actifs</span>
-            <span class="stat-value">{{ shop.stats?.total_products || 0 }}</span>
-            <span class="stat-sub">Catalogue en ligne</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Main Content Grid -->
-      <div class="content-grid">
-        
-        <!-- Quick Actions -->
-        <div class="dashboard-card actions-card">
-          <div class="card-header">
-            <h3>⚡ Actions Rapides</h3>
-          </div>
-          <div class="actions-list">
-            <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="action-item">
-              <div class="action-icon orange"><PlusIcon class="w-6 h-6" /></div>
-              <div class="action-text">
-                <h4>Ajouter un produit</h4>
-                <p>Créez une nouvelle fiche produit</p>
+          <div class="header-content">
+            <div class="shop-identity">
+              <div class="shop-logo">
+                <img v-if="shop.logo_url" :src="shop.logo_url" alt="Logo">
+                <div v-else class="logo-placeholder">{{ shop.name.charAt(0) }}</div>
               </div>
-              <ChevronRightIcon class="arrow-icon" />
-            </NuxtLink>
-
-            <NuxtLink :to="`/shops/manage/${slug}/categories`" class="action-item">
-              <div class="action-icon pink"><TagIcon class="w-6 h-6" /></div>
-              <div class="action-text">
-                <h4>Gérer les catégories</h4>
-                <p>Organisez vos rayons</p>
+              <div class="shop-text">
+                <div class="flex items-center gap-3">
+                  <h1>{{ shop.name }}</h1>
+                  <span :class="['status-badge', shop.status]">{{ getStatusLabel(shop.status) }}</span>
+                </div>
+                <p class="description">{{ shop.description || 'Ajoutez une description pour vos clients' }}</p>
+                <div class="meta-info">
+                  <span>📅 Créée le {{ formatDate(shop.created_at) }}</span>
+                  <span class="divider">•</span>
+                  <span>🌍 {{ shop.is_public ? 'Publique' : 'Privée' }}</span>
+                </div>
               </div>
-              <ChevronRightIcon class="arrow-icon" />
-            </NuxtLink>
-
-            <NuxtLink :to="`/shops/manage/${slug}/managers`" class="action-item">
-              <div class="action-icon green"><UsersIcon class="w-6 h-6" /></div>
-              <div class="action-text">
-                <h4>Gérer l'équipe</h4>
-                <p>Ajoutez des vendeurs</p>
-              </div>
-              <ChevronRightIcon class="arrow-icon" />
-            </NuxtLink>
+            </div>
             
-            <button class="action-item" @click="shareShop">
-              <div class="action-icon blue"><ShareIcon class="w-6 h-6" /></div>
-              <div class="action-text">
-                <h4>Partager la boutique</h4>
-                <p>Copier le lien public</p>
-              </div>
-              <ChevronRightIcon class="arrow-icon" />
-            </button>
+            <div class="header-actions">
+              <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="btn-glass">
+                <EyeIcon class="w-5 h-5" />
+                Voir la boutique
+              </NuxtLink>
+              <NuxtLink :to="`/shops/manage/${slug}/settings`" class="btn-primary">
+                <Cog6ToothIcon class="w-5 h-5" />
+                Paramètres
+              </NuxtLink>
+            </div>
           </div>
         </div>
 
-        <!-- Recent Orders -->
-        <div class="dashboard-card orders-card">
-          <div class="card-header">
-            <h3>📦 Dernières Commandes</h3>
-            <NuxtLink :to="`/shops/manage/${slug}/orders`" class="link-more">Tout voir</NuxtLink>
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card primary">
+            <div class="stat-icon-wrapper">
+              <CurrencyEuroIcon class="w-6 h-6" />
+            </div>
+            <div class="stat-details">
+              <span class="stat-label">Chiffre d'affaires (Mois)</span>
+              <span class="stat-value">{{ formatPrice(shop.stats?.total_revenue || 0, shop.currency) }}</span>
+              <span class="stat-trend positive">↗ +12% vs mois dernier</span>
+            </div>
+            <div class="stat-chart-placeholder"></div>
           </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper blue">
+              <shopping-bag-icon class="w-6 h-6" />
+            </div>
+            <div class="stat-details">
+              <span class="stat-label">Commandes</span>
+              <span class="stat-value">{{ shop.stats?.total_orders || 0 }}</span>
+              <span class="stat-sub">0 en attente</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper purple">
+              <TagIcon class="w-6 h-6" />
+            </div>
+            <div class="stat-details">
+              <span class="stat-label">Produits actifs</span>
+              <span class="stat-value">{{ shop.stats?.total_products || 0 }}</span>
+              <span class="stat-sub">Catalogue en ligne</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="content-grid">
           
-          <div class="empty-orders">
-            <div class="empty-illustration">🛍️</div>
-            <p>Aucune commande récente</p>
-            <span class="empty-hint">Partagez votre boutique pour faire vos premières ventes !</span>
+          <!-- Quick Actions -->
+          <div class="dashboard-card actions-card">
+            <div class="card-header">
+              <h3>⚡ Actions Rapides</h3>
+            </div>
+            <div class="actions-list">
+              <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="action-item">
+                <div class="action-icon orange"><PlusIcon class="w-6 h-6" /></div>
+                <div class="action-text">
+                  <h4>Ajouter un produit</h4>
+                  <p>Créez une nouvelle fiche produit</p>
+                </div>
+                <ChevronRightIcon class="arrow-icon" />
+              </NuxtLink>
+
+              <NuxtLink :to="`/shops/manage/${slug}/categories`" class="action-item">
+                <div class="action-icon pink"><TagIcon class="w-6 h-6" /></div>
+                <div class="action-text">
+                  <h4>Gérer les catégories</h4>
+                  <p>Organisez vos rayons</p>
+                </div>
+                <ChevronRightIcon class="arrow-icon" />
+              </NuxtLink>
+
+              <NuxtLink :to="`/shops/manage/${slug}/managers`" class="action-item">
+                <div class="action-icon green"><UsersIcon class="w-6 h-6" /></div>
+                <div class="action-text">
+                  <h4>Gérer l'équipe</h4>
+                  <p>Ajoutez des vendeurs</p>
+                </div>
+                <ChevronRightIcon class="arrow-icon" />
+              </NuxtLink>
+              
+              <button class="action-item" @click="shareShop">
+                <div class="action-icon blue"><ShareIcon class="w-6 h-6" /></div>
+                <div class="action-text">
+                  <h4>Partager la boutique</h4>
+                  <p>Copier le lien public</p>
+                </div>
+                <ChevronRightIcon class="arrow-icon" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Recent Orders -->
+          <div class="dashboard-card orders-card">
+            <div class="card-header">
+              <h3>📦 Dernières Commandes</h3>
+              <NuxtLink :to="`/shops/manage/${slug}/orders`" class="link-more">Tout voir</NuxtLink>
+            </div>
+            
+            <div class="empty-orders">
+              <div class="empty-illustration">🛍️</div>
+              <p>Aucune commande récente</p>
+              <span class="empty-hint">Partagez votre boutique pour faire vos premières ventes !</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </ShopLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi } from '@/composables/useShopApi'
+import ShopLayout from '@/components/shops/ShopLayout.vue'
 import { 
   BuildingStorefrontIcon, 
   CurrencyEuroIcon,
@@ -247,15 +250,14 @@ const shareShop = () => {
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'shop-admin'
+  layout: 'dashboard'
 })
 </script>
 
 <style scoped>
+/* Scoped styles remain mostly the same, but removing shop-dashboard padding/margin since wrapper handles it */
 .shop-dashboard {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
+  /* padding removed, handled by wrapper */
   animation: fadeIn 0.5s ease-out;
 }
 
