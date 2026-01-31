@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/google/uuid"
@@ -603,29 +604,43 @@ func seedDefaultProviders(db *sql.DB) error {
 func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 	log.Println("[Database] Seeding default provider instances with multi-wallet support...")
 
-	// 1. Get ALL operations hot wallets from Main DB (corrected: account_type not type)
+	// 1. Get ALL operations hot wallets from Main DB (retry mechanism to wait for wallet-service seeding)
 	type HotWallet struct {
 		ID       string
 		Currency string
 	}
 	var hotWallets []HotWallet
 
-	rows, err := mainDB.Query(`SELECT id, currency FROM platform_accounts WHERE account_type = 'operations' AND is_active = true`)
-	if err != nil {
-		log.Printf("[Database] ⚠️ Warning: Failed to query operations wallets: %v", err)
-	} else {
-		defer rows.Close()
-		for rows.Next() {
-			var hw HotWallet
-			if err := rows.Scan(&hw.ID, &hw.Currency); err == nil {
-				hotWallets = append(hotWallets, hw)
-				log.Printf("[Database] Found operations hot wallet: %s (%s)", hw.ID, hw.Currency)
+	maxRetries := 12
+	for i := 0; i < maxRetries; i++ {
+		hotWallets = nil // Reset for retry
+		rows, err := mainDB.Query(`SELECT id, currency FROM platform_accounts WHERE account_type = 'operations' AND is_active = true`)
+		if err != nil {
+			log.Printf("[Database] ⚠️ Warning: Failed to query operations wallets (attempt %d/%d): %v", i+1, maxRetries, err)
+		} else {
+			defer rows.Close() // This defer runs when SeedProviderInstances exits, which is fine, but for loop safety we should close manually if retrying or loop ends
+			for rows.Next() {
+				var hw HotWallet
+				if err := rows.Scan(&hw.ID, &hw.Currency); err == nil {
+					hotWallets = append(hotWallets, hw)
+				}
 			}
+			rows.Close() // Explicit close for retry loop
+
+			if len(hotWallets) > 0 {
+				log.Printf("[Database] ✅ Found %d operations hot wallets", len(hotWallets))
+				break
+			}
+		}
+
+		if i < maxRetries-1 {
+			log.Printf("[Database] Waiting for wallet-service seeding... (attempt %d/%d)", i+1, maxRetries)
+			time.Sleep(5 * time.Second)
 		}
 	}
 
 	if len(hotWallets) == 0 {
-		log.Printf("[Database] ⚠️ Warning: No 'operations' hot wallets found in Main DB. Instances will be created without wallet links.")
+		log.Printf("[Database] ❌ Error: No 'operations' hot wallets found in Main DB after %d retries. Instances will be created without wallet links. Ensure wallet-service is running.", maxRetries)
 	}
 
 	// 2. Get all providers with their supported currencies from Admin DB
