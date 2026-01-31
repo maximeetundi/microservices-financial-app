@@ -90,15 +90,15 @@ func (p *CinetPayProvider) GetMobileOperators(ctx context.Context, country strin
 	switch country {
 	case "CI":
 		return []MobileOperator{
-			{Code: "ORANGE_CI", Name: "Orange Money", Country: "CI", NumberPrefix: []string{"07", "08", "09"}},
-			{Code: "MTN_CI", Name: "MTN Mobile Money", Country: "CI", NumberPrefix: []string{"05", "04"}},
-			{Code: "MOOV_CI", Name: "Moov Money", Country: "CI", NumberPrefix: []string{"01"}},
+			{Code: "ORANGE_CI", Name: "Orange Money", Countries: []string{"CI"}, NumberPrefix: []string{"07", "08", "09"}},
+			{Code: "MTN_CI", Name: "MTN Mobile Money", Countries: []string{"CI"}, NumberPrefix: []string{"05", "04"}},
+			{Code: "MOOV_CI", Name: "Moov Money", Countries: []string{"CI"}, NumberPrefix: []string{"01"}},
 		}, nil
 	case "SN":
 		return []MobileOperator{
-			{Code: "ORANGE_SN", Name: "Orange Money", Country: "SN", NumberPrefix: []string{"77", "78"}},
-			{Code: "WAVE_SN", Name: "Wave", Country: "SN", NumberPrefix: []string{"70"}},
-			{Code: "FREE_SN", Name: "Free Money", Country: "SN", NumberPrefix: []string{"76"}},
+			{Code: "ORANGE_SN", Name: "Orange Money", Countries: []string{"SN"}, NumberPrefix: []string{"77", "78"}},
+			{Code: "WAVE_SN", Name: "Wave", Countries: []string{"SN"}, NumberPrefix: []string{"70"}},
+			{Code: "FREE_SN", Name: "Free Money", Countries: []string{"SN"}, NumberPrefix: []string{"76"}},
 		}, nil
 	default:
 		return []MobileOperator{}, nil
@@ -106,7 +106,7 @@ func (p *CinetPayProvider) GetMobileOperators(ctx context.Context, country strin
 }
 
 func (p *CinetPayProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
-	if req.RecipientPhone == "" && req.BankAccountNumber == "" {
+	if req.RecipientPhone == "" && req.AccountNumber == "" {
 		return fmt.Errorf("recipient phone or bank account required")
 	}
 	return nil
@@ -117,10 +117,10 @@ func (p *CinetPayProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*P
 	return &PayoutResponse{
 		ProviderName:      "cinetpay",
 		ProviderReference: "",
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		ReferenceID:       req.ReferenceID,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
 		Status:            "quote",
 	}, nil
 }
@@ -129,12 +129,12 @@ func (p *CinetPayProvider) CreatePayout(ctx context.Context, req *PayoutRequest)
 	payload := map[string]interface{}{
 		"apikey":         p.config.APIKey,
 		"site_id":        p.config.SiteID,
-		"transaction_id": req.ExternalReference,
+		"transaction_id": req.ReferenceID,
 		"amount":         req.Amount,
 		"currency":       req.Currency,
-		"description":    req.Description,
+		"description":    req.Narration,
 		"receiver":       req.RecipientPhone,
-		"notify_url":     req.CallbackURL,
+		"notify_url":     p.config.BaseURL + "/webhook",
 	}
 
 	body, _ := json.Marshal(payload)
@@ -166,11 +166,11 @@ func (p *CinetPayProvider) CreatePayout(ctx context.Context, req *PayoutRequest)
 	return &PayoutResponse{
 		ProviderName:      "cinetpay",
 		ProviderReference: result.Data.TransactionID,
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		ReferenceID:       req.ReferenceID,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
-		Status:            result.Data.Status,
+		Status:            PayoutStatus(result.Data.Status),
 	}, nil
 }
 
