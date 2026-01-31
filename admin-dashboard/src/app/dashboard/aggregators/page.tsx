@@ -245,16 +245,25 @@ export default function AggregatorsPage() {
                                 </div>
 
                                 {/* Master Toggle */}
-                                <button
-                                    onClick={() => toggleAggregator(agg.provider_code, !agg.is_enabled)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${agg.is_enabled ? 'bg-emerald-500' : 'bg-gray-300'
-                                        }`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${agg.is_enabled ? 'translate-x-6' : 'translate-x-1'
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={`/dashboard/aggregators/${agg.id}`}
+                                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                        title="Gérer les instances"
+                                    >
+                                        <AdjustmentsHorizontalIcon className="w-5 h-5" />
+                                    </a>
+                                    <button
+                                        onClick={() => toggleAggregator(agg.provider_code, !agg.is_enabled)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${agg.is_enabled ? 'bg-emerald-500' : 'bg-gray-300'
                                             }`}
-                                    />
-                                </button>
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${agg.is_enabled ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Maintenance Warning */}
@@ -273,8 +282,8 @@ export default function AggregatorsPage() {
                                         onClick={() => toggleDeposit(agg.provider_code, !agg.deposit_enabled)}
                                         disabled={!agg.is_enabled}
                                         className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${agg.deposit_enabled && agg.is_enabled
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-gray-100 text-gray-500'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-gray-100 text-gray-500'
                                             }`}
                                     >
                                         {agg.deposit_enabled ? 'Activé' : 'Désactivé'}
@@ -287,8 +296,8 @@ export default function AggregatorsPage() {
                                         onClick={() => toggleWithdraw(agg.provider_code, !agg.withdraw_enabled)}
                                         disabled={!agg.is_enabled}
                                         className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${agg.withdraw_enabled && agg.is_enabled
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-gray-100 text-gray-500'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-gray-100 text-gray-500'
                                             }`}
                                     >
                                         {agg.withdraw_enabled ? 'Activé' : 'Désactivé'}

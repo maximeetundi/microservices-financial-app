@@ -217,14 +217,7 @@ func createAdminTables(db *sql.DB) error {
 
 // seedDefaultProviders seeds all payment providers with their country configurations
 func seedDefaultProviders(db *sql.DB) error {
-	// Check if providers already exist
-	var count int
-	db.QueryRow("SELECT COUNT(*) FROM payment_providers").Scan(&count)
-	if count > 0 {
-		return nil // Already seeded
-	}
-
-	log.Println("[Database] Seeding default payment providers...")
+	log.Println("[Database] Seeding/Updating default payment providers...")
 
 	type Provider struct {
 		Name        string
@@ -416,28 +409,48 @@ func seedDefaultProviders(db *sql.DB) error {
 	for _, p := range providers {
 		currencies := `["XOF", "XAF", "NGN", "EUR", "USD"]`
 		var providerID string
+
+		// Use ON CONFLICT to update existing providers if they exist
 		err := db.QueryRow(`
 			INSERT INTO payment_providers 
 			(name, display_name, provider_type, api_base_url, logo_url, 
 			 supported_currencies, capability, is_demo_mode, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+			ON CONFLICT (name) DO UPDATE SET
+				display_name = EXCLUDED.display_name,
+				provider_type = EXCLUDED.provider_type,
+				api_base_url = EXCLUDED.api_base_url,
+				logo_url = EXCLUDED.logo_url,
+				supported_currencies = EXCLUDED.supported_currencies,
+				capability = EXCLUDED.capability,
+				is_demo_mode = EXCLUDED.is_demo_mode
 			RETURNING id
 		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo).Scan(&providerID)
 
 		if err != nil {
-			log.Printf("Failed to insert provider %s: %v", p.Name, err)
+			log.Printf("Failed to upsert provider %s: %v", p.Name, err)
+			continue
+		}
+
+		// Clean up existing country mappings to avoid duplicates
+		_, err = db.Exec("DELETE FROM provider_countries WHERE provider_id = $1", providerID)
+		if err != nil {
+			log.Printf("Failed to clear countries for provider %s: %v", p.Name, err)
 			continue
 		}
 
 		// Insert country mappings
 		for _, c := range p.Countries {
-			db.Exec(`
+			_, err = db.Exec(`
 				INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority)
 				VALUES ($1, $2, $3, $4, 50)
 			`, providerID, c.Code, c.Name, c.Currency)
+			if err != nil {
+				log.Printf("Failed to insert country %s for provider %s: %v", c.Code, p.Name, err)
+			}
 		}
 
-		log.Printf("[Database] Seeded provider: %s with %d countries", p.DisplayName, len(p.Countries))
+		log.Printf("[Database] Seeded/Updated provider: %s with %d countries", p.DisplayName, len(p.Countries))
 	}
 
 	log.Println("[Database] ✅ Payment providers seeding complete")
