@@ -351,19 +351,6 @@ func (p *PayPalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (
 	}, nil
 }
 
-func PayoutStatusAccordingTo(status string) PayoutStatus {
-	switch status {
-	case "SUCCESS", "SUCCESSFUL":
-		return PayoutStatusCompleted
-	case "PENDING", "PROCESSING":
-		return PayoutStatusProcessing
-	case "DENIED", "FAILED", "CANCELED":
-		return PayoutStatusFailed
-	default:
-		return PayoutStatusPending
-	}
-}
-
 // createPayoutInternal sends money to a PayPal account (for withdrawals)
 func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmail string, amount float64, currency, reference, note string) (*PayPalPayoutResponse, error) {
 	token, err := p.GetAccessToken(ctx)

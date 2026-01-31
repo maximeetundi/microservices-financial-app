@@ -264,8 +264,7 @@ func (p *YellowCardProvider) GetPayoutStatus(ctx context.Context, referenceID st
 	}
 
 	return &PayoutStatusResponse{
-		Status:    status,
-		UpdatedAt: time.Now(),
+		Status: PayoutStatusAccordingTo(status),
 	}, nil
 }
 
