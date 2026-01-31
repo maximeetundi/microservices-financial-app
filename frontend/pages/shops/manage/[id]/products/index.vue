@@ -579,5 +579,3 @@ definePageMeta({
   }
 }
 </style>
-</template>
-<parameter name="Complexity">5
