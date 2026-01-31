@@ -20,6 +20,11 @@ type Config struct {
 	Pesapal     PesapalConfig
 	Chipper     ChipperConfig
 	CryptoRails CryptoRailsConfig
+	CinetPay    CinetPayConfig
+	Wave        WaveConfig
+	Lygos       LygosConfig
+	YellowCard  YellowCardConfig
+	Demo        DemoConfig
 }
 
 // LoadConfig loads provider configuration prioritizing Vault over environment variables
@@ -158,6 +163,68 @@ func LoadConfigFromVault(vaultClient *secrets.VaultClient) *Config {
 		log.Printf("[Config] ⚠️ Chipper secrets not available in Vault: %v", err)
 	}
 
+	// Load CinetPay from Vault
+	if cinetpaySecrets, err := vaultClient.GetCinetPaySecrets(); err == nil {
+		cfg.CinetPay = CinetPayConfig{
+			APIKey:    cinetpaySecrets.APIKey,
+			SiteID:    cinetpaySecrets.SiteID,
+			SecretKey: cinetpaySecrets.SecretKey,
+			BaseURL:   cinetpaySecrets.BaseURL,
+		}
+		log.Println("[Config] ✅ Loaded CinetPay config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ CinetPay secrets not available in Vault: %v", err)
+	}
+
+	// Load Wave from Vault
+	if waveSecrets, err := vaultClient.GetWaveSecrets(); err == nil {
+		cfg.Wave = WaveConfig{
+			APIKey:      waveSecrets.APIKey,
+			MerchantID:  waveSecrets.MerchantID,
+			WebhookKey:  waveSecrets.WebhookKey,
+			BaseURL:     waveSecrets.BaseURL,
+			Environment: waveSecrets.Environment,
+		}
+		log.Println("[Config] ✅ Loaded Wave config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Wave secrets not available in Vault: %v", err)
+	}
+
+	// Load Lygos from Vault
+	if lygosSecrets, err := vaultClient.GetLygosSecrets(); err == nil {
+		cfg.Lygos = LygosConfig{
+			APIKey:     lygosSecrets.APIKey,
+			ShopName:   lygosSecrets.ShopName,
+			BaseURL:    lygosSecrets.BaseURL,
+			WebhookURL: lygosSecrets.WebhookURL,
+		}
+		log.Println("[Config] ✅ Loaded Lygos config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ Lygos secrets not available in Vault: %v", err)
+	}
+
+	// Load YellowCard from Vault
+	if ycSecrets, err := vaultClient.GetYellowCardSecrets(); err == nil {
+		cfg.YellowCard = YellowCardConfig{
+			APIKey:      ycSecrets.APIKey,
+			SecretKey:   ycSecrets.SecretKey,
+			BusinessID:  ycSecrets.BusinessID,
+			BaseURL:     ycSecrets.BaseURL,
+			WebhookURL:  ycSecrets.WebhookURL,
+			Environment: ycSecrets.Environment,
+		}
+		log.Println("[Config] ✅ Loaded YellowCard config from Vault")
+	} else {
+		log.Printf("[Config] ⚠️ YellowCard secrets not available in Vault: %v", err)
+	}
+
+	// Load Demo config (no secrets needed)
+	cfg.Demo = DemoConfig{
+		SuccessRate: 0.95,
+		DefaultFee:  1.5,
+	}
+	log.Println("[Config] ✅ Loaded Demo provider config")
+
 	// Load CryptoRails from Vault (Circle, Binance)
 	cfg.CryptoRails = loadCryptoRailsFromVault(vaultClient, poolThreshold, poolEnabled)
 
@@ -275,6 +342,45 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 		log.Println("[Router] Registered Flutterwave provider")
 	}
 
+	// Register CinetPay (Africa)
+	if cfg.CinetPay.APIKey != "" && !isPlaceholder(cfg.CinetPay.APIKey) {
+		cinetpay := NewCinetPayProvider(cfg.CinetPay)
+		router.RegisterProvider(cinetpay)
+		log.Println("[Router] Registered CinetPay provider")
+	}
+
+	// Register Wave (Africa) - Generic + Country Specific
+	if cfg.Wave.APIKey != "" && !isPlaceholder(cfg.Wave.APIKey) {
+		// Generic
+		router.RegisterProvider(NewWaveProvider(cfg.Wave))
+
+		// Wave CI
+		waveCI := cfg.Wave
+		waveCI.Name = "wave_ci"
+		router.RegisterProvider(NewWaveProvider(waveCI))
+
+		// Wave SN
+		waveSN := cfg.Wave
+		waveSN.Name = "wave_sn"
+		router.RegisterProvider(NewWaveProvider(waveSN))
+
+		log.Println("[Router] Registered Wave providers (Generic, CI, SN)")
+	}
+
+	// Register Lygos (Africa)
+	if cfg.Lygos.APIKey != "" && !isPlaceholder(cfg.Lygos.APIKey) {
+		lygos := NewLygosProvider(cfg.Lygos)
+		router.RegisterProvider(lygos)
+		log.Println("[Router] Registered Lygos provider")
+	}
+
+	// Register YellowCard (Africa)
+	if cfg.YellowCard.APIKey != "" && !isPlaceholder(cfg.YellowCard.APIKey) {
+		yc := NewYellowCardProvider(cfg.YellowCard)
+		router.RegisterProvider(yc)
+		log.Println("[Router] Registered YellowCard provider")
+	}
+
 	// Register PayPal (Global)
 	if cfg.PayPal.ClientID != "" && !isPlaceholder(cfg.PayPal.ClientID) {
 		paypal := NewPayPalProvider(cfg.PayPal)
@@ -289,18 +395,50 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 		log.Println("[Router] Registered Thunes provider")
 	}
 
-	// Register MTN MoMo (Africa)
+	// Register MTN MoMo (Africa) - Generic + Country Specific
 	if cfg.MTNMomo.SubscriptionKey != "" && !isPlaceholder(cfg.MTNMomo.SubscriptionKey) {
-		mtn := NewMTNMomoProvider(cfg.MTNMomo)
-		router.RegisterProvider(mtn)
-		log.Println("[Router] Registered MTN MoMo provider")
+		// Generic
+		router.RegisterProvider(NewMTNMomoProvider(cfg.MTNMomo))
+
+		// MTN CI
+		mtnCI := cfg.MTNMomo
+		mtnCI.Name = "mtn_ci"
+		router.RegisterProvider(NewMTNMomoProvider(mtnCI))
+
+		// MTN CM
+		mtnCM := cfg.MTNMomo
+		mtnCM.Name = "mtn_cm"
+		router.RegisterProvider(NewMTNMomoProvider(mtnCM))
+
+		// MTN GH
+		mtnGH := cfg.MTNMomo
+		mtnGH.Name = "mtn_gh"
+		router.RegisterProvider(NewMTNMomoProvider(mtnGH))
+
+		// MTN ZA
+		mtnZA := cfg.MTNMomo
+		mtnZA.Name = "mtn_za"
+		router.RegisterProvider(NewMTNMomoProvider(mtnZA))
+
+		log.Println("[Router] Registered MTN MoMo providers (Generic, CI, CM, GH, ZA)")
 	}
 
-	// Register Orange Money (Africa)
+	// Register Orange Money (Africa) - Generic + Country Specific
 	if cfg.OrangeMoney.ClientID != "" && !isPlaceholder(cfg.OrangeMoney.ClientID) {
-		orange := NewOrangeMoneyProvider(cfg.OrangeMoney)
-		router.RegisterProvider(orange)
-		log.Println("[Router] Registered Orange Money provider")
+		// Generic
+		router.RegisterProvider(NewOrangeMoneyProvider(cfg.OrangeMoney))
+
+		// Orange Money CI
+		omCI := cfg.OrangeMoney
+		omCI.Name = "orange_money_ci"
+		router.RegisterProvider(NewOrangeMoneyProvider(omCI))
+
+		// Orange Money SN
+		omSN := cfg.OrangeMoney
+		omSN.Name = "orange_money_sn"
+		router.RegisterProvider(NewOrangeMoneyProvider(omSN))
+
+		log.Println("[Router] Registered Orange Money providers (Generic, CI, SN)")
 	}
 
 	// Register Pesapal (East Africa)
@@ -315,6 +453,13 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 		chipper := NewChipperProvider(cfg.Chipper)
 		router.RegisterProvider(chipper)
 		log.Println("[Router] Registered Chipper Cash provider")
+	}
+
+	// Register Demo Provider
+	if cfg.Demo.DefaultFee > 0 {
+		demo := NewDemoProvider(cfg.Demo)
+		router.RegisterProvider(demo)
+		log.Println("[Router] Registered Demo provider")
 	}
 
 	return router

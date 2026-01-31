@@ -72,13 +72,19 @@ func NewZoneRouter() *ZoneRouter {
 	return &ZoneRouter{
 		providers: make(map[string]PayoutProvider),
 		zonePriority: map[Zone][]string{
-			ZoneAfrica:       {"flutterwave", "mtn_momo", "orange_money", "chipper", "pesapal", "thunes"},
-			ZoneEurope:       {"stripe", "paypal", "thunes"},
-			ZoneNorthAmerica: {"stripe", "paypal", "thunes"},
-			ZoneAsia:         {"thunes", "stripe", "paypal"},
-			ZoneLatinAmerica: {"paypal", "thunes"},
-			ZoneMiddleEast:   {"thunes", "paypal"},
-			ZoneOceania:      {"stripe", "paypal", "thunes"},
+			ZoneAfrica: {
+				"wave_ci", "wave_sn", "wave",
+				"orange_money_ci", "orange_money_sn", "orange_money",
+				"mtn_ci", "mtn_cm", "mtn_gh", "mtn_za", "mtn_momo",
+				"cinetpay", "flutterwave", "yellowcard", "lygos",
+				"chipper", "pesapal", "thunes", "demo",
+			},
+			ZoneEurope:       {"stripe", "paypal", "thunes", "demo"},
+			ZoneNorthAmerica: {"stripe", "paypal", "thunes", "demo"},
+			ZoneAsia:         {"thunes", "stripe", "paypal", "demo"},
+			ZoneLatinAmerica: {"paypal", "thunes", "demo"},
+			ZoneMiddleEast:   {"thunes", "paypal", "demo"},
+			ZoneOceania:      {"stripe", "paypal", "thunes", "demo"},
 		},
 	}
 }
@@ -198,20 +204,97 @@ func (r *ZoneRouter) GetMobileOperatorsForCountry(ctx context.Context, country s
 	return provider.GetMobileOperators(ctx, country)
 }
 
-// CreatePayout creates a payout using the appropriate provider
+// CreatePayout creates a payout using the appropriate provider with automatic failover
 func (r *ZoneRouter) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
-	provider, err := r.GetProvider(req.RecipientCountry, req.PayoutMethod)
-	if err != nil {
-		return nil, err
+	r.mu.RLock()
+	zone := r.GetZone(req.RecipientCountry)
+	providerNames := r.zonePriority[zone]
+	r.mu.RUnlock()
+
+	var errors []*ProviderError
+	var lastError *ProviderError
+
+	// Try each provider in priority order until one succeeds
+	for i, name := range providerNames {
+		r.mu.RLock()
+		provider, exists := r.providers[name]
+		r.mu.RUnlock()
+
+		if !exists {
+			continue
+		}
+
+		// Check if provider supports the country
+		supported := false
+		for _, c := range provider.GetSupportedCountries() {
+			if c == req.RecipientCountry {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			continue
+		}
+
+		// Check if provider supports the method
+		methods, err := provider.GetAvailableMethods(ctx, req.RecipientCountry)
+		if err != nil {
+			lastError = NewProviderError(ErrCodeProviderUnavailable, name, err.Error())
+			errors = append(errors, lastError)
+			continue
+		}
+
+		methodSupported := false
+		for _, m := range methods {
+			if m.Method == req.PayoutMethod {
+				methodSupported = true
+				break
+			}
+		}
+		if !methodSupported {
+			continue
+		}
+
+		// Validate recipient
+		if err := provider.ValidateRecipient(ctx, req); err != nil {
+			lastError = NewProviderError(ErrCodeInvalidRecipient, name, err.Error())
+			errors = append(errors, lastError)
+			// Validation errors should not failover
+			return nil, lastError
+		}
+
+		// Try to create payout
+		resp, err := provider.CreatePayout(ctx, req)
+		if err != nil {
+			lastError = NewProviderError(ErrCodeProviderUnavailable, name, err.Error())
+
+			// Check if there's a next provider to try
+			if i+1 < len(providerNames) {
+				lastError.WithNextProvider(providerNames[i+1])
+			}
+			errors = append(errors, lastError)
+			continue // Try next provider
+		}
+
+		// Success - return the response with provider info
+		resp.ProviderName = name
+		resp.Message = "Payment processed successfully"
+		return resp, nil
 	}
 
-	// Validate recipient
-	if err := provider.ValidateRecipient(ctx, req); err != nil {
-		return nil, err
+	// All providers failed
+	if lastError != nil {
+		allFailedError := NewProviderError(ErrCodeAllProvidersFailed, "",
+			fmt.Sprintf("all %d providers failed for country %s", len(errors), req.RecipientCountry))
+		allFailedError.Details = map[string]string{
+			"country":  req.RecipientCountry,
+			"method":   string(req.PayoutMethod),
+			"attempts": fmt.Sprintf("%d", len(errors)),
+		}
+		return nil, allFailedError
 	}
 
-	// Create payout
-	return provider.CreatePayout(ctx, req)
+	return nil, NewCountryNotSupportedError(req.RecipientCountry)
 }
 
 // GetPayoutStatus gets status from any provider

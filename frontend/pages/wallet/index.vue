@@ -96,9 +96,9 @@
               </div>
             </div>
             <div class="flex flex-col items-end gap-1">
-               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border" 
-                  :class="wallet.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'">
-              {{ wallet.status }}
+             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border" 
+                  :class="getStatusClass(wallet.status)">
+              {{ getStatusLabel(wallet.status) }}
             </span>
              <span class="text-[10px] font-mono text-gray-400">{{ wallet.type }}</span>
             </div>
@@ -679,6 +679,21 @@ const truncateAddress = (address) => {
 
 const selectWallet = (wallet) => {
   selectedWallet.value = wallet
+}
+
+const getStatusLabel = (status) => {
+  if (!status) return 'Inconnu'
+  const map = { active: 'Actif', frozen: 'Gelé', blocked: 'Bloqué' }
+  return map[status] || status
+}
+
+const getStatusClass = (status) => {
+  switch(status) {
+    case 'active': return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
+    case 'frozen': return 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
+    case 'blocked': return 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20'
+    default: return 'bg-gray-50 dark:bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-500/20'
+  }
 }
 
 const selectedNetwork = ref('')

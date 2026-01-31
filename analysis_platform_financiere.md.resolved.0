@@ -1,0 +1,488 @@
+# 🏦 Analyse Complète - Plateforme Financière Microservices Zekora
+
+## Vue d'Ensemble
+
+Cette plateforme est une application bancaire crypto complète basée sur une architecture microservices. Elle combine les services bancaires traditionnels (fiat) avec les cryptomonnaies, offrant des fonctionnalités comme les cartes prépayées, les transferts internationaux, le trading P2P, et plus encore.
+
+---
+
+## 📊 Architecture Globale
+
+### Infrastructure Docker
+
+| Composant | Rôle | Port |
+|-----------|------|------|
+| **PostgreSQL** | Base de données principale | 5432 |
+| **MongoDB** | Messagerie, tickets, support | 27017 |
+| **Redis** | Cache et sessions | 6379 |
+| **Kafka + Zookeeper** | Event-driven messaging | 9092 |
+| **RabbitMQ** | File de messages card-service | 5672 |
+| **Vault (HashiCorp)** | Stockage sécurisé des clés privées | 8200 |
+| **MinIO** | Stockage objets (KYC, images) | 9000 |
+| **Kong** | API Gateway | 8080 |
+| **Prometheus + Grafana** | Monitoring | 9090, 3001 |
+
+### Microservices (14 services)
+
+```mermaid
+graph TB
+    subgraph "Frontend"
+        FE[Frontend App :3000]
+        AD[Admin Dashboard :3002]
+    end
+    
+    subgraph "API Gateway"
+        GW[Kong Gateway :8080]
+        AGW[Admin API :8088]
+    end
+    
+    subgraph "Core Services"
+        AUTH[Auth Service :8081]
+        WALLET[Wallet Service :8083]
+        TRANSFER[Transfer Service :8084]
+        EXCHANGE[Exchange Service :8085]
+        CARD[Card Service :8086]
+    end
+    
+    subgraph "Supporting Services"
+        NOTIF[Notification :8087]
+        ADMIN[Admin Service :8088]
+        SUPPORT[Support Service :8089]
+        TICKET[Ticket Service :8090]
+        MSG[Messaging :8095]
+        DONATE[Donation :8096]
+        ENTERPRISE[Enterprise :8097]
+        SHOP[Shop :8098]
+    end
+    
+    FE --> GW
+    AD --> AGW
+    GW --> AUTH & WALLET & TRANSFER & EXCHANGE & CARD
+    AGW --> ADMIN
+```
+
+---
+
+## 💰 Analyse Financière Détaillée
+
+### 1. Dépôts (Deposits)
+
+#### Dépôts Crypto - Architecture Hybride
+
+| Type | Mécanisme | Blockchain TX | Avantage |
+|------|-----------|---------------|----------|
+| **Adresse Unique** | BTC, ETH, SOL, TRX | Sweep vers Hot Wallet | Sécurité maximale |
+| **Memo/Tag** | XRP, XLM, TON | Direct sur Hot Wallet | Aucun frais de sweep |
+| **Interne** | User → User | Aucune TX | Instantané, gratuit |
+
+**Cryptos supportées** :
+- BTC (Bitcoin) - Native SegWit (Bech32)
+- ETH (Ethereum) + Tokens ERC-20
+- SOL (Solana)
+- TRX (TRON) + Tokens TRC-20
+- XRP (Ripple) - Memo-based
+- TON (The Open Network)
+- BNB (Binance Smart Chain)
+
+**Flux de dépôt** :
+```
+1. User demande adresse de dépôt
+2. Système génère adresse unique OU retourne Hot Wallet + Memo
+3. User envoie crypto à l'adresse
+4. Webhook Tatum détecte la transaction
+5. Balance créditée après confirmations
+6. Si adresse unique: Sweep automatique vers Hot Wallet
+```
+
+#### Dépôts Fiat - Providers
+
+| Provider | Pays | Devises | Type |
+|----------|------|---------|------|
+| **Demo Mode** | Tous | XOF, XAF, NGN, GHS, USD, EUR | Test |
+| **Flutterwave** | NG, GH, KE, CI | NGN, GHS, XOF | Mobile Money, Card, Bank |
+| **CinetPay** | CI, SN, CM, BF | XOF, XAF | Mobile Money |
+| **Paystack** | NG, GH | NGN, GHS | Card, Bank |
+| **Orange Money** | CI, SN | XOF | Mobile Money |
+| **MTN MoMo** | CI, CM, GH | XOF, XAF, GHS | Mobile Money |
+| **Wave** | SN, CI | XOF | Mobile Money |
+| **Stripe** | International | USD, EUR, GBP | Card |
+
+> ⚠️ **Mode Démo actif** : En développement, le mode démo crédite directement les comptes sans passer par les APIs de paiement réelles.
+
+---
+
+### 2. Retraits (Withdrawals)
+
+#### Retraits Crypto
+
+**Flux** :
+```
+1. User initie retrait vers adresse externe
+2. Vérification PIN sécurisé (5 digits)
+3. Calcul des frais réseau
+4. Débit du wallet DB
+5. Transaction depuis Platform Hot Wallet
+6. Monitoring des confirmations
+7. Statut mis à jour: pending → confirmed
+```
+
+**Fonctions clés** ([wallet_service.go](file:///C:/Users/D/Desktop/ai/microservices-financial-app/services/wallet-service/internal/services/wallet_service.go)) :
+- [processExternalCryptoTransfer()](file:///C:/Users/D/Desktop/ai/microservices-financial-app/services/wallet-service/internal/services/wallet_service.go#343-438) - Retraits externes
+- [processInternalCryptoTransfer()](file:///C:/Users/D/Desktop/ai/microservices-financial-app/services/wallet-service/internal/services/wallet_service.go#275-342) - Transferts internes (gratuits)
+
+#### Retraits Fiat
+
+Via les mêmes providers que les dépôts (Flutterwave, MoMo, etc.)
+
+---
+
+### 3. Transferts Internes
+
+**Types de transferts** :
+
+| Type | Description | Frais |
+|------|-------------|-------|
+| **wallet_to_wallet** | Entre wallets du même user | 0% |
+| **user_to_user** | Vers un autre utilisateur | Variable |
+| **merchant** | Paiement marchand | ~1-2% |
+| **enterprise_payroll** | Paie en masse | Variable |
+
+**Service** : `transfer-service` (Port 8084)
+
+**Modèle Event-Driven** :
+```
+1. Service A publie sur Kafka topic "payment_requests"
+2. transfer-service consomme et traite
+3. Appel wallet-service pour débit/crédit
+4. Résultat publié sur "payment_results"
+5. Service A reçoit confirmation
+```
+
+---
+
+### 4. Transferts Externes
+
+**Types supportés** :
+
+- **Mobile Money** : Envoi vers numéros de téléphone (Orange, MTN, Wave)
+- **Transferts Internationaux** : Via Thunes API
+- **Virements Bancaires** : Via Stripe/Flutterwave
+
+**Service** : [InternationalTransferService](file:///C:/Users/D/Desktop/ai/microservices-financial-app/services/transfer-service/internal/services/transfer.go#608-611) dans transfer-service
+
+---
+
+### 5. Transactions Crypto
+
+#### Génération d'Adresses ([crypto_service.go](file:///C:/Users/D/Desktop/ai/microservices-financial-app/services/wallet-service/internal/services/crypto_service.go))
+
+| Crypto | Algorithme | Format d'adresse |
+|--------|------------|------------------|
+| BTC | secp256k1 | Bech32 (bc1/tb1) |
+| ETH | secp256k1 | 0x... (40 hex) |
+| SOL | Ed25519 | Base58 |
+| TRX | secp256k1 | Base58Check (T...) |
+| XRP | secp256k1 | Base58 Ripple (r...) |
+| TON | Ed25519 | Raw + CRC16 |
+
+#### Architecture Non-Custodial 🔐
+
+> [!IMPORTANT]
+> **Le système fonctionne en mode NON-CUSTODIAL partiel** :
+> - Les clés privées sont **générées côté serveur**
+> - Stockées **chiffrées dans Vault** (HashiCorp)
+> - Les utilisateurs contrôlent leurs fonds via PIN
+> - Les transactions sortantes passent par le **Platform Hot Wallet**
+
+**Stockage des clés** :
+```go
+// vault_client.go
+func storeKeyPairInVault(userID, currency, privKey, pubKey, address string) error {
+    // Chiffrement et stockage dans Vault
+}
+```
+
+---
+
+### 6. Échanges (Exchanges)
+
+**Service** : `exchange-service` (Port 8085)
+
+#### Fonctionnalités
+
+| Feature | Description |
+|---------|-------------|
+| **Market Orders** | Achat/Vente au prix du marché |
+| **Limit Orders** | Ordres avec prix limite |
+| **Stop-Loss** | Protection automatique |
+| **P2P Trading** | Trading entre utilisateurs |
+| **Quote System** | Devis avant exécution |
+
+#### Taux de Change
+
+Sources : Binance, CoinGecko, Fixer.io, CurrencyLayer
+
+**Tables DB** :
+- `exchange_rates` - Taux crypto/fiat
+- `exchanges` - Historique des conversions
+- `trading_orders` - Ordres en cours
+- `p2p_offers` - Offres P2P
+
+---
+
+### 7. Achats/Prélèvements de Fonds
+
+**Cas d'usage** :
+
+1. **Tickets d'événements** (`ticket-service`)
+   - Achat de billets
+   - Débit via transfer-service → wallet-service
+
+2. **Dons** (`donation-service`)
+   - Contributions aux campagnes
+   - Commissions prélevées
+
+3. **E-commerce** (`shop-service`)
+   - Achats de produits
+   - Paiements crypto/fiat
+
+4. **Cartes prépayées** (`card-service`)
+   - Rechargement de cartes
+   - Auto-reload configurable
+
+5. **Associations/Tontines**
+   - Cotisations périodiques
+   - Prêts communautaires
+
+---
+
+## 📋 Dashboard Admin
+
+**URL** : `https://admin.tech-afm.com` (Port 3002)
+
+### Statistiques Affichées
+
+```typescript
+interface Stats {
+    total_users: number;
+    active_today: number;
+    transactions_today: number;
+    volume_today: number;
+    total_cards: number;
+    active_cards: number;
+    total_wallets: number;
+    pending_kyc: number;
+    verified_kyc: number;
+    new_users_today: number;
+    transfers_today: number;
+}
+```
+
+### Sections Disponibles
+
+| Section | Fonctionnalité |
+|---------|----------------|
+| **Users** | Gestion des utilisateurs |
+| **KYC** | Validation des documents |
+| **Transactions** | Monitoring, blocage, remboursement |
+| **Wallets** | Vue des portefeuilles |
+| **Cards** | Gestion des cartes |
+| **Support** | Tickets support |
+| **Logs** | Audit logs |
+| **Settings** | Configuration système |
+| **Test Mode** | Mode test/démo |
+| **Aggregators** | Gestion des providers |
+| **Enterprises** | Comptes entreprises |
+| **Shops** | E-commerce |
+
+### Gestion des Transactions
+
+**Actions disponibles** :
+- ✅ Voir le détail
+- 🚫 Bloquer (avec raison)
+- ↩️ Rembourser (avec raison)
+- 📊 Filtrer par statut/type/date
+
+---
+
+## 🔄 Suivi des Transactions
+
+### États des Transactions
+
+```
+pending → processing → completed/failed/blocked/cancelled
+```
+
+### Tables de Suivi
+
+| Table | Contenu |
+|-------|---------|
+| `transactions` | Toutes les transactions crypto/fiat |
+| `transfers` | Transferts entre utilisateurs |
+| `exchanges` | Conversions de devises |
+| `card_transactions` | Opérations par carte |
+| `payment_transactions` | Paiements via providers |
+
+### Events Kafka
+
+Topics principaux :
+- `wallet-events` - Événements wallet
+- `transfer-events` - Événements transfert
+- `exchange-events` - Événements échange
+- `payment_requests` - Demandes de paiement
+- `payment_results` - Résultats de paiement
+- `notifications` - Notifications utilisateur
+
+---
+
+## ⚠️ Points à Corriger / Améliorer
+
+### 🔴 Critiques
+
+1. **Dashboard Admin pas dans le Gateway**
+   - Le dashboard est accessible directement, pas via Kong
+   - Recommandation : Ajouter les routes admin dans `kong.yml`
+
+2. **Mode Testnet/Mainnet**
+   - Variable `CRYPTO_NETWORK` dans docker-compose
+   - Vérifier que le basculement fonctionne correctement
+   - Les adresses BTC générées en `tb1` (testnet) ou `bc1` (mainnet)
+
+3. **Clés API non configurées**
+   - Plusieurs clés sont vides dans docker-compose : `TATUM_API_KEY`, `FLUTTERWAVE_SECRET_KEY`, etc.
+   - En mode démo c'est OK, mais à configurer pour la prod
+
+### 🟡 Importants
+
+4. **Sécurité Vault**
+   - Token Vault hardcodé : `dev-token-secure-2024`
+   - À remplacer par un système de secrets management en prod
+
+5. **Monitoring des Sweeps**
+   - Le sweep des dépôts crypto vers le hot wallet doit être surveillé
+   - Ajouter des alertes si échec
+
+6. **Gestion des frais**
+   - Les frais réseau crypto sont estimés mais pas toujours précis
+   - Implémenter une marge de sécurité
+
+7. **Confirmations Crypto**
+   - Le nombre de confirmations requises devrait être configurable par crypto
+   - BTC: 3-6, ETH: 12-30, etc.
+
+### 🟢 Améliorations
+
+8. **Dashboard - Graphiques manquants**
+   - Ajouter des graphiques temporels (volume, users, etc.)
+   - Utiliser des bibliothèques comme Chart.js ou Recharts
+
+9. **Export des données**
+   - Ajouter l'export CSV/Excel des transactions
+   - Reporting automatisé
+
+10. **Notifications Push**
+    - Le service notification existe mais vérifier l'intégration Firebase/APNs
+
+11. **Rate Limiting**
+    - Configurer les limites dans Kong pour éviter les abus
+
+12. **Logs structurés**
+    - Ajouter Elasticsearch/Loki pour les logs centralisés
+
+---
+
+## 🔐 Modèle Non-Custodial - Analyse
+
+### Situation Actuelle
+
+Le système est **semi-custodial** :
+
+| Aspect | Custodial | Non-Custodial |
+|--------|-----------|---------------|
+| Génération des clés | ✅ Serveur | ❌ |
+| Stockage des clés | ✅ Vault (chiffré) | ❌ |
+| Transactions sortantes | ✅ Via Hot Wallet | ❌ |
+| Contrôle utilisateur | Via PIN | ❌ Clé privée |
+| Récupération | ✅ Support peut aider | ❌ |
+
+### Pour un Vrai Non-Custodial
+
+Il faudrait :
+1. **Génération côté client** (mobile/web)
+2. **Stockage local** de la clé privée
+3. **Signature locale** des transactions
+4. **Seed phrase** fournie à l'utilisateur
+
+> [!NOTE]
+> Le modèle actuel est adapté pour une néobanque où la simplicité d'usage prime. Un vrai non-custodial nécessiterait une refonte majeure de l'UX.
+
+---
+
+## 📝 Commandes de Développement
+
+```bash
+# Arrêter et supprimer les volumes
+docker-compose down -v
+
+# Reconstruire et démarrer
+docker-compose up -d --build
+
+# Voir les logs d'un service
+docker-compose logs -f wallet-service
+
+# Accéder à la DB
+docker exec -it postgres psql -U admin -d crypto_bank
+```
+
+---
+
+## 📊 Schéma de Base de Données
+
+### Tables Principales (40+)
+
+**Utilisateurs & Auth** :
+- `users`, `user_sessions`, `backup_codes`, `verification_tokens`
+- `user_preferences`, `notification_preferences`
+
+**Financier** :
+- `wallets`, `transactions`, `transfers`, `exchanges`
+- `exchange_rates`, `trading_orders`, `p2p_offers`
+
+**Cartes** :
+- `cards`, `gift_cards`, `card_transactions`
+
+**KYC & Compliance** :
+- `kyc_documents`, `compliance_checks`, `audit_logs`
+
+**Paiements** :
+- `payment_providers`, `provider_countries`, `payment_transactions`
+
+**Admin** :
+- `admins`, `admin_roles`, `admin_audit_logs`
+
+**Support** :
+- `support_tickets`, `chat_messages`
+
+**Associations** :
+- `associations`, `association_members`, `association_treasury`, `association_loans`
+
+---
+
+## ✅ Résumé
+
+Cette plateforme est une solution financière complète et bien architecturée. Les principaux points forts :
+
+- ✅ Architecture microservices scalable
+- ✅ Event-driven avec Kafka
+- ✅ Support multi-crypto (BTC, ETH, SOL, TRX, XRP, TON)
+- ✅ Support multi-fiat avec providers africains
+- ✅ Système hybride de dépôts crypto optimisé
+- ✅ Sécurité avec Vault pour les clés
+- ✅ Admin dashboard fonctionnel
+- ✅ Mode test/démo pour le développement
+
+Les axes d'amélioration prioritaires :
+1. Configurer les clés API pour la production
+2. Améliorer le dashboard avec des graphiques
+3. Ajouter le rate limiting et la sécurité
+4. Documenter les processus de déploiement

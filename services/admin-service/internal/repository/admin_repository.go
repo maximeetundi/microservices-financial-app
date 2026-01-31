@@ -412,6 +412,20 @@ func (r *AdminRepository) UnblockUser(userID string) error {
 	return err
 }
 
+// UpdateWalletStatus updates a wallet status in the main database
+func (r *AdminRepository) UpdateWalletStatus(walletID, status string) error {
+	query := `UPDATE wallets SET status = $1, updated_at = $2 WHERE id = $3`
+	_, err := r.mainDB.Exec(query, status, time.Now(), walletID)
+	return err
+}
+
+// UpdateCardStatus updates a card status in the main database
+func (r *AdminRepository) UpdateCardStatus(cardID, status string) error {
+	query := `UPDATE cards SET status = $1, updated_at = $2 WHERE id = $3`
+	_, err := r.mainDB.Exec(query, status, time.Now(), cardID)
+	return err
+}
+
 // GetUserByID gets a user from the main database
 func (r *AdminRepository) GetUserByID(userID string) (map[string]interface{}, error) {
 	query := `

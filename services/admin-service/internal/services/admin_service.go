@@ -408,6 +408,11 @@ func (s *AdminService) RefundTransaction(txID, reason, adminID string) error {
 }
 
 func (s *AdminService) FreezeCard(cardID, reason, adminID string) error {
+	// Directly update database first
+	if err := s.repo.UpdateCardStatus(cardID, "frozen"); err != nil {
+		return err
+	}
+
 	cmd := map[string]interface{}{
 		"action":   "freeze_card",
 		"card_id":  cardID,
@@ -418,6 +423,11 @@ func (s *AdminService) FreezeCard(cardID, reason, adminID string) error {
 }
 
 func (s *AdminService) BlockCard(cardID, reason, adminID string) error {
+	// Directly update database first
+	if err := s.repo.UpdateCardStatus(cardID, "blocked"); err != nil {
+		return err
+	}
+
 	cmd := map[string]interface{}{
 		"action":   "block_card",
 		"card_id":  cardID,
@@ -428,6 +438,11 @@ func (s *AdminService) BlockCard(cardID, reason, adminID string) error {
 }
 
 func (s *AdminService) FreezeWallet(walletID, reason, adminID string) error {
+	// Directly update database first
+	if err := s.repo.UpdateWalletStatus(walletID, "frozen"); err != nil {
+		return err
+	}
+
 	cmd := map[string]interface{}{
 		"action":    "freeze_wallet",
 		"wallet_id": walletID,

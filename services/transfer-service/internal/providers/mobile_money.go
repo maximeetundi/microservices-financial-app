@@ -18,6 +18,7 @@ import (
 
 // MTNMomoConfig holds MTN Mobile Money API configuration
 type MTNMomoConfig struct {
+	Name            string // Internal name (e.g., mtn_momo, mtn_ci)
 	SubscriptionKey string // Ocp-Apim-Subscription-Key
 	APIUser         string
 	APIKey          string
@@ -52,6 +53,9 @@ func NewMTNMomoProvider(config MTNMomoConfig) *MTNMomoProvider {
 }
 
 func (m *MTNMomoProvider) GetName() string {
+	if m.config.Name != "" {
+		return m.config.Name
+	}
 	return "mtn_momo"
 }
 
@@ -284,6 +288,7 @@ func (m *MTNMomoProvider) Transfer(ctx context.Context, phoneNumber string, amou
 
 // OrangeMoneyConfig holds Orange Money API configuration
 type OrangeMoneyConfig struct {
+	Name         string // Internal name (e.g., orange_money, orange_money_ci)
 	ClientID     string
 	ClientSecret string
 	MerchantKey  string
@@ -313,6 +318,9 @@ func NewOrangeMoneyProvider(config OrangeMoneyConfig) *OrangeMoneyProvider {
 }
 
 func (o *OrangeMoneyProvider) GetName() string {
+	if o.config.Name != "" {
+		return o.config.Name
+	}
 	return "orange_money"
 }
 

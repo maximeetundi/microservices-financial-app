@@ -6,11 +6,10 @@ import (
 	"log"
 	"strings"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 )
-
 
 // InitializeAdminDB initializes the admin database connection
 func InitializeAdminDB(dbURL string) (*sql.DB, error) {
@@ -62,7 +61,7 @@ func createAdminTables(db *sql.DB) error {
 			category VARCHAR(100) NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
-		
+
 		// Roles table
 		`CREATE TABLE IF NOT EXISTS admin_roles (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,14 +71,14 @@ func createAdminTables(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
-		
+
 		// Role-Permission mapping
 		`CREATE TABLE IF NOT EXISTS admin_role_permissions (
 			role_id UUID REFERENCES admin_roles(id) ON DELETE CASCADE,
 			permission_id UUID REFERENCES admin_permissions(id) ON DELETE CASCADE,
 			PRIMARY KEY (role_id, permission_id)
 		)`,
-		
+
 		// Admin users table
 		`CREATE TABLE IF NOT EXISTS admin_users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,7 +93,7 @@ func createAdminTables(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			created_by UUID REFERENCES admin_users(id)
 		)`,
-		
+
 		// Admin sessions
 		`CREATE TABLE IF NOT EXISTS admin_sessions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -105,7 +104,7 @@ func createAdminTables(db *sql.DB) error {
 			expires_at TIMESTAMP NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
-		
+
 		// Audit logs
 		`CREATE TABLE IF NOT EXISTS admin_audit_logs (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -130,13 +129,71 @@ func createAdminTables(db *sql.DB) error {
 			is_read BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
-		
-		// Create index for faster queries
+
+		// Payment providers table
+		`CREATE TABLE IF NOT EXISTS payment_providers (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(100) UNIQUE NOT NULL,
+			display_name VARCHAR(255) NOT NULL,
+			provider_type VARCHAR(50) NOT NULL,
+			api_base_url TEXT,
+			api_key_encrypted TEXT,
+			api_secret_encrypted TEXT,
+			public_key_encrypted TEXT,
+			webhook_secret_encrypted TEXT,
+			is_active BOOLEAN DEFAULT TRUE,
+			is_demo_mode BOOLEAN DEFAULT FALSE,
+			logo_url TEXT,
+			supported_currencies JSONB DEFAULT '[]',
+			config_json JSONB DEFAULT '{}',
+			capability VARCHAR(20) DEFAULT 'mixed',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		// Provider country mappings
+		`CREATE TABLE IF NOT EXISTS provider_countries (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			provider_id UUID REFERENCES payment_providers(id) ON DELETE CASCADE,
+			country_code VARCHAR(3) NOT NULL,
+			country_name VARCHAR(100) NOT NULL,
+			currency VARCHAR(10) NOT NULL,
+			is_active BOOLEAN DEFAULT TRUE,
+			priority INT DEFAULT 50,
+			min_amount DECIMAL(20, 2) DEFAULT 0,
+			max_amount DECIMAL(20, 2) DEFAULT 0,
+			fee_percentage DECIMAL(5, 4) DEFAULT 0,
+			fee_fixed DECIMAL(20, 2) DEFAULT 0,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		// Provider instances (multi-key support)
+		`CREATE TABLE IF NOT EXISTS provider_instances (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			provider_id UUID REFERENCES payment_providers(id) ON DELETE CASCADE,
+			name VARCHAR(100) NOT NULL,
+			vault_secret_path VARCHAR(255) NOT NULL,
+			hot_wallet_id VARCHAR(36),
+			is_active BOOLEAN DEFAULT TRUE,
+			is_primary BOOLEAN DEFAULT FALSE,
+			priority INT DEFAULT 50,
+			request_count BIGINT DEFAULT 0,
+			last_used_at TIMESTAMP,
+			last_error TEXT,
+			health_status VARCHAR(20) DEFAULT 'unknown',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		// Create indexes for faster queries
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON admin_audit_logs(admin_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON admin_audit_logs(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin_id ON admin_sessions(admin_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_notifications_created_at ON admin_notifications(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_notifications_is_read ON admin_notifications(is_read)`,
+		`CREATE INDEX IF NOT EXISTS idx_provider_instances_provider_id ON provider_instances(provider_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_provider_instances_health ON provider_instances(health_status)`,
+		`CREATE INDEX IF NOT EXISTS idx_provider_countries_provider_id ON provider_countries(provider_id)`,
 	}
 
 	for _, query := range queries {
@@ -150,6 +207,240 @@ func createAdminTables(db *sql.DB) error {
 		return fmt.Errorf("failed to seed default data: %w", err)
 	}
 
+	// Seed default payment providers
+	if err := seedDefaultProviders(db); err != nil {
+		log.Printf("Warning: failed to seed payment providers: %v", err)
+	}
+
+	return nil
+}
+
+// seedDefaultProviders seeds all payment providers with their country configurations
+func seedDefaultProviders(db *sql.DB) error {
+	// Check if providers already exist
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM payment_providers").Scan(&count)
+	if count > 0 {
+		return nil // Already seeded
+	}
+
+	log.Println("[Database] Seeding default payment providers...")
+
+	type Provider struct {
+		Name        string
+		DisplayName string
+		Type        string
+		BaseURL     string
+		LogoURL     string
+		Capability  string
+		IsDemo      bool
+		Countries   []struct {
+			Code     string
+			Name     string
+			Currency string
+		}
+	}
+
+	providers := []Provider{
+		{
+			Name:        "demo",
+			DisplayName: "Demo Provider",
+			Type:        "demo",
+			BaseURL:     "",
+			LogoURL:     "/icons/aggregators/demo.svg",
+			Capability:  "mixed",
+			IsDemo:      true,
+			Countries: []struct{ Code, Name, Currency string }{
+				{"ALL", "All Countries", "XOF"},
+			},
+		},
+		{
+			Name:        "flutterwave",
+			DisplayName: "Flutterwave",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.flutterwave.com/v3",
+			LogoURL:     "/icons/aggregators/flutterwave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"NG", "Nigeria", "NGN"},
+				{"GH", "Ghana", "GHS"},
+				{"KE", "Kenya", "KES"},
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "cinetpay",
+			DisplayName: "CinetPay",
+			Type:        "mobile_money",
+			BaseURL:     "https://api-checkout.cinetpay.com/v2",
+			LogoURL:     "/icons/aggregators/cinetpay.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+				{"SN", "Sénégal", "XOF"},
+				{"CM", "Cameroun", "XAF"},
+			},
+		},
+
+		{
+			Name:        "wave_ci",
+			DisplayName: "Wave CI",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.wave.com/v1",
+			LogoURL:     "/icons/aggregators/wave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "wave_sn",
+			DisplayName: "Wave Sénégal",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.wave.com/v1",
+			LogoURL:     "/icons/aggregators/wave.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"SN", "Sénégal", "XOF"},
+			},
+		},
+		{
+			Name:        "lygos",
+			DisplayName: "Lygos",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.lygosapp.com/v1",
+			LogoURL:     "/icons/aggregators/lygos.svg",
+			Capability:  "deposit",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+				{"SN", "Sénégal", "XOF"},
+			},
+		},
+		{
+			Name:        "yellowcard",
+			DisplayName: "Yellow Card",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.yellowcard.io/v1",
+			LogoURL:     "/icons/aggregators/yellowcard.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"NG", "Nigeria", "NGN"},
+				{"GH", "Ghana", "GHS"},
+				{"KE", "Kenya", "KES"},
+				{"ZA", "South Africa", "ZAR"},
+				{"UG", "Uganda", "UGX"},
+				{"TZ", "Tanzania", "TZS"},
+			},
+		},
+		{
+			Name:        "orange_money_ci",
+			DisplayName: "Orange Money CI",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
+			LogoURL:     "/icons/aggregators/orange.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "orange_money_sn",
+			DisplayName: "Orange Money SN",
+			Type:        "mobile_money",
+			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
+			LogoURL:     "/icons/aggregators/orange.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"SN", "Sénégal", "XOF"},
+			},
+		},
+		{
+			Name:        "mtn_ci",
+			DisplayName: "MTN CI",
+			Type:        "mobile_money",
+			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
+			LogoURL:     "/icons/aggregators/mtn.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CI", "Côte d'Ivoire", "XOF"},
+			},
+		},
+		{
+			Name:        "mtn_cm",
+			DisplayName: "MTN Cameroun",
+			Type:        "mobile_money",
+			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
+			LogoURL:     "/icons/aggregators/mtn.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"CM", "Cameroun", "XAF"},
+			},
+		},
+		{
+			Name:        "mtn_gh",
+			DisplayName: "MTN Ghana",
+			Type:        "mobile_money",
+			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
+			LogoURL:     "/icons/aggregators/mtn.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"GH", "Ghana", "GHS"},
+			},
+		},
+		{
+			Name:        "mtn_za",
+			DisplayName: "MTN South Africa",
+			Type:        "mobile_money",
+			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
+			LogoURL:     "/icons/aggregators/mtn.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"ZA", "South Africa", "ZAR"},
+			},
+		},
+		{
+			Name:        "stripe",
+			DisplayName: "Stripe",
+			Type:        "card",
+			BaseURL:     "https://api.stripe.com/v1",
+			LogoURL:     "/icons/aggregators/stripe.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"US", "United States", "USD"},
+				{"FR", "France", "EUR"},
+				{"GB", "United Kingdom", "GBP"},
+			},
+		},
+	}
+
+	for _, p := range providers {
+		currencies := `["XOF", "XAF", "NGN", "EUR", "USD"]`
+		var providerID string
+		err := db.QueryRow(`
+			INSERT INTO payment_providers 
+			(name, display_name, provider_type, api_base_url, logo_url, 
+			 supported_currencies, capability, is_demo_mode, is_active)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+			RETURNING id
+		`, p.Name, p.DisplayName, p.Type, p.BaseURL, p.LogoURL, currencies, p.Capability, p.IsDemo).Scan(&providerID)
+
+		if err != nil {
+			log.Printf("Failed to insert provider %s: %v", p.Name, err)
+			continue
+		}
+
+		// Insert country mappings
+		for _, c := range p.Countries {
+			db.Exec(`
+				INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority)
+				VALUES ($1, $2, $3, $4, 50)
+			`, providerID, c.Code, c.Name, c.Currency)
+		}
+
+		log.Printf("[Database] Seeded provider: %s with %d countries", p.DisplayName, len(p.Countries))
+	}
+
+	log.Println("[Database] ✅ Payment providers seeding complete")
 	return nil
 }
 
@@ -312,14 +603,14 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to hash default password: %w", err)
 	}
-	
+
 	// Create default super admin
 	_, err = db.Exec(`
 		INSERT INTO admin_users (email, password_hash, first_name, last_name, role_id, is_active)
 		VALUES ($1, $2, $3, $4, $5, TRUE)
 		ON CONFLICT (email) DO NOTHING
 	`, "admin@zekora.com", string(hashedPassword), "Super", "Admin", roleID)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create default admin: %w", err)
 	}
@@ -334,13 +625,12 @@ func createDefaultSuperAdmin(db *sql.DB) error {
 	return nil
 }
 
-
 // InitializeKafka creates a new Kafka client for messaging
 func InitializeKafka(brokers string, groupID string) (*messaging.KafkaClient, error) {
 	brokerList := strings.Split(brokers, ",")
-	
+
 	client := messaging.NewKafkaClient(brokerList, groupID)
-	
+
 	log.Printf("[Kafka] Admin-service connected to brokers: %s with group: %s", brokers, groupID)
 	return client, nil
 }

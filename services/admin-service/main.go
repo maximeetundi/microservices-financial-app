@@ -278,8 +278,24 @@ func main() {
 			payments.POST("/:id/toggle-demo", paymentHandler.ToggleDemoMode)
 			payments.POST("/:id/test", paymentHandler.TestProviderConnection)
 			payments.POST("/:id/countries", paymentHandler.AddProviderCountry)
+			payments.POST("/:id/countries/:country/toggle", paymentHandler.ToggleCountryStatus)
 			payments.DELETE("/:id/countries/:country", paymentHandler.RemoveProviderCountry)
 		}
+
+		// Provider Instances management (multi-key support)
+		instanceHandler := handlers.NewInstanceHandler(adminDB)
+		instances := protected.Group("/provider-instances")
+		{
+			instances.GET("", instanceHandler.GetAllInstances)
+		}
+		// Nested under providers
+		payments.GET("/:id/instances", instanceHandler.GetProviderInstances)
+		payments.POST("/:id/instances", instanceHandler.CreateProviderInstance)
+		payments.GET("/:id/instances/best", instanceHandler.SelectBestInstance)
+		payments.PUT("/:id/instances/:instanceId", instanceHandler.UpdateProviderInstance)
+		payments.DELETE("/:id/instances/:instanceId", instanceHandler.DeleteProviderInstance)
+		payments.POST("/:id/instances/:instanceId/link-wallet", instanceHandler.LinkHotWallet)
+		payments.POST("/:id/instances/:instanceId/test", instanceHandler.TestInstance)
 
 		// Platform Accounts Proxy
 		// Forward /platform/* to wallet-service

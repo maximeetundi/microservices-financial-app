@@ -16,14 +16,19 @@ func NewWalletRepository(db *sql.DB) *WalletRepository {
 }
 
 func (r *WalletRepository) Create(wallet *models.Wallet) error {
+	// Ensure status defaults to active
+	if wallet.Status == "" {
+		wallet.Status = "active"
+	}
+
 	query := `
-		INSERT INTO wallets (user_id, currency, wallet_type, balance, frozen_balance, 
+		INSERT INTO wallets (user_id, currency, wallet_type, status, balance, frozen_balance, 
 							 wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at, updated_at
 	`
 
-	err := r.db.QueryRow(query, wallet.UserID, wallet.Currency, wallet.WalletType,
+	err := r.db.QueryRow(query, wallet.UserID, wallet.Currency, wallet.WalletType, wallet.Status,
 		wallet.Balance, wallet.FrozenBalance, wallet.WalletAddress,
 		wallet.PrivateKeyEncrypted, wallet.Name, wallet.IsActive, wallet.IsHidden, wallet.ExternalID).Scan(
 		&wallet.ID, &wallet.CreatedAt, &wallet.UpdatedAt)
@@ -45,6 +50,7 @@ func (r *WalletRepository) InitSchema() error {
 			user_id VARCHAR(255) NOT NULL,
 			currency VARCHAR(10) NOT NULL,
 			wallet_type VARCHAR(20) NOT NULL,
+			status VARCHAR(20) DEFAULT 'active',
 			balance DECIMAL(20, 8) DEFAULT 0,
 			frozen_balance DECIMAL(20, 8) DEFAULT 0,
 			wallet_address VARCHAR(255),
@@ -69,6 +75,7 @@ func (r *WalletRepository) InitSchema() error {
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS key_hash VARCHAR(64)",
+		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
 		// Hybrid deposit system fields
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS deposit_memo VARCHAR(64)",
 		"ALTER TABLE wallets ADD COLUMN IF NOT EXISTS sweep_status VARCHAR(20) DEFAULT 'none'",
@@ -91,7 +98,7 @@ func (r *WalletRepository) InitSchema() error {
 
 func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, error) {
 	query := `
-		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+		SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 			   wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id, created_at, updated_at
 		FROM wallets 
 		WHERE external_id = $1 AND is_active = true
@@ -99,7 +106,7 @@ func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, e
 
 	var wallet models.Wallet
 	err := r.db.QueryRow(query, externalID).Scan(
-		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType, &wallet.Status,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
 		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.ExternalID,
 		&wallet.CreatedAt, &wallet.UpdatedAt,
@@ -118,7 +125,7 @@ func (r *WalletRepository) GetByExternalID(externalID string) (*models.Wallet, e
 // GetByAddress finds a wallet by its blockchain address
 func (r *WalletRepository) GetByAddress(address string) (*models.Wallet, error) {
 	query := `
-		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+		SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 			   wallet_address, private_key_encrypted, name, is_active, is_hidden, external_id, created_at, updated_at
 		FROM wallets 
 		WHERE wallet_address = $1 AND is_active = true
@@ -126,7 +133,7 @@ func (r *WalletRepository) GetByAddress(address string) (*models.Wallet, error) 
 
 	var wallet models.Wallet
 	err := r.db.QueryRow(query, address).Scan(
-		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType, &wallet.Status,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
 		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.ExternalID,
 		&wallet.CreatedAt, &wallet.UpdatedAt,
@@ -144,14 +151,14 @@ func (r *WalletRepository) GetByAddress(address string) (*models.Wallet, error) 
 
 func (r *WalletRepository) GetByID(walletID string) (*models.Wallet, error) {
 	query := `
-		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+		SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 			   wallet_address, private_key_encrypted, name, is_active, is_hidden, created_at, updated_at
 		FROM wallets WHERE id = $1 AND is_active = true
 	`
 
 	var wallet models.Wallet
 	err := r.db.QueryRow(query, walletID).Scan(
-		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType, &wallet.Status,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
 		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden,
 		&wallet.CreatedAt, &wallet.UpdatedAt,
@@ -171,7 +178,7 @@ func (r *WalletRepository) GetByUserID(userID string, includeHidden bool) ([]*mo
 	var query string
 	if includeHidden {
 		query = `
-			SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+			SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 				   wallet_address, name, is_active, is_hidden, created_at, updated_at
 			FROM wallets 
 			WHERE user_id = $1 AND is_active = true
@@ -179,7 +186,7 @@ func (r *WalletRepository) GetByUserID(userID string, includeHidden bool) ([]*mo
 		`
 	} else {
 		query = `
-			SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+			SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 				   wallet_address, name, is_active, is_hidden, created_at, updated_at
 			FROM wallets 
 			WHERE user_id = $1 AND is_active = true AND is_hidden = false
@@ -197,7 +204,7 @@ func (r *WalletRepository) GetByUserID(userID string, includeHidden bool) ([]*mo
 	for rows.Next() {
 		var wallet models.Wallet
 		err := rows.Scan(
-			&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+			&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType, &wallet.Status,
 			&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
 			&wallet.Name, &wallet.IsActive, &wallet.IsHidden, &wallet.CreatedAt, &wallet.UpdatedAt,
 		)
@@ -213,7 +220,7 @@ func (r *WalletRepository) GetByUserID(userID string, includeHidden bool) ([]*mo
 func (r *WalletRepository) GetByUserAndCurrency(userID, currency string) (*models.Wallet, error) {
 	// Query handles both hidden and visible wallets to enforce uniqueness check properly
 	query := `
-		SELECT id, user_id, currency, wallet_type, balance, frozen_balance,
+		SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance,
 			   wallet_address, private_key_encrypted, name, is_active, is_hidden, created_at, updated_at
 		FROM wallets 
 		WHERE user_id = $1 AND currency = $2 AND is_active = true
@@ -221,7 +228,7 @@ func (r *WalletRepository) GetByUserAndCurrency(userID, currency string) (*model
 
 	var wallet models.Wallet
 	err := r.db.QueryRow(query, userID, currency).Scan(
-		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType,
+		&wallet.ID, &wallet.UserID, &wallet.Currency, &wallet.WalletType, &wallet.Status,
 		&wallet.Balance, &wallet.FrozenBalance, &wallet.WalletAddress,
 		&wallet.PrivateKeyEncrypted, &wallet.Name, &wallet.IsActive, &wallet.IsHidden,
 		&wallet.CreatedAt, &wallet.UpdatedAt,

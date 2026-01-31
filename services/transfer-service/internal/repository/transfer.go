@@ -116,13 +116,14 @@ func NewWalletRepository(db *sql.DB) *WalletRepository {
 }
 
 func (r *WalletRepository) GetByID(id string) (*models.Wallet, error) {
-	query := `SELECT id, user_id, currency, wallet_type, balance, frozen_balance, is_active FROM wallets WHERE id = $1`
+	query := `SELECT id, user_id, currency, wallet_type, status, balance, frozen_balance, is_active FROM wallets WHERE id = $1`
 	var wallet models.Wallet
 	err := r.db.QueryRow(query, id).Scan(
 		&wallet.ID,
 		&wallet.UserID,
 		&wallet.Currency,
 		&wallet.WalletType,
+		&wallet.Status,
 		&wallet.Balance,
 		&wallet.FrozenBalance,
 		&wallet.IsActive,
@@ -161,8 +162,8 @@ func (r *WalletRepository) GetWalletIDByUserAndCurrency(userID, currency string)
 }
 
 func (r *WalletRepository) CreateWallet(id, userID, currency string) error {
-	query := `INSERT INTO wallets (id, user_id, currency, wallet_type, balance, frozen_balance, is_active, created_at, updated_at) 
-			  VALUES ($1, $2, $3, 'fiat', 0, 0, true, $4, $4)`
+	query := `INSERT INTO wallets (id, user_id, currency, wallet_type, status, balance, frozen_balance, is_active, created_at, updated_at) 
+			  VALUES ($1, $2, $3, 'fiat', 'active', 0, 0, true, $4, $4)`
 	_, err := r.db.Exec(query, id, userID, currency, time.Now())
 	return err
 }

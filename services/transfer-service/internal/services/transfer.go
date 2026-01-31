@@ -4,14 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"time"
-    "math/rand"
 
-	"github.com/google/uuid"
 	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/providers"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/google/uuid"
 )
 
 type TransferService struct {
@@ -51,7 +52,13 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		return nil, fmt.Errorf("source wallet not found: %w", err)
 	}
 
+	// Check status
+	if fromWallet.Status != "active" {
+		return nil, fmt.Errorf("wallet is %s", fromWallet.Status)
+	}
+
 	// Check sufficient balance
+
 	if fromWallet.Balance < req.Amount {
 		return nil, fmt.Errorf("insufficient balance")
 	}
@@ -61,7 +68,7 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate fee: %w", err)
 	}
-	
+
 	// Check balance covers amount + fee
 	totalDebit := req.Amount + fee
 	if fromWallet.Balance < totalDebit {
@@ -70,7 +77,7 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 
 	// Resolve destination wallet ID
 	var destinationWalletID *string
-	
+
 	// If to_wallet_id is provided, use it directly
 	if req.ToWalletID != nil && *req.ToWalletID != "" {
 		destinationWalletID = req.ToWalletID
@@ -83,7 +90,19 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		destinationWalletID = &recipientWalletID
 	}
 
+	// Validate destination wallet status if internal
+	if destinationWalletID != nil && *destinationWalletID != "" {
+		toWallet, err := s.walletRepo.GetByID(*destinationWalletID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid destination wallet: %w", err)
+		}
+		if toWallet.Status != "active" {
+			return nil, fmt.Errorf("destination wallet is %s", toWallet.Status)
+		}
+	}
+
 	// Create transfer record
+
 	ref := generateReferenceID()
 	fromWalletIDPtr := req.FromWalletID
 	transfer := &models.Transfer{
@@ -113,7 +132,7 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 		s.transferRepo.UpdateStatus(transfer.ID, "failed")
 		return nil, fmt.Errorf("failed to debit wallet: %w", err)
 	}
-	
+
 	// Credit to destination wallet if resolved
 	if destinationWalletID != nil && *destinationWalletID != "" {
 		if err := s.walletRepo.UpdateBalance(*destinationWalletID, req.Amount); err != nil {
@@ -145,10 +164,10 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 	}
 	envelope := messaging.NewEventEnvelope(messaging.EventTransferCompleted, "transfer-service", transferEvent)
 	s.kafkaClient.Publish(context.Background(), messaging.TopicTransferEvents, envelope)
-	
+
 	// Get sender user ID from wallet
 	senderUserID := fromWallet.UserID
-	
+
 	// Get recipient user ID (if internal transfer)
 	var recipientUserID string
 	if destinationWalletID != nil && *destinationWalletID != "" {
@@ -157,12 +176,12 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 			recipientUserID = toWallet.UserID
 		}
 	}
-	
+
 	// Publish notification events for BOTH sender and recipient
 	if transfer.Status == "completed" {
 		// Notification for sender (money sent)
 		s.publishTransferEvent("transfer.sent", transfer, senderUserID, senderUserID, recipientUserID)
-		
+
 		// Notification for recipient (money received)
 		if recipientUserID != "" && recipientUserID != senderUserID {
 			s.publishTransferEvent("transfer.received", transfer, recipientUserID, senderUserID, recipientUserID)
@@ -174,9 +193,6 @@ func (s *TransferService) CreateTransfer(req *models.TransferRequest) (*models.T
 
 	return transfer, nil
 }
-
-
-
 
 // EstimateFee calculates the fee based on transfer type and amount
 func (s *TransferService) EstimateFee(transferType string, amount float64) (float64, error) {
@@ -200,7 +216,7 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 			senderUserID = fromWallet.UserID
 		}
 	}
-	
+
 	if senderUserID == "" {
 		senderUserID = transfer.UserID
 	}
@@ -268,14 +284,14 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 	} else {
 		// External or P2P by email/phone
 		var name, email, phone string
-		
+
 		if transfer.RecipientEmail != nil {
 			email = *transfer.RecipientEmail
 		}
 		if transfer.RecipientPhone != nil {
 			phone = *transfer.RecipientPhone
 		}
-		
+
 		if email != "" || phone != "" {
 			name = "Contact Externe"
 			transfer.RecipientDetails = &models.UserDetails{
@@ -291,11 +307,11 @@ func (s *TransferService) GetTransfer(id string) (*models.Transfer, error) {
 
 func (s *TransferService) GetTransferHistory(userID string, limit, offset int) ([]*models.Transfer, error) {
 	// We need to fetch wallets for this user first
-    // Note: This relies on walletRepo having a method to list user wallets, OR we query transfers by userID directly?
-    // Usually transfers are linked to wallets. But Transfer model might not have UserID directly on it (it has FromWalletID).
-    // Let's assume transferRepo has functionality to list by UserID (joining wallets) or we filter by wallets.
-    // simpler: s.transferRepo.ListByUserID(userID, limit, offset)
-    return s.transferRepo.GetByUserID(userID, limit, offset)
+	// Note: This relies on walletRepo having a method to list user wallets, OR we query transfers by userID directly?
+	// Usually transfers are linked to wallets. But Transfer model might not have UserID directly on it (it has FromWalletID).
+	// Let's assume transferRepo has functionality to list by UserID (joining wallets) or we filter by wallets.
+	// simpler: s.transferRepo.ListByUserID(userID, limit, offset)
+	return s.transferRepo.GetByUserID(userID, limit, offset)
 }
 
 func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
@@ -325,7 +341,7 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 	// - OR More than 7 days (Inactive assumption - keep existing logic if desired, but user focused on 5m)
 	duration := time.Since(transfer.CreatedAt)
 	isRecent := duration < 5*time.Minute
-	// isOld := duration > 7*24*time.Hour // User didn't mention this, but keeping it won't hurt. 
+	// isOld := duration > 7*24*time.Hour // User didn't mention this, but keeping it won't hurt.
 	// Actually user said explicitly "avant 5 minute l'emetteur peut annuler".
 
 	if !isRecent {
@@ -352,7 +368,7 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 		if toWallet.Balance < transfer.Amount {
 			return fmt.Errorf("recipient has insufficient funds for reversal")
 		}
-		
+
 		// Check if Recipient has used funds (Debits since transfer)
 		hasUsedFunds, err := s.transferRepo.HasDebitsSince(toWalletID, transfer.CreatedAt)
 		if err != nil {
@@ -363,7 +379,6 @@ func (s *TransferService) CancelTransfer(id, requesterID, reason string) error {
 		}
 
 		// Execute Reversal: Debit Recipient, Credit Sender
-
 
 		// Execute Reversal: Debit Recipient, Credit Sender
 		if err := s.walletRepo.UpdateBalance(toWalletID, -transfer.Amount); err != nil {
@@ -563,7 +578,7 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 		"currency":        transfer.Currency,
 		"status":          transfer.Status,
 		"reference":       transfer.Reference,
-		"type":            eventType,         // transfer.sent, transfer.received, transfer.initiated
+		"type":            eventType, // transfer.sent, transfer.received, transfer.initiated
 	}
 
 	envelope := messaging.NewEventEnvelope(eventType, "transfer-service", eventData)
@@ -572,36 +587,60 @@ func (s *TransferService) publishTransferEvent(eventType string, transfer *model
 
 // MobileMoneyService handles mobile money transfers
 type MobileMoneyService struct {
-	config *config.Config
+	config     *config.Config
+	zoneRouter *providers.ZoneRouter
 }
 
-func NewMobileMoneyService(config *config.Config) *MobileMoneyService {
-	return &MobileMoneyService{config: config}
+func NewMobileMoneyService(config *config.Config, providersConfig *providers.Config) *MobileMoneyService {
+	router := providers.InitializeRouter(providersConfig)
+	return &MobileMoneyService{
+		config:     config,
+		zoneRouter: router,
+	}
 }
 
 func (s *MobileMoneyService) Send(req *models.MobileMoneyRequest) (*models.MobileMoneyResponse, error) {
-	// Implementation for mobile money send
+	// Create PayoutRequest from MobileMoneyRequest
+	payoutReq := &providers.PayoutRequest{
+		ReferenceID:      generateReferenceID(), // Or req.ReferenceID if available
+		Amount:           req.Amount,
+		Currency:         req.Currency,
+		RecipientPhone:   req.RecipientPhone,
+		RecipientCountry: req.RecipientCountry, // Need to add Country to request model if missing
+		PayoutMethod:     providers.PayoutMethodMobileMoney,
+		MobileOperator:   req.Provider, // Map provider name if needed
+		Narration:        req.Description,
+	}
+
+	// Use ZoneRouter to create payout
+	resp, err := s.zoneRouter.CreatePayout(context.Background(), payoutReq)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.MobileMoneyResponse{
-		TransactionID: generateID(),
-		Status:        "pending",
-		Provider:      req.Provider,
+		TransactionID: resp.ProviderReference,
+		Status:        string(resp.Status),
+		Provider:      resp.ProviderName,
+		Message:       resp.Message,
 	}, nil
 }
 
 func (s *MobileMoneyService) Receive(req *models.MobileMoneyRequest) (*models.MobileMoneyResponse, error) {
+	// Payouts generally don't support "receive" in this direction (Collection is different)
+	// If this represents a Collection (Pull), we should map to InitiateDeposit logic if available in router
 	return &models.MobileMoneyResponse{
 		TransactionID: generateID(),
 		Status:        "pending",
 		Provider:      req.Provider,
+		Message:       "Collection not yet fully implemented via Router",
 	}, nil
 }
 
 func (s *MobileMoneyService) GetProviders() []string {
-	providers := make([]string, 0, len(s.config.MobileMoneyProviders))
-	for k := range s.config.MobileMoneyProviders {
-		providers = append(providers, k)
-	}
-	return providers
+	// Return providers from router config or config
+	// Ideally inspect router for supported providers
+	return []string{"mtn", "orange", "wave", "airtel", "mpesa"}
 }
 
 // InternationalTransferService handles international transfers
@@ -683,7 +722,7 @@ func (s *TransferService) resolveOrCreateRecipientWallet(email *string, phone *s
 	if err == nil {
 		return walletID, nil
 	}
-	
+
 	if err != sql.ErrNoRows {
 		return "", fmt.Errorf("failed to check recipient wallet: %w", err)
 	}
@@ -698,10 +737,10 @@ func (s *TransferService) resolveOrCreateRecipientWallet(email *string, phone *s
 }
 
 func generateID() string {
-    return uuid.New().String()
+	return uuid.New().String()
 }
 
 func generateReferenceID() string {
-    // Generate a unique reference ID, e.g., TRF-timestamp-random
-    return fmt.Sprintf("TRF-%d-%d", time.Now().Unix(), rand.Intn(10000))
+	// Generate a unique reference ID, e.g., TRF-timestamp-random
+	return fmt.Sprintf("TRF-%d-%d", time.Now().Unix(), rand.Intn(10000))
 }

@@ -27,9 +27,9 @@
 
           <div class="relative z-10 h-full flex flex-col text-white">
             <div class="flex justify-between items-start mb-6">
-              <div>
-                <span class="px-2 py-1 rounded-full text-xs font-semibold backdrop-blur-md bg-white/20 border border-white/10">
-                  {{ card.status === 'active' ? 'Active' : card.status }}
+                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border shadow-sm backdrop-blur-md" 
+                  :class="getStatusClass(card.status)">
+                  {{ getStatusLabel(card.status) }}
                 </span>
               </div>
               <span class="text-2xl opacity-80">{{ card.type === 'virtual' ? '🌐' : '💳' }}</span>
@@ -180,6 +180,21 @@ const getCardClass = (type) => {
   return type === 'virtual' ? 'credit-card-virtual' : 'credit-card-physical'
 }
 
+const getStatusLabel = (status) => {
+  if (!status) return 'Inconnu'
+  const map = { active: 'Actif', frozen: 'Gelé', blocked: 'Bloqué', inactive: 'Inactif' }
+  return map[status] || status
+}
+
+const getStatusClass = (status) => {
+  switch(status) {
+    case 'active': return 'bg-emerald-500/20 text-emerald-100 border-emerald-500/30'
+    case 'frozen': return 'bg-amber-500/80 text-white border-amber-400/50'
+    case 'blocked': return 'bg-red-600/80 text-white border-red-400/50'
+    default: return 'bg-gray-500/20 text-gray-100 border-gray-500/30'
+  }
+}
+
 const selectCard = (card) => {
   selectedCard.value = card
   fetchTransactions(card.id)
@@ -215,7 +230,7 @@ const fetchCards = async () => {
         expiry: `${String(c.expiry_month).padStart(2, '0')}/${String(c.expiry_year).slice(-2)}`,
         balance: c.balance,
         currency: c.currency,
-        status: c.status, // active, frozen
+        status: (c.status || 'inactive').toLowerCase(), // Ensure lowercase handling
         dailyLimit: c.daily_limit,
         isVirtual: c.is_virtual
       }))

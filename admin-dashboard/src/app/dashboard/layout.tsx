@@ -297,7 +297,7 @@ export default function DashboardLayout({ children }: SidebarProps) {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
+                <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-6 scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
                     {navigationSections.map((section, sectionIndex) => (
                         <div key={section.title}>
                             {/* Section Title */}

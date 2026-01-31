@@ -10,6 +10,7 @@ interface Wallet {
     is_default: boolean
     usd_rate?: number
     balanceUSD?: number
+    status?: string // Added status field
 }
 
 interface WalletState {

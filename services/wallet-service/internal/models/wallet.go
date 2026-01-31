@@ -12,6 +12,7 @@ type Wallet struct {
 	UserID              string  `json:"user_id" db:"user_id"`
 	Currency            string  `json:"currency" db:"currency"`
 	WalletType          string  `json:"wallet_type" db:"wallet_type"` // fiat, crypto
+	Status              string  `json:"status" db:"status"`           // active, frozen, blocked, closed
 	Balance             float64 `json:"balance" db:"balance"`
 	FrozenBalance       float64 `json:"frozen_balance" db:"frozen_balance"`
 	WalletAddress       *string `json:"wallet_address,omitempty" db:"wallet_address"`

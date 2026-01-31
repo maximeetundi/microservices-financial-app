@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -359,6 +360,66 @@ func (h *PaymentHandler) RemoveProviderCountry(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Country removed"})
+}
+
+// ToggleCountryStatus enables/disables a provider for a specific country
+func (h *PaymentHandler) ToggleCountryStatus(c *gin.Context) {
+	providerID := c.Param("id")
+	countryCode := c.Param("country")
+
+	var req struct {
+		IsActive bool `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":           "Invalid request",
+			"error_fr":        "Requête invalide",
+			"user_message":    "Please provide a valid status.",
+			"user_message_fr": "Veuillez fournir un statut valide.",
+		})
+		return
+	}
+
+	result, err := h.db.Exec(`
+		UPDATE provider_countries 
+		SET is_active = $1 
+		WHERE provider_id = $2 AND country_code = $3
+	`, req.IsActive, providerID, countryCode)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":           "Failed to update country status",
+			"error_fr":        "Échec de la mise à jour du statut du pays",
+			"user_message":    "An error occurred while updating the country status.",
+			"user_message_fr": "Une erreur s'est produite lors de la mise à jour du statut du pays.",
+		})
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":           "Country not found for this provider",
+			"error_fr":        "Pays non trouvé pour ce prestataire",
+			"user_message":    "This country is not configured for this payment provider.",
+			"user_message_fr": "Ce pays n'est pas configuré pour ce prestataire de paiement.",
+		})
+		return
+	}
+
+	status := "disabled"
+	statusFR := "désactivé"
+	if req.IsActive {
+		status = "enabled"
+		statusFR = "activé"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    fmt.Sprintf("Country %s has been %s for this provider", countryCode, status),
+		"message_fr": fmt.Sprintf("Le pays %s a été %s pour ce prestataire", countryCode, statusFR),
+		"country":    countryCode,
+		"is_active":  req.IsActive,
+	})
 }
 
 // TestProviderConnection tests the API connection

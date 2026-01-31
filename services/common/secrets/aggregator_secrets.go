@@ -107,6 +107,41 @@ type OrangeMoneySecrets struct {
 	BaseURL      string `json:"base_url"`
 }
 
+// CinetPaySecrets - https://docs.cinetpay.com
+type CinetPaySecrets struct {
+	APIKey    string `json:"api_key"`
+	SiteID    string `json:"site_id"`
+	SecretKey string `json:"secret_key"`
+	BaseURL   string `json:"base_url"`
+}
+
+// WaveSecrets - https://docs.wave.com/api
+type WaveSecrets struct {
+	APIKey      string `json:"api_key"`
+	MerchantID  string `json:"merchant_id"`
+	WebhookKey  string `json:"webhook_key"`
+	BaseURL     string `json:"base_url"`
+	Environment string `json:"environment"` // sandbox or production
+}
+
+// LygosSecrets - https://docs.lygosapp.com
+type LygosSecrets struct {
+	APIKey     string `json:"api_key"`
+	ShopName   string `json:"shop_name"`
+	BaseURL    string `json:"base_url"`
+	WebhookURL string `json:"webhook_url"`
+}
+
+// YellowCardSecrets - https://yellowcard.engineering
+type YellowCardSecrets struct {
+	APIKey      string `json:"api_key"`
+	SecretKey   string `json:"secret_key"`
+	BusinessID  string `json:"business_id"`
+	BaseURL     string `json:"base_url"`
+	WebhookURL  string `json:"webhook_url"`
+	Environment string `json:"environment"` // sandbox or live
+}
+
 // VaultPaths for each aggregator
 const (
 	VaultPathAggregators = "secret/aggregators"
@@ -121,6 +156,10 @@ const (
 	VaultPathChipper     = "secret/aggregators/chipper"
 	VaultPathMTNMomo     = "secret/aggregators/mtn_momo"
 	VaultPathOrangeMoney = "secret/aggregators/orange_money"
+	VaultPathCinetPay    = "secret/aggregators/cinetpay"
+	VaultPathWave        = "secret/aggregators/wave"
+	VaultPathLygos       = "secret/aggregators/lygos"
+	VaultPathYellowCard  = "secret/aggregators/yellowcard"
 )
 
 // SeedDefaultAggregatorSecrets seeds placeholder/test values in Vault at startup
@@ -192,6 +231,33 @@ func (v *VaultClient) SeedDefaultAggregatorSecrets() error {
 			"client_secret": "ORANGE_CLIENT_SECRET_REPLACE_ME",
 			"merchant_key":  "ORANGE_MERCHANT_KEY_REPLACE_ME",
 			"base_url":      "https://api.orange.com/orange-money-webpay/dev/v1",
+		},
+		VaultPathCinetPay: {
+			"api_key":    "CINETPAY_API_KEY_REPLACE_ME",
+			"site_id":    "CINETPAY_SITE_ID_REPLACE_ME",
+			"secret_key": "CINETPAY_SECRET_KEY_REPLACE_ME",
+			"base_url":   "https://api-checkout.cinetpay.com/v2",
+		},
+		VaultPathWave: {
+			"api_key":     "WAVE_API_KEY_REPLACE_ME",
+			"merchant_id": "WAVE_MERCHANT_ID_REPLACE_ME",
+			"webhook_key": "WAVE_WEBHOOK_KEY_REPLACE_ME",
+			"base_url":    "https://api.wave.com/v1",
+			"environment": "sandbox",
+		},
+		VaultPathLygos: {
+			"api_key":     "LYGOS_API_KEY_REPLACE_ME",
+			"shop_name":   "Zekora Finance",
+			"base_url":    "https://api.lygosapp.com/v1",
+			"webhook_url": "https://your-domain.com/webhooks/lygos",
+		},
+		VaultPathYellowCard: {
+			"api_key":     "YELLOWCARD_API_KEY_REPLACE_ME",
+			"secret_key":  "YELLOWCARD_SECRET_KEY_REPLACE_ME",
+			"business_id": "YELLOWCARD_BUSINESS_ID_REPLACE_ME",
+			"base_url":    "https://sandbox.api.yellowcard.io/v1",
+			"webhook_url": "https://your-domain.com/webhooks/yellowcard",
+			"environment": "sandbox",
 		},
 	}
 
@@ -370,6 +436,65 @@ func (v *VaultClient) GetOrangeMoneySecrets() (*OrangeMoneySecrets, error) {
 		ClientSecret: getStringValue(data, "client_secret"),
 		MerchantKey:  getStringValue(data, "merchant_key"),
 		BaseURL:      getStringValue(data, "base_url"),
+	}, nil
+}
+
+// GetCinetPaySecrets retrieves CinetPay configuration from Vault
+func (v *VaultClient) GetCinetPaySecrets() (*CinetPaySecrets, error) {
+	data, err := v.GetSecret(VaultPathCinetPay)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CinetPay secrets: %w", err)
+	}
+	return &CinetPaySecrets{
+		APIKey:    getStringValue(data, "api_key"),
+		SiteID:    getStringValue(data, "site_id"),
+		SecretKey: getStringValue(data, "secret_key"),
+		BaseURL:   getStringValue(data, "base_url"),
+	}, nil
+}
+
+// GetWaveSecrets retrieves Wave configuration from Vault
+func (v *VaultClient) GetWaveSecrets() (*WaveSecrets, error) {
+	data, err := v.GetSecret(VaultPathWave)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Wave secrets: %w", err)
+	}
+	return &WaveSecrets{
+		APIKey:      getStringValue(data, "api_key"),
+		MerchantID:  getStringValue(data, "merchant_id"),
+		WebhookKey:  getStringValue(data, "webhook_key"),
+		BaseURL:     getStringValue(data, "base_url"),
+		Environment: getStringValue(data, "environment"),
+	}, nil
+}
+
+// GetLygosSecrets retrieves Lygos configuration from Vault
+func (v *VaultClient) GetLygosSecrets() (*LygosSecrets, error) {
+	data, err := v.GetSecret(VaultPathLygos)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Lygos secrets: %w", err)
+	}
+	return &LygosSecrets{
+		APIKey:     getStringValue(data, "api_key"),
+		ShopName:   getStringValue(data, "shop_name"),
+		BaseURL:    getStringValue(data, "base_url"),
+		WebhookURL: getStringValue(data, "webhook_url"),
+	}, nil
+}
+
+// GetYellowCardSecrets retrieves YellowCard configuration from Vault
+func (v *VaultClient) GetYellowCardSecrets() (*YellowCardSecrets, error) {
+	data, err := v.GetSecret(VaultPathYellowCard)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get YellowCard secrets: %w", err)
+	}
+	return &YellowCardSecrets{
+		APIKey:      getStringValue(data, "api_key"),
+		SecretKey:   getStringValue(data, "secret_key"),
+		BusinessID:  getStringValue(data, "business_id"),
+		BaseURL:     getStringValue(data, "base_url"),
+		WebhookURL:  getStringValue(data, "webhook_url"),
+		Environment: getStringValue(data, "environment"),
 	}, nil
 }
 
