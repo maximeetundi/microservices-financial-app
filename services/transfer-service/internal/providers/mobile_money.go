@@ -508,6 +508,11 @@ func (o *OrangeMoneyProvider) CreatePayout(ctx context.Context, req *PayoutReque
 	return nil, fmt.Errorf("Orange Money payouts not supported via this API")
 }
 
+func (o *OrangeMoneyProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
+	// Orange Money Payouts are not supported, so status check is also not relevant for payouts
+	return nil, fmt.Errorf("Orange Money payouts not supported")
+}
+
 // Orange Money transaction status
 type OrangeTransactionStatus struct {
 	Status   string `json:"status"`
@@ -819,6 +824,10 @@ func (p *PesapalProvider) GetTransactionStatus(ctx context.Context, orderTrackin
 
 // CreatePayout implements PayoutProvider interface
 func (p *PesapalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return nil, fmt.Errorf("Pesapal payouts not supported")
+}
+
+func (p *PesapalProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
 	return nil, fmt.Errorf("Pesapal payouts not supported")
 }
 

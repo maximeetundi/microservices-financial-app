@@ -421,8 +421,22 @@ func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmai
 	return &payoutResp, nil
 }
 
-// GetPayoutStatus retrieves payout batch status
-func (p *PayPalProvider) GetPayoutStatus(ctx context.Context, payoutBatchID string) (*PayPalBatchHeader, error) {
+// GetPayoutStatus retrieves payout batch status (Interface Implementation)
+func (p *PayPalProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
+	batchHeader, err := p.getPayoutStatusInternal(ctx, referenceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayoutStatusResponse{
+		ReferenceID:       referenceID,
+		ProviderReference: batchHeader.PayoutBatchID,
+		Status:            PayoutStatusAccordingTo(batchHeader.BatchStatus),
+	}, nil
+}
+
+// getPayoutStatusInternal retrieves payout batch status (Internal)
+func (p *PayPalProvider) getPayoutStatusInternal(ctx context.Context, payoutBatchID string) (*PayPalBatchHeader, error) {
 	token, err := p.GetAccessToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
