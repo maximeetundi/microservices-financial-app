@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -120,9 +121,13 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		Name            string `json:"name" binding:"required"`
 		VaultSecretPath string `json:"vault_secret_path" binding:"required"`
 		HotWalletID     string `json:"hot_wallet_id"`
-		IsActive        bool   `json:"is_active"`
-		IsPrimary       bool   `json:"is_primary"`
-		Priority        int    `json:"priority"`
+		Wallets         []struct {
+			HotWalletID string `json:"hot_wallet_id"`
+			Currency    string `json:"currency"`
+		} `json:"wallets"`
+		IsActive  bool `json:"is_active"`
+		IsPrimary bool `json:"is_primary"`
+		Priority  int  `json:"priority"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,6 +156,10 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	if req.HotWalletID != "" {
 		hotWalletID = &req.HotWalletID
 	}
+	// If explicit hot_wallet_id not set but wallets array is, take the first one as primary reference
+	if hotWalletID == nil && len(req.Wallets) > 0 {
+		hotWalletID = &req.Wallets[0].HotWalletID
+	}
 
 	var returnedID string
 	err := h.db.QueryRow(query,
@@ -159,8 +168,27 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	).Scan(&returnedID)
 
 	if err != nil {
+		log.Printf("Error creating instance: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instance: " + err.Error()})
 		return
+	}
+
+	// Insert linked wallets if provided
+	if len(req.Wallets) > 0 {
+		walletQuery := `
+			INSERT INTO provider_instance_wallets (id, instance_id, currency, hot_wallet_id, is_active, priority)
+			VALUES ($1, $2, $3, $4, TRUE, 50)
+			ON CONFLICT (instance_id, currency, hot_wallet_id) DO NOTHING`
+
+		for _, w := range req.Wallets {
+			if w.HotWalletID != "" && w.Currency != "" {
+				_, err := h.db.Exec(walletQuery, uuid.New().String(), returnedID, w.Currency, w.HotWalletID)
+				if err != nil {
+					log.Printf("Failed to link wallet %s to instance %s: %v", w.HotWalletID, returnedID, err)
+					// Continue adding others even if one fails
+				}
+			}
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"id": returnedID, "message": "Instance created successfully"})

@@ -61,7 +61,7 @@ export default function AggregatorInstancesPage() {
     const [hotWallets, setHotWallets] = useState<PlatformAccount[]>([]);
     const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
-    const [selectedWalletId, setSelectedWalletId] = useState('');
+    const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
     const [selectedCurrency, setSelectedCurrency] = useState('');
     const [showAddCountryModal, setShowAddCountryModal] = useState(false);
     const [instanceWallets, setInstanceWallets] = useState<Record<string, InstanceWallet[]>>({});
@@ -213,12 +213,37 @@ export default function AggregatorInstancesPage() {
         }
     };
 
+    const toggleWalletSelection = (walletId: string) => {
+        setSelectedWalletIds(prev =>
+            prev.includes(walletId)
+                ? prev.filter(id => id !== walletId)
+                : [...prev, walletId]
+        );
+    };
+
+    const toggleAllWallets = () => {
+        if (selectedWalletIds.length === hotWallets.length) {
+            setSelectedWalletIds([]);
+        } else {
+            setSelectedWalletIds(hotWallets.map(w => w.id));
+        }
+    };
+
     const handleCreateInstance = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
             const token = localStorage.getItem('admin_token');
             const path = newInstance.vault_secret_path || `secret/aggregators/${providerName.toLowerCase().replace(/\s+/g, '_')}/${newInstance.name.toLowerCase().replace(/\s+/g, '_')}`;
+
+            // Build wallets array
+            const walletsPayload = selectedWalletIds.map(id => {
+                const w = hotWallets.find(hw => hw.id === id);
+                return {
+                    hot_wallet_id: id,
+                    currency: w?.currency || 'XOF'
+                };
+            });
 
             const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`, {
                 method: 'POST',
@@ -229,7 +254,7 @@ export default function AggregatorInstancesPage() {
                 body: JSON.stringify({
                     ...newInstance,
                     vault_secret_path: path,
-                    hot_wallet_id: selectedWalletId  // Include selected wallet
+                    wallets: walletsPayload
                 })
             });
 
@@ -243,11 +268,14 @@ export default function AggregatorInstancesPage() {
                     is_primary: false,
                     priority: 50,
                 });
+                setSelectedWalletIds([]);
             } else {
-                alert('Failed to create instance');
+                const errData = await response.json();
+                alert(`Failed to create instance: ${errData.error || 'Unknown error'}`);
             }
         } catch (e) {
             console.error(e);
+            alert('Failed to create instance: Network error');
         }
     };
 
@@ -559,23 +587,40 @@ export default function AggregatorInstancesPage() {
                                 />
                             </div>
 
-                            {/* Hot Wallet Selection */}
+                            {/* Hot Wallet Selection (Multi) */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Hot Wallet Associé</label>
-                                <select
-                                    className="input w-full"
-                                    value={selectedWalletId}
-                                    onChange={e => setSelectedWalletId(e.target.value)}
-                                >
-                                    <option value="">Sélectionner un wallet...</option>
-                                    {hotWallets.map(wallet => (
-                                        <option key={wallet.id} value={wallet.id}>
-                                            {wallet.currency} - {wallet.name} (Solde: {wallet.balance})
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">Hot Wallets Associés</label>
+                                    <button
+                                        type="button"
+                                        onClick={toggleAllWallets}
+                                        className="text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                        {selectedWalletIds.length === hotWallets.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                                    </button>
+                                </div>
+                                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                                    {hotWallets.length === 0 ? (
+                                        <p className="text-gray-500 text-sm">Aucun hot wallet disponible.</p>
+                                    ) : (
+                                        hotWallets.map(wallet => (
+                                            <label key={wallet.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
+                                                <input
+                                                    type="checkbox"
+                                                    className="checkbox checkbox-xs"
+                                                    checked={selectedWalletIds.includes(wallet.id)}
+                                                    onChange={() => toggleWalletSelection(wallet.id)}
+                                                />
+                                                <span className="text-sm">
+                                                    <span className="font-semibold">{wallet.currency}</span> - {wallet.name}
+                                                    <span className="text-gray-500 text-xs ml-1">(Solde: {wallet.balance})</span>
+                                                </span>
+                                            </label>
+                                        ))
+                                    )}
+                                </div>
                                 <p className="text-xs text-gray-500 mt-1">
-                                    Associer un wallet permet d'effectuer des dépôts/retraits immédiats.
+                                    Associer des wallets pour permettre les dépôts/retraits immédiats.
                                 </p>
                             </div>
 
