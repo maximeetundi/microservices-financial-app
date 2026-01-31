@@ -309,8 +309,8 @@ func main() {
 	// Public endpoint for payment methods (no auth required for wallet)
 	publicPayments := router.Group("/api/v1")
 	{
-		paymentHandler := handlers.NewPaymentHandler(mainDB)
-		publicPayments.GET("/payment-methods", paymentHandler.GetPaymentMethodsForCountry)
+		publicPaymentHandler := handlers.NewPaymentHandler(adminDB)
+		publicPayments.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
 	}
 
 	port := os.Getenv("PORT")

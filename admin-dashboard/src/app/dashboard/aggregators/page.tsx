@@ -45,7 +45,7 @@ export default function AggregatorsPage() {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
             const token = localStorage.getItem('admin_token');
 
-            const response = await fetch(`${API_URL}/api/v1/admin/aggregators`, {
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -54,7 +54,26 @@ export default function AggregatorsPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                setAggregators(data.aggregators || []);
+                // Transform payment_providers to aggregator format
+                const providers = data.providers || [];
+                setAggregators(providers.map((p: any) => ({
+                    id: p.id,
+                    provider_code: p.name,
+                    provider_name: p.display_name,
+                    logo_url: p.logo_url,
+                    is_enabled: p.is_active,
+                    deposit_enabled: p.capability === 'deposit' || p.capability === 'mixed',
+                    withdraw_enabled: p.capability === 'withdraw' || p.capability === 'mixed',
+                    supported_regions: Object.keys(p.country_currencies || {}),
+                    priority: 50,
+                    min_amount: 0,
+                    max_amount: 0,
+                    fee_percent: 0,
+                    fee_fixed: 0,
+                    fee_currency: 'XOF',
+                    maintenance_mode: !p.is_active,
+                    maintenance_msg: '',
+                })));
             }
         } catch (error) {
             console.error('Error loading aggregators:', error);

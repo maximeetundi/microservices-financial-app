@@ -212,6 +212,11 @@ func createAdminTables(db *sql.DB) error {
 		log.Printf("Warning: failed to seed payment providers: %v", err)
 	}
 
+	// Seed default provider instances (one per provider with Vault path)
+	if err := seedDefaultProviderInstances(db); err != nil {
+		log.Printf("Warning: failed to seed provider instances: %v", err)
+	}
+
 	return nil
 }
 
@@ -454,6 +459,65 @@ func seedDefaultProviders(db *sql.DB) error {
 	}
 
 	log.Println("[Database] ✅ Payment providers seeding complete")
+	return nil
+}
+
+// seedDefaultProviderInstances creates a default instance for each payment provider
+// These instances have placeholder Vault paths that admin should configure with real API keys
+func seedDefaultProviderInstances(db *sql.DB) error {
+	log.Println("[Database] Seeding default provider instances...")
+
+	// Get all providers
+	rows, err := db.Query(`SELECT id, name, display_name FROM payment_providers`)
+	if err != nil {
+		return fmt.Errorf("failed to get providers: %w", err)
+	}
+	defer rows.Close()
+
+	type providerInfo struct {
+		ID          string
+		Name        string
+		DisplayName string
+	}
+
+	var providers []providerInfo
+	for rows.Next() {
+		var p providerInfo
+		if err := rows.Scan(&p.ID, &p.Name, &p.DisplayName); err != nil {
+			continue
+		}
+		providers = append(providers, p)
+	}
+
+	for _, p := range providers {
+		// Check if instance already exists for this provider
+		var exists bool
+		err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM provider_instances WHERE provider_id = $1)`, p.ID).Scan(&exists)
+		if err != nil {
+			log.Printf("[Database] Error checking instance for %s: %v", p.Name, err)
+			continue
+		}
+		if exists {
+			continue // Skip if instance already exists
+		}
+
+		// Create default instance with Vault path placeholder
+		vaultPath := fmt.Sprintf("secret/aggregators/%s/default", p.Name)
+		_, err = db.Exec(`
+			INSERT INTO provider_instances 
+			(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
+			VALUES ($1, $2, $3, TRUE, TRUE, 50, 'unknown')
+		`, p.ID, "Instance Principale", vaultPath)
+
+		if err != nil {
+			log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
+		} else {
+			log.Printf("[Database] ✅ Seeded default instance for: %s", p.DisplayName)
+		}
+	}
+
+	log.Println("[Database] ✅ Provider instances seeding complete")
+	log.Println("[Database] ⚠️  Configure real API keys in Vault before production use")
 	return nil
 }
 
