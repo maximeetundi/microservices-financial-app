@@ -104,6 +104,7 @@ func (p *DemoProvider) GetBanks(ctx context.Context, country string) ([]Bank, er
 func (p *DemoProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
 	time.Sleep(p.config.SimulateDelay)
 
+	return []MobileOperator{
 		{Code: "DEMO_ORANGE", Name: "Demo Orange Money", Countries: []string{country}, NumberPrefix: []string{"07", "77"}},
 		{Code: "DEMO_MTN", Name: "Demo MTN Money", Countries: []string{country}, NumberPrefix: []string{"05", "55"}},
 		{Code: "DEMO_WAVE", Name: "Demo Wave", Countries: []string{country}, NumberPrefix: []string{"70"}},
@@ -146,10 +147,7 @@ func (p *DemoProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*P
 		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
 		TotalAmount:       req.Amount + fee,
-		Status:            PayoutStatusPending, // Use enum
-	}, nil
-		Status:            "completed", // Demo always succeeds
-		Message:           "Demo payment completed successfully",
+		Status:            PayoutStatusCompleted, // Demo always succeeds
 	}, nil
 }
 
