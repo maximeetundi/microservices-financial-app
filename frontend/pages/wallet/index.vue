@@ -331,88 +331,58 @@
                  </div>
                </div>
 
-               <!-- Payment Method Selection -->
+               <!-- Payment Method Selection - Dynamic -->
                <div class="mb-6">
                  <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
-                 <div class="grid grid-cols-1 gap-3">
-                   <!-- Mobile Money Section -->
-                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">📱 Mobile Money</p>
-                   <button @click="depositMethod = 'orange'" 
-                     :class="depositMethod === 'orange' ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-200 dark:border-gray-700'"
-                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-orange-500 transition-all group">
-                     <span class="text-2xl">🟠</span>
-                     <div class="text-left flex-1">
-                       <p class="font-bold text-gray-900 dark:text-white">Orange Money</p>
-                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                     </div>
-                     <div v-if="depositMethod === 'orange'" class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                       </svg>
-                     </div>
-                   </button>
-                   <button @click="depositMethod = 'mtn'" 
-                     :class="depositMethod === 'mtn' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'border-gray-200 dark:border-gray-700'"
-                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-yellow-500 transition-all group">
-                     <span class="text-2xl">🟡</span>
-                     <div class="text-left flex-1">
-                       <p class="font-bold text-gray-900 dark:text-white">MTN Mobile Money</p>
-                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                     </div>
-                     <div v-if="depositMethod === 'mtn'" class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
-                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                       </svg>
-                     </div>
-                   </button>
-                   <button @click="depositMethod = 'wave'" 
-                     :class="depositMethod === 'wave' ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-gray-200 dark:border-gray-700'"
-                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-blue-500 transition-all group">
-                     <span class="text-2xl">🌊</span>
-                     <div class="text-left flex-1">
-                       <p class="font-bold text-gray-900 dark:text-white">Wave</p>
-                       <p class="text-xs text-gray-500 dark:text-gray-400">Paiement instantané</p>
-                     </div>
-                     <div v-if="depositMethod === 'wave'" class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                       </svg>
-                     </div>
-                   </button>
-
-                   <!-- Bank Transfer Section -->
-                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">🏦 Virement</p>
-                   <button @click="depositMethod = 'bank'" 
-                     :class="depositMethod === 'bank' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-gray-200 dark:border-gray-700'"
-                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-emerald-500 transition-all group">
-                     <span class="text-2xl">🏦</span>
-                     <div class="text-left flex-1">
-                       <p class="font-bold text-gray-900 dark:text-white">Virement Bancaire</p>
-                       <p class="text-xs text-gray-500 dark:text-gray-400">IBAN / RIB • 1-3 jours</p>
-                     </div>
-                     <div v-if="depositMethod === 'bank'" class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                       </svg>
-                     </div>
-                   </button>
-
-                   <!-- Card Section -->
-                   <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-4 mb-1">💳 Carte</p>
-                   <button @click="depositMethod = 'card'" 
-                     :class="depositMethod === 'card' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10' : 'border-gray-200 dark:border-gray-700'"
-                     class="flex items-center gap-4 p-4 rounded-xl border hover:border-purple-500 transition-all group">
-                     <span class="text-2xl">💳</span>
-                     <div class="text-left flex-1">
-                       <p class="font-bold text-gray-900 dark:text-white">Carte Bancaire</p>
-                       <p class="text-xs text-gray-500 dark:text-gray-400">Visa, Mastercard • Instantané</p>
-                     </div>
-                     <div v-if="depositMethod === 'card'" class="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                       <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                       </svg>
-                     </div>
-                   </button>
+                 
+                 <!-- Loading State -->
+                 <div v-if="paymentProvidersLoading" class="flex justify-center py-8">
+                   <svg class="animate-spin h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                   </svg>
+                 </div>
+                 
+                 <!-- Grouped Payment Methods -->
+                 <div v-else class="grid grid-cols-1 gap-3">
+                   <template v-for="group in groupedPaymentProviders" :key="group.key">
+                     <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">{{ group.title }}</p>
+                     
+                     <button 
+                       v-for="provider in group.providers" 
+                       :key="provider.id"
+                       @click="selectPaymentProvider(provider)" 
+                       :class="[
+                         selectedProvider?.id === provider.id 
+                           ? `${getProviderBorderClass(provider.color)} ${getProviderBgClass(provider.color)}` 
+                           : 'border-gray-200 dark:border-gray-700',
+                         `hover:${getProviderBorderClass(provider.color)}`
+                       ]"
+                       class="flex items-center gap-4 p-4 rounded-xl border transition-all group"
+                     >
+                       <span class="text-2xl">{{ provider.icon }}</span>
+                       <div class="text-left flex-1">
+                         <p class="font-bold text-gray-900 dark:text-white">{{ provider.displayLabel }}</p>
+                         <p class="text-xs text-gray-500 dark:text-gray-400">
+                           <template v-if="provider.is_demo_mode">Paiement simulé (démo)</template>
+                           <template v-else-if="provider.category === 'card'">Visa, Mastercard • Instantané</template>
+                           <template v-else-if="provider.category === 'bank'">IBAN / RIB • 1-3 jours</template>
+                           <template v-else>Paiement instantané</template>
+                         </p>
+                       </div>
+                       <div v-if="selectedProvider?.id === provider.id" :class="`w-5 h-5 rounded-full ${getProviderBgSolidClass(provider.color)} flex items-center justify-center`">
+                         <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                         </svg>
+                       </div>
+                     </button>
+                   </template>
+                   
+                   <!-- Empty State -->
+                   <div v-if="groupedPaymentProviders.length === 0" class="text-center py-6 text-gray-500">
+                     <p>Aucune méthode de paiement disponible pour votre région.</p>
+                     <p class="text-xs mt-1">Contactez le support si le problème persiste.</p>
+                   </div>
                  </div>
                </div>
 
@@ -496,10 +466,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
 import { usePin } from '~/composables/usePin'
+import { usePaymentProviders } from '~/composables/usePaymentProviders'
 
 import { storeToRefs } from 'pinia'
 import { useWalletStore } from '~/stores/wallet'
@@ -595,10 +566,66 @@ const creatingWallet = ref(false)
 
 // Deposit form
 const depositAmount = ref(5000)
-const depositMethod = ref('orange')
+const depositMethod = ref('') // Will be set from selectedProvider
 const depositLoading = ref(false)
 const depositError = ref('')
 const depositSuccess = ref('')
+
+// Payment Providers - Dynamic
+const { 
+  providers: paymentProviders, 
+  groupedProviders: groupedPaymentProviders,
+  loading: paymentProvidersLoading,
+  loadProviders: loadPaymentProviders,
+  detectIpCountry 
+} = usePaymentProviders()
+
+const selectedProvider = ref(null)
+
+const selectPaymentProvider = (provider) => {
+  selectedProvider.value = provider
+  depositMethod.value = provider.name
+}
+
+// Color helper functions for providers
+const getProviderBorderClass = (color) => {
+  const map = {
+    orange: 'border-orange-500',
+    yellow: 'border-yellow-500',
+    blue: 'border-blue-500',
+    green: 'border-emerald-500',
+    emerald: 'border-emerald-500',
+    purple: 'border-purple-500',
+    gray: 'border-gray-500',
+  }
+  return map[color] || 'border-gray-500'
+}
+
+const getProviderBgClass = (color) => {
+  const map = {
+    orange: 'bg-orange-50 dark:bg-orange-500/10',
+    yellow: 'bg-yellow-50 dark:bg-yellow-500/10',
+    blue: 'bg-blue-50 dark:bg-blue-500/10',
+    green: 'bg-emerald-50 dark:bg-emerald-500/10',
+    emerald: 'bg-emerald-50 dark:bg-emerald-500/10',
+    purple: 'bg-purple-50 dark:bg-purple-500/10',
+    gray: 'bg-gray-50 dark:bg-gray-500/10',
+  }
+  return map[color] || 'bg-gray-50 dark:bg-gray-500/10'
+}
+
+const getProviderBgSolidClass = (color) => {
+  const map = {
+    orange: 'bg-orange-500',
+    yellow: 'bg-yellow-500',
+    blue: 'bg-blue-500',
+    green: 'bg-emerald-500',
+    emerald: 'bg-emerald-500',
+    purple: 'bg-purple-500',
+    gray: 'bg-gray-500',
+  }
+  return map[color] || 'bg-gray-500'
+}
 
 // New wallet form
 const newWallet = ref({
@@ -738,13 +765,22 @@ const availableNetworks = computed(() => {
     return []
 })
 
-const openTopUpModal = () => {
+const openTopUpModal = async () => {
     if (!selectedWallet.value && wallets.value.length > 0) {
         selectedWallet.value = wallets.value[0]
     }
     // Reset network state
     selectedNetwork.value = ''
     targetAddress.value = ''
+    
+    // Reset payment provider selection
+    selectedProvider.value = null
+    depositMethod.value = ''
+    
+    // Load payment providers for user's country (fiat only)
+    if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
+        await loadPaymentProviders()
+    }
     
     // If only one network (or native), might auto-select or just show default address
     if (availableNetworks.value.length === 0 && selectedWallet.value?.wallet_type === 'crypto') {
@@ -757,10 +793,19 @@ const openTopUpModal = () => {
     showTopUpModal.value = true
 }
 
-const openTopUpForWallet = (wallet) => {
+const openTopUpForWallet = async (wallet) => {
     selectedWallet.value = wallet
     selectedNetwork.value = ''
     targetAddress.value = ''
+    
+    // Reset payment provider selection
+    selectedProvider.value = null
+    depositMethod.value = ''
+    
+    // Load payment providers for user's country (fiat only)
+    if (wallet.wallet_type !== 'crypto' && wallet.type !== 'crypto') {
+        await loadPaymentProviders()
+    }
     
     if (availableNetworks.value.length === 0 && wallet.wallet_type === 'crypto') {
          targetAddress.value = wallet.wallet_address
