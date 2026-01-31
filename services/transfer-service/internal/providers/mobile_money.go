@@ -284,6 +284,24 @@ func (m *MTNMomoProvider) Transfer(ctx context.Context, phoneNumber string, amou
 	return referenceID, nil
 }
 
+// CreatePayout implements PayoutProvider interface
+func (m *MTNMomoProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	refID, err := m.Transfer(ctx, req.RecipientPhone, req.Amount, req.Currency, req.ReferenceID, req.Narration)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayoutResponse{
+		ProviderName:      m.GetName(),
+		ProviderReference: refID,
+		ReferenceID:       req.ReferenceID,
+		Status:            PayoutStatusPending, // Async
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
+		Fee:               0,
+	}, nil
+}
+
 // CancelPayout cancels a pending payout
 func (m *MTNMomoProvider) CancelPayout(ctx context.Context, referenceID string) error {
 	return fmt.Errorf("MTN MoMo cancellation not supported")
@@ -449,6 +467,13 @@ func (o *OrangeMoneyProvider) InitiateWebPayment(ctx context.Context, amount flo
 
 	log.Printf("[OrangeMoney] Payment initiated: %s for %d %s, PayToken: %s", orderID, int(amount), currency, payResp.PayToken)
 	return &payResp, nil
+}
+
+// CreatePayout implements PayoutProvider interface
+func (o *OrangeMoneyProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	// Payouts are not directly supported via WebPayment API (only collections)
+	// We return an error or implement if another API endpoint exists
+	return nil, fmt.Errorf("Orange Money payouts not supported via this API")
 }
 
 // Orange Money transaction status
@@ -726,6 +751,11 @@ func (p *PesapalProvider) GetTransactionStatus(ctx context.Context, orderTrackin
 	}
 
 	return &status, nil
+}
+
+// CreatePayout implements PayoutProvider interface
+func (p *PesapalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return nil, fmt.Errorf("Pesapal payouts not supported")
 }
 
 // CancelPayout cancels a pending payout

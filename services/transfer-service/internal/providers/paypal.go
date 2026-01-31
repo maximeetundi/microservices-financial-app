@@ -333,7 +333,39 @@ type PayPalBatchHeader struct {
 }
 
 // CreatePayout sends money to a PayPal account (for withdrawals)
-func (p *PayPalProvider) CreatePayout(ctx context.Context, recipientEmail string, amount float64, currency, reference, note string) (*PayPalPayoutResponse, error) {
+func (p *PayPalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	// Call internal payout logic
+	resp, err := p.createPayoutInternal(ctx, req.RecipientEmail, req.Amount, req.Currency, req.ReferenceID, req.Narration)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayoutResponse{
+		ProviderName:      "paypal",
+		ProviderReference: resp.BatchHeader.PayoutBatchID,
+		ReferenceID:       req.ReferenceID,
+		Status:            PayoutStatusAccordingTo(resp.BatchHeader.BatchStatus),
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
+		Fee:               0, // PayPal fees are usually deducted from sender or receiver depending on config
+	}, nil
+}
+
+func PayoutStatusAccordingTo(status string) PayoutStatus {
+	switch status {
+	case "SUCCESS", "SUCCESSFUL":
+		return PayoutStatusCompleted
+	case "PENDING", "PROCESSING":
+		return PayoutStatusProcessing
+	case "DENIED", "FAILED", "CANCELED":
+		return PayoutStatusFailed
+	default:
+		return PayoutStatusPending
+	}
+}
+
+// createPayoutInternal sends money to a PayPal account (for withdrawals)
+func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmail string, amount float64, currency, reference, note string) (*PayPalPayoutResponse, error) {
 	token, err := p.GetAccessToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
