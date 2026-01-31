@@ -90,6 +90,7 @@ export interface Category {
     slug: string
     description: string
     image_url: string
+    icon?: string
     qr_code: string
     order: number
     is_active: boolean

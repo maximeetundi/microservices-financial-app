@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -22,14 +23,21 @@ func NewAdminHandler(service *services.AdminService) *AdminHandler {
 
 func (h *AdminHandler) Login(c *gin.Context) {
 	var req models.AdminLoginRequest
+	// Debug: Print raw body (optional, but ShouldBindJSON consumes body, so we can't easily read it twice without buffering.
+	// Instead, let's print the struct after binding attempt error or success)
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// Debug logging
+		fmt.Printf("[Login] Validation Error: %v\n", err)
+		// Check if it's a validation error
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Données invalides. Veuillez vérifier l'email et le mot de passe."})
 		return
 	}
+	fmt.Printf("[Login] Attempt for: %s\n", req.Email)
 
 	response, err := h.service.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Identifiants incorrects."})
 		return
 	}
 

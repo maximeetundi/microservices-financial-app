@@ -195,6 +195,7 @@ func createAdminTables(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_provider_instances_provider_id ON provider_instances(provider_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_instances_health ON provider_instances(health_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_countries_provider_id ON provider_countries(provider_id)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_countries_unique ON provider_countries(provider_id, country_code)`,
 	}
 
 	for _, query := range queries {
@@ -669,7 +670,7 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 					is_primary = TRUE, 
 					vault_secret_path = $1, 
 					health_status = 'active',
-					hot_wallet_id = COALESCE(hot_wallet_id, $2)
+					hot_wallet_id = CASE WHEN $2::VARCHAR IS NOT NULL THEN $2 ELSE hot_wallet_id END
 				WHERE id = $3
 			`
 

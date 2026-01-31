@@ -51,6 +51,14 @@ export default function AggregatorInstancesPage() {
     const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
     const [selectedWalletId, setSelectedWalletId] = useState('');
+    const [showAddCountryModal, setShowAddCountryModal] = useState(false);
+    const [newCountry, setNewCountry] = useState({
+        country_code: '',
+        country_name: '',
+        currency: 'XOF',
+        priority: 50,
+        fee_percentage: 0
+    });
     const [newInstance, setNewInstance] = useState({
         name: '',
         vault_secret_path: '',
@@ -219,6 +227,39 @@ export default function AggregatorInstancesPage() {
         }
     };
 
+    const handleAddCountry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newCountry)
+            });
+
+            if (response.ok) {
+                setShowAddCountryModal(false);
+                loadProviderDetails();
+                setNewCountry({
+                    country_code: '',
+                    country_name: '',
+                    currency: 'XOF',
+                    priority: 50,
+                    fee_percentage: 0
+                });
+            } else {
+                alert('Erreur lors de l\'ajout du pays');
+            }
+        } catch (e) {
+            console.error('Error adding country:', e);
+        }
+    };
+
     const getFlagEmoji = (countryCode: string) => {
         if (!countryCode) return '🏳️';
         const codePoints = countryCode
@@ -255,7 +296,16 @@ export default function AggregatorInstancesPage() {
 
             {/* Countries Management Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Pays Supportés</h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-900">Pays Supportés</h2>
+                    <button
+                        onClick={() => setShowAddCountryModal(true)}
+                        className="btn-secondary flex items-center gap-2 text-sm"
+                    >
+                        <PlusIcon className="w-4 h-4" />
+                        Ajouter Pays
+                    </button>
+                </div>
                 {countries.length === 0 ? (
                     <p className="text-gray-500 italic">Aucun pays configuré pour cet agrégateur.</p>
                 ) : (
@@ -468,6 +518,61 @@ export default function AggregatorInstancesPage() {
                             <div className="flex justify-end gap-3">
                                 <button type="button" onClick={() => setShowLinkWalletModal(false)} className="btn-secondary">Annuler</button>
                                 <button type="submit" className="btn-primary" disabled={!selectedWalletId}>Confirmer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Country Modal */}
+            {showAddCountryModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
+                        <h2 className="text-xl font-bold mb-4">Ajouter un Pays</h2>
+                        <form onSubmit={handleAddCountry} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Code Pays (ex: CI, SN)</label>
+                                <input
+                                    type="text"
+                                    required
+                                    maxLength={3}
+                                    className="input w-full uppercase"
+                                    placeholder="CI"
+                                    value={newCountry.country_code}
+                                    onChange={e => setNewCountry({ ...newCountry, country_code: e.target.value.toUpperCase() })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Pays</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="input w-full"
+                                    placeholder="Côte d'Ivoire"
+                                    value={newCountry.country_name}
+                                    onChange={e => setNewCountry({ ...newCountry, country_name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                                <select
+                                    className="input w-full"
+                                    value={newCountry.currency}
+                                    onChange={e => setNewCountry({ ...newCountry, currency: e.target.value })}
+                                >
+                                    <option value="XOF">XOF (Franc CFA)</option>
+                                    <option value="XAF">XAF (Franc CFA CEMAC)</option>
+                                    <option value="GNF">GNF (Franc Guinéen)</option>
+                                    <option value="NGN">NGN (Naira)</option>
+                                    <option value="GHS">GHS (Cedi)</option>
+                                    <option value="KES">KES (Shilling Kenyan)</option>
+                                    <option value="USD">USD (Dollar US)</option>
+                                    <option value="EUR">EUR (Euro)</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setShowAddCountryModal(false)} className="btn-secondary">Annuler</button>
+                                <button type="submit" className="btn-primary">Ajouter</button>
                             </div>
                         </form>
                     </div>
