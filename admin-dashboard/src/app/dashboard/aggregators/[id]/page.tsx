@@ -35,6 +35,17 @@ interface PlatformAccount {
     currency: string;
     balance: number;
     alias: string;
+    name?: string;
+    account_type?: string;
+}
+
+interface InstanceWallet {
+    id: string;
+    instance_id: string;
+    currency: string;
+    hot_wallet_id: string;
+    is_active: boolean;
+    priority: number;
 }
 
 export default function AggregatorInstancesPage() {
@@ -51,7 +62,10 @@ export default function AggregatorInstancesPage() {
     const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
     const [selectedWalletId, setSelectedWalletId] = useState('');
+    const [selectedCurrency, setSelectedCurrency] = useState('');
     const [showAddCountryModal, setShowAddCountryModal] = useState(false);
+    const [instanceWallets, setInstanceWallets] = useState<Record<string, InstanceWallet[]>>({});
+    const [expandedInstance, setExpandedInstance] = useState<string | null>(null);
     const [newCountry, setNewCountry] = useState({
         country_code: '',
         country_name: '',
@@ -147,6 +161,55 @@ export default function AggregatorInstancesPage() {
             }
         } catch (e) {
             console.error('Failed to load wallets', e);
+        }
+    };
+
+    const loadInstanceWallets = async (instanceId: string) => {
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setInstanceWallets(prev => ({ ...prev, [instanceId]: data.wallets || [] }));
+            }
+        } catch (e) {
+            console.error('Failed to load instance wallets', e);
+        }
+    };
+
+    const addWalletToInstance = async (instanceId: string, currency: string, hotWalletId: string) => {
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currency, hot_wallet_id: hotWalletId, priority: 50 })
+            });
+            if (response.ok) {
+                loadInstanceWallets(instanceId);
+                setShowLinkWalletModal(false);
+            }
+        } catch (e) {
+            console.error('Failed to add wallet', e);
+        }
+    };
+
+    const removeWalletFromInstance = async (instanceId: string, walletLinkId: string) => {
+        if (!confirm('Retirer ce wallet de l\'instance ?')) return;
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+            await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets/${walletLinkId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadInstanceWallets(instanceId);
+        } catch (e) {
+            console.error('Failed to remove wallet', e);
         }
     };
 
@@ -387,34 +450,69 @@ export default function AggregatorInstancesPage() {
                                 </div>
                             </div>
 
-                            {inst.hot_wallet_id ? (
-                                <div className="bg-gray-50 p-3 rounded-lg mb-4 flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                                        <WalletIcon className="w-4 h-4 text-emerald-600" />
-                                        <span>Wallet Lié</span>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedInstance(inst);
-                                            setShowLinkWalletModal(true);
-                                        }}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800"
-                                    >
-                                        Modifier
-                                    </button>
-                                </div>
-                            ) : (
+                            {/* Multi-Wallet Section */}
+                            <div className="mb-4">
                                 <button
                                     onClick={() => {
-                                        setSelectedInstance(inst);
-                                        setShowLinkWalletModal(true);
+                                        if (expandedInstance === inst.id) {
+                                            setExpandedInstance(null);
+                                        } else {
+                                            setExpandedInstance(inst.id);
+                                            loadInstanceWallets(inst.id);
+                                        }
                                     }}
-                                    className="w-full py-2 mb-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                                 >
-                                    <LinkIcon className="w-4 h-4" />
-                                    Lier Hot Wallet
+                                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                                        <WalletIcon className="w-4 h-4 text-emerald-600" />
+                                        <span>Hot Wallets</span>
+                                        {instanceWallets[inst.id]?.length > 0 && (
+                                            <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">
+                                                {instanceWallets[inst.id].length} liés
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="text-gray-400 text-xs">
+                                        {expandedInstance === inst.id ? '▲' : '▼'}
+                                    </span>
                                 </button>
-                            )}
+
+                                {expandedInstance === inst.id && (
+                                    <div className="mt-2 space-y-2 p-3 border border-gray-200 rounded-lg">
+                                        {/* Currency badges for linked wallets */}
+                                        {instanceWallets[inst.id]?.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2 mb-3">
+                                                {instanceWallets[inst.id].map(w => (
+                                                    <div key={w.id} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
+                                                        <span className="text-xs font-medium text-emerald-700">{w.currency}</span>
+                                                        <button
+                                                            onClick={() => removeWalletFromInstance(inst.id, w.id)}
+                                                            className="text-red-400 hover:text-red-600 ml-1"
+                                                            title="Retirer"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 italic mb-2">Aucun wallet lié</p>
+                                        )}
+
+                                        {/* Add wallet button */}
+                                        <button
+                                            onClick={() => {
+                                                setSelectedInstance(inst);
+                                                setShowLinkWalletModal(true);
+                                            }}
+                                            className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <PlusIcon className="w-3 h-3" />
+                                            Ajouter Wallet
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="flex gap-2 pt-4 border-t border-gray-100">
                                 <button className="flex-1 btn-secondary text-xs">Test</button>
@@ -493,33 +591,73 @@ export default function AggregatorInstancesPage() {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
                         <h2 className="text-xl font-bold mb-4">Lier Hot Wallet</h2>
-                        <p className="text-sm text-gray-500 mb-4">Sélectionnez le compte plateforme (hot wallet) qui financera cette instance.</p>
+                        <p className="text-sm text-gray-500 mb-4">Sélectionnez un wallet opérationnel pour cette instance.</p>
 
-                        <form onSubmit={handleLinkWallet}>
-                            <div className="space-y-3 max-h-60 overflow-y-auto mb-6">
-                                {hotWallets.map(wallet => (
-                                    <label key={wallet.id} className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
+                        <div className="space-y-3 max-h-72 overflow-y-auto mb-6">
+                            {hotWallets.length === 0 ? (
+                                <p className="text-gray-500 text-sm italic">Aucun wallet opérationnel disponible.</p>
+                            ) : (
+                                hotWallets.map(wallet => (
+                                    <label
+                                        key={wallet.id}
+                                        className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${selectedWalletId === wallet.id
+                                            ? 'border-emerald-500 bg-emerald-50'
+                                            : 'border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                    >
                                         <input
                                             type="radio"
                                             name="wallet"
                                             value={wallet.id}
                                             checked={selectedWalletId === wallet.id}
-                                            onChange={e => setSelectedWalletId(e.target.value)}
+                                            onChange={e => {
+                                                setSelectedWalletId(e.target.value);
+                                                setSelectedCurrency(wallet.currency);
+                                            }}
                                             className="radio text-emerald-600"
                                         />
-                                        <div>
-                                            <p className="font-semibold text-gray-900">{wallet.alias || 'Compte sans nom'}</p>
-                                            <p className="text-xs text-gray-500">{wallet.balance} {wallet.currency}</p>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <p className="font-semibold text-gray-900">
+                                                    {wallet.name || wallet.alias || 'Wallet'}
+                                                </p>
+                                                <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded font-medium">
+                                                    {wallet.currency}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-0.5">
+                                                Solde: {wallet.balance?.toLocaleString()} {wallet.currency}
+                                            </p>
                                         </div>
                                     </label>
-                                ))}
-                            </div>
+                                ))
+                            )}
+                        </div>
 
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowLinkWalletModal(false)} className="btn-secondary">Annuler</button>
-                                <button type="submit" className="btn-primary" disabled={!selectedWalletId}>Confirmer</button>
-                            </div>
-                        </form>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowLinkWalletModal(false);
+                                    setSelectedWalletId('');
+                                    setSelectedCurrency('');
+                                }}
+                                className="btn-secondary"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (selectedInstance && selectedWalletId && selectedCurrency) {
+                                        addWalletToInstance(selectedInstance.id, selectedCurrency, selectedWalletId);
+                                    }
+                                }}
+                                className="btn-primary"
+                                disabled={!selectedWalletId}
+                            >
+                                Confirmer
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

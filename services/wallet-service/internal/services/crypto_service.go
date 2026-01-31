@@ -243,6 +243,60 @@ func (s *CryptoService) GenerateWallet(userID, currency string) (*CryptoWallet, 
 	}, nil
 }
 
+// GeneratePlatformHotWallet generates a new hot wallet for the platform and stores keys in Vault
+func (s *CryptoService) GeneratePlatformHotWallet(currency string) (string, error) {
+	var address, privKey, pubKey string
+	var err error
+
+	// Determine Chain Type based on Currency
+	switch strings.ToUpper(currency) {
+	// Bitcoin Family
+	case "BTC":
+		address, privKey, pubKey, err = s.generateBitcoinKeys()
+
+	// Solana Family
+	case "SOL":
+		address, privKey, pubKey, err = s.generateSolanaKeys()
+
+	// TRON Family (TRX + TRC20 Tokens)
+	case "TRX", "USDT":
+		address, privKey, pubKey, err = s.generateTronKeys()
+
+	// TON (The Open Network)
+	case "TON":
+		address, privKey, pubKey, err = s.generateTonKeys()
+
+	// XRP (Ripple)
+	case "XRP":
+		address, privKey, pubKey, err = s.generateXrpKeys()
+
+	// Litecoin / Dogecoin / BCH (Bitcoin-like)
+	case "LTC", "DOGE", "BCH":
+		address, privKey, pubKey, err = s.generateBitcoinKeys()
+
+	// EVM Family (ETH + BSC + Polygon + Avalanche + ERC20/BEP20 Tokens)
+	case "ETH", "USDC", "BNB", "MATIC", "AVAX", "LINK", "UNI", "SHIB", "DAI", "CRO", "FTM":
+		address, privKey, pubKey, err = s.generateEthereumKeys()
+
+	default:
+		return "", fmt.Errorf("unsupported currency: %s", currency)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	// Store in Vault (Critical for Platform Wallets)
+	// Using "platform-hot" as userID to distinguish
+	err = s.storeKeyPairInVault("platform-hot", currency, privKey, pubKey, address)
+	if err != nil {
+		log.Printf("ERROR: Failed to store platform hot wallet keys in Vault: %v", err)
+		return "", fmt.Errorf("failed to secure keys in vault: %w", err)
+	}
+
+	return address, nil
+}
+
 // --- Bitcoin ---
 // --- Bitcoin (Native SegWit - Bech32) ---
 // Helper to get params based on config

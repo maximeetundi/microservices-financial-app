@@ -301,6 +301,12 @@ func main() {
 		payments.DELETE("/:id/instances/:instanceId", instanceHandler.DeleteProviderInstance)
 		payments.POST("/:id/instances/:instanceId/link-wallet", instanceHandler.LinkHotWallet)
 		payments.POST("/:id/instances/:instanceId/test", instanceHandler.TestInstance)
+		// Instance wallet management (multi-wallet support)
+		payments.GET("/:id/instances/:instanceId/wallets", instanceHandler.GetInstanceWallets)
+		payments.POST("/:id/instances/:instanceId/wallets", instanceHandler.AddInstanceWallet)
+		payments.DELETE("/:id/instances/:instanceId/wallets/:walletId", instanceHandler.RemoveInstanceWallet)
+		payments.PUT("/:id/instances/:instanceId/wallets/:walletId", instanceHandler.ToggleInstanceWallet)
+		payments.GET("/:id/instances/:instanceId/best-wallet", instanceHandler.GetBestWalletForCurrency)
 
 		// Platform Accounts Proxy
 		// Forward /platform/* to wallet-service

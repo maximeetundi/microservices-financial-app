@@ -186,6 +186,18 @@ func createAdminTables(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 
+		// Provider instance to hot wallet mapping (multi-wallet per instance)
+		`CREATE TABLE IF NOT EXISTS provider_instance_wallets (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			instance_id UUID REFERENCES provider_instances(id) ON DELETE CASCADE,
+			currency VARCHAR(10) NOT NULL,
+			hot_wallet_id VARCHAR(36) NOT NULL,
+			is_active BOOLEAN DEFAULT TRUE,
+			priority INT DEFAULT 50,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(instance_id, currency, hot_wallet_id)
+		)`,
+
 		// Create indexes for faster queries
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON admin_audit_logs(admin_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON admin_audit_logs(created_at)`,
@@ -196,6 +208,8 @@ func createAdminTables(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_provider_instances_health ON provider_instances(health_status)`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_countries_provider_id ON provider_countries(provider_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_countries_unique ON provider_countries(provider_id, country_code)`,
+		`CREATE INDEX IF NOT EXISTS idx_provider_instance_wallets_instance ON provider_instance_wallets(instance_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_provider_instance_wallets_currency ON provider_instance_wallets(currency)`,
 	}
 
 	for _, query := range queries {
@@ -585,50 +599,75 @@ func seedDefaultProviders(db *sql.DB) error {
 }
 
 // SeedProviderInstances creates a default instance for each payment provider
-// These instances have placeholder Vault paths and are linked to a default Hot Wallet
+// These instances have placeholder Vault paths and are linked to ALL available Hot Wallets
 func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
-	log.Println("[Database] Seeding default provider instances...")
+	log.Println("[Database] Seeding default provider instances with multi-wallet support...")
 
-	// 1. Get a default Hot Wallet (Operations Account) from Main DB
-	var hotWalletID string
-	// Try to find an XOF operations account first
-	err := mainDB.QueryRow(`SELECT id FROM platform_accounts WHERE type = 'operations' AND currency = 'XOF' LIMIT 1`).Scan(&hotWalletID)
+	// 1. Get ALL operations hot wallets from Main DB (corrected: account_type not type)
+	type HotWallet struct {
+		ID       string
+		Currency string
+	}
+	var hotWallets []HotWallet
+
+	rows, err := mainDB.Query(`SELECT id, currency FROM platform_accounts WHERE account_type = 'operations' AND is_active = true`)
 	if err != nil {
-		// If not found, try any operations account
-		err = mainDB.QueryRow(`SELECT id FROM platform_accounts WHERE type = 'operations' LIMIT 1`).Scan(&hotWalletID)
-		if err != nil {
-			log.Printf("[Database] ⚠️ Warning: No 'operations' hot wallet found in Main DB. Instances will be created without a linked wallet.")
-		} else {
-			log.Printf("[Database] Found fallback operations hot wallet: %s", hotWalletID)
-		}
+		log.Printf("[Database] ⚠️ Warning: Failed to query operations wallets: %v", err)
 	} else {
-		log.Printf("[Database] Found XOF operations hot wallet: %s", hotWalletID)
+		defer rows.Close()
+		for rows.Next() {
+			var hw HotWallet
+			if err := rows.Scan(&hw.ID, &hw.Currency); err == nil {
+				hotWallets = append(hotWallets, hw)
+				log.Printf("[Database] Found operations hot wallet: %s (%s)", hw.ID, hw.Currency)
+			}
+		}
 	}
 
-	// 2. Get all providers from Admin DB
-	rows, err := adminDB.Query(`SELECT id, name, display_name FROM payment_providers`)
+	if len(hotWallets) == 0 {
+		log.Printf("[Database] ⚠️ Warning: No 'operations' hot wallets found in Main DB. Instances will be created without wallet links.")
+	}
+
+	// 2. Get all providers with their supported currencies from Admin DB
+	providerRows, err := adminDB.Query(`
+		SELECT p.id, p.name, p.display_name, COALESCE(pc.currency, '')
+		FROM payment_providers p
+		LEFT JOIN provider_countries pc ON p.id = pc.provider_id
+		ORDER BY p.id
+	`)
 	if err != nil {
 		return fmt.Errorf("failed to get providers: %w", err)
 	}
-	defer rows.Close()
+	defer providerRows.Close()
 
 	type providerInfo struct {
 		ID          string
 		Name        string
 		DisplayName string
+		Currencies  map[string]bool
 	}
 
-	var providers []providerInfo
-	for rows.Next() {
-		var p providerInfo
-		if err := rows.Scan(&p.ID, &p.Name, &p.DisplayName); err != nil {
+	providerMap := make(map[string]*providerInfo)
+	for providerRows.Next() {
+		var id, name, displayName, currency string
+		if err := providerRows.Scan(&id, &name, &displayName, &currency); err != nil {
 			continue
 		}
-		providers = append(providers, p)
+		if _, exists := providerMap[id]; !exists {
+			providerMap[id] = &providerInfo{
+				ID:          id,
+				Name:        name,
+				DisplayName: displayName,
+				Currencies:  make(map[string]bool),
+			}
+		}
+		if currency != "" {
+			providerMap[id].Currencies[currency] = true
+		}
 	}
 
-	// 3. Seed Instances
-	for _, p := range providers {
+	// 3. Seed Instances and Multi-Wallet Links
+	for _, p := range providerMap {
 		vaultPath := fmt.Sprintf("secret/aggregators/%s/default", p.Name)
 		instanceName := "Instance Principale"
 
@@ -637,61 +676,57 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		err := adminDB.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, instanceName).Scan(&instanceID)
 
 		if err == sql.ErrNoRows {
-			// Create new instance
-			var args []interface{}
-			query := `
+			// Create new instance with RETURNING id
+			err = adminDB.QueryRow(`
 				INSERT INTO provider_instances 
-					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status, hot_wallet_id)
-				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active', $4)
-			`
-			args = append(args, p.ID, instanceName, vaultPath)
+					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
+				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active')
+				RETURNING id
+			`, p.ID, instanceName, vaultPath).Scan(&instanceID)
 
-			if hotWalletID != "" {
-				args = append(args, hotWalletID)
-			} else {
-				args = append(args, nil)
-			}
-
-			_, err = adminDB.Exec(query, args...)
 			if err != nil {
 				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
-			} else {
-				log.Printf("[Database] ✅ Created default active instance for: %s (Wallet: %s)", p.DisplayName, hotWalletID)
+				continue
 			}
-		} else if err == nil {
-			// Update existing instance
-			// Ensure it is active, primary, and has the correct vault path.
-			// Update hot_wallet_id ONLY if it's currently null and we have a valid one.
-
-			var args []interface{}
-			query := `
+			log.Printf("[Database] ✅ Created default instance for: %s", p.DisplayName)
+		} else if err != nil {
+			log.Printf("[Database] Error checking instance for %s: %v", p.Name, err)
+			continue
+		} else {
+			// Update existing instance to be active
+			adminDB.Exec(`
 				UPDATE provider_instances 
-				SET is_active = TRUE, 
-					is_primary = TRUE, 
-					vault_secret_path = $1, 
-					health_status = 'active',
-					hot_wallet_id = CASE WHEN $2::VARCHAR IS NOT NULL THEN $2 ELSE hot_wallet_id END
-				WHERE id = $3
-			`
+				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1, health_status = 'active'
+				WHERE id = $2
+			`, vaultPath, instanceID)
+			log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
+		}
 
-			// If hotWalletID is empty, pass nil (though COALESCE with nil does nothing useful, it's safe)
-			var walletArg interface{} = nil
-			if hotWalletID != "" {
-				walletArg = hotWalletID
+		// 4. Link instance to ALL matching hot wallets (multi-wallet)
+		linkedCount := 0
+		for _, hw := range hotWallets {
+			// Check if this currency is supported by the provider (or link all if provider has no specific currencies)
+			if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
+				// Insert or update the wallet link
+				_, err := adminDB.Exec(`
+					INSERT INTO provider_instance_wallets (instance_id, currency, hot_wallet_id, is_active, priority)
+					VALUES ($1, $2, $3, TRUE, 50)
+					ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE SET is_active = TRUE
+				`, instanceID, hw.Currency, hw.ID)
+
+				if err != nil {
+					log.Printf("[Database] Failed to link wallet %s to instance %s: %v", hw.ID, instanceID, err)
+				} else {
+					linkedCount++
+				}
 			}
-
-			args = append(args, vaultPath, walletArg, instanceID)
-
-			_, err = adminDB.Exec(query, args...)
-			if err != nil {
-				log.Printf("[Database] Failed to update instance for %s: %v", p.Name, err)
-			} else {
-				log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
-			}
+		}
+		if linkedCount > 0 {
+			log.Printf("[Database] ✅ Linked %d hot wallets to instance: %s", linkedCount, p.DisplayName)
 		}
 	}
 
-	log.Println("[Database] ✅ Provider instances seeding complete")
+	log.Println("[Database] ✅ Provider instances seeding complete with multi-wallet support")
 	log.Println("[Database] ⚠️  Configure real API keys in Vault before production use")
 	return nil
 }

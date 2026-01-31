@@ -279,12 +279,12 @@ export default function DashboardLayout({ children }: SidebarProps) {
 
             {/* Sidebar */}
             <aside className={clsx(
-                'fixed lg:static inset-y-0 left-0 z-50 w-72 flex flex-col transform transition-all duration-300 ease-out',
+                'fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-72 flex flex-col transform transition-all duration-300 ease-out h-screen',
                 'bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900',
                 mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
             )}>
                 {/* Logo */}
-                <div className="p-6 border-b border-white/10">
+                <div className="flex-shrink-0 p-6 border-b border-white/10">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
                             <img src="/logo.png" alt="Zekora" className="w-7 h-7 object-contain" />
@@ -296,8 +296,8 @@ export default function DashboardLayout({ children }: SidebarProps) {
                     </div>
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-6 scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
+                {/* Navigation - With proper scrolling */}
+                <nav className="flex-1 min-h-0 px-3 py-4 overflow-y-auto space-y-6 scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
                     {navigationSections.map((section, sectionIndex) => (
                         <div key={section.title}>
                             {/* Section Title */}
@@ -357,8 +357,8 @@ export default function DashboardLayout({ children }: SidebarProps) {
                     ))}
                 </nav>
 
-                {/* User Profile */}
-                <div className="p-4 border-t border-white/10 bg-black/20">
+                {/* User Profile - Fixed at bottom */}
+                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20">
                     <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
                             {admin?.first_name?.[0] || 'A'}

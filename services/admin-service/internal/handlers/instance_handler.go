@@ -411,3 +411,147 @@ func joinStrings(strs []string, sep string) string {
 	}
 	return result
 }
+
+// InstanceWallet represents a hot wallet linked to a provider instance
+type InstanceWallet struct {
+	ID          string    `json:"id"`
+	InstanceID  string    `json:"instance_id"`
+	Currency    string    `json:"currency"`
+	HotWalletID string    `json:"hot_wallet_id"`
+	IsActive    bool      `json:"is_active"`
+	Priority    int       `json:"priority"`
+	CreatedAt   time.Time `json:"created_at"`
+	// Joined data from wallet-service
+	WalletBalance float64 `json:"wallet_balance,omitempty"`
+	WalletName    string  `json:"wallet_name,omitempty"`
+}
+
+// GetInstanceWallets returns all wallets linked to an instance
+func (h *InstanceHandler) GetInstanceWallets(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+
+	query := `
+		SELECT id, instance_id, currency, hot_wallet_id, is_active, priority, created_at
+		FROM provider_instance_wallets
+		WHERE instance_id = $1
+		ORDER BY currency, priority DESC`
+
+	rows, err := h.db.Query(query, instanceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch instance wallets"})
+		return
+	}
+	defer rows.Close()
+
+	var wallets []InstanceWallet
+	for rows.Next() {
+		var w InstanceWallet
+		if err := rows.Scan(&w.ID, &w.InstanceID, &w.Currency, &w.HotWalletID, &w.IsActive, &w.Priority, &w.CreatedAt); err != nil {
+			continue
+		}
+		wallets = append(wallets, w)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"wallets": wallets})
+}
+
+// AddInstanceWallet links a hot wallet to an instance
+func (h *InstanceHandler) AddInstanceWallet(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+
+	var req struct {
+		Currency    string `json:"currency" binding:"required"`
+		HotWalletID string `json:"hot_wallet_id" binding:"required"`
+		Priority    int    `json:"priority"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if req.Priority == 0 {
+		req.Priority = 50
+	}
+
+	// Insert or update the wallet link
+	id := uuid.New().String()
+	query := `
+		INSERT INTO provider_instance_wallets (id, instance_id, currency, hot_wallet_id, is_active, priority)
+		VALUES ($1, $2, $3, $4, TRUE, $5)
+		ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE 
+		SET is_active = TRUE, priority = EXCLUDED.priority`
+
+	_, err := h.db.Exec(query, id, instanceID, req.Currency, req.HotWalletID, req.Priority)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add wallet to instance"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet linked successfully", "id": id})
+}
+
+// RemoveInstanceWallet removes a wallet link from an instance
+func (h *InstanceHandler) RemoveInstanceWallet(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+	walletLinkID := c.Param("walletId")
+
+	_, err := h.db.Exec(`DELETE FROM provider_instance_wallets WHERE id = $1 AND instance_id = $2`, walletLinkID, instanceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove wallet link"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet link removed"})
+}
+
+// ToggleInstanceWallet activates/deactivates a wallet link
+func (h *InstanceHandler) ToggleInstanceWallet(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+	walletLinkID := c.Param("walletId")
+
+	var req struct {
+		IsActive bool `json:"is_active"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	_, err := h.db.Exec(`UPDATE provider_instance_wallets SET is_active = $1 WHERE id = $2 AND instance_id = $3`,
+		req.IsActive, walletLinkID, instanceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle wallet"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet status updated"})
+}
+
+// GetBestWalletForCurrency returns the best hot wallet for a specific currency and instance
+func (h *InstanceHandler) GetBestWalletForCurrency(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+	currency := c.Query("currency")
+
+	if currency == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Currency is required"})
+		return
+	}
+
+	query := `
+		SELECT hot_wallet_id
+		FROM provider_instance_wallets
+		WHERE instance_id = $1 AND currency = $2 AND is_active = TRUE
+		ORDER BY priority DESC
+		LIMIT 1`
+
+	var hotWalletID string
+	err := h.db.QueryRow(query, instanceID, currency).Scan(&hotWalletID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No active wallet found for this currency"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"hot_wallet_id": hotWalletID})
+}

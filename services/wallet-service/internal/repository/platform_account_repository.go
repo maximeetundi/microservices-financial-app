@@ -134,11 +134,34 @@ func (r *PlatformAccountRepository) seedDefaultAccounts() error {
 		// EUR accounts
 		{PlatformAccount: models.PlatformAccount{Currency: "EUR", AccountType: "reserve", Name: "Réserve EUR", Description: "Réserve principale en EUR", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
 		{PlatformAccount: models.PlatformAccount{Currency: "EUR", AccountType: "fees", Name: "Frais collectés EUR", Description: "Frais de transaction en EUR", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "EUR", AccountType: "operations", Name: "Opérations EUR", Description: "Compte opérationnel EUR", Priority: 80}, InitialBalance: 10000000},
 		// USD accounts
 		{PlatformAccount: models.PlatformAccount{Currency: "USD", AccountType: "reserve", Name: "Réserve USD", Description: "Réserve principale en USD", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
 		{PlatformAccount: models.PlatformAccount{Currency: "USD", AccountType: "fees", Name: "Frais collectés USD", Description: "Frais de transaction en USD", Priority: 100}, InitialBalance: 0},
-		// XOF accounts
+		{PlatformAccount: models.PlatformAccount{Currency: "USD", AccountType: "operations", Name: "Opérations USD", Description: "Compte opérationnel USD", Priority: 80}, InitialBalance: 10000000},
+		// XOF accounts (Côte d'Ivoire, Sénégal, Mali, Burkina, Togo, Bénin, Niger)
 		{PlatformAccount: models.PlatformAccount{Currency: "XOF", AccountType: "reserve", Name: "Réserve XOF", Description: "Réserve principale en XOF", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "XOF", AccountType: "fees", Name: "Frais collectés XOF", Description: "Frais de transaction en XOF", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "XOF", AccountType: "operations", Name: "Opérations XOF", Description: "Compte opérationnel pour retraits/dépôts XOF", Priority: 80}, InitialBalance: 100000000},
+		// XAF accounts (Cameroun, Gabon, Congo, Centrafrique, Tchad, Guinée Équatoriale)
+		{PlatformAccount: models.PlatformAccount{Currency: "XAF", AccountType: "reserve", Name: "Réserve XAF", Description: "Réserve principale en XAF", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "XAF", AccountType: "fees", Name: "Frais collectés XAF", Description: "Frais de transaction en XAF", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "XAF", AccountType: "operations", Name: "Opérations XAF", Description: "Compte opérationnel pour retraits/dépôts XAF", Priority: 80}, InitialBalance: 100000000},
+		// NGN accounts (Nigeria)
+		{PlatformAccount: models.PlatformAccount{Currency: "NGN", AccountType: "reserve", Name: "Réserve NGN", Description: "Réserve principale en NGN", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "NGN", AccountType: "fees", Name: "Frais collectés NGN", Description: "Frais de transaction en NGN", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "NGN", AccountType: "operations", Name: "Opérations NGN", Description: "Compte opérationnel pour retraits/dépôts NGN", Priority: 80}, InitialBalance: 500000000},
+		// GHS accounts (Ghana)
+		{PlatformAccount: models.PlatformAccount{Currency: "GHS", AccountType: "reserve", Name: "Réserve GHS", Description: "Réserve principale en GHS", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "GHS", AccountType: "fees", Name: "Frais collectés GHS", Description: "Frais de transaction en GHS", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "GHS", AccountType: "operations", Name: "Opérations GHS", Description: "Compte opérationnel pour retraits/dépôts GHS", Priority: 80}, InitialBalance: 10000000},
+		// KES accounts (Kenya)
+		{PlatformAccount: models.PlatformAccount{Currency: "KES", AccountType: "reserve", Name: "Réserve KES", Description: "Réserve principale en KES", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "KES", AccountType: "fees", Name: "Frais collectés KES", Description: "Frais de transaction en KES", Priority: 100}, InitialBalance: 0},
+		{PlatformAccount: models.PlatformAccount{Currency: "KES", AccountType: "operations", Name: "Opérations KES", Description: "Compte opérationnel pour retraits/dépôts KES", Priority: 80}, InitialBalance: 100000000},
+		// ZAR accounts (South Africa)
+		{PlatformAccount: models.PlatformAccount{Currency: "ZAR", AccountType: "reserve", Name: "Réserve ZAR", Description: "Réserve principale en ZAR", Priority: 100}, InitialBalance: INITIAL_FIAT_RESERVE},
+		{PlatformAccount: models.PlatformAccount{Currency: "ZAR", AccountType: "operations", Name: "Opérations ZAR", Description: "Compte opérationnel pour retraits/dépôts ZAR", Priority: 80}, InitialBalance: 10000000},
 	}
 
 	for _, acc := range defaultAccounts {

@@ -546,6 +546,11 @@ export default function PlatformAccountsPage() {
                                         <option value="USD">USD</option>
                                         <option value="FCFA">FCFA</option>
                                         <option value="XOF">XOF</option>
+                                        <option value="XAF">XAF</option>
+                                        <option value="NGN">NGN</option>
+                                        <option value="GHS">GHS</option>
+                                        <option value="KES">KES</option>
+                                        <option value="ZAR">ZAR</option>
                                     </select>
                                 </div>
                                 <div>

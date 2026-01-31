@@ -293,11 +293,23 @@ func (s *PlatformAccountService) CreateCryptoWallet(req *models.CreatePlatformCr
 	if priority == 0 {
 		priority = 50 // Default priority
 	}
+
+	address := req.Address
+
+	// If address is empty and it's a hot wallet, generate it
+	if address == "" && req.WalletType == "hot" {
+		var err error
+		address, err = s.crypto.GeneratePlatformHotWallet(req.Currency)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate hot wallet: %w", err)
+		}
+	}
+
 	wallet := &models.PlatformCryptoWallet{
 		Currency:   req.Currency,
 		Network:    req.Network,
 		WalletType: req.WalletType,
-		Address:    req.Address,
+		Address:    address,
 		Label:      req.Label,
 		Balance:    0,
 		MinBalance: req.MinBalance,
