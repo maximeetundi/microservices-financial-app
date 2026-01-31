@@ -101,6 +101,7 @@ export function ModalButton({
     disabled = false,
     loading = false,
     className = '',
+    type = 'button',
 }: {
     children: React.ReactNode;
     variant?: 'primary' | 'danger' | 'success' | 'secondary';
@@ -108,6 +109,7 @@ export function ModalButton({
     disabled?: boolean;
     loading?: boolean;
     className?: string;
+    type?: 'button' | 'submit' | 'reset';
 }) {
     const variants = {
         primary: 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25',
@@ -118,6 +120,7 @@ export function ModalButton({
 
     return (
         <button
+            type={type}
             onClick={onClick}
             disabled={disabled || loading}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
