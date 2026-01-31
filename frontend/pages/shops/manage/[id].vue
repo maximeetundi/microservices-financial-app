@@ -53,7 +53,6 @@
             </div>
             
             <div class="header-actions">
-              <ThemeToggle />
               <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="btn-glass">
                 <EyeIcon class="w-5 h-5" />
                 Voir la boutique
