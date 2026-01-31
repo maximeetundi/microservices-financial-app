@@ -53,7 +53,7 @@
               </div>
             </div>
           </div>
-        </div>
+
 
         <!-- Add Card Button -->
         <NuxtLink to="/cards/new" class="group flex flex-col items-center justify-center h-full min-h-[220px] rounded-3xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all bg-gray-50/50 dark:bg-slate-800/50 hover:bg-gray-100/50 dark:hover:bg-slate-800">
