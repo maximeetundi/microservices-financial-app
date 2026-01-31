@@ -1,13 +1,20 @@
 <template>
-  <aside class="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col h-full">
+  <aside class="w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col h-full rounded-l-2xl">
+    <!-- Back to App -->
+    <div class="p-4 pb-0">
+      <NuxtLink to="/shops/my-shops" class="flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
+        <span class="mr-2">←</span> Mes Boutiques
+      </NuxtLink>
+    </div>
+
     <!-- Shop Context Header -->
-    <div class="h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-700">
+    <div class="h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-700 mx-4 mt-2 mb-2">
       <div class="flex items-center gap-3 w-full">
         <div class="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm">
           {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Boutique</p>
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5 dark:text-gray-400">Boutique</p>
           <h2 class="font-bold text-gray-900 dark:text-white truncate text-sm leading-tight">
             {{ shopName || 'Chargement...' }}
           </h2>
@@ -150,7 +157,7 @@ watchEffect(async () => {
 }
 
 .dark .nav-item {
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 .nav-item:hover {
@@ -159,8 +166,8 @@ watchEffect(async () => {
 }
 
 .dark .nav-item:hover {
-  background-color: #374151;
-  color: #ffffff;
+  background-color: #1e293b;
+  color: #f1f5f9;
 }
 
 .nav-item.active {
@@ -169,7 +176,7 @@ watchEffect(async () => {
 }
 
 .dark .nav-item.active {
-  background-color: rgba(79, 70, 229, 0.1);
+  background-color: rgba(99, 102, 241, 0.15);
   color: #818cf8;
 }
 </style>
