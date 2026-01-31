@@ -329,137 +329,57 @@ func seedDefaultProviders(db *sql.DB) error {
 
 		// --- Orange Money ---
 		{
-			Name:        "orange_money_ci",
-			DisplayName: "Orange Money CI",
+			Name:        "orange_money",
+			DisplayName: "Orange Money",
 			Type:        "mobile_money",
 			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
 			LogoURL:     "/icons/aggregators/orange_money.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"CI", "Côte d'Ivoire", "XOF"},
-			},
-		},
-		{
-			Name:        "orange_money_cm",
-			DisplayName: "Orange Money Cameroun",
-			Type:        "mobile_money",
-			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
-			LogoURL:     "/icons/aggregators/orange_money.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"CM", "Cameroun", "XAF"},
-			},
-		},
-		{
-			Name:        "orange_money_sn",
-			DisplayName: "Orange Money Sénégal",
-			Type:        "mobile_money",
-			BaseURL:     "https://api.orange.com/orange-money-webpay/dev/v1",
-			LogoURL:     "/icons/aggregators/orange_money.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"SN", "Sénégal", "XOF"},
 			},
 		},
 		// --- MTN Mobile Money ---
 		{
-			Name:        "mtn_ci",
-			DisplayName: "MTN MoMo CI",
+			Name:        "mtn_money",
+			DisplayName: "MTN MoMo",
 			Type:        "mobile_money",
 			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
 			LogoURL:     "/icons/aggregators/mtn.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"CI", "Côte d'Ivoire", "XOF"},
-			},
-		},
-		{
-			Name:        "mtn_cm",
-			DisplayName: "MTN MoMo Cameroun",
-			Type:        "mobile_money",
-			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
-			LogoURL:     "/icons/aggregators/mtn.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"CM", "Cameroun", "XAF"},
-			},
-		},
-		{
-			Name:        "mtn_sn",
-			DisplayName: "MTN MoMo Sénégal", // (Free Money uses MTN rails sometimes or separate?) Assuming MTN SN here for seeding
-			Type:        "mobile_money",
-			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
-			LogoURL:     "/icons/aggregators/mtn.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"SN", "Sénégal", "XOF"},
-			},
-		},
-		{
-			Name:        "mtn_bj",
-			DisplayName: "MTN MoMo Bénin",
-			Type:        "mobile_money",
-			BaseURL:     "https://sandbox.momodeveloper.mtn.com",
-			LogoURL:     "/icons/aggregators/mtn.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"BJ", "Bénin", "XOF"},
 			},
 		},
 		// --- Wave ---
 		{
-			Name:        "wave_ci",
-			DisplayName: "Wave CI",
+			Name:        "wave_money",
+			DisplayName: "Wave",
 			Type:        "mobile_money",
 			BaseURL:     "https://api.wave.com/v1",
 			LogoURL:     "/icons/aggregators/wave.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"CI", "Côte d'Ivoire", "XOF"},
-			},
-		},
-		{
-			Name:        "wave_sn",
-			DisplayName: "Wave Sénégal",
-			Type:        "mobile_money",
-			BaseURL:     "https://api.wave.com/v1",
-			LogoURL:     "/icons/aggregators/wave.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"SN", "Sénégal", "XOF"},
 			},
 		},
 		// --- Moov Money ---
 		{
-			Name:        "moov_ci",
-			DisplayName: "Moov Money CI",
+			Name:        "moov_money",
+			DisplayName: "Moov Money",
 			Type:        "mobile_money",
-			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush", // Generic Sandbox URL found
-			LogoURL:     "/icons/aggregators/moov.svg",                                                // Need to ensure this icon exists or use generic
+			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush",
+			LogoURL:     "/icons/aggregators/moov.svg",
 			Capability:  "mixed",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"CI", "Côte d'Ivoire", "XOF"},
-			},
-		},
-		{
-			Name:        "moov_bj",
-			DisplayName: "Moov Money Bénin",
-			Type:        "mobile_money",
-			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush",
-			LogoURL:     "/icons/aggregators/moov.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"BJ", "Bénin", "XOF"},
-			},
-		},
-		{
-			Name:        "moov_tg",
-			DisplayName: "Moov Money Togo",
-			Type:        "mobile_money",
-			BaseURL:     "https://testapimarchand2.moov-africa.bj:2010/com.tlc.merchant.api/UssdPush",
-			LogoURL:     "/icons/aggregators/moov.svg",
-			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
 				{"TG", "Togo", "XOF"},
 			},
 		},

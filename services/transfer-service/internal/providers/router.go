@@ -73,9 +73,10 @@ func NewZoneRouter() *ZoneRouter {
 		providers: make(map[string]PayoutProvider),
 		zonePriority: map[Zone][]string{
 			ZoneAfrica: {
-				"wave_ci", "wave_sn", "wave",
-				"orange_money_ci", "orange_money_sn", "orange_money",
-				"mtn_ci", "mtn_cm", "mtn_gh", "mtn_za", "mtn_momo",
+				"wave_money", "wave",
+				"orange_money",
+				"mtn_money", "mtn_momo",
+				"moov_money",
 				"cinetpay", "flutterwave", "yellowcard", "lygos",
 				"chipper", "pesapal", "thunes", "demo",
 			},

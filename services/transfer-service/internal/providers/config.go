@@ -349,22 +349,12 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 		log.Println("[Router] Registered CinetPay provider")
 	}
 
-	// Register Wave (Africa) - Generic + Country Specific
+	// Register Wave (Africa) - Unified
 	if cfg.Wave.APIKey != "" && !isPlaceholder(cfg.Wave.APIKey) {
-		// Generic
-		router.RegisterProvider(NewWaveProvider(cfg.Wave))
-
-		// Wave CI
-		waveCI := cfg.Wave
-		waveCI.Name = "wave_ci"
-		router.RegisterProvider(NewWaveProvider(waveCI))
-
-		// Wave SN
-		waveSN := cfg.Wave
-		waveSN.Name = "wave_sn"
-		router.RegisterProvider(NewWaveProvider(waveSN))
-
-		log.Println("[Router] Registered Wave providers (Generic, CI, SN)")
+		waveCfg := cfg.Wave
+		waveCfg.Name = "wave_money"
+		router.RegisterProvider(NewWaveProvider(waveCfg))
+		log.Println("[Router] Registered Wave provider (Unified: wave_money)")
 	}
 
 	// Register Lygos (Africa)
@@ -395,50 +385,20 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 		log.Println("[Router] Registered Thunes provider")
 	}
 
-	// Register MTN MoMo (Africa) - Generic + Country Specific
+	// Register MTN MoMo (Africa) - Unified
 	if cfg.MTNMomo.SubscriptionKey != "" && !isPlaceholder(cfg.MTNMomo.SubscriptionKey) {
-		// Generic
-		router.RegisterProvider(NewMTNMomoProvider(cfg.MTNMomo))
-
-		// MTN CI
-		mtnCI := cfg.MTNMomo
-		mtnCI.Name = "mtn_ci"
-		router.RegisterProvider(NewMTNMomoProvider(mtnCI))
-
-		// MTN CM
-		mtnCM := cfg.MTNMomo
-		mtnCM.Name = "mtn_cm"
-		router.RegisterProvider(NewMTNMomoProvider(mtnCM))
-
-		// MTN GH
-		mtnGH := cfg.MTNMomo
-		mtnGH.Name = "mtn_gh"
-		router.RegisterProvider(NewMTNMomoProvider(mtnGH))
-
-		// MTN ZA
-		mtnZA := cfg.MTNMomo
-		mtnZA.Name = "mtn_za"
-		router.RegisterProvider(NewMTNMomoProvider(mtnZA))
-
-		log.Println("[Router] Registered MTN MoMo providers (Generic, CI, CM, GH, ZA)")
+		mtnCfg := cfg.MTNMomo
+		mtnCfg.Name = "mtn_money"
+		router.RegisterProvider(NewMTNMomoProvider(mtnCfg))
+		log.Println("[Router] Registered MTN MoMo provider (Unified: mtn_money)")
 	}
 
-	// Register Orange Money (Africa) - Generic + Country Specific
+	// Register Orange Money (Africa) - Unified
 	if cfg.OrangeMoney.ClientID != "" && !isPlaceholder(cfg.OrangeMoney.ClientID) {
-		// Generic
-		router.RegisterProvider(NewOrangeMoneyProvider(cfg.OrangeMoney))
-
-		// Orange Money CI
-		omCI := cfg.OrangeMoney
-		omCI.Name = "orange_money_ci"
-		router.RegisterProvider(NewOrangeMoneyProvider(omCI))
-
-		// Orange Money SN
-		omSN := cfg.OrangeMoney
-		omSN.Name = "orange_money_sn"
-		router.RegisterProvider(NewOrangeMoneyProvider(omSN))
-
-		log.Println("[Router] Registered Orange Money providers (Generic, CI, SN)")
+		omCfg := cfg.OrangeMoney
+		omCfg.Name = "orange_money"
+		router.RegisterProvider(NewOrangeMoneyProvider(omCfg))
+		log.Println("[Router] Registered Orange Money provider (Unified: orange_money)")
 	}
 
 	// Register Pesapal (East Africa)
