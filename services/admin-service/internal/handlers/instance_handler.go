@@ -170,7 +170,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	}
 
 	var returnedID string
-	err := h.db.QueryRow(query,
+	err = h.db.QueryRow(query,
 		id, providerID, req.Name, req.VaultSecretPath, hotWalletID,
 		req.IsActive, req.IsPrimary, priority,
 	).Scan(&returnedID)
