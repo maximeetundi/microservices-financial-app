@@ -271,7 +271,7 @@ func main() {
 		protected.GET("/sold-tickets", handler.GetSoldTickets)
 
 		// Payment Providers management
-		paymentHandler := handlers.NewPaymentHandler(mainDB)
+		paymentHandler := handlers.NewPaymentHandler(adminDB)
 		payments := protected.Group("/payment-providers")
 		{
 			payments.GET("", paymentHandler.GetPaymentProviders)

@@ -148,13 +148,14 @@ export const updateSystemSetting = (data: any) => api.put('/settings', data);
 // Platform Accounts & Wallets
 export const getPlatformAccounts = () => api.get('/platform/accounts');
 export const createPlatformAccount = (data: any) => api.post('/platform/accounts', data);
-export const creditPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/credit`, data);
-export const debitPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/debit`, data);
+export const creditPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/credit`, { ...data, account_id: id });
+export const debitPlatformAccount = (id: string, data: any) => api.post(`/platform/accounts/${id}/debit`, { ...data, account_id: id });
 
 export const getPlatformCryptoWallets = () => api.get('/platform/crypto-wallets');
 export const createPlatformCryptoWallet = (data: any) => api.post('/platform/crypto-wallets', data);
 export const syncPlatformCryptoWallet = (id: string) => api.put(`/platform/crypto-wallets/${id}/sync`);
 export const consolidateUserFunds = (data: { target_type: string, amount: number, currency: string }) => api.post('/platform/crypto-wallets/consolidate', data);
+export const transferPlatformFunds = (data: { source_id: string, target_id: string, amount: number, description?: string }) => api.post('/platform/crypto-wallets/transfer', data);
 
 export const getPlatformTransactions = (limit = 50, offset = 0) => api.get(`/platform/transactions?limit=${limit}&offset=${offset}`);
 export const getPlatformWalletTransactions = (walletId: string, limit = 50, offset = 0) => api.get(`/platform/crypto-wallets/${walletId}/transactions?limit=${limit}&offset=${offset}`);

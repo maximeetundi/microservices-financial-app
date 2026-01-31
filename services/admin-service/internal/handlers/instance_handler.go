@@ -117,6 +117,14 @@ func (h *InstanceHandler) GetAllInstances(c *gin.Context) {
 func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	providerID := c.Param("id")
 
+	// Verify the provider exists before creating an instance
+	var providerExists bool
+	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM payment_providers WHERE id = $1)", providerID).Scan(&providerExists)
+	if err != nil || !providerExists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Provider not found. Please ensure the aggregator exists before creating an instance."})
+		return
+	}
+
 	var req struct {
 		Name            string `json:"name" binding:"required"`
 		VaultSecretPath string `json:"vault_secret_path" binding:"required"`

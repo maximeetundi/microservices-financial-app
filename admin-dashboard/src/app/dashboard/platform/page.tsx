@@ -23,7 +23,8 @@ import {
     creditPlatformAccount,
     debitPlatformAccount,
     syncPlatformCryptoWallet,
-    consolidateUserFunds
+    consolidateUserFunds,
+    transferPlatformFunds
 } from '@/lib/api';
 
 const safeFormatCurrency = (amount: number, currency: string) => {
@@ -93,6 +94,15 @@ export default function PlatformAccountsPage() {
         currency: 'ETH'
     });
 
+    const [showInternalTransfer, setShowInternalTransfer] = useState(false);
+    const [internalTransferForm, setInternalTransferForm] = useState({
+        source_id: '',
+        target_id: '',
+        amount: 0,
+        currency: 'ETH',
+        description: ''
+    });
+
     useEffect(() => {
         loadData();
     }, []);
@@ -139,6 +149,19 @@ export default function PlatformAccountsPage() {
         } catch (error) {
             console.error(error);
             alert('Erreur lors de la création du portefeuille');
+        }
+    };
+
+    const handleInternalTransfer = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await transferPlatformFunds(internalTransferForm);
+            alert('Transfert interne réussi');
+            setShowInternalTransfer(false);
+            loadData();
+        } catch (error) {
+            console.error(error);
+            alert('Échec du transfert interne');
         }
     };
 
@@ -384,7 +407,32 @@ export default function PlatformAccountsPage() {
                                                     Sync
                                                 </button>
                                                 <button
-                                                    onClick={() => { setSelectedAccount(wallet); setOpMode('credit'); setShowCreditDebit(true); }} // Reusing CreditDebit for now as wrapper
+                                                    onClick={() => {
+                                                        // Find counterpart wallet (same currency, different type)
+                                                        const targetWallet = cryptoWallets.find(w =>
+                                                            w.currency === wallet.currency &&
+                                                            w.wallet_type === (wallet.wallet_type === 'hot' ? 'cold' : 'hot')
+                                                        );
+
+                                                        if (targetWallet) {
+                                                            setInternalTransferForm({
+                                                                source_id: wallet.id,
+                                                                target_id: targetWallet.id,
+                                                                amount: 0,
+                                                                currency: wallet.currency,
+                                                                description: ''
+                                                            });
+                                                            setShowInternalTransfer(true);
+                                                        } else {
+                                                            alert(`Aucun portefeuille ${wallet.wallet_type === 'hot' ? 'Cold' : 'Hot'} trouvé pour ${wallet.currency}`);
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors"
+                                                >
+                                                    Transférer
+                                                </button>
+                                                <button
+                                                    onClick={() => { setSelectedAccount(wallet); setOpMode('credit'); setShowCreditDebit(true); }}
                                                     className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold hover:bg-indigo-100 transition-colors"
                                                 >
                                                     Détails
@@ -621,6 +669,52 @@ export default function PlatformAccountsPage() {
                     </div>
                 </div>
             )}
+            {/* Internal Transfer Modal */}
+            {showInternalTransfer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-slide-up">
+                        <h2 className="text-2xl font-bold mb-6 text-slate-900 flex items-center gap-2">
+                            <ArrowsRightLeftIcon className="w-6 h-6 text-indigo-600" />
+                            Transfert Interne
+                        </h2>
+                        <form onSubmit={handleInternalTransfer} className="space-y-6">
+                            <div className="bg-slate-50 p-4 rounded-xl text-sm mb-4">
+                                <div className="flex justify-between mb-2">
+                                    <span className="text-slate-500 font-bold">Source ID:</span>
+                                    <span className="font-mono text-slate-700">{internalTransferForm.source_id}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500 font-bold">Cible ID:</span>
+                                    <span className="font-mono text-slate-700">{internalTransferForm.target_id}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Montant</label>
+                                <div className="relative">
+                                    <input type="number" step="any" min="0" className="w-full pl-4 pr-16 py-3 border border-slate-200 rounded-xl text-xl font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                        value={internalTransferForm.amount} onChange={(e: any) => setInternalTransferForm({ ...internalTransferForm, amount: parseFloat(e.target.value) })} required placeholder="0.00" />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                                        {internalTransferForm.currency}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Motif</label>
+                                <input className="w-full px-4 py-3 border border-slate-200 rounded-xl font-medium transition-all"
+                                    value={internalTransferForm.description} onChange={(e: any) => setInternalTransferForm({ ...internalTransferForm, description: e.target.value })} required placeholder="Ex: Renflouement Hot Wallet" />
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button type="button" onClick={() => setShowInternalTransfer(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-bold transition-colors">Annuler</button>
+                                <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-500/30 transition-all">Transférer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Consolidate Funds Modal */}
             {showConsolidate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
