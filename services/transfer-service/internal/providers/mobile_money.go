@@ -342,10 +342,11 @@ func (m *MTNMomoProvider) ValidateRecipient(ctx context.Context, req *PayoutRequ
 
 func (m *MTNMomoProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	return &PayoutResponse{
-		ProviderName: m.GetName(),
-		Status:       PayoutStatusPending,
-		Fee:          0, // Calculate based on amount if needed
-		TotalAmount:  req.Amount,
+		ProviderName:     m.GetName(),
+		Status:           PayoutStatusPending,
+		Fee:              0, // Calculate based on amount if needed
+		AmountReceived:   req.Amount,
+		ReceivedCurrency: req.Currency,
 	}, nil
 }
 
@@ -597,10 +598,11 @@ func (o *OrangeMoneyProvider) ValidateRecipient(ctx context.Context, req *Payout
 
 func (o *OrangeMoneyProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	return &PayoutResponse{
-		ProviderName: o.GetName(),
-		Status:       PayoutStatusPending,
-		Fee:          0,
-		TotalAmount:  req.Amount,
+		ProviderName:     o.GetName(),
+		Status:           PayoutStatusPending,
+		Fee:              0,
+		AmountReceived:   req.Amount,
+		ReceivedCurrency: req.Currency,
 	}, nil
 }
 
@@ -869,10 +871,11 @@ func (p *PesapalProvider) ValidateRecipient(ctx context.Context, req *PayoutRequ
 
 func (p *PesapalProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	return &PayoutResponse{
-		ProviderName: p.GetName(),
-		Status:       PayoutStatusPending,
-		Fee:          0,
-		TotalAmount:  req.Amount,
+		ProviderName:     p.GetName(),
+		Status:           PayoutStatusPending,
+		Fee:              0,
+		AmountReceived:   req.Amount,
+		ReceivedCurrency: req.Currency,
 	}, nil
 }
 
@@ -934,10 +937,11 @@ func (c *ChipperProvider) ValidateRecipient(ctx context.Context, req *PayoutRequ
 
 func (c *ChipperProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	return &PayoutResponse{
-		ProviderName: "chipper",
-		Status:       "quote",
-		Fee:          0,
-		TotalAmount:  req.Amount,
+		ProviderName:     "chipper",
+		Status:           "quote", // cast or change status type if needed. But wait, Status is PayoutStatus
+		Fee:              0,
+		AmountReceived:   req.Amount,
+		ReceivedCurrency: req.Currency,
 	}, nil
 }
 

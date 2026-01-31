@@ -566,9 +566,10 @@ func (p *PayPalProvider) ValidateRecipient(ctx context.Context, req *PayoutReque
 func (p *PayPalProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	// Simple quote simulation
 	return &PayoutResponse{
-		ProviderName: "paypal",
-		Status:       PayoutStatusPending,
-		Fee:          0,
-		TotalAmount:  req.Amount,
+		ProviderName:     "paypal",
+		Status:           PayoutStatusPending,
+		Fee:              0,
+		AmountReceived:   req.Amount,
+		ReceivedCurrency: req.Currency,
 	}, nil
 }

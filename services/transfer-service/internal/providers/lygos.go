@@ -172,8 +172,7 @@ func (p *LygosProvider) GetPayoutStatus(ctx context.Context, referenceID string)
 	}
 
 	return &PayoutStatusResponse{
-		Status:    status,
-		UpdatedAt: time.Now(),
+		Status: PayoutStatusAccordingTo(status),
 	}, nil
 }
 

@@ -155,8 +155,9 @@ func (p *DemoProvider) GetPayoutStatus(ctx context.Context, referenceID string) 
 
 	// Demo transactions are always completed
 	return &PayoutStatusResponse{
-		Status:    "completed",
-		UpdatedAt: time.Now(),
+		ReferenceID:       referenceID,
+		ProviderReference: fmt.Sprintf("DEMO_%s", referenceID),
+		Status:            PayoutStatusCompleted,
 	}, nil
 }
 

@@ -79,15 +79,15 @@ func (p *WaveProvider) GetMobileOperators(ctx context.Context, country string) (
 	switch country {
 	case "SN":
 		return []MobileOperator{
-			{Code: "WAVE", Name: "Wave", Country: "SN", NumberPrefix: []string{"70"}},
+			{Code: "WAVE", Name: "Wave", Countries: []string{"SN"}, NumberPrefix: []string{"70"}},
 		}, nil
 	case "CI":
 		return []MobileOperator{
-			{Code: "WAVE", Name: "Wave", Country: "CI", NumberPrefix: []string{"07"}},
+			{Code: "WAVE", Name: "Wave", Countries: []string{"CI"}, NumberPrefix: []string{"07"}},
 		}, nil
 	default:
 		return []MobileOperator{
-			{Code: "WAVE", Name: "Wave", Country: country, NumberPrefix: []string{}},
+			{Code: "WAVE", Name: "Wave", Countries: []string{country}, NumberPrefix: []string{}},
 		}, nil
 	}
 }
