@@ -104,10 +104,9 @@ func (p *DemoProvider) GetBanks(ctx context.Context, country string) ([]Bank, er
 func (p *DemoProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
 	time.Sleep(p.config.SimulateDelay)
 
-	return []MobileOperator{
-		{Code: "DEMO_ORANGE", Name: "Demo Orange Money", Country: country, NumberPrefix: []string{"07", "77"}},
-		{Code: "DEMO_MTN", Name: "Demo MTN Money", Country: country, NumberPrefix: []string{"05", "55"}},
-		{Code: "DEMO_WAVE", Name: "Demo Wave", Country: country, NumberPrefix: []string{"70"}},
+		{Code: "DEMO_ORANGE", Name: "Demo Orange Money", Countries: []string{country}, NumberPrefix: []string{"07", "77"}},
+		{Code: "DEMO_MTN", Name: "Demo MTN Money", Countries: []string{country}, NumberPrefix: []string{"05", "55"}},
+		{Code: "DEMO_WAVE", Name: "Demo Wave", Countries: []string{country}, NumberPrefix: []string{"70"}},
 	}, nil
 }
 
@@ -125,11 +124,10 @@ func (p *DemoProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*Payou
 	return &PayoutResponse{
 		ProviderName:      "demo",
 		ProviderReference: "",
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
-		Status:            "quote",
+		Status:            "quote", // Use string literal or cast to PayoutStatus if needed, but wait: PayoutStatus is a type.
 	}, nil
 }
 
@@ -144,10 +142,12 @@ func (p *DemoProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*P
 	return &PayoutResponse{
 		ProviderName:      "demo",
 		ProviderReference: transactionID,
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
 		TotalAmount:       req.Amount + fee,
+		Status:            PayoutStatusPending, // Use enum
+	}, nil
 		Status:            "completed", // Demo always succeeds
 		Message:           "Demo payment completed successfully",
 	}, nil

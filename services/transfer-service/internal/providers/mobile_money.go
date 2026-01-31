@@ -302,6 +302,16 @@ func (m *MTNMomoProvider) CreatePayout(ctx context.Context, req *PayoutRequest) 
 	}, nil
 }
 
+// GetPayoutStatus checks the status of a payout
+func (m *MTNMomoProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
+	// Stub implementation for now
+	return &PayoutStatusResponse{
+		ReferenceID: referenceID,
+		Status:      PayoutStatusPending, // Async
+		Message:     "Status check not yet fully implemented for MTN Payouts",
+	}, nil
+}
+
 // CancelPayout cancels a pending payout
 func (m *MTNMomoProvider) CancelPayout(ctx context.Context, referenceID string) error {
 	return fmt.Errorf("MTN MoMo cancellation not supported")
