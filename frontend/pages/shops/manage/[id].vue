@@ -354,6 +354,10 @@ definePageMeta({
 .status-badge.pending { background: #fef9c3; color: #854d0e; }
 .status-badge.suspended { background: #fee2e2; color: #991b1b; }
 
+:global(.dark) .status-badge.active { background: rgba(22, 101, 52, 0.3); color: #86efac; }
+:global(.dark) .status-badge.pending { background: rgba(133, 77, 14, 0.3); color: #fde047; }
+:global(.dark) .status-badge.suspended { background: rgba(153, 27, 27, 0.3); color: #fca5a5; }
+
 .description {
   color: #6b7280;
   margin-top: 8px;
@@ -418,6 +422,14 @@ definePageMeta({
 
 .stat-icon-wrapper.blue { background: #eff6ff; color: #3b82f6; }
 .stat-icon-wrapper.purple { background: #f3f0ff; color: #a855f7; }
+
+:global(.dark) .stat-icon-wrapper:not(.primary) {
+  background: #334155;
+  color: #a5b4fc;
+}
+
+:global(.dark) .stat-icon-wrapper.blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+:global(.dark) .stat-icon-wrapper.purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
 
 .stat-details {
   display: flex;

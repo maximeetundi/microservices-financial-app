@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-[calc(100vh-100px)] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+  <div class="flex h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-xl ring-1 ring-black/5 dark:ring-white/10">
     <!-- Desktop Sidebar -->
     <div class="hidden lg:block h-full">
       <ShopSidebar />
