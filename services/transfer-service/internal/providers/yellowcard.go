@@ -182,11 +182,10 @@ func (p *YellowCardProvider) GetQuote(ctx context.Context, req *PayoutRequest) (
 	return &PayoutResponse{
 		ProviderName:      "yellowcard",
 		ProviderReference: "",
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               result.Fee,
-		TotalAmount:       result.Total,
-		Status:            "quote",
+		Status:            PayoutStatusPending,
 	}, nil
 }
 
@@ -194,15 +193,14 @@ func (p *YellowCardProvider) CreatePayout(ctx context.Context, req *PayoutReques
 	payload := map[string]interface{}{
 		"destination": map[string]interface{}{
 			"currency":      req.Currency,
-			"country":       req.Country,
-			"accountNumber": req.BankAccountNumber,
+			"country":       req.RecipientCountry,
+			"accountNumber": req.AccountNumber,
 			"bankCode":      req.BankCode,
 			"phone":         req.RecipientPhone,
 			"name":          req.RecipientName,
 		},
-		"amount":      req.Amount,
-		"reference":   req.ExternalReference,
-		"callbackUrl": req.CallbackURL,
+		"amount":    req.Amount,
+		"reference": req.ReferenceID,
 	}
 
 	body, _ := json.Marshal(payload)
@@ -231,11 +229,10 @@ func (p *YellowCardProvider) CreatePayout(ctx context.Context, req *PayoutReques
 	return &PayoutResponse{
 		ProviderName:      "yellowcard",
 		ProviderReference: result.ID,
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               result.Fee,
-		TotalAmount:       req.Amount + result.Fee,
-		Status:            result.Status,
+		Status:            PayoutStatusAccordingTo(result.Status),
 	}, nil
 }
 
