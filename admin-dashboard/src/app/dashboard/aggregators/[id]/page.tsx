@@ -226,7 +226,11 @@ export default function AggregatorInstancesPage() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ ...newInstance, vault_secret_path: path })
+                body: JSON.stringify({
+                    ...newInstance,
+                    vault_secret_path: path,
+                    hot_wallet_id: selectedWalletId  // Include selected wallet
+                })
             });
 
             if (response.ok) {
@@ -554,6 +558,27 @@ export default function AggregatorInstancesPage() {
                                     onChange={e => setNewInstance({ ...newInstance, vault_secret_path: e.target.value })}
                                 />
                             </div>
+
+                            {/* Hot Wallet Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Hot Wallet Associé</label>
+                                <select
+                                    className="input w-full"
+                                    value={selectedWalletId}
+                                    onChange={e => setSelectedWalletId(e.target.value)}
+                                >
+                                    <option value="">Sélectionner un wallet...</option>
+                                    {hotWallets.map(wallet => (
+                                        <option key={wallet.id} value={wallet.id}>
+                                            {wallet.currency} - {wallet.name} (Solde: {wallet.balance})
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Associer un wallet permet d'effectuer des dépôts/retraits immédiats.
+                                </p>
+                            </div>
+
                             <div className="flex gap-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
