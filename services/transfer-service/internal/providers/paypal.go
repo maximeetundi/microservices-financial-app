@@ -558,4 +558,3 @@ func (p *PayPalProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*Pay
 		TotalAmount:  req.Amount,
 	}, nil
 }
-}
