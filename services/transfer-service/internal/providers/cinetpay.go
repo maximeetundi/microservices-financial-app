@@ -212,8 +212,7 @@ func (p *CinetPayProvider) GetPayoutStatus(ctx context.Context, referenceID stri
 	}
 
 	return &PayoutStatusResponse{
-		Status:    status,
-		UpdatedAt: time.Now(),
+		Status: PayoutStatus(status),
 	}, nil
 }
 

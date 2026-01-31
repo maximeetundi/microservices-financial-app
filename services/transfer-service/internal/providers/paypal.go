@@ -425,6 +425,11 @@ func (p *PayPalProvider) GetPayoutStatus(ctx context.Context, payoutBatchID stri
 	return &batchResp.BatchHeader, nil
 }
 
+// CancelPayout cancels a pending payout
+func (p *PayPalProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("PayPal payout cancellation not yet implemented")
+}
+
 // ==================== WEBHOOK VERIFICATION ====================
 
 type PayPalWebhookVerification struct {
@@ -491,8 +496,8 @@ func (p *PayPalProvider) VerifyWebhookSignature(ctx context.Context, headers htt
 
 func (p *PayPalProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
 	return []AvailableMethod{
-		{ID: "paypal_wallet", Name: "PayPal Wallet", Type: "wallet"},
-		{ID: "paypal_card", Name: "Debit or Credit Card", Type: "card"},
-		{ID: "paypal_paylater", Name: "Pay Later", Type: "credit"},
+		{Code: "paypal_wallet", Name: "PayPal Wallet", Type: "wallet"},
+		{Code: "paypal_card", Name: "Debit or Credit Card", Type: "card"},
+		{Code: "paypal_paylater", Name: "Pay Later", Type: "credit"},
 	}, nil
 }

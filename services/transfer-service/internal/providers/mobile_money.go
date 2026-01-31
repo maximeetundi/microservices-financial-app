@@ -284,6 +284,11 @@ func (m *MTNMomoProvider) Transfer(ctx context.Context, phoneNumber string, amou
 	return referenceID, nil
 }
 
+// CancelPayout cancels a pending payout
+func (m *MTNMomoProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("MTN MoMo cancellation not supported")
+}
+
 // ==================== ORANGE MONEY PROVIDER ====================
 
 // OrangeMoneyConfig holds Orange Money API configuration
@@ -488,6 +493,11 @@ func (o *OrangeMoneyProvider) GetTransactionStatus(ctx context.Context, orderID,
 	}
 
 	return &status, nil
+}
+
+// CancelPayout cancels a pending payout
+func (o *OrangeMoneyProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("Orange Money cancellation not supported")
 }
 
 // ==================== PESAPAL PROVIDER ====================
@@ -718,6 +728,11 @@ func (p *PesapalProvider) GetTransactionStatus(ctx context.Context, orderTrackin
 	return &status, nil
 }
 
+// CancelPayout cancels a pending payout
+func (p *PesapalProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("Pesapal cancellation not supported")
+}
+
 // ==================== CHIPPER CASH PROVIDER ====================
 
 // ChipperConfig holds Chipper Cash API configuration
@@ -754,4 +769,43 @@ func (c *ChipperProvider) GetSupportedCountries() []string {
 	return []string{
 		"GH", "KE", "NG", "RW", "TZ", "UG", "ZA", "US", "GB",
 	}
+}
+
+func (c *ChipperProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
+	return []AvailableMethod{
+		{Code: "chipper_wallet", Name: "Chipper Network", Type: "mobile"},
+	}, nil
+}
+
+func (c *ChipperProvider) GetBanks(ctx context.Context, country string) ([]Bank, error) {
+	return []Bank{}, nil
+}
+
+func (c *ChipperProvider) GetMobileOperators(ctx context.Context, country string) ([]MobileOperator, error) {
+	return []MobileOperator{}, nil
+}
+
+func (c *ChipperProvider) ValidateRecipient(ctx context.Context, req *PayoutRequest) error {
+	return nil
+}
+
+func (c *ChipperProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return &PayoutResponse{
+		ProviderName: "chipper",
+		Status:       "quote",
+		Fee:          0,
+		TotalAmount:  req.Amount,
+	}, nil
+}
+
+func (c *ChipperProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
+	return nil, fmt.Errorf("Chipper Cash integration not yet implemented")
+}
+
+func (c *ChipperProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
+	return nil, fmt.Errorf("Chipper Cash integration not yet implemented")
+}
+
+func (c *ChipperProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("Chipper Cash cancellation not supported")
 }
