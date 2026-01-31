@@ -31,6 +31,22 @@ const (
 	PayoutStatusCancelled  PayoutStatus = "cancelled"
 )
 
+// PayoutStatusAccordingTo converts a string status to PayoutStatus
+func PayoutStatusAccordingTo(status string) PayoutStatus {
+	switch status {
+	case "completed", "success", "paid", "COMPLETED", "SUCCESS", "PAID":
+		return PayoutStatusCompleted
+	case "pending", "processing", "initiated", "PENDING", "PROCESSING", "INITIATED":
+		return PayoutStatusPending
+	case "failed", "error", "rejected", "FAILED", "ERROR", "REJECTED":
+		return PayoutStatusFailed
+	case "cancelled", "CANCELLED":
+		return PayoutStatusCancelled
+	default:
+		return PayoutStatusPending
+	}
+}
+
 // PayoutRequest represents a payout request to a provider
 type PayoutRequest struct {
 	// Transaction details

@@ -105,11 +105,10 @@ func (p *WaveProvider) GetQuote(ctx context.Context, req *PayoutRequest) (*Payou
 	return &PayoutResponse{
 		ProviderName:      "wave",
 		ProviderReference: "",
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               fee,
-		TotalAmount:       req.Amount + fee,
-		Status:            "quote",
+		Status:            PayoutStatusPending,
 	}, nil
 }
 
@@ -118,7 +117,7 @@ func (p *WaveProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*P
 		"recipient_mobile": req.RecipientPhone,
 		"amount":           fmt.Sprintf("%.2f", req.Amount),
 		"currency":         req.Currency,
-		"client_reference": req.ExternalReference,
+		"client_reference": req.ReferenceID, // Use ReferenceID instead of ExternalReference
 		"name":             req.RecipientName,
 	}
 
@@ -150,11 +149,10 @@ func (p *WaveProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*P
 	return &PayoutResponse{
 		ProviderName:      "wave",
 		ProviderReference: result.ID,
-		Amount:            req.Amount,
-		Currency:          req.Currency,
+		AmountReceived:    req.Amount,
+		ReceivedCurrency:  req.Currency,
 		Fee:               0,
-		TotalAmount:       req.Amount,
-		Status:            result.Status,
+		Status:            PayoutStatusAccordingTo(result.Status),
 	}, nil
 }
 
@@ -186,8 +184,7 @@ func (p *WaveProvider) GetPayoutStatus(ctx context.Context, referenceID string) 
 	}
 
 	return &PayoutStatusResponse{
-		Status:    status,
-		UpdatedAt: time.Now(),
+		Status: PayoutStatusAccordingTo(status),
 	}, nil
 }
 
