@@ -62,6 +62,7 @@ export default function AggregatorInstancesPage() {
     const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
     const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
+    const [selectedWalletId, setSelectedWalletId] = useState('');
     const [selectedCurrency, setSelectedCurrency] = useState('');
     const [showAddCountryModal, setShowAddCountryModal] = useState(false);
     const [instanceWallets, setInstanceWallets] = useState<Record<string, InstanceWallet[]>>({});
