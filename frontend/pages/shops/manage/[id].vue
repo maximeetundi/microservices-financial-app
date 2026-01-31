@@ -53,6 +53,7 @@
             </div>
             
             <div class="header-actions">
+              <ThemeToggle />
               <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="btn-glass">
                 <EyeIcon class="w-5 h-5" />
                 Voir la boutique
@@ -578,5 +579,65 @@ definePageMeta({
   .header-content { flex-direction: column; align-items: flex-start; }
   .header-actions { width: 100%; display: flex; gap: 12px; }
   .btn-primary, .btn-glass { flex: 1; justify-content: center; }
+}
+
+/* Dark Mode Overrides */
+:global(.dark) .shop-header {
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+:global(.dark) .shop-logo {
+  border-color: #1e293b;
+  background: #1e293b;
+}
+
+:global(.dark) .shop-text h1 {
+  color: #f3f4f6;
+}
+
+:global(.dark) .description {
+  color: #9ca3af;
+}
+
+:global(.dark) .stat-card:not(.primary) {
+  background: #1e293b;
+  border-color: #374151;
+}
+
+:global(.dark) .stat-card .stat-value {
+  color: #f3f4f6;
+}
+
+:global(.dark) .stat-card .stat-label {
+  color: #9ca3af;
+}
+
+:global(.dark) .stat-icon-wrapper:not(.primary) {
+  background: #334155;
+}
+
+:global(.dark) .dashboard-card {
+  background: #1e293b;
+  border-color: #374151;
+}
+
+:global(.dark) .dashboard-card h3,
+:global(.dark) .dashboard-card h4 {
+  color: #f3f4f6;
+}
+
+:global(.dark) .action-item:hover {
+  background: #334155;
+}
+
+:global(.dark) .btn-glass {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+:global(.dark) .btn-glass:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 </style>
