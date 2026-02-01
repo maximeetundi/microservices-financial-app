@@ -145,13 +145,31 @@ func createAdminTables(db *sql.DB) error {
 			webhook_secret_encrypted TEXT,
 			is_active BOOLEAN DEFAULT TRUE,
 			is_demo_mode BOOLEAN DEFAULT FALSE,
+			deposit_enabled BOOLEAN DEFAULT TRUE,
+			withdraw_enabled BOOLEAN DEFAULT TRUE,
 			logo_url TEXT,
 			supported_currencies JSONB DEFAULT '[]',
 			config_json JSONB DEFAULT '{}',
 			capability VARCHAR(20) DEFAULT 'mixed',
+			fee_percentage DECIMAL(5, 4) DEFAULT 0,
+			fee_fixed DECIMAL(20, 2) DEFAULT 0,
+			min_transaction DECIMAL(20, 2) DEFAULT 100,
+			max_transaction DECIMAL(20, 2) DEFAULT 5000000,
+			daily_limit DECIMAL(20, 2) DEFAULT 50000000,
+			priority INT DEFAULT 50,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		// Migration: add new columns if table exists
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS deposit_enabled BOOLEAN DEFAULT TRUE`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS withdraw_enabled BOOLEAN DEFAULT TRUE`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS fee_percentage DECIMAL(5, 4) DEFAULT 0`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS fee_fixed DECIMAL(20, 2) DEFAULT 0`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS min_transaction DECIMAL(20, 2) DEFAULT 100`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS max_transaction DECIMAL(20, 2) DEFAULT 5000000`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS daily_limit DECIMAL(20, 2) DEFAULT 50000000`,
+		`ALTER TABLE payment_providers ADD COLUMN IF NOT EXISTS priority INT DEFAULT 50`,
 
 		// Provider country mappings
 		`CREATE TABLE IF NOT EXISTS provider_countries (

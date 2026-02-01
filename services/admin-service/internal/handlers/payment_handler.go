@@ -24,9 +24,17 @@ type PaymentProvider struct {
 	WebhookSecretEnc    *string         `json:"-" db:"webhook_secret_encrypted"`
 	IsActive            bool            `json:"is_active" db:"is_active"`
 	IsDemoMode          bool            `json:"is_demo_mode" db:"is_demo_mode"`
+	DepositEnabled      bool            `json:"deposit_enabled" db:"deposit_enabled"`
+	WithdrawEnabled     bool            `json:"withdraw_enabled" db:"withdraw_enabled"`
 	LogoURL             *string         `json:"logo_url,omitempty" db:"logo_url"`
 	SupportedCurrencies json.RawMessage `json:"supported_currencies" db:"supported_currencies"`
 	ConfigJSON          json.RawMessage `json:"config_json" db:"config_json"`
+	FeePercentage       float64         `json:"fee_percentage" db:"fee_percentage"`
+	FeeFixed            float64         `json:"fee_fixed" db:"fee_fixed"`
+	MinTransaction      float64         `json:"min_transaction" db:"min_transaction"`
+	MaxTransaction      float64         `json:"max_transaction" db:"max_transaction"`
+	DailyLimit          float64         `json:"daily_limit" db:"daily_limit"`
+	Priority            int             `json:"priority" db:"priority"`
 	CreatedAt           time.Time       `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time       `json:"updated_at" db:"updated_at"`
 	// Joined data
@@ -62,10 +70,12 @@ func NewPaymentHandler(db *sql.DB) *PaymentHandler {
 func (h *PaymentHandler) GetPaymentProviders(c *gin.Context) {
 	query := `
 		SELECT id, name, display_name, provider_type, api_base_url, 
-		       is_active, is_demo_mode, logo_url, supported_currencies, config_json,
+		       is_active, is_demo_mode, deposit_enabled, withdraw_enabled,
+		       logo_url, supported_currencies, config_json,
+		       fee_percentage, fee_fixed, min_transaction, max_transaction, daily_limit, priority,
 		       created_at, updated_at
 		FROM payment_providers
-		ORDER BY name`
+		ORDER BY priority DESC, name`
 
 	rows, err := h.db.Query(query)
 	if err != nil {
@@ -79,7 +89,9 @@ func (h *PaymentHandler) GetPaymentProviders(c *gin.Context) {
 		var p PaymentProvider
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBaseURL,
-			&p.IsActive, &p.IsDemoMode, &p.LogoURL, &p.SupportedCurrencies, &p.ConfigJSON,
+			&p.IsActive, &p.IsDemoMode, &p.DepositEnabled, &p.WithdrawEnabled,
+			&p.LogoURL, &p.SupportedCurrencies, &p.ConfigJSON,
+			&p.FeePercentage, &p.FeeFixed, &p.MinTransaction, &p.MaxTransaction, &p.DailyLimit, &p.Priority,
 			&p.CreatedAt, &p.UpdatedAt,
 		)
 		if err != nil {
@@ -312,6 +324,134 @@ func (h *PaymentHandler) ToggleDemoMode(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Mode updated"})
+}
+
+// ToggleDepositEnabled toggles deposit functionality for a provider
+func (h *PaymentHandler) ToggleDepositEnabled(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err := h.db.Exec("UPDATE payment_providers SET deposit_enabled = $1, updated_at = NOW() WHERE id = $2",
+		req.Enabled, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deposit status updated", "deposit_enabled": req.Enabled})
+}
+
+// ToggleWithdrawEnabled toggles withdraw functionality for a provider
+func (h *PaymentHandler) ToggleWithdrawEnabled(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err := h.db.Exec("UPDATE payment_providers SET withdraw_enabled = $1, updated_at = NOW() WHERE id = $2",
+		req.Enabled, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdraw status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Withdraw status updated", "withdraw_enabled": req.Enabled})
+}
+
+// UpdateProviderLimits updates transaction limits for a provider
+func (h *PaymentHandler) UpdateProviderLimits(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		MinTransaction float64 `json:"min_transaction"`
+		MaxTransaction float64 `json:"max_transaction"`
+		DailyLimit     float64 `json:"daily_limit"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err := h.db.Exec(`
+		UPDATE payment_providers 
+		SET min_transaction = $1, max_transaction = $2, daily_limit = $3, updated_at = NOW() 
+		WHERE id = $4`,
+		req.MinTransaction, req.MaxTransaction, req.DailyLimit, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update limits"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "Limits updated",
+		"min_transaction": req.MinTransaction,
+		"max_transaction": req.MaxTransaction,
+		"daily_limit":     req.DailyLimit,
+	})
+}
+
+// UpdateProviderFees updates fee configuration for a provider
+func (h *PaymentHandler) UpdateProviderFees(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		FeePercentage float64 `json:"fee_percentage"`
+		FeeFixed      float64 `json:"fee_fixed"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err := h.db.Exec(`
+		UPDATE payment_providers 
+		SET fee_percentage = $1, fee_fixed = $2, updated_at = NOW() 
+		WHERE id = $3`,
+		req.FeePercentage, req.FeeFixed, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update fees"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "Fees updated",
+		"fee_percentage": req.FeePercentage,
+		"fee_fixed":      req.FeeFixed,
+	})
+}
+
+// UpdateProviderPriority updates priority for a provider
+func (h *PaymentHandler) UpdateProviderPriority(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Priority int `json:"priority"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err := h.db.Exec("UPDATE payment_providers SET priority = $1, updated_at = NOW() WHERE id = $2",
+		req.Priority, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update priority"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Priority updated", "priority": req.Priority})
 }
 
 // AddProviderCountry adds a country to a provider

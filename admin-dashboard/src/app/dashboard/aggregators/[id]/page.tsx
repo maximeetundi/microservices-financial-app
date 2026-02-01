@@ -74,6 +74,89 @@ export default function AggregatorInstancesPage() {
         priority: 50,
         fee_percentage: 0
     });
+
+    // Region presets for quick country addition
+    const REGION_PRESETS: Record<string, { name: string; countries: { code: string; name: string; currency: string }[] }> = {
+        UEMOA: {
+            name: 'UEMOA (Zone XOF)',
+            countries: [
+                { code: 'BJ', name: 'Bénin', currency: 'XOF' },
+                { code: 'BF', name: 'Burkina Faso', currency: 'XOF' },
+                { code: 'CI', name: "Côte d'Ivoire", currency: 'XOF' },
+                { code: 'GW', name: 'Guinée-Bissau', currency: 'XOF' },
+                { code: 'ML', name: 'Mali', currency: 'XOF' },
+                { code: 'NE', name: 'Niger', currency: 'XOF' },
+                { code: 'SN', name: 'Sénégal', currency: 'XOF' },
+                { code: 'TG', name: 'Togo', currency: 'XOF' },
+            ]
+        },
+        CEMAC: {
+            name: 'CEMAC (Zone XAF)',
+            countries: [
+                { code: 'CM', name: 'Cameroun', currency: 'XAF' },
+                { code: 'CF', name: 'Centrafrique', currency: 'XAF' },
+                { code: 'TD', name: 'Tchad', currency: 'XAF' },
+                { code: 'CG', name: 'Congo', currency: 'XAF' },
+                { code: 'GQ', name: 'Guinée Équatoriale', currency: 'XAF' },
+                { code: 'GA', name: 'Gabon', currency: 'XAF' },
+            ]
+        },
+        WEST_AFRICA: {
+            name: 'Afrique de l\'Ouest (Autres)',
+            countries: [
+                { code: 'GH', name: 'Ghana', currency: 'GHS' },
+                { code: 'NG', name: 'Nigeria', currency: 'NGN' },
+                { code: 'GN', name: 'Guinée', currency: 'GNF' },
+                { code: 'SL', name: 'Sierra Leone', currency: 'SLL' },
+                { code: 'LR', name: 'Libéria', currency: 'LRD' },
+                { code: 'GM', name: 'Gambie', currency: 'GMD' },
+            ]
+        },
+        EAST_AFRICA: {
+            name: 'Afrique de l\'Est',
+            countries: [
+                { code: 'KE', name: 'Kenya', currency: 'KES' },
+                { code: 'TZ', name: 'Tanzanie', currency: 'TZS' },
+                { code: 'UG', name: 'Ouganda', currency: 'UGX' },
+                { code: 'RW', name: 'Rwanda', currency: 'RWF' },
+            ]
+        }
+    };
+
+    const addRegionCountries = async (regionKey: string) => {
+        const region = REGION_PRESETS[regionKey];
+        if (!region) return;
+
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+        const token = localStorage.getItem('admin_token');
+
+        let addedCount = 0;
+        for (const country of region.countries) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        country_code: country.code,
+                        country_name: country.name,
+                        currency: country.currency,
+                        priority: 50,
+                        fee_percentage: 0
+                    })
+                });
+                if (response.ok) addedCount++;
+            } catch (e) {
+                console.error(`Failed to add ${country.code}`, e);
+            }
+        }
+
+        loadProviderDetails();
+        alert(`${addedCount} pays ajoutés sur ${region.countries.length}`);
+    };
+
     const [newInstance, setNewInstance] = useState({
         name: '',
         vault_secret_path: '',
@@ -736,54 +819,78 @@ export default function AggregatorInstancesPage() {
             {/* Add Country Modal */}
             {showAddCountryModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scaleIn">
                         <h2 className="text-xl font-bold mb-4">Ajouter un Pays</h2>
-                        <form onSubmit={handleAddCountry} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Code Pays (ex: CI, SN)</label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={3}
-                                    className="input w-full uppercase"
-                                    placeholder="CI"
-                                    value={newCountry.country_code}
-                                    onChange={e => setNewCountry({ ...newCountry, country_code: e.target.value.toUpperCase() })}
-                                />
+
+                        {/* Quick Add Regions */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+                            <p className="text-sm font-medium text-gray-700 mb-3">Ajout rapide par région</p>
+                            <div className="flex flex-wrap gap-2">
+                                {Object.entries(REGION_PRESETS).map(([key, region]) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => {
+                                            setShowAddCountryModal(false);
+                                            addRegionCountries(key);
+                                        }}
+                                        className="px-3 py-1.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                                    >
+                                        + {region.name}
+                                    </button>
+                                ))}
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Pays</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="input w-full"
-                                    placeholder="Côte d'Ivoire"
-                                    value={newCountry.country_name}
-                                    onChange={e => setNewCountry({ ...newCountry, country_name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                                <select
-                                    className="input w-full"
-                                    value={newCountry.currency}
-                                    onChange={e => setNewCountry({ ...newCountry, currency: e.target.value })}
-                                >
-                                    <option value="XOF">XOF (Franc CFA)</option>
-                                    <option value="XAF">XAF (Franc CFA CEMAC)</option>
-                                    <option value="GNF">GNF (Franc Guinéen)</option>
-                                    <option value="NGN">NGN (Naira)</option>
-                                    <option value="GHS">GHS (Cedi)</option>
-                                    <option value="KES">KES (Shilling Kenyan)</option>
-                                    <option value="USD">USD (Dollar US)</option>
-                                    <option value="EUR">EUR (Euro)</option>
-                                </select>
-                            </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setShowAddCountryModal(false)} className="btn-secondary">Annuler</button>
-                                <button type="submit" className="btn-primary">Ajouter</button>
-                            </div>
-                        </form>
+                        </div>
+
+                        <div className="border-t border-gray-200 pt-4">
+                            <p className="text-sm font-medium text-gray-700 mb-3">Ou ajouter un pays individuel</p>
+                            <form onSubmit={handleAddCountry} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Code Pays (ex: CI, SN)</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        maxLength={3}
+                                        className="input w-full uppercase"
+                                        placeholder="CI"
+                                        value={newCountry.country_code}
+                                        onChange={e => setNewCountry({ ...newCountry, country_code: e.target.value.toUpperCase() })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Pays</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="input w-full"
+                                        placeholder="Côte d'Ivoire"
+                                        value={newCountry.country_name}
+                                        onChange={e => setNewCountry({ ...newCountry, country_name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                                    <select
+                                        className="input w-full"
+                                        value={newCountry.currency}
+                                        onChange={e => setNewCountry({ ...newCountry, currency: e.target.value })}
+                                    >
+                                        <option value="XOF">XOF (Franc CFA)</option>
+                                        <option value="XAF">XAF (Franc CFA CEMAC)</option>
+                                        <option value="GNF">GNF (Franc Guinéen)</option>
+                                        <option value="NGN">NGN (Naira)</option>
+                                        <option value="GHS">GHS (Cedi)</option>
+                                        <option value="KES">KES (Shilling Kenyan)</option>
+                                        <option value="USD">USD (Dollar US)</option>
+                                        <option value="EUR">EUR (Euro)</option>
+                                    </select>
+                                </div>
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <button type="button" onClick={() => setShowAddCountryModal(false)} className="btn-secondary">Annuler</button>
+                                    <button type="submit" className="btn-primary">Ajouter</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}
