@@ -598,20 +598,23 @@ export default function AggregatorInstancesPage() {
                                         {/* Currency badges for linked wallets */}
                                         {instanceWallets[inst.id]?.length > 0 ? (
                                             <div className="flex flex-wrap gap-2 mb-3">
-                                                {instanceWallets[inst.id].map(w => (
-                                                    <div key={w.id} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
-                                                        <span className="text-xs font-medium text-emerald-700">
-                                                            {w.currency} <span className="opacity-75 text-[10px] hidden sm:inline">- {w.name || 'Wallet'}</span>
-                                                        </span>
-                                                        <button
-                                                            onClick={() => removeWalletFromInstance(inst.id, w.id)}
-                                                            className="text-red-400 hover:text-red-600 ml-1"
-                                                            title="Retirer"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                                {instanceWallets[inst.id].map(w => {
+                                                    const walletDetails = hotWallets.find(hw => hw.id === w.hot_wallet_id);
+                                                    return (
+                                                        <div key={w.id} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
+                                                            <span className="text-xs font-medium text-emerald-700">
+                                                                {w.currency} <span className="opacity-75 text-[10px] hidden sm:inline">- {walletDetails?.name || 'Wallet'}</span>
+                                                            </span>
+                                                            <button
+                                                                onClick={() => removeWalletFromInstance(inst.id, w.id)}
+                                                                className="text-red-400 hover:text-red-600 ml-1"
+                                                                title="Retirer"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
                                             <p className="text-xs text-gray-500 italic mb-2">Aucun wallet lié</p>
