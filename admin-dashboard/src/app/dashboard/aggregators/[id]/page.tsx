@@ -600,7 +600,9 @@ export default function AggregatorInstancesPage() {
                                             <div className="flex flex-wrap gap-2 mb-3">
                                                 {instanceWallets[inst.id].map(w => (
                                                     <div key={w.id} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
-                                                        <span className="text-xs font-medium text-emerald-700">{w.currency}</span>
+                                                        <span className="text-xs font-medium text-emerald-700">
+                                                            {w.currency} <span className="opacity-75 text-[10px] hidden sm:inline">- {w.name || 'Wallet'}</span>
+                                                        </span>
                                                         <button
                                                             onClick={() => removeWalletFromInstance(inst.id, w.id)}
                                                             className="text-red-400 hover:text-red-600 ml-1"
@@ -744,48 +746,76 @@ export default function AggregatorInstancesPage() {
             {showLinkWalletModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
-                        <h2 className="text-xl font-bold mb-4">Lier Hot Wallet</h2>
-                        <p className="text-sm text-gray-500 mb-4">Sélectionnez un wallet opérationnel pour cette instance.</p>
+                        <h2 className="text-xl font-bold mb-4">Lier Hot Wallets</h2>
+                        <p className="text-sm text-gray-500 mb-4">Sélectionnez les wallets à lier à cette instance.</p>
 
-                        <div className="space-y-3 max-h-72 overflow-y-auto mb-6">
-                            {hotWallets.length === 0 ? (
-                                <p className="text-gray-500 text-sm italic">Aucun wallet opérationnel disponible.</p>
-                            ) : (
-                                hotWallets.map(wallet => (
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700">Wallets Disponibles</label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const linkedIds = instanceWallets[selectedInstance?.id || '']?.map(w => w.id) || [];
+                                    const available = hotWallets.filter(w => !linkedIds.includes(w.id));
+
+                                    // If all available are selected, deselect all. Otherwise select all available.
+                                    const availableIds = available.map(w => w.id);
+                                    const allSelected = availableIds.every(id => selectedWalletIds.includes(id));
+
+                                    if (allSelected) {
+                                        setSelectedWalletIds([]);
+                                    } else {
+                                        setSelectedWalletIds(availableIds);
+                                    }
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                                Tout sélectionner / désélectionner
+                            </button>
+                        </div>
+
+                        <div className="space-y-2 max-h-72 overflow-y-auto mb-6 border rounded-lg p-2 bg-gray-50">
+                            {hotWallets.filter(w => !instanceWallets[selectedInstance?.id || '']?.some(linked => linked.id === w.id)).length === 0 && (
+                                <p className="text-center text-gray-500 text-sm py-8 italic">Tous les wallets disponibles sont déjà liés.</p>
+                            )}
+
+                            {hotWallets.map(wallet => {
+                                const isLinked = instanceWallets[selectedInstance?.id || '']?.some(w => w.id === wallet.id);
+                                if (isLinked) return null;
+
+                                return (
                                     <label
                                         key={wallet.id}
-                                        className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${selectedWalletId === wallet.id
-                                            ? 'border-emerald-500 bg-emerald-50'
-                                            : 'border-gray-200 hover:bg-gray-50'
+                                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${selectedWalletIds.includes(wallet.id)
+                                            ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                                            : 'border-gray-200 hover:border-gray-300 bg-white'
                                             }`}
                                     >
                                         <input
-                                            type="radio"
-                                            name="wallet"
-                                            value={wallet.id}
-                                            checked={selectedWalletId === wallet.id}
-                                            onChange={e => {
-                                                setSelectedWalletId(e.target.value);
-                                                setSelectedCurrency(wallet.currency);
+                                            type="checkbox"
+                                            className="checkbox checkbox-sm mr-3"
+                                            checked={selectedWalletIds.includes(wallet.id)}
+                                            onChange={() => {
+                                                if (selectedWalletIds.includes(wallet.id)) {
+                                                    setSelectedWalletIds(prev => prev.filter(id => id !== wallet.id));
+                                                } else {
+                                                    setSelectedWalletIds(prev => [...prev, wallet.id]);
+                                                }
                                             }}
-                                            className="radio text-emerald-600"
                                         />
                                         <div className="flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <p className="font-semibold text-gray-900">
-                                                    {wallet.name || wallet.alias || 'Wallet'}
-                                                </p>
-                                                <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded font-medium">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-medium text-gray-900">{wallet.name || wallet.alias || 'Wallet'}</span>
+                                                <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">
                                                     {wallet.currency}
-                                                </span>
+                                                </div>
                                             </div>
                                             <p className="text-xs text-gray-500 mt-0.5">
                                                 Solde: {wallet.balance?.toLocaleString()} {wallet.currency}
                                             </p>
                                         </div>
                                     </label>
-                                ))
-                            )}
+                                );
+                            })}
                         </div>
 
                         <div className="flex justify-end gap-3">
@@ -793,23 +823,35 @@ export default function AggregatorInstancesPage() {
                                 type="button"
                                 onClick={() => {
                                     setShowLinkWalletModal(false);
-                                    setSelectedWalletId('');
-                                    setSelectedCurrency('');
+                                    setSelectedWalletIds([]);
                                 }}
                                 className="btn-secondary"
                             >
                                 Annuler
                             </button>
                             <button
-                                onClick={() => {
-                                    if (selectedInstance && selectedWalletId && selectedCurrency) {
-                                        addWalletToInstance(selectedInstance.id, selectedCurrency, selectedWalletId);
+                                onClick={async () => {
+                                    if (selectedInstance && selectedWalletIds.length > 0) {
+                                        // Loop through to add multiple
+                                        for (const wid of selectedWalletIds) {
+                                            const w = hotWallets.find(hw => hw.id === wid);
+                                            if (w) {
+                                                await addWalletToInstance(selectedInstance.id, w.currency, w.id);
+                                            }
+                                        }
+                                        // Close and refresh happens in addWalletToInstance but we might need to manual refresh if loop
+                                        // Actually addWalletToInstance calls loadInstanceWallets. 
+                                        // To avoid race conditions visually, we just close.
+                                        setShowLinkWalletModal(false);
+                                        setSelectedWalletIds([]);
+                                        // Force reload one last time to be sure
+                                        setTimeout(() => loadInstanceWallets(selectedInstance.id), 500);
                                     }
                                 }}
                                 className="btn-primary"
-                                disabled={!selectedWalletId}
+                                disabled={selectedWalletIds.length === 0}
                             >
-                                Confirmer
+                                Lier ({selectedWalletIds.length})
                             </button>
                         </div>
                     </div>

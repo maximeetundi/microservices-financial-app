@@ -333,7 +333,17 @@
 
                <!-- Payment Method Selection - Dynamic -->
                <div class="mb-6">
-                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Méthode de paiement</label>
+                 <div class="flex justify-between items-center mb-3">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Méthode de paiement</label>
+                    
+                    <!-- Country Selector -->
+                    <select 
+                        v-model="selectedCountry" 
+                        class="text-xs p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <option v-for="c in availableCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
+                    </select>
+                 </div>
                  
                  <!-- Loading State -->
                  <div v-if="paymentProvidersLoading" class="flex justify-center py-8">
@@ -581,11 +591,45 @@ const {
 } = usePaymentProviders()
 
 const selectedProvider = ref(null)
+const selectedCountry = ref('CI') // Default
+
+// Map currencies to default countries
+const currencyCountryMap = {
+  'XOF': 'CI', // Côte d'Ivoire
+  'XAF': 'CM', // Cameroun
+  'EUR': 'FR', // France
+  'USD': 'US', // USA
+  'GBP': 'GB', // UK
+}
+
+const availableCountries = [
+  { code: 'CI', name: '🇨🇮 Côte d\'Ivoire (UEMOA)' },
+  { code: 'SN', name: '🇸🇳 Sénégal (UEMOA)' },
+  { code: 'BJ', name: '🇧🇯 Bénin (UEMOA)' },
+  { code: 'BF', name: '🇧🇫 Burkina Faso (UEMOA)' },
+  { code: 'ML', name: '🇲🇱 Mali (UEMOA)' },
+  { code: 'TG', name: '🇹🇬 Togo (UEMOA)' },
+  { code: 'CM', name: '🇨🇲 Cameroun (CEMAC)' },
+  { code: 'GA', name: '🇬🇦 Gabon (CEMAC)' },
+  { code: 'CG', name: '🇨🇬 Congo (CEMAC)' },
+  { code: 'TD', name: '🇹🇩 Tchad (CEMAC)' },
+  { code: 'FR', name: '🇫🇷 France (Europe)' },
+  { code: 'US', name: '🇺🇸 États-Unis' },
+]
 
 const selectPaymentProvider = (provider) => {
   selectedProvider.value = provider
   depositMethod.value = provider.name
 }
+
+// Watch country change to reload providers
+watch(selectedCountry, async (newCountry) => {
+  if (showTopUpModal.value && selectedWallet.value?.wallet_type !== 'crypto') {
+    selectedProvider.value = null
+    depositMethod.value = ''
+    await loadPaymentProviders(newCountry)
+  }
+})
 
 // Color helper functions for providers
 const getProviderBorderClass = (color) => {
@@ -779,7 +823,17 @@ const openTopUpModal = async () => {
     
     // Load payment providers for user's country (fiat only)
     if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
-        await loadPaymentProviders()
+        const currency = selectedWallet.value.currency
+        // Set default country based on currency if possible
+        if (currencyCountryMap[currency]) {
+            selectedCountry.value = currencyCountryMap[currency]
+        } else {
+            // Fallback to existing logic or default
+             await detectIpCountry()
+             // access ipCountry from composable is cleaner but simplistic here
+        }
+        
+        await loadPaymentProviders(selectedCountry.value)
     }
     
     // If only one network (or native), might auto-select or just show default address
