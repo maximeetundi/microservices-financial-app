@@ -594,57 +594,167 @@ func (h *PaymentHandler) TestProviderConnection(c *gin.Context) {
 	})
 }
 
-// GetPaymentMethodsForCountry returns available payment methods for a country (public endpoint)
+// GetPaymentMethodsForCountry returns available payment methods for one or more countries (public endpoint)
+// Also includes global providers (Stripe, PayPal, etc.) that work for all countries
 func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
-	countryCode := c.Query("country")
-	if countryCode == "" {
-		countryCode = "CI" // Default to Côte d'Ivoire
+	// Support multiple countries via query array: ?country=CI&country=CA
+	countries := c.QueryArray("country")
+	if len(countries) == 0 {
+		// Fallback to single country param
+		country := c.Query("country")
+		if country != "" {
+			countries = []string{country}
+		} else {
+			countries = []string{"CI"} // Default to Côte d'Ivoire
+		}
 	}
 
-	query := `
-		SELECT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
-		       pc.fee_percentage, pc.fee_fixed, pc.min_amount, pc.max_amount
+	// Track seen providers to avoid duplicates
+	seenProviders := make(map[string]bool)
+	var methods []map[string]interface{}
+
+	// 1. First, get country-specific providers
+	countryQuery := `
+		SELECT DISTINCT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
+		       pp.deposit_enabled, pp.withdraw_enabled,
+		       pc.fee_percentage, pc.fee_fixed, pc.min_amount, pc.max_amount, pc.country_code
 		FROM payment_providers pp
 		JOIN provider_countries pc ON pp.id = pc.provider_id
-		WHERE pc.country_code = $1 AND pp.is_active = true AND pc.is_active = true
+		WHERE pc.country_code = ANY($1) AND pp.is_active = true AND pc.is_active = true
 		ORDER BY pc.priority ASC`
 
-	rows, err := h.db.Query(query, countryCode)
+	rows, err := h.db.Query(countryQuery, countries)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch payment methods"})
 		return
 	}
 	defer rows.Close()
 
-	var methods []map[string]interface{}
 	for rows.Next() {
-		var id, name, displayName, providerType string
-		var isDemoMode bool
+		var id, name, displayName, providerType, countryCode string
+		var isDemoMode, depositEnabled, withdrawEnabled bool
 		var logoURL *string
 		var feePercentage, feeFixed, minAmount, maxAmount float64
 
 		err := rows.Scan(&id, &name, &displayName, &providerType, &isDemoMode, &logoURL,
-			&feePercentage, &feeFixed, &minAmount, &maxAmount)
+			&depositEnabled, &withdrawEnabled,
+			&feePercentage, &feeFixed, &minAmount, &maxAmount, &countryCode)
 		if err != nil {
 			continue
 		}
 
+		// Avoid duplicates (same provider for multiple countries)
+		if seenProviders[id] {
+			continue
+		}
+		seenProviders[id] = true
+
 		methods = append(methods, map[string]interface{}{
-			"id":             id,
-			"name":           name,
-			"display_name":   displayName,
-			"provider_type":  providerType,
-			"is_demo_mode":   isDemoMode,
-			"logo_url":       logoURL,
-			"fee_percentage": feePercentage,
-			"fee_fixed":      feeFixed,
-			"min_amount":     minAmount,
-			"max_amount":     maxAmount,
+			"id":               id,
+			"name":             name,
+			"display_name":     displayName,
+			"provider_type":    providerType,
+			"is_demo_mode":     isDemoMode,
+			"logo_url":         logoURL,
+			"deposit_enabled":  depositEnabled,
+			"withdraw_enabled": withdrawEnabled,
+			"fee_percentage":   feePercentage,
+			"fee_fixed":        feeFixed,
+			"min_amount":       minAmount,
+			"max_amount":       maxAmount,
+			"country_code":     countryCode,
+		})
+	}
+
+	// 2. Add global providers (international/card types that work for all countries)
+	// These are providers with type 'card', 'international', or 'crypto' that are active
+	globalQuery := `
+		SELECT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
+		       pp.deposit_enabled, pp.withdraw_enabled,
+		       pp.fee_percentage, pp.fee_fixed, pp.min_transaction, pp.max_transaction
+		FROM payment_providers pp
+		WHERE pp.is_active = true 
+		  AND pp.provider_type IN ('card', 'international', 'crypto', 'bank_transfer')
+		ORDER BY pp.priority DESC`
+
+	globalRows, err := h.db.Query(globalQuery)
+	if err == nil {
+		defer globalRows.Close()
+
+		for globalRows.Next() {
+			var id, name, displayName, providerType string
+			var isDemoMode, depositEnabled, withdrawEnabled bool
+			var logoURL *string
+			var feePercentage, feeFixed, minAmount, maxAmount float64
+
+			err := globalRows.Scan(&id, &name, &displayName, &providerType, &isDemoMode, &logoURL,
+				&depositEnabled, &withdrawEnabled,
+				&feePercentage, &feeFixed, &minAmount, &maxAmount)
+			if err != nil {
+				continue
+			}
+
+			// Avoid duplicates
+			if seenProviders[id] {
+				continue
+			}
+			seenProviders[id] = true
+
+			methods = append(methods, map[string]interface{}{
+				"id":               id,
+				"name":             name,
+				"display_name":     displayName,
+				"provider_type":    providerType,
+				"is_demo_mode":     isDemoMode,
+				"logo_url":         logoURL,
+				"deposit_enabled":  depositEnabled,
+				"withdraw_enabled": withdrawEnabled,
+				"fee_percentage":   feePercentage,
+				"fee_fixed":        feeFixed,
+				"min_amount":       minAmount,
+				"max_amount":       maxAmount,
+				"is_global":        true,
+			})
+		}
+	}
+
+	// 3. Always include demo provider if active (for testing)
+	demoQuery := `
+		SELECT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
+		       pp.deposit_enabled, pp.withdraw_enabled,
+		       pp.fee_percentage, pp.fee_fixed, pp.min_transaction, pp.max_transaction
+		FROM payment_providers pp
+		WHERE pp.is_active = true AND pp.name = 'demo'`
+
+	var demoID, demoName, demoDisplayName, demoProviderType string
+	var demoIsDemoMode, demoDepositEnabled, demoWithdrawEnabled bool
+	var demoLogoURL *string
+	var demoFeePercentage, demoFeeFixed, demoMinAmount, demoMaxAmount float64
+
+	err = h.db.QueryRow(demoQuery).Scan(&demoID, &demoName, &demoDisplayName, &demoProviderType,
+		&demoIsDemoMode, &demoLogoURL, &demoDepositEnabled, &demoWithdrawEnabled,
+		&demoFeePercentage, &demoFeeFixed, &demoMinAmount, &demoMaxAmount)
+
+	if err == nil && !seenProviders[demoID] {
+		methods = append(methods, map[string]interface{}{
+			"id":               demoID,
+			"name":             demoName,
+			"display_name":     demoDisplayName,
+			"provider_type":    demoProviderType,
+			"is_demo_mode":     demoIsDemoMode,
+			"logo_url":         demoLogoURL,
+			"deposit_enabled":  demoDepositEnabled,
+			"withdraw_enabled": demoWithdrawEnabled,
+			"fee_percentage":   demoFeePercentage,
+			"fee_fixed":        demoFeeFixed,
+			"min_amount":       demoMinAmount,
+			"max_amount":       demoMaxAmount,
+			"is_global":        true,
 		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"country":         countryCode,
+		"countries":       countries,
 		"payment_methods": methods,
 	})
 }

@@ -1,120 +1,157 @@
 <template>
-  <div class="container mx-auto px-4 py-8 max-w-4xl">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-      <div>
-        <NuxtLink :to="`/shops/manage/${slug}`" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center gap-1 mb-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-          Retour au tableau de bord
-        </NuxtLink>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Gestionnaires</h1>
-        <p class="text-gray-500 dark:text-gray-400">Gérez l'accès à votre boutique</p>
-      </div>
-      <button @click="showInviteModal = true" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-        Inviter un membre
-      </button>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-12">
-       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-    </div>
-
-    <div v-else class="space-y-6">
-      
-      <!-- Owner Card -->
-      <div class="bg-white dark:bg-slate-800 shadow rounded-lg p-6 border-l-4 border-indigo-500">
-         <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-               <div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xl">
-                  {{ ownerInitials }}
-               </div>
-               <div>
-                  <h3 class="font-bold text-gray-900 dark:text-white">Propriétaire</h3>
-                  <p class="text-sm text-gray-500">Accès complet propriétaire</p>
-               </div>
-            </div>
-            <span class="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-xs font-bold uppercase">Owner</span>
-         </div>
+  <ShopLayout>
+    <div class="managers-page">
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1 class="page-title">👥 Équipe</h1>
+          <p class="page-subtitle">Gérez les accès à votre boutique</p>
+        </div>
+        <button @click="showInviteModal = true" class="btn-create">
+          <span class="icon">+</span>
+          Inviter un membre
+        </button>
       </div>
 
-      <!-- Managers List -->
-      <div class="bg-white dark:bg-slate-800 shadow rounded-lg overflow-hidden">
-        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white">Membres de l'équipe</h2>
+      <!-- Roles Info -->
+      <div class="roles-info">
+        <div class="role-card">
+          <div class="role-icon admin">👑</div>
+          <div class="role-details">
+            <h4>Administrateur</h4>
+            <p>Accès complet sauf suppression boutique</p>
+          </div>
         </div>
-        
-        <div v-if="managers.length === 0" class="p-12 text-center text-gray-500">
-           <div class="mb-3 text-4xl">👥</div>
-           <p>Aucun gestionnaire invité pour le moment.</p>
+        <div class="role-card">
+          <div class="role-icon editor">✏️</div>
+          <div class="role-details">
+            <h4>Éditeur</h4>
+            <p>Gère produits et commandes</p>
+          </div>
         </div>
-
-        <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
-           <div v-for="manager in managers" :key="manager.user_id || manager.email" class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-              <div class="flex items-center gap-4">
-                 <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold">
-                    {{ (manager.first_name?.[0] || manager.email?.[0] || '?').toUpperCase() }}
-                 </div>
-                 <div>
-                    <h4 class="font-medium text-gray-900 dark:text-white">{{ manager.first_name ? `${manager.first_name} ${manager.last_name}` : manager.email }}</h4>
-                    <p class="text-xs text-gray-500">{{ manager.email }}</p>
-                 </div>
-              </div>
-              
-              <div class="flex items-center gap-4">
-                 <div class="flex flex-col items-end">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">{{ manager.role }}</span>
-                    <span class="text-xs" :class="statusColor(manager.status)">{{ manager.status }}</span>
-                 </div>
-                 
-                 <button @click="removeManager(manager)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Révoquer l'accès">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                 </button>
-              </div>
-           </div>
+        <div class="role-card">
+          <div class="role-icon viewer">👁️</div>
+          <div class="role-details">
+            <h4>Observateur</h4>
+            <p>Lecture seule</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Invite Modal -->
-    <div v-if="showInviteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-         <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Inviter un gestionnaire</h3>
-         
-         <form @submit.prevent="inviteManager">
-            <div class="mb-4">
-               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Email du membre</label>
-               <input v-model="inviteForm.email" type="email" required class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-slate-800 focus:ring-indigo-500" placeholder="collague@exemple.com">
-            </div>
+      <!-- Loading -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement de l'équipe...</p>
+      </div>
+
+      <div v-else class="members-list">
+        <!-- Owner Card -->
+        <div class="member-card owner">
+          <div class="member-avatar owner-avatar">
+            {{ ownerInitials }}
+          </div>
+          <div class="member-info">
+            <h3>Propriétaire</h3>
+            <p class="member-role">Accès complet</p>
+          </div>
+          <span class="role-badge owner">👑 Owner</span>
+        </div>
+
+        <!-- Managers -->
+        <div 
+          v-for="manager in managers" 
+          :key="manager.user_id || manager.email" 
+          class="member-card"
+        >
+          <div class="member-avatar">
+            {{ (manager.first_name?.[0] || manager.email?.[0] || '?').toUpperCase() }}
+          </div>
+          <div class="member-info">
+            <h3>{{ manager.first_name ? `${manager.first_name} ${manager.last_name}` : manager.email }}</h3>
+            <p class="member-email">{{ manager.email }}</p>
+          </div>
+          <div class="member-meta">
+            <span :class="['status-badge', manager.status]">
+              {{ manager.status === 'active' ? '✓ Actif' : '⏳ En attente' }}
+            </span>
+            <span :class="['role-badge', manager.role]">{{ getRoleLabel(manager.role) }}</span>
+          </div>
+          <button @click="removeManager(manager)" class="btn-remove" title="Révoquer l'accès">
+            🗑️
+          </button>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="managers.length === 0" class="empty-state">
+          <div class="empty-icon">👥</div>
+          <h3>Aucun membre</h3>
+          <p>Invitez des collaborateurs pour gérer votre boutique ensemble</p>
+          <button @click="showInviteModal = true" class="btn-primary">Inviter un membre</button>
+        </div>
+      </div>
+
+      <!-- Invite Modal -->
+      <Teleport to="body">
+        <div v-if="showInviteModal" class="modal-overlay" @click.self="showInviteModal = false">
+          <div class="modal-content">
+            <button class="close-btn" @click="showInviteModal = false">✕</button>
+            <h2 class="modal-title">Inviter un membre</h2>
             
-            <div class="mb-6">
-               <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Rôle</label>
-               <select v-model="inviteForm.role" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-slate-800 focus:ring-indigo-500">
-                  <option value="editor">Éditeur (Peut gérer produits & commandes)</option>
-                  <option value="admin">Administrateur (Accès complet sauf suppress.)</option>
-                  <option value="viewer">Observateur (Lecture seule)</option>
-               </select>
-            </div>
+            <form @submit.prevent="inviteManager" class="modal-form">
+              <div class="form-group">
+                <label>Email du membre *</label>
+                <input 
+                  v-model="inviteForm.email" 
+                  type="email" 
+                  required
+                  placeholder="colleague@exemple.com"
+                  class="input"
+                >
+              </div>
 
-            <div class="flex justify-end gap-3">
-               <button type="button" @click="showInviteModal = false" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg">Annuler</button>
-               <button type="submit" :disabled="submitting" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 flex items-center gap-2">
-                  <span v-if="submitting" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                  Inviter
-               </button>
-            </div>
-         </form>
-      </div>
+              <div class="form-group">
+                <label>Rôle *</label>
+                <div class="role-selector">
+                  <label 
+                    v-for="role in availableRoles" 
+                    :key="role.value"
+                    :class="['role-option', inviteForm.role === role.value && 'active']"
+                  >
+                    <input 
+                      type="radio" 
+                      :value="role.value" 
+                      v-model="inviteForm.role"
+                      hidden
+                    >
+                    <span class="role-option-icon">{{ role.icon }}</span>
+                    <span class="role-option-label">{{ role.label }}</span>
+                    <span class="role-option-desc">{{ role.desc }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" @click="showInviteModal = false" class="btn-secondary">
+                  Annuler
+                </button>
+                <button type="submit" class="btn-primary" :disabled="submitting">
+                  <span v-if="submitting" class="spinner-small"></span>
+                  Envoyer l'invitation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
     </div>
-
-  </div>
+  </ShopLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi, type ShopManager } from '@/composables/useShopApi'
+import ShopLayout from '@/components/shops/ShopLayout.vue'
 
 const route = useRoute()
 const shopApi = useShopApi()
@@ -125,22 +162,27 @@ const showInviteModal = ref(false)
 const submitting = ref(false)
 const shopId = ref('')
 const managers = ref<ShopManager[]>([])
-const shopOwnerId = ref('') // Store owner ID to identify
 
 const inviteForm = ref({
   email: '',
-  role: 'editor',
-  permissions: [] as string[]
+  role: 'editor'
 })
 
-const ownerInitials = computed(() => 'OP') // Ideally fetch owner details
+const availableRoles = [
+  { value: 'admin', label: 'Administrateur', icon: '👑', desc: 'Accès complet' },
+  { value: 'editor', label: 'Éditeur', icon: '✏️', desc: 'Produits & commandes' },
+  { value: 'viewer', label: 'Observateur', icon: '👁️', desc: 'Lecture seule' }
+]
 
-const statusColor = (status: string) => {
-   switch(status) {
-      case 'active': return 'text-green-600'
-      case 'pending': return 'text-yellow-600'
-      default: return 'text-gray-500'
-   }
+const ownerInitials = computed(() => 'OP')
+
+const getRoleLabel = (role: string) => {
+  const labels: Record<string, string> = {
+    admin: '👑 Admin',
+    editor: '✏️ Éditeur',
+    viewer: '👁️ Observateur'
+  }
+  return labels[role] || role
 }
 
 const fetchShopData = async () => {
@@ -149,7 +191,6 @@ const fetchShopData = async () => {
     const shop = await shopApi.getShop(slug)
     shopId.value = shop.id
     managers.value = shop.managers || []
-    shopOwnerId.value = shop.owner_id
   } catch (e) {
     console.error(e)
   } finally {
@@ -162,7 +203,6 @@ const inviteManager = async () => {
   
   try {
     submitting.value = true
-    // Default permissions based on role
     let perms: string[] = []
     if (inviteForm.value.role === 'admin') perms = ['*']
     else if (inviteForm.value.role === 'editor') perms = ['products.*', 'orders.*']
@@ -170,37 +210,465 @@ const inviteManager = async () => {
 
     await shopApi.inviteManager(shopId.value, inviteForm.value.email, inviteForm.value.role, perms)
     
-    // Refresh
     await fetchShopData()
     showInviteModal.value = false
     inviteForm.value.email = ''
+    inviteForm.value.role = 'editor'
   } catch (e: any) {
-    alert('Erreur: ' + (e.response?.data?.error || e.message))
+    alert('Erreur: ' + (e.message || 'Impossible d\'inviter'))
   } finally {
     submitting.value = false
   }
 }
 
 const removeManager = async (manager: ShopManager) => {
-   if (!confirm(`Révoquer l'accès pour ${manager.email} ?`)) return
-   try {
-      await shopApi.removeManager(shopId.value, manager.user_id || 'pending') // Use ID if registered, or we might need email for pending invites?
-      // Note: Backend RemoveManager likely expects UserID. If pending, how do we remove? 
-      // Checking models logic: Usually invites have an ID or we delete by email? 
-      // Handler says RemoveManager(shopID, targetUserID). 
-      // If invitation is pending, there might not be a UserID yet if user doesn't exist?
-      // Assuming for now manager object has user_id populated or we handle it.
-      await fetchShopData()
-   } catch (e: any) {
-      alert('Erreur: ' + (e.response?.data?.error || e.message))
-   }
+  if (!confirm(`Révoquer l'accès pour ${manager.email} ?`)) return
+  try {
+    await shopApi.removeManager(shopId.value, manager.user_id || '')
+    await fetchShopData()
+  } catch (e: any) {
+    alert('Erreur: ' + (e.message || 'Impossible de révoquer'))
+  }
 }
 
-onMounted(() => {
-  fetchShopData()
-})
+onMounted(fetchShopData)
 
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth'],
+  layout: 'dashboard'
 })
 </script>
+
+<style scoped>
+.managers-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  margin: 0;
+}
+
+.page-subtitle {
+  color: var(--text-muted, #6b7280);
+  margin-top: 4px;
+}
+
+.btn-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-create:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+}
+
+/* Roles Info */
+.roles-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface, white);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+}
+
+.role-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.role-icon.admin { background: #fef3c7; }
+.role-icon.editor { background: #dbeafe; }
+.role-icon.viewer { background: #f3f4f6; }
+
+.role-details h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin: 0;
+}
+
+.role-details p {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  margin: 2px 0 0;
+}
+
+/* Members List */
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--surface, white);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+
+.member-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.member-card.owner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.member-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  color: #6b7280;
+}
+
+.owner-avatar {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-info h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin: 0;
+}
+
+.member-email, .member-role {
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+  margin: 2px 0 0;
+}
+
+.member-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active { background: #d1fae5; color: #059669; }
+.status-badge.pending { background: #fef3c7; color: #d97706; }
+
+.role-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.role-badge.owner { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+.role-badge.admin { background: #fef3c7; color: #92400e; }
+.role-badge.editor { background: #dbeafe; color: #1e40af; }
+
+.btn-remove {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.btn-remove:hover {
+  background: #fee2e2;
+  opacity: 1;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--surface, white);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: var(--text-primary, #1f2937);
+  margin: 0 0 8px;
+}
+
+.empty-state p {
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 24px;
+}
+
+/* Loading */
+.loading-state {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted, #6b7280);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border, #e5e7eb);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--surface, white);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  padding: 32px;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-muted, #6b7280);
+}
+
+.modal-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 24px 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary, #1f2937);
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  font-size: 15px;
+  background: var(--surface, white);
+  color: var(--text-primary, #1f2937);
+}
+
+.input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.role-option:hover {
+  border-color: #6366f1;
+}
+
+.role-option.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.role-option-icon {
+  font-size: 20px;
+}
+
+.role-option-label {
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+
+.role-option-desc {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-primary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: var(--surface, white);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary, #1f2937);
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Dark Mode */
+:global(.dark) .member-card,
+:global(.dark) .role-card,
+:global(.dark) .empty-state {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+:global(.dark) .member-card.owner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+}
+
+:global(.dark) .modal-content {
+  background: #1e293b;
+}
+
+:global(.dark) .role-option {
+  border-color: #475569;
+}
+
+:global(.dark) .status-badge.active { background: rgba(5, 150, 105, 0.2); color: #34d399; }
+:global(.dark) .status-badge.pending { background: rgba(217, 119, 6, 0.2); color: #fbbf24; }
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .member-card {
+    flex-wrap: wrap;
+  }
+  
+  .member-meta {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+}
+</style>

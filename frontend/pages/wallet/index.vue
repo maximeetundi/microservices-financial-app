@@ -627,7 +627,7 @@ watch(selectedCountry, async (newCountry) => {
   if (showTopUpModal.value && selectedWallet.value?.wallet_type !== 'crypto') {
     selectedProvider.value = null
     depositMethod.value = ''
-    await loadPaymentProviders(newCountry)
+    await loadPaymentProviders([newCountry])
   }
 })
 
@@ -833,7 +833,7 @@ const openTopUpModal = async () => {
              // access ipCountry from composable is cleaner but simplistic here
         }
         
-        await loadPaymentProviders(selectedCountry.value)
+        await loadPaymentProviders()
     }
     
     // If only one network (or native), might auto-select or just show default address

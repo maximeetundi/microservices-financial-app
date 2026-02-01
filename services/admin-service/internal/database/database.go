@@ -273,14 +273,12 @@ func seedDefaultProviders(db *sql.DB) error {
 		{
 			Name:        "demo",
 			DisplayName: "Demo Provider",
-			Type:        "demo",
+			Type:        "demo", // Demo type is always global
 			BaseURL:     "",
 			LogoURL:     "/icons/aggregators/demo.svg",
 			Capability:  "mixed",
 			IsDemo:      true,
-			Countries: []struct{ Code, Name, Currency string }{
-				{"ALL", "All Countries", "XOF"},
-			},
+			Countries:   []struct{ Code, Name, Currency string }{}, // No specific countries = global
 		},
 		{
 			Name:        "flutterwave",
@@ -401,19 +399,26 @@ func seedDefaultProviders(db *sql.DB) error {
 				{"TG", "Togo", "XOF"},
 			},
 		},
-		// --- Cards ---
+		// --- GLOBAL PROVIDERS (available for all countries) ---
+		// Stripe - type "card" = global
 		{
 			Name:        "stripe",
 			DisplayName: "Stripe / Carte Bancaire",
-			Type:        "card",
+			Type:        "card", // Card type is global - no need for specific countries
 			BaseURL:     "https://api.stripe.com/v1",
 			LogoURL:     "/icons/aggregators/stripe.svg",
 			Capability:  "mixed",
-			Countries: []struct{ Code, Name, Currency string }{
-				{"US", "United States", "USD"},
-				{"FR", "France", "EUR"},
-				{"CI", "Côte d'Ivoire", "XOF"}, // Stripe supports CI merchants
-			},
+			Countries:   []struct{ Code, Name, Currency string }{}, // Empty = global
+		},
+		// PayPal - type "international" = global
+		{
+			Name:        "paypal",
+			DisplayName: "PayPal",
+			Type:        "international", // International type is global
+			BaseURL:     "https://api.paypal.com/v1",
+			LogoURL:     "/icons/aggregators/paypal.svg",
+			Capability:  "mixed",
+			Countries:   []struct{ Code, Name, Currency string }{}, // Empty = global
 		},
 		// --- Aggregators (Tiers) ---
 		{

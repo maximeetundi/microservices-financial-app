@@ -69,7 +69,7 @@ export function usePaymentProviders() {
     const providers = ref<PaymentProvider[]>([])
     const loading = ref(false)
     const error = ref('')
-    const userCountry = ref('CI') // Default Côte d'Ivoire
+    const userCountry = ref('') // Will be set from user profile
     const ipCountry = ref('')
 
     // Detect country from IP
@@ -85,17 +85,64 @@ export function usePaymentProviders() {
         }
     }
 
-    // Load available payment methods for a country
-    const loadProviders = async (country?: string) => {
+    // Get user profile country
+    const getUserCountry = async () => {
+        try {
+            const config = useRuntimeConfig()
+            const API_URL = config.public.apiBaseUrl || 'http://localhost:8000'
+            const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+
+            if (!token) return
+
+            const res = await fetch(`${API_URL}/auth-service/api/v1/users/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                if (data.user?.country || data.country) {
+                    userCountry.value = data.user?.country || data.country
+                }
+            }
+        } catch (e) {
+            console.warn('Could not get user profile country:', e)
+        }
+    }
+
+    // Load available payment methods for multiple countries
+    const loadProviders = async (countries?: string[]) => {
         loading.value = true
         error.value = ''
 
         try {
             const config = useRuntimeConfig()
             const API_URL = config.public.apiBaseUrl || 'http://localhost:8000'
-            const targetCountry = country || userCountry.value || ipCountry.value || 'CI'
 
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-methods?country=${targetCountry}`)
+            // Build countries list from params or auto-detect
+            let countryList = countries || []
+
+            if (countryList.length === 0) {
+                // Try to get both profile country and IP country
+                if (!userCountry.value) await getUserCountry()
+                if (!ipCountry.value) await detectIpCountry()
+
+                // Add user profile country (priority)
+                if (userCountry.value) countryList.push(userCountry.value)
+
+                // Add IP country if different
+                if (ipCountry.value && ipCountry.value !== userCountry.value) {
+                    countryList.push(ipCountry.value)
+                }
+
+                // Fallback to default
+                if (countryList.length === 0) countryList.push('CI')
+            }
+
+            // Build URL with multiple country params
+            const params = new URLSearchParams()
+            countryList.forEach(c => params.append('country', c))
+
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-methods?${params.toString()}`)
 
             if (!response.ok) {
                 throw new Error('Failed to load payment methods')
@@ -206,6 +253,7 @@ export function usePaymentProviders() {
         userCountry,
         ipCountry,
         detectIpCountry,
+        getUserCountry,
         loadProviders,
         getColorClass,
     }
