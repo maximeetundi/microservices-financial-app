@@ -121,8 +121,13 @@
             <div v-for="crypto in cryptoMarkets" :key="crypto.symbol" 
                 class="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors cursor-pointer border border-gray-100 dark:border-slate-700/50">
               <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="crypto.bgColor">
-                  <span class="text-white font-bold">{{ crypto.symbol?.slice(0, 2) || '??' }}</span>
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white/10 p-2">
+                  <img 
+                    :src="`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${crypto.symbol?.toLowerCase()}.png`" 
+                    :alt="crypto.name"
+                    class="w-full h-full object-contain"
+                    @error="(e) => { e.target.src = 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/generic.png'; }"
+                  />
                 </div>
                 <div>
                   <p class="font-semibold text-gray-900 dark:text-white">{{ crypto.name }}</p>
