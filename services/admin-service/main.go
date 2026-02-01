@@ -143,6 +143,9 @@ func main() {
 	public := router.Group("/api/v1/admin")
 	{
 		public.POST("/login", handler.Login)
+		// Public payment methods endpoint (moved here to ensure reachability via gateway)
+		publicPaymentHandler := handlers.NewPaymentHandler(adminDB)
+		public.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
 	}
 
 	// Platform Proxy Handler
@@ -320,13 +323,6 @@ func main() {
 			platform.Any("/*path", proxyHandler.ProxyRequest)
 		}
 
-	}
-
-	// Public endpoint for payment methods (no auth required for wallet)
-	publicPayments := router.Group("/api/v1")
-	{
-		publicPaymentHandler := handlers.NewPaymentHandler(adminDB)
-		publicPayments.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
 	}
 
 	port := os.Getenv("PORT")

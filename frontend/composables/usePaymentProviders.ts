@@ -95,7 +95,7 @@ export function usePaymentProviders() {
             const API_URL = config.public.apiBaseUrl || 'http://localhost:8000'
             const targetCountry = country || userCountry.value || ipCountry.value || 'CI'
 
-            const response = await fetch(`${API_URL}/api/v1/payment-methods?country=${targetCountry}`)
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-methods?country=${targetCountry}`)
 
             if (!response.ok) {
                 throw new Error('Failed to load payment methods')
