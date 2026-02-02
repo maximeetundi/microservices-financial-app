@@ -107,13 +107,12 @@ export default function DashboardPage() {
             setStats(response.data?.stats || null);
 
             // Generate mock activities (would come from API)
-            setRecentActivities([
-                { id: '1', type: 'user', action: 'Nouvel utilisateur', details: 'john.doe@email.com inscrit', timestamp: new Date().toISOString(), status: 'success' },
-                { id: '2', type: 'kyc', action: 'KYC soumis', details: 'Document en attente de validation', timestamp: new Date(Date.now() - 3600000).toISOString(), status: 'warning' },
-                { id: '3', type: 'transaction', action: 'Transfert effectué', details: '500€ envoyé à user@mail.com', timestamp: new Date(Date.now() - 7200000).toISOString(), status: 'success' },
-                { id: '4', type: 'alert', action: 'Tentative suspecte', details: '3 échecs de connexion', timestamp: new Date(Date.now() - 10800000).toISOString(), status: 'error' },
-                { id: '5', type: 'card', action: 'Nouvelle carte', details: 'Carte virtuelle créée', timestamp: new Date(Date.now() - 14400000).toISOString(), status: 'info' },
-            ]);
+            // Use real activities from API if available
+            if (response.data?.stats?.recent_activities) {
+                setRecentActivities(response.data.stats.recent_activities);
+            } else {
+                setRecentActivities([]);
+            }
         } catch (error) {
             console.error('Failed to fetch stats:', error);
         } finally {

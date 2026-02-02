@@ -349,6 +349,85 @@ func (r *AdminRepository) GetDashboardStats() (map[string]interface{}, error) {
 	r.mainDB.QueryRow("SELECT COUNT(*) FROM transfers WHERE created_at > CURRENT_DATE").Scan(&transfersToday)
 	stats["transfers_today"] = transfersToday
 
+	// Recent Users (Limit 5)
+	rows, err := r.mainDB.Query(`
+		SELECT id, email, first_name, last_name, created_at, 'user' as type 
+		FROM users 
+		ORDER BY created_at DESC 
+		LIMIT 5
+	`)
+	if err == nil {
+		defer rows.Close()
+		var activities []map[string]interface{}
+		for rows.Next() {
+			var id, email, firstName, lastName, activityType string
+			var createdAt time.Time
+			if err := rows.Scan(&id, &email, &firstName, &lastName, &createdAt, &activityType); err == nil {
+				activities = append(activities, map[string]interface{}{
+					"id":        id,
+					"type":      activityType,
+					"action":    "Nouvel utilisateur",
+					"details":   fmt.Sprintf("%s %s (%s)", firstName, lastName, email),
+					"timestamp": createdAt,
+					"status":    "success",
+				})
+			}
+		}
+
+		// Recent Transactions (Limit 5)
+		txRows, err := r.mainDB.Query(`
+			SELECT id, amount, currency, status, created_at, 'transaction' as type 
+			FROM transactions 
+			ORDER BY created_at DESC 
+			LIMIT 5
+		`)
+		if err == nil {
+			defer txRows.Close()
+			for txRows.Next() {
+				var id, currency, status, activityType string
+				var amount float64
+				var createdAt time.Time
+				if err := txRows.Scan(&id, &amount, &currency, &status, &createdAt, &activityType); err == nil {
+					statusType := "info"
+					if status == "completed" {
+						statusType = "success"
+					} else if status == "failed" {
+						statusType = "error"
+					} else if status == "pending" {
+						statusType = "warning"
+					}
+
+					activities = append(activities, map[string]interface{}{
+						"id":        id,
+						"type":      activityType,
+						"action":    "Transaction",
+						"details":   fmt.Sprintf("%.2f %s - %s", amount, currency, status),
+						"timestamp": createdAt,
+						"status":    statusType,
+					})
+				}
+			}
+		}
+
+		// Sort combined activities by timestamp desc
+		// Simple bubble sort for small list (max 10 items)
+		for i := 0; i < len(activities)-1; i++ {
+			for j := 0; j < len(activities)-i-1; j++ {
+				t1 := activities[j]["timestamp"].(time.Time)
+				t2 := activities[j+1]["timestamp"].(time.Time)
+				if t1.Before(t2) {
+					activities[j], activities[j+1] = activities[j+1], activities[j]
+				}
+			}
+		}
+
+		// Take top 5
+		if len(activities) > 5 {
+			activities = activities[:5]
+		}
+		stats["recent_activities"] = activities
+	}
+
 	return stats, nil
 }
 
