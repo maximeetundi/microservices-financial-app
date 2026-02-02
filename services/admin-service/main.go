@@ -323,6 +323,34 @@ func main() {
 			platform.Any("/*path", proxyHandler.ProxyRequest)
 		}
 
+		// Credit Management System (replaces test-mode)
+		creditHandler := handlers.NewCreditHandler(adminDB, mainDB)
+		credits := protected.Group("/credits")
+		{
+			// Predefined reason types
+			credits.GET("/reason-types", creditHandler.GetReasonTypes)
+
+			// Hot wallets list with balances
+			credits.GET("/hot-wallets", creditHandler.GetHotWallets)
+
+			// Individual credit
+			credits.POST("/single", creditHandler.SingleCredit)
+
+			// Mass credit
+			credits.POST("/mass/preview", creditHandler.MassCreditPreview)
+			credits.POST("/mass", creditHandler.MassCredit)
+
+			// Promotion/Contest credits
+			credits.POST("/promotion", creditHandler.PromotionCredit)
+
+			// Campaigns history
+			credits.GET("/campaigns", creditHandler.GetCampaigns)
+			credits.GET("/campaigns/:id", creditHandler.GetCampaignDetails)
+
+			// Audit logs
+			credits.GET("/logs", creditHandler.GetCreditLogs)
+		}
+
 	}
 
 	port := os.Getenv("PORT")

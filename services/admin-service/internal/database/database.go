@@ -217,6 +217,39 @@ func createAdminTables(db *sql.DB) error {
 			UNIQUE(instance_id, currency, hot_wallet_id)
 		)`,
 
+		// Credit campaigns for mass credits, promotions, compensations
+		`CREATE TABLE IF NOT EXISTS credit_campaigns (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) NOT NULL,
+			type VARCHAR(50) NOT NULL, -- single, mass, promotion
+			status VARCHAR(50) DEFAULT 'pending', -- pending, processing, completed, failed
+			reason TEXT NOT NULL,
+			reason_type VARCHAR(50), -- compensation, bonus, promotion, contest, refund, loyalty, referral, other
+			currency VARCHAR(10) NOT NULL,
+			total_amount DECIMAL(20, 8) DEFAULT 0,
+			user_count INT DEFAULT 0,
+			success_count INT DEFAULT 0,
+			failed_count INT DEFAULT 0,
+			filters JSONB,
+			admin_id UUID,
+			hot_wallet_id VARCHAR(36),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			completed_at TIMESTAMP
+		)`,
+
+		// Individual credit operations (audit trail)
+		`CREATE TABLE IF NOT EXISTS credit_operations (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			campaign_id UUID REFERENCES credit_campaigns(id) ON DELETE CASCADE,
+			user_id VARCHAR(36) NOT NULL,
+			wallet_id VARCHAR(36),
+			currency VARCHAR(10) NOT NULL,
+			amount DECIMAL(20, 8) NOT NULL,
+			status VARCHAR(50) DEFAULT 'pending', -- pending, success, failed
+			error_message TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+
 		// Create indexes for faster queries
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON admin_audit_logs(admin_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON admin_audit_logs(created_at)`,
@@ -229,6 +262,10 @@ func createAdminTables(db *sql.DB) error {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_countries_unique ON provider_countries(provider_id, country_code)`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_instance_wallets_instance ON provider_instance_wallets(instance_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_instance_wallets_currency ON provider_instance_wallets(currency)`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_campaigns_status ON credit_campaigns(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_campaigns_created_at ON credit_campaigns(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_operations_campaign ON credit_operations(campaign_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_operations_user ON credit_operations(user_id)`,
 	}
 
 	for _, query := range queries {
@@ -524,11 +561,11 @@ func seedDefaultProviders(db *sql.DB) error {
 			continue
 		}
 
-		// Insert country mappings
+		// Insert country mappings with is_active explicitly set to TRUE
 		for _, c := range p.Countries {
 			_, err = db.Exec(`
-				INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority)
-				VALUES ($1, $2, $3, $4, 50)
+				INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, is_active)
+				VALUES ($1, $2, $3, $4, 50, TRUE)
 			`, providerID, c.Code, c.Name, c.Currency)
 			if err != nil {
 				log.Printf("Failed to insert country %s for provider %s: %v", c.Code, p.Name, err)

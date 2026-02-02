@@ -87,7 +87,7 @@ const navigationSections: NavigationSection[] = [
         title: 'Paiements',
         items: [
             { name: 'Agrégateurs', href: '/dashboard/aggregators', icon: AdjustmentsHorizontalIcon, badge: 'Nouveau' },
-            { name: 'Mode Test', href: '/dashboard/test-mode', icon: SparklesIcon, badge: 'Dev' },
+            { name: 'Gestion Crédits', href: '/dashboard/credits', icon: SparklesIcon },
         ]
     },
     {

@@ -336,13 +336,13 @@
                  <div class="flex justify-between items-center mb-3">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Méthode de paiement</label>
                     
-                    <!-- Country Selector -->
-                    <select 
-                        v-model="selectedCountry" 
-                        class="text-xs p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        <option v-for="c in availableCountries" :key="c.code" :value="c.code">{{ c.name }}</option>
-                    </select>
+                    <!-- Detected Countries Display (auto-detected, no manual selection) -->
+                    <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                      <span v-if="userCountry || ipCountry">📍</span>
+                      <span v-if="userCountry">{{ getCountryFlag(userCountry) }}</span>
+                      <span v-if="userCountry && ipCountry && userCountry !== ipCountry">+</span>
+                      <span v-if="ipCountry && ipCountry !== userCountry">{{ getCountryFlag(ipCountry) }}</span>
+                    </div>
                  </div>
                  
                  <!-- Loading State -->
@@ -587,49 +587,30 @@ const {
   groupedProviders: groupedPaymentProviders,
   loading: paymentProvidersLoading,
   loadProviders: loadPaymentProviders,
-  detectIpCountry 
+  detectIpCountry,
+  getUserCountry,
+  userCountry,
+  ipCountry
 } = usePaymentProviders()
 
 const selectedProvider = ref(null)
-const selectedCountry = ref('CI') // Default
-
-// Map currencies to default countries
-const currencyCountryMap = {
-  'XOF': 'CI', // Côte d'Ivoire
-  'XAF': 'CM', // Cameroun
-  'EUR': 'FR', // France
-  'USD': 'US', // USA
-  'GBP': 'GB', // UK
-}
-
-const availableCountries = [
-  { code: 'CI', name: '🇨🇮 Côte d\'Ivoire (UEMOA)' },
-  { code: 'SN', name: '🇸🇳 Sénégal (UEMOA)' },
-  { code: 'BJ', name: '🇧🇯 Bénin (UEMOA)' },
-  { code: 'BF', name: '🇧🇫 Burkina Faso (UEMOA)' },
-  { code: 'ML', name: '🇲🇱 Mali (UEMOA)' },
-  { code: 'TG', name: '🇹🇬 Togo (UEMOA)' },
-  { code: 'CM', name: '🇨🇲 Cameroun (CEMAC)' },
-  { code: 'GA', name: '🇬🇦 Gabon (CEMAC)' },
-  { code: 'CG', name: '🇨🇬 Congo (CEMAC)' },
-  { code: 'TD', name: '🇹🇩 Tchad (CEMAC)' },
-  { code: 'FR', name: '🇫🇷 France (Europe)' },
-  { code: 'US', name: '🇺🇸 États-Unis' },
-]
 
 const selectPaymentProvider = (provider) => {
   selectedProvider.value = provider
   depositMethod.value = provider.name
 }
 
-// Watch country change to reload providers
-watch(selectedCountry, async (newCountry) => {
-  if (showTopUpModal.value && selectedWallet.value?.wallet_type !== 'crypto') {
-    selectedProvider.value = null
-    depositMethod.value = ''
-    await loadPaymentProviders([newCountry])
+// Helper to get country flag emoji from country code
+const getCountryFlag = (code) => {
+  if (!code) return ''
+  const flags = {
+    'CI': '🇨🇮', 'SN': '🇸🇳', 'BJ': '🇧🇯', 'BF': '🇧🇫', 'ML': '🇲🇱', 'TG': '🇹🇬',
+    'CM': '🇨🇲', 'GA': '🇬🇦', 'CG': '🇨🇬', 'TD': '🇹🇩', 'NE': '🇳🇪',
+    'FR': '🇫🇷', 'US': '🇺🇸', 'GB': '🇬🇧', 'DE': '🇩🇪', 'BE': '🇧🇪',
+    'NG': '🇳🇬', 'GH': '🇬🇭', 'KE': '🇰🇪', 'ZA': '🇿🇦', 'UG': '🇺🇬', 'TZ': '🇹🇿', 'RW': '🇷🇼',
   }
-})
+  return flags[code] || code
+}
 
 // Color helper functions for providers
 const getProviderBorderClass = (color) => {
@@ -821,19 +802,20 @@ const openTopUpModal = async () => {
     selectedProvider.value = null
     depositMethod.value = ''
     
-    // Load payment providers for user's country (fiat only)
+    // Load payment providers for detected countries (fiat only)
     if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
-        const currency = selectedWallet.value.currency
-        // Set default country based on currency if possible
-        if (currencyCountryMap[currency]) {
-            selectedCountry.value = currencyCountryMap[currency]
-        } else {
-            // Fallback to existing logic or default
-             await detectIpCountry()
-             // access ipCountry from composable is cleaner but simplistic here
+        // Detect both profile country (origin) and IP country (current location)
+        await Promise.all([getUserCountry(), detectIpCountry()])
+        
+        // Build country list from detected countries only
+        const countries = []
+        if (userCountry.value) countries.push(userCountry.value)
+        if (ipCountry.value && ipCountry.value !== userCountry.value) {
+            countries.push(ipCountry.value)
         }
         
-        await loadPaymentProviders()
+        // Load providers for all detected countries
+        await loadPaymentProviders(countries.length > 0 ? countries : undefined)
     }
     
     // If only one network (or native), might auto-select or just show default address
