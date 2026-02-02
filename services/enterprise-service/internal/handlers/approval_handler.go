@@ -10,12 +10,14 @@ import (
 type ApprovalHandler struct {
 	approvalService *services.ApprovalService
 	employeeService *services.EmployeeService
+	authClient      *services.AuthClient
 }
 
-func NewApprovalHandler(approvalService *services.ApprovalService, employeeService *services.EmployeeService) *ApprovalHandler {
+func NewApprovalHandler(approvalService *services.ApprovalService, employeeService *services.EmployeeService, authClient *services.AuthClient) *ApprovalHandler {
 	return &ApprovalHandler{
 		approvalService: approvalService,
 		employeeService: employeeService,
+		authClient:      authClient,
 	}
 }
 
@@ -119,6 +121,10 @@ func (h *ApprovalHandler) InitiateAction(c *gin.Context) {
 func (h *ApprovalHandler) ApproveAction(c *gin.Context) {
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
+	authToken := c.GetHeader("Authorization")
+	if len(authToken) > 7 && authToken[:7] == "Bearer " {
+		authToken = authToken[7:]
+	}
 
 	var req struct {
 		PIN string `json:"pin" binding:"required"`
@@ -129,9 +135,19 @@ func (h *ApprovalHandler) ApproveAction(c *gin.Context) {
 		return
 	}
 
-	// TODO: Verify PIN against user's PIN
-	// For now, we'll skip PIN verification and just get the employee
-	
+	// Verify PIN via AuthClient
+	if h.authClient != nil {
+		valid, err := h.authClient.VerifyPin(userID, req.PIN, authToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
+			return
+		}
+		if !valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid PIN"})
+			return
+		}
+	}
+
 	// Get the approval to find the enterprise ID
 	approval, err := h.approvalService.GetApprovalByID(c.Request.Context(), approvalID)
 	if err != nil {
@@ -161,7 +177,7 @@ func (h *ApprovalHandler) ApproveAction(c *gin.Context) {
 
 	// Check if action is now fully approved
 	updatedApproval, _ := h.approvalService.GetApprovalByID(c.Request.Context(), approvalID)
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "Approval recorded",
 		"approval": updatedApproval,
@@ -174,6 +190,10 @@ func (h *ApprovalHandler) ApproveAction(c *gin.Context) {
 func (h *ApprovalHandler) RejectAction(c *gin.Context) {
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
+	authToken := c.GetHeader("Authorization")
+	if len(authToken) > 7 && authToken[:7] == "Bearer " {
+		authToken = authToken[7:]
+	}
 
 	var req struct {
 		PIN    string `json:"pin" binding:"required"`
@@ -183,6 +203,19 @@ func (h *ApprovalHandler) RejectAction(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Verify PIN via AuthClient
+	if h.authClient != nil {
+		valid, err := h.authClient.VerifyPin(userID, req.PIN, authToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "PIN verification failed: " + err.Error()})
+			return
+		}
+		if !valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid PIN"})
+			return
+		}
 	}
 
 	// Get the approval to find the enterprise ID

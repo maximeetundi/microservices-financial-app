@@ -53,14 +53,14 @@ func (r *PayrollRepository) FindByEnterpriseAndYear(ctx context.Context, enterpr
 	if err != nil {
 		return nil, err
 	}
-	
+
 	filter := bson.M{
 		"enterprise_id": oid,
 		"period_year":   year,
 	}
-	
+
 	opts := options.Find().SetSort(bson.D{{Key: "period_month", Value: -1}})
-	
+
 	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
@@ -72,3 +72,12 @@ func (r *PayrollRepository) FindByEnterpriseAndYear(ctx context.Context, enterpr
 	return runs, nil
 }
 
+// Update updates an existing payroll run
+func (r *PayrollRepository) Update(ctx context.Context, p *models.PayrollRun) error {
+	p.UpdatedAt = time.Now()
+	_, err := r.collection.UpdateOne(ctx,
+		bson.M{"_id": p.ID},
+		bson.M{"$set": p},
+	)
+	return err
+}

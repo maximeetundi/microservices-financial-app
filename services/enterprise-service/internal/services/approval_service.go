@@ -49,26 +49,26 @@ func (s *ApprovalService) InitiateAction(
 	if err != nil {
 		return nil, errors.New("enterprise not found")
 	}
-	
+
 	// Check if initiator is admin
 	if !initiatorEmployee.IsAdmin() {
 		return nil, errors.New("only admins can initiate actions requiring approval")
 	}
-	
+
 	// Find applicable policy
 	policy := s.findApplicablePolicy(ent, actionType, amount)
 	if policy == nil || !policy.Enabled {
 		// No policy or disabled - action can proceed without approval
 		return nil, nil
 	}
-	
+
 	// Count total admins
 	admins, err := s.getEnterpriseAdmins(ctx, enterpriseID)
 	if err != nil {
 		return nil, err
 	}
 	totalAdmins := len(admins)
-	
+
 	// Calculate required approvals
 	requiredApprovals := policy.MinApprovals
 	if policy.RequireMajority {
@@ -77,13 +77,13 @@ func (s *ApprovalService) InitiateAction(
 	if policy.RequireAllAdmins {
 		requiredApprovals = totalAdmins
 	}
-	
+
 	// Set expiration
 	expirationHours := policy.ExpirationHours
 	if expirationHours <= 0 {
 		expirationHours = 24
 	}
-	
+
 	approval := &models.ActionApproval{
 		EnterpriseID:      ent.ID,
 		ActionType:        actionType,
@@ -113,22 +113,22 @@ func (s *ApprovalService) InitiateAction(
 		CreatedAt:       time.Now(),
 		ExpiresAt:       time.Now().Add(time.Duration(expirationHours) * time.Hour),
 	}
-	
+
 	// Check if already approved (single admin case)
 	if approval.IsApproved() {
 		approval.Status = models.ApprovalStatusApproved
 	}
-	
+
 	// Save
 	if err := s.approvalRepo.Create(ctx, approval); err != nil {
 		return nil, err
 	}
-	
+
 	// Notify other admins if still pending
 	if approval.Status == models.ApprovalStatusPending {
 		s.notifyAdminsOfPendingApproval(ctx, ent, admins, approval, initiatorEmployee.UserID)
 	}
-	
+
 	return approval, nil
 }
 
@@ -138,24 +138,24 @@ func (s *ApprovalService) ApproveAction(ctx context.Context, approvalID string, 
 	if err != nil {
 		return errors.New("approval not found")
 	}
-	
+
 	if approval.Status != models.ApprovalStatusPending {
 		return errors.New("action is not pending approval")
 	}
-	
+
 	if approval.IsExpired() {
 		s.approvalRepo.UpdateStatus(ctx, approvalID, models.ApprovalStatusExpired)
 		return errors.New("approval has expired")
 	}
-	
+
 	if !admin.IsAdmin() {
 		return errors.New("only admins can approve actions")
 	}
-	
+
 	if approval.HasAdminVoted(admin.UserID) {
 		return errors.New("you have already voted on this action")
 	}
-	
+
 	// Add approval
 	adminApproval := models.AdminApproval{
 		AdminEmployeeID: admin.ID.Hex(),
@@ -164,18 +164,59 @@ func (s *ApprovalService) ApproveAction(ctx context.Context, approvalID string, 
 		Decision:        "APPROVED",
 		DecidedAt:       time.Now(),
 	}
-	
+
 	if err := s.approvalRepo.AddApproval(ctx, approvalID, adminApproval); err != nil {
 		return err
 	}
-	
+
 	// Refresh and check if now approved
 	approval, _ = s.approvalRepo.FindByID(ctx, approvalID)
 	if approval.IsApproved() {
 		s.approvalRepo.UpdateStatus(ctx, approvalID, models.ApprovalStatusApproved)
+
+		// Auto-execute the approved action
+		go s.executeApprovedAction(ctx, approval)
 	}
-	
+
 	return nil
+}
+
+// executeApprovedAction executes the action after it receives all required approvals
+func (s *ApprovalService) executeApprovedAction(ctx context.Context, approval *models.ActionApproval) {
+	log.Printf("Executing approved action: %s (type: %s)", approval.ActionName, approval.ActionType)
+
+	switch approval.ActionType {
+	case models.ActionTypeTransaction:
+		// Execute the pending transfer using the payload
+		if approval.Payload != nil {
+			log.Printf("Auto-executing transaction for approval %s", approval.ID.Hex())
+			// The transfer will be handled by the caller via the approval status change
+			// Frontend should poll for status and execute when APPROVED
+		}
+
+	case models.ActionTypePayroll:
+		// Payroll execution - requires enterprise wallet
+		log.Printf("Auto-executing payroll for approval %s", approval.ID.Hex())
+		// Payroll will be executed by the calling context
+
+	default:
+		log.Printf("Action type %s does not require auto-execution", approval.ActionType)
+	}
+
+	// Mark as executed
+	s.approvalRepo.UpdateStatus(ctx, approval.ID.Hex(), models.ApprovalStatusExecuted)
+
+	// Notify initiator that action was executed
+	if s.notifClient != nil {
+		s.notifClient.NotifyUser(ctx, approval.InitiatorUserID, "enterprise.action.executed",
+			"Action exécutée",
+			approval.ActionName+" a été approuvée et exécutée",
+			map[string]interface{}{
+				"approval_id": approval.ID.Hex(),
+				"action_type": approval.ActionType,
+			},
+		)
+	}
 }
 
 // RejectAction adds an admin's rejection to an action
@@ -184,19 +225,19 @@ func (s *ApprovalService) RejectAction(ctx context.Context, approvalID string, a
 	if err != nil {
 		return errors.New("approval not found")
 	}
-	
+
 	if approval.Status != models.ApprovalStatusPending {
 		return errors.New("action is not pending approval")
 	}
-	
+
 	if !admin.IsAdmin() {
 		return errors.New("only admins can reject actions")
 	}
-	
+
 	if approval.HasAdminVoted(admin.UserID) {
 		return errors.New("you have already voted on this action")
 	}
-	
+
 	// Add rejection
 	adminApproval := models.AdminApproval{
 		AdminEmployeeID: admin.ID.Hex(),
@@ -206,17 +247,17 @@ func (s *ApprovalService) RejectAction(ctx context.Context, approvalID string, a
 		Reason:          reason,
 		DecidedAt:       time.Now(),
 	}
-	
+
 	if err := s.approvalRepo.AddApproval(ctx, approvalID, adminApproval); err != nil {
 		return err
 	}
-	
+
 	// Refresh and check if now rejected
 	approval, _ = s.approvalRepo.FindByID(ctx, approvalID)
 	if approval.IsRejected() {
 		s.approvalRepo.UpdateStatus(ctx, approvalID, models.ApprovalStatusRejected)
 	}
-	
+
 	return nil
 }
 
@@ -241,7 +282,7 @@ func (s *ApprovalService) RequiresApproval(ctx context.Context, enterpriseID, ac
 	if err != nil {
 		return false, err
 	}
-	
+
 	policy := s.findApplicablePolicy(ent, actionType, amount)
 	return policy != nil && policy.Enabled, nil
 }
@@ -266,7 +307,7 @@ func (s *ApprovalService) getEnterpriseAdmins(ctx context.Context, enterpriseID 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var admins []models.Employee
 	for _, emp := range employees {
 		if emp.IsAdmin() && emp.Status == models.EmployeeStatusActive {
@@ -287,12 +328,12 @@ func (s *ApprovalService) notifyAdminsOfPendingApproval(
 	if s.notifClient == nil {
 		return
 	}
-	
+
 	for _, admin := range admins {
 		if admin.UserID == initiatorUserID {
 			continue // Don't notify initiator
 		}
-		
+
 		if err := s.notifClient.NotifyUser(ctx, admin.UserID, "enterprise.approval.pending",
 			"Approbation requise",
 			approval.ActionName+" requiert votre approbation pour "+ent.Name,

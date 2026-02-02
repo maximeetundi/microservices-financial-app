@@ -34,12 +34,12 @@ func main() {
 	// 3. Initialize Kafka Client for Notifications
 	var kafkaClient *messaging.KafkaClient
 	var notificationClient *services.NotificationClient
-	
+
 	if len(cfg.KafkaBrokers) > 0 && cfg.KafkaBrokers[0] != "" {
 		kafkaClient = messaging.NewKafkaClient(cfg.KafkaBrokers, "enterprise-service-group")
 		notificationClient = services.NewNotificationClient(kafkaClient)
 		log.Println("Kafka client initialized for notifications")
-		
+
 		defer func() {
 			if kafkaClient != nil {
 				kafkaClient.Close()
@@ -77,7 +77,7 @@ func main() {
 	subRepo := repository.NewSubscriptionRepository(mongoClient.Database(cfg.DBName))
 	invRepo := repository.NewInvoiceRepository(mongoClient.Database(cfg.DBName))
 	batchRepo := repository.NewBatchRepository(mongoClient.Database(cfg.DBName))
-	
+
 	// Initialize Storage Service
 	storageService, err := services.NewStorageService(
 		cfg.MinioEndpoint,
@@ -93,10 +93,11 @@ func main() {
 
 	salaryService := services.NewSalaryService()
 	authClient := services.NewAuthClient()
-	
+	transferClient := services.NewTransferClient()
+
 	// Initialize services with notification client
 	empService := services.NewEmployeeService(empRepo, salaryService, authClient, entRepo, notificationClient)
-	payService := services.NewPayrollService(payRepo, empRepo, salaryService, entRepo, notificationClient)
+	payService := services.NewPayrollService(payRepo, empRepo, salaryService, entRepo, notificationClient, transferClient)
 	billService := services.NewBillingService(subRepo, invRepo, batchRepo, entRepo, notificationClient)
 
 	entHandler := handlers.NewEnterpriseHandler(entRepo, empRepo, storageService)
@@ -105,10 +106,10 @@ func main() {
 	billHandler := handlers.NewBillingHandler(billService)
 
 	api := router.Group("/api/v1")
-	
+
 	// Public routes (no auth required)
 	api.GET("/invitations/:id", empHandler.GetInvitationDetails) // Get invitation details for accept page
-	
+
 	// Apply JWT Auth Middleware to protected routes
 	api.Use(middleware.JWTAuth(cfg.JWTSecret))
 	{
@@ -144,7 +145,7 @@ func main() {
 		api.POST("/enterprises/:id/invoices/batches", billHandler.CreateBatchInvoices)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/validate", billHandler.ValidateBatch)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/schedule", billHandler.ScheduleBatch)
-		
+
 		// QR Code Routes
 		qrHandler := handlers.NewQRCodeHandler("https://app.tech-afm.com", entRepo)
 		api.GET("/enterprises/:id/qrcode", qrHandler.GenerateEnterpriseQR)
@@ -159,7 +160,7 @@ func main() {
 		// Multi-Approval System Routes
 		approvalRepo := repository.NewApprovalRepository(mongoClient.Database(cfg.DBName))
 		approvalService := services.NewApprovalService(approvalRepo, empRepo, entRepo, notificationClient)
-		approvalHandler := handlers.NewApprovalHandler(approvalService, empService)
+		approvalHandler := handlers.NewApprovalHandler(approvalService, empService, authClient)
 		api.GET("/enterprises/:id/approvals", approvalHandler.GetPendingApprovals)
 		api.POST("/enterprises/:id/actions", approvalHandler.InitiateAction)
 		api.GET("/approvals/:id", approvalHandler.GetApproval)
@@ -182,4 +183,3 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-

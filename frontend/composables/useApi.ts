@@ -738,6 +738,8 @@ export const enterpriseAPI = {
     getInvitationDetails: (employeeId: string) => api.get(`/enterprise-service/api/v1/invitations/${employeeId}`),
     promoteEmployee: (id: string, data: any) => api.put(`/enterprise-service/api/v1/employees/${id}/promote`, data),
     getMyEmployee: (entId: string) => api.get(`/enterprise-service/api/v1/employees/me`, { params: { enterprise_id: entId } }),
+    getMySubscriptions: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions/me`),
+    getMySalary: (entId: string) => api.get(`/enterprise-service/api/v1/employees/me/salary`, { params: { enterprise_id: entId } }),
 
     // Payroll
     previewPayroll: (entId: string) => api.post(`/enterprise-service/api/v1/enterprises/${entId}/payroll/preview`),
@@ -768,7 +770,6 @@ export const enterpriseAPI = {
 
     // Data Export (required before deletion)
     exportData: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export`, { responseType: 'blob' }),
-    getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
     getExportStatus: (entId: string) => api.get(`/enterprise-service/api/v1/enterprises/${entId}/export/status`),
 }
 
