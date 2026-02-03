@@ -142,7 +142,9 @@ export function usePaymentProviders() {
             const params = new URLSearchParams()
             countryList.forEach(c => params.append('country', c))
 
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-methods?${params.toString()}`)
+            const url = `${API_URL}/api/v1/admin/payment-methods?${params.toString()}`
+            console.log('[Debug] Fetching Payment Methods:', url)
+            const response = await fetch(url)
 
             if (!response.ok) {
                 throw new Error('Failed to load payment methods')
