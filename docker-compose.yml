@@ -310,6 +310,12 @@ services:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      # Vault integration
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-token-secure-2024
+      # Admin Service integration (for aggregator proxy)
+      - ADMIN_SERVICE_URL=http://admin-service:8088
+      - AGGREGATOR_CACHE_TTL=1800
     networks:
       - crypto-bank-network
     restart: unless-stopped
