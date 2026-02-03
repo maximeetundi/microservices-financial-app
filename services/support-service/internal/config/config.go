@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -31,7 +32,7 @@ func Load() *Config {
 		Environment:    getEnv("ENVIRONMENT", "development"),
 		DBUrl:          getEnv("DB_URL", "postgres://user:password@localhost/crypto_bank_support?sslmode=disable"),
 		RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL:    getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		KafkaBrokers:   strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
 		JWTSecret:      getEnv("JWT_SECRET", "your-secret-key"),
 		AdminJWTSecret: getEnv("ADMIN_JWT_SECRET", ""),
 

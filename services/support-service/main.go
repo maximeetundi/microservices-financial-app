@@ -6,31 +6,38 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/crypto-bank/microservices-financial-app/services/common/messaging"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/handlers"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/support-service/internal/services"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestsTotal   = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		if c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
 		start := time.Now()
 		c.Next()
 		status := strconv.Itoa(c.Writer.Status())
-		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
 		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
 	}
@@ -55,14 +62,12 @@ func main() {
 	msgRepo := repository.NewMessageRepository(database.Database)
 	agentRepo := repository.NewAgentRepository(database.Database)
 
+	// Initialize Kafka
+	kafkaClient := messaging.NewKafkaClient(cfg.KafkaBrokers, "support-service")
+	defer kafkaClient.Close()
+
 	// Initialize event publisher for admin notifications
-	var eventPublisher *services.EventPublisher
-	publisher, err := services.NewEventPublisher(cfg.RabbitMQURL)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize event publisher: %v (admin notifications disabled)", err)
-	} else {
-		eventPublisher = publisher
-	}
+	eventPublisher := services.NewEventPublisher(kafkaClient)
 
 	// Initialize storage service
 	storageService, err := services.NewStorageService(
@@ -102,7 +107,9 @@ func main() {
 	}))
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "support-service", "database": "mongodb"}) })
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "service": "support-service", "database": "mongodb"})
+	})
 
 	// API routes
 	api := router.Group("/api/v1")
@@ -139,7 +146,6 @@ func main() {
 			admin.POST("/upload", supportHandler.UploadFile)
 			admin.PUT("/conversations/:id/assign", supportHandler.AdminAssignAgent)
 			admin.PUT("/conversations/:id/close", supportHandler.CloseConversation)
-
 
 			// Agent management
 			admin.GET("/agents", supportHandler.AdminGetAgents)
