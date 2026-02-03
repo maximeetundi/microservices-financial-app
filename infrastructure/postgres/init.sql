@@ -760,6 +760,19 @@ INSERT INTO provider_countries (provider_id, country_code, country_name, currenc
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'IN', 'Inde', 'INR', 2, 2.9),
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'JP', 'Japon', 'JPY', 2, 2.9),
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'SG', 'Singapour', 'SGD', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'SA', 'Arabie saoudite', 'SAR', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'AE', 'Émirats arabes unis', 'AED', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'QA', 'Qatar', 'QAR', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'TR', 'Turquie', 'TRY', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'SE', 'Suède', 'SEK', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'NO', 'Norvège', 'NOK', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'DK', 'Danemark', 'DKK', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'FI', 'Finlande', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'PL', 'Pologne', 'PLN', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'IE', 'Irlande', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'PT', 'Portugal', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'NZ', 'Nouvelle-Zélande', 'NZD', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'AU', 'Australie', 'AUD', 2, 2.9),
 
 -- =====================================================
 -- FLUTTERWAVE - Expansion Afrique (Zambie, Rwanda, Malawi, etc.)
