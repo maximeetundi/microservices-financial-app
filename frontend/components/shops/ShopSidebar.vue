@@ -26,8 +26,10 @@
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <NuxtLink 
         :to="`/shops/manage/${slug}`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <HomeIcon class="h-5 w-5 mr-3" />
         Tableau de bord
@@ -39,8 +41,10 @@
 
       <NuxtLink 
         :to="`/shops/manage/${slug}/products`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}/products`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}/products`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <ShoppingBagIcon class="h-5 w-5 mr-3" />
         Produits
@@ -48,8 +52,10 @@
       
       <NuxtLink 
         :to="`/shops/manage/${slug}/categories`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}/categories`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}/categories`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <TagIcon class="h-5 w-5 mr-3" />
         Catégories
@@ -61,8 +67,10 @@
 
       <NuxtLink 
         :to="`/shops/manage/${slug}/orders`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}/orders`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}/orders`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <ClipboardDocumentListIcon class="h-5 w-5 mr-3" />
         Commandes
@@ -74,8 +82,10 @@
 
       <NuxtLink 
         :to="`/shops/manage/${slug}/managers`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}/managers`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}/managers`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <UsersIcon class="h-5 w-5 mr-3" />
         Équipe
@@ -83,8 +93,10 @@
 
       <NuxtLink 
         :to="`/shops/manage/${slug}/settings`"
-        class="nav-item"
-        :class="{ 'active': isActive(`/shops/manage/${slug}/settings`) }"
+        class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
+        :class="isActive(`/shops/manage/${slug}/settings`) 
+          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' 
+          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'"
       >
         <Cog6ToothIcon class="h-5 w-5 mr-3" />
         Paramètres
@@ -143,41 +155,3 @@ watchEffect(async () => {
    }
 })
 </script>
-
-<style scoped>
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #4b5563;
-  border-radius: 8px;
-  transition: all 0.2s;
-  margin-bottom: 2px;
-}
-
-.dark .nav-item {
-  color: #94a3b8;
-}
-
-.nav-item:hover {
-  background-color: #f3f4f6;
-  color: #111827;
-}
-
-.dark .nav-item:hover {
-  background-color: #1e293b;
-  color: #f1f5f9;
-}
-
-.nav-item.active {
-  background-color: #eff6ff;
-  color: #4f46e5;
-}
-
-.dark .nav-item.active {
-  background-color: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-}
-</style>

@@ -22,7 +22,7 @@
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex-1 overflow-y-auto h-full scrollbar-thin bg-gray-50/50 dark:bg-slate-900/50">
+    <div class="flex-1 overflow-y-auto h-full scrollbar-thin bg-gray-50 dark:bg-slate-950">
       <div class="p-6">
         <slot />
       </div>

@@ -94,7 +94,7 @@ export default function ShopSettingsPage() {
         try {
             setLoading(true);
             const response = await getFeeConfigs();
-            const allConfigs = response.configurations || [];
+            const allConfigs = response.data.configurations || [];
 
             // Filter only shop-related configs
             const shopConfigs = allConfigs.filter((c: FeeConfig) => matchesService(c.key));
@@ -254,8 +254,8 @@ export default function ShopSettingsPage() {
                                                 </div>
                                                 <span
                                                     className={`px-2 py-1 rounded-full text-xs font-medium ${config.is_enabled
-                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                         }`}
                                                 >
                                                     {config.is_enabled ? 'Actif' : 'Inactif'}
