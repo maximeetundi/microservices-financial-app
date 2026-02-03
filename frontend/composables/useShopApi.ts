@@ -171,6 +171,7 @@ export const shopAPI = {
         return api.get(`${baseUrl}/shops/${shopSlug}/products?${params}`)
     },
     getProduct: (shopSlug: string, productSlug: string) => api.get(`${baseUrl}/shops/${shopSlug}/products/${productSlug}`),
+    getProductById: (id: string) => api.get(`${baseUrl}/products/${id}`),
     createProduct: (data: Partial<Product> & { shop_id: string }) => api.post(`${baseUrl}/products`, data),
     updateProduct: (id: string, data: Partial<Product>) => api.put(`${baseUrl}/products/${id}`, data),
     deleteProduct: (id: string) => api.delete(`${baseUrl}/products/${id}`),
@@ -261,6 +262,10 @@ export function useShopApi() {
         },
         getProduct: async (shopSlug: string, productSlug: string) => {
             const response = await shopAPI.getProduct(shopSlug, productSlug)
+            return response.data
+        },
+        getProductById: async (id: string) => {
+            const response = await shopAPI.getProductById(id)
             return response.data
         },
         createProduct: async (data: Partial<Product> & { shop_id: string }) => {

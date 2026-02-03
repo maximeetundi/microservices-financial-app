@@ -234,8 +234,7 @@ definePageMeta({
 <style scoped>
 .products-page {
   padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .page-header {

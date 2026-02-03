@@ -188,7 +188,7 @@
 
       <!-- Page Content -->
       <div class="p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
-        <div class="w-full max-w-7xl mx-auto animate-fade-in-up">
+        <div class="w-full mx-auto animate-fade-in-up">
           <slot />
         </div>
       </div>

@@ -498,9 +498,17 @@ CREATE TABLE payment_providers (
     webhook_secret_encrypted VARCHAR(500),
     is_active BOOLEAN DEFAULT false,
     is_demo_mode BOOLEAN DEFAULT true,          -- Mode démo = crédit direct sans API
+    deposit_enabled BOOLEAN DEFAULT true,       -- Dépôts activés
+    withdraw_enabled BOOLEAN DEFAULT true,      -- Retraits activés
     logo_url VARCHAR(255),
     supported_currencies JSONB DEFAULT '[]',    -- ["XOF", "NGN", "GHS"]
     config_json JSONB DEFAULT '{}',             -- Config spécifique au provider
+    fee_percentage DECIMAL(5,2) DEFAULT 0,      -- Frais en pourcentage
+    fee_fixed DECIMAL(20,2) DEFAULT 0,          -- Frais fixes
+    min_transaction DECIMAL(20,2) DEFAULT 100,  -- Montant minimum par transaction
+    max_transaction DECIMAL(20,2) DEFAULT 10000000,  -- Montant maximum par transaction
+    daily_limit DECIMAL(20,2) DEFAULT 50000000, -- Limite journalière
+    priority INT DEFAULT 1,                     -- Priorité d'affichage (1 = haute)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

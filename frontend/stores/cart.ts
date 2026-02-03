@@ -16,6 +16,23 @@ interface CartState {
     shopCurrency: string | null
 }
 
+// Helper to get user-specific cart key
+const getCartKey = (): string => {
+    if (typeof window === 'undefined') return 'cart'
+    try {
+        const authData = localStorage.getItem('auth')
+        if (authData) {
+            const auth = JSON.parse(authData)
+            if (auth.user?.id) {
+                return `cart_${auth.user.id}`
+            }
+        }
+    } catch (e) {
+        console.error('Failed to get user ID for cart key', e)
+    }
+    return 'cart_guest'
+}
+
 export const useCartStore = defineStore('cart', {
     state: (): CartState => ({
         items: [],
@@ -105,7 +122,8 @@ export const useCartStore = defineStore('cart', {
 
         saveToStorage() {
             if (process.client) {
-                localStorage.setItem('cart', JSON.stringify({
+                const key = getCartKey()
+                localStorage.setItem(key, JSON.stringify({
                     items: this.items,
                     shopId: this.shopId,
                     shopSlug: this.shopSlug,
@@ -117,7 +135,8 @@ export const useCartStore = defineStore('cart', {
 
         loadFromStorage() {
             if (process.client) {
-                const saved = localStorage.getItem('cart')
+                const key = getCartKey()
+                const saved = localStorage.getItem(key)
                 if (saved) {
                     try {
                         const data = JSON.parse(saved)
@@ -134,3 +153,4 @@ export const useCartStore = defineStore('cart', {
         },
     },
 })
+

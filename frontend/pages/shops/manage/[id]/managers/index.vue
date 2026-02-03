@@ -240,8 +240,7 @@ definePageMeta({
 <style scoped>
 .managers-page {
   padding: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .page-header {

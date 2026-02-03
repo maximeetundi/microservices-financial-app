@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="max-w-4xl mx-auto py-8 px-4">
+    <div class="w-full py-6 px-6">
       <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">🛒 Mon Panier</h1>
 
       <!-- Empty Cart -->
