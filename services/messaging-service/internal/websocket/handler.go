@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -28,8 +29,16 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer
-	maxMessageSize = 512
+	maxMessageSize = 4096
 )
+
+// IncomingMessage represents a message from the client
+type IncomingMessage struct {
+	Type           string `json:"type"` // typing, read, presence
+	ConversationID string `json:"conversation_id"`
+	MessageID      string `json:"message_id,omitempty"`
+	IsTyping       bool   `json:"is_typing,omitempty"`
+}
 
 // HandleWebSocket handles WebSocket connections
 func HandleWebSocket(hub *Hub) gin.HandlerFunc {
@@ -59,6 +68,9 @@ func HandleWebSocket(hub *Hub) gin.HandlerFunc {
 		// Register client
 		hub.Register(client)
 
+		// Broadcast online presence
+		hub.BroadcastPresence(userID, "online")
+
 		// Start goroutines for reading and writing
 		go client.writePump()
 		go client.readPump()
@@ -68,6 +80,8 @@ func HandleWebSocket(hub *Hub) gin.HandlerFunc {
 // readPump pumps messages from the WebSocket connection to the hub
 func (c *Client) readPump() {
 	defer func() {
+		// Broadcast offline presence
+		c.Hub.BroadcastPresence(c.UserID, "offline")
 		c.Hub.Unregister(c)
 		c.Conn.Close()
 	}()
@@ -87,9 +101,82 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		
-		// Handle incoming messages (typing indicators, read receipts, etc.)
-		log.Printf("Received from %s: %s", c.UserID, string(message))
+
+		// Parse and handle incoming messages
+		c.handleMessage(message)
+	}
+}
+
+// handleMessage processes incoming WebSocket messages
+func (c *Client) handleMessage(data []byte) {
+	var msg IncomingMessage
+	if err := json.Unmarshal(data, &msg); err != nil {
+		log.Printf("Failed to parse message from %s: %v", c.UserID, err)
+		return
+	}
+
+	switch msg.Type {
+	case "typing":
+		c.handleTyping(msg)
+	case "read":
+		c.handleRead(msg)
+	case "presence":
+		// Handled automatically on connect/disconnect
+	default:
+		log.Printf("Unknown message type from %s: %s", c.UserID, msg.Type)
+	}
+}
+
+// handleTyping broadcasts typing indicator to conversation participants
+func (c *Client) handleTyping(msg IncomingMessage) {
+	if msg.ConversationID == "" {
+		return
+	}
+
+	// Get participants for this conversation
+	participants := c.Hub.GetConversationParticipants(msg.ConversationID)
+
+	// Broadcast to all other participants
+	for _, pid := range participants {
+		if pid != c.UserID {
+			c.Hub.broadcast <- &Message{
+				Type:           "typing",
+				ConversationID: msg.ConversationID,
+				SenderID:       c.UserID,
+				RecipientID:    pid,
+				Content: map[string]interface{}{
+					"user_id":   c.UserID,
+					"is_typing": msg.IsTyping,
+				},
+			}
+		}
+	}
+}
+
+// handleRead broadcasts read receipt to conversation participants
+func (c *Client) handleRead(msg IncomingMessage) {
+	if msg.MessageID == "" || msg.ConversationID == "" {
+		return
+	}
+
+	// Get participants for this conversation
+	participants := c.Hub.GetConversationParticipants(msg.ConversationID)
+
+	// Broadcast to all other participants
+	for _, pid := range participants {
+		if pid != c.UserID {
+			c.Hub.broadcast <- &Message{
+				Type:           "read",
+				ConversationID: msg.ConversationID,
+				SenderID:       c.UserID,
+				RecipientID:    pid,
+				Content: map[string]interface{}{
+					"message_id": msg.MessageID,
+					"read_by":    c.UserID,
+					"read_at":    time.Now().Format(time.RFC3339),
+				},
+			}
+		}
 	}
 }
 

@@ -1,18 +1,18 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-lg max-w-full">
+    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-xl max-w-full">
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
-      <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col', selectedConv ? 'hidden md:flex' : 'flex']">
+      <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900', selectedConv ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
-        <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
+        <div class="bg-gradient-to-r from-green-500 to-green-600 px-4 py-4 flex items-center justify-between">
+          <h2 class="text-xl font-bold text-white">Messages</h2>
           <div class="flex items-center gap-2">
-            <button @click="showContactsModal = true" class="w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors" title="Mes Contacts">
+            <button @click="showContactsModal = true" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all hover:scale-105" title="Mes Contacts">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
-            <button @click="showNewConversationModal = true" class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors" title="Nouvelle conversation">
+            <button @click="showNewConversationModal = true" class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all hover:scale-105" title="Nouvelle conversation">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
@@ -23,83 +23,139 @@
         <!-- Search -->
         <div class="p-3 bg-gray-50 dark:bg-gray-800">
           <div class="relative">
-            <input v-model="searchQuery" type="text" placeholder="Rechercher une conversation..."
-              class="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm focus:ring-2 focus:ring-green-500" />
-            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <input v-model="searchQuery" type="text" placeholder="Rechercher..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-gray-700 border-0 text-sm focus:ring-2 focus:ring-green-500 shadow-sm" />
+            <svg class="w-5 h-5 absolute left-3.5 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
         </div>
 
-
-
         <!-- Conversations List -->
         <div class="flex-1 overflow-y-auto">
-          <div>
-            <div v-for="conv in userConversations" :key="conv.id" @click="selectConversation(conv)"
-              :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800', selectedConv?.id === conv.id && 'bg-gray-100 dark:bg-gray-800']">
-              <div class="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
+          <div v-for="conv in filteredConversations" :key="conv.id" @click="selectConversation(conv)"
+            :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
+              selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
+            
+            <!-- Avatar with online indicator -->
+            <div class="relative flex-shrink-0">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
                 {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex justify-between items-baseline">
-                  <h3 class="font-medium text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
-                <span class="text-xs text-gray-500"><ClientOnly>{{ formatTime(conv.lastMessageAt) }}</ClientOnly></span>
-                </div>
-                <p class="text-sm text-gray-500 truncate">{{ conv.lastMessage }}</p>
-              </div>
-              <div v-if="conv.unreadCount" class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold">
-                {{ conv.unreadCount }}
-              </div>
-              <button @click.stop="deleteConversation(conv)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all" title="Supprimer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              <!-- Online indicator -->
+              <div v-if="getParticipantStatus(conv) === 'online'" 
+                class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
             </div>
             
-            <div v-if="userConversations.length === 0" class="p-8 text-center text-gray-500">
-              <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <p class="font-medium mb-2">Aucune conversation</p>
-              <p class="text-sm text-gray-400">Cliquez sur + pour démarrer une nouvelle conversation</p>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-baseline">
+                <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
+                <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
+              </div>
+              <div class="flex items-center gap-1">
+                <!-- Typing indicator in list -->
+                <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
+                  écrit...
+                </span>
+                <!-- Last message with read status -->
+                <template v-else>
+                  <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
+                </template>
+              </div>
             </div>
-          </div>
+            
+            <!-- Unread badge -->
+            <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
+              class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
+              {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+            </div>
 
-          <div v-if="userConversations.length === 0" class="p-8 text-center text-gray-500">
-            <p>Aucune conversation</p>
+            
+            <!-- Delete button -->
+            <button @click.stop="deleteConversation(conv)" 
+              class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+          
+          <div v-if="filteredConversations.length === 0" class="p-8 text-center">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p class="font-medium text-gray-900 dark:text-white mb-1">Aucune conversation</p>
+            <p class="text-sm text-gray-500">Cliquez sur + pour commencer</p>
           </div>
         </div>
       </div>
 
-      <!-- Chat Area - Full width on mobile -->
-      <div v-if="selectedConv" class="flex-1 flex flex-col w-full max-w-full overflow-hidden">
+      <!-- Chat Area -->
+      <div v-if="selectedConv" class="flex-1 flex flex-col w-full max-w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
         <!-- Chat Header -->
-        <div class="bg-gray-50 dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 md:gap-3">
+        <div class="bg-white dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-sm">
           <!-- Back button for mobile -->
-          <button @click="goBackToList" class="md:hidden p-2 -ml-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+          <button @click="goBackToList" class="md:hidden p-2 -ml-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
             <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
+          
+          <!-- Avatar with status -->
           <div class="relative">
-            <div class="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">
+            <div class="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold shadow-md">
               {{ getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' }}
             </div>
-            <!-- Online indicator dot -->
-            <div v-if="selectedUserStatus === 'En ligne'" class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full"></div>
+            <!-- Online indicator -->
+            <div v-if="selectedUserStatus === 'En ligne'" 
+              class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
+          
           <div class="flex-1 min-w-0">
-            <h3 class="font-medium text-gray-900 dark:text-white truncate text-sm md:text-base">{{ getOtherParticipantName(selectedConv) }}</h3>
-            <p :class="['text-xs', selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
-              {{ selectedUserStatus || 'Chargement...' }}
+            <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(selectedConv) }}</h3>
+            <p :class="['text-xs transition-colors', 
+              isOtherTyping ? 'text-green-600 dark:text-green-400 font-medium' :
+              selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
+              {{ isOtherTyping ? 'écrit...' : selectedUserStatus }}
             </p>
+          </div>
+          
+          <!-- Actions -->
+          <div class="flex items-center gap-1">
+            <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+            </button>
+            <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <!-- Messages -->
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto overflow-x-hidden p-2 md:p-4 space-y-3 bg-gray-50 dark:bg-gray-900" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;100&quot; height=&quot;100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg opacity=&quot;0.05&quot;%3E%3Cpath d=&quot;M10 10h80v80H10z&quot; fill=&quot;none&quot; stroke=&quot;%23000&quot;/%3E%3C/g%3E%3C/svg%3E');">
+        <!-- Messages Area -->
+        <div ref="messagesContainer" class="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-1" 
+          :style="{ backgroundImage: `url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')` }">
+          
+          <!-- Date separator -->
+          <div class="flex items-center justify-center my-4">
+            <span class="px-3 py-1 bg-white dark:bg-gray-800 rounded-full text-xs text-gray-500 shadow-sm">
+              Aujourd'hui
+            </span>
+          </div>
+          
           <MessageBubble 
             v-for="msg in messages" 
             :key="msg.id" 
@@ -107,41 +163,46 @@
             :show-sender-name="false"
             @openImage="openImageModal" 
           />
+          
+          <!-- Typing indicator -->
+          <TypingIndicator v-if="isOtherTyping" :name="getOtherParticipantName(selectedConv)" />
         </div>
 
         <!-- Input Component -->
         <MessageInput 
           :conversation-id="selectedConv?.id" 
-          @messageSent="handleMessageSent" 
+          @messageSent="handleMessageSent"
+          @typing="handleMyTyping"
         />
       </div>
 
-
-      <!-- Empty State - Only show on desktop, on mobile the sidebar covers the full screen -->
-      <div v-else class="hidden md:flex flex-1 items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <!-- Empty State -->
+      <div v-else class="hidden md:flex flex-1 items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div class="text-center">
-          <svg class="w-32 h-32 mx-auto text-gray-300 dark:text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <h3 class="text-xl font-medium text-gray-600 dark:text-gray-400 mb-2">Sélectionnez une conversation</h3>
-          <p class="text-gray-500">Vos messages apparaîtront ici</p>
+          <div class="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl">
+            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Vos Messages</h3>
+          <p class="text-gray-500 max-w-xs mx-auto">Sélectionnez une conversation ou démarrez une nouvelle discussion</p>
         </div>
       </div>
     </div>
 
-    <!-- New Conversation Modal -->
+    <!-- Modals -->
     <NewConversationModal :show="showNewConversationModal" @close="showNewConversationModal = false" @userSelected="handleUserSelected" />
     <ContactsModal :show="showContactsModal" @close="showContactsModal = false" @startConversation="handleContactConversation" />
 
     <!-- Image Modal -->
     <Teleport to="body">
-      <div v-if="imageModalUrl" class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" @click="closeImageModal">
-        <button @click="closeImageModal" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+      <div v-if="imageModalUrl" class="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4" @click="closeImageModal">
+        <button @click="closeImageModal" class="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <img :src="imageModalUrl" class="max-w-full max-h-full object-contain" @click.stop />
+        <img :src="imageModalUrl" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" @click.stop />
       </div>
     </Teleport>
   </NuxtLayout>
@@ -153,6 +214,7 @@ import api, { contactsAPI, messagingAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 import MessageBubble from '~/components/messages/MessageBubble.vue'
 import MessageInput from '~/components/messages/MessageInput.vue'
+import TypingIndicator from '~/components/messages/TypingIndicator.vue'
 import NewConversationModal from '~/components/messages/NewConversationModal.vue'
 import ContactsModal from '~/components/messages/ContactsModal.vue'
 
@@ -164,6 +226,7 @@ definePageMeta({
 // WebSocket connection
 let ws: WebSocket | null = null
 let presenceInterval: ReturnType<typeof setInterval> | null = null
+let chatActivityInterval: ReturnType<typeof setInterval> | null = null
 
 const searchQuery = ref('')
 const selectedConv = ref<any>(null)
@@ -174,19 +237,27 @@ const showNewConversationModal = ref(false)
 const showContactsModal = ref(false)
 const userConversations = ref<any[]>([])
 const onlineStatus = ref<Record<string, string>>({})
+const typingUsers = ref<Record<string, boolean>>({})
 const currentUserId = ref<string>('')
 const syncedContacts = ref<Array<{id: string, phone: string, email: string, name: string}>>([])
+const isOtherTyping = ref(false)
 
 // Initialize auth store
 const authStore = useAuthStore()
 
+// Filtered conversations
+const filteredConversations = computed(() => {
+  if (!searchQuery.value.trim()) return userConversations.value
+  const query = searchQuery.value.toLowerCase()
+  return userConversations.value.filter(conv => {
+    const name = getOtherParticipantName(conv)?.toLowerCase() || ''
+    return name.includes(query)
+  })
+})
+
 // Get current user ID from auth store
 const getCurrentUserId = () => {
-  // Try from Pinia store first
-  if (authStore.user?.id) {
-    return authStore.user.id
-  }
-  // Fallback to localStorage (in case store not yet initialized)
+  if (authStore.user?.id) return authStore.user.id
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     return user.id || ''
@@ -230,7 +301,6 @@ const connectWebSocket = () => {
   
   ws.onclose = (event) => {
     console.log('WebSocket disconnected:', event.code)
-    // Auto-reconnect after 3 seconds
     if (event.code !== 1000) {
       setTimeout(connectWebSocket, 3000)
     }
@@ -245,29 +315,48 @@ const connectWebSocket = () => {
 const handleWebSocketMessage = (data: any) => {
   switch (data.type) {
     case 'new_message':
-      // Add new message if we're in the same conversation
       if (selectedConv.value?.id === data.conversation_id) {
         messages.value.push({
           ...data.content,
           isMine: data.sender_id === currentUserId.value
         })
         nextTick(() => scrollToBottom())
+        
+        // Mark as read
+        if (data.sender_id !== currentUserId.value) {
+          markMessageAsRead(data.content.id)
+        }
       }
-      // Update conversation list
       updateConversationLastMessage(data.conversation_id, data.content)
       break
       
     case 'typing':
-      // Handle typing indicator
-      console.log('User typing in', data.conversation_id)
+      if (data.conversation_id === selectedConv.value?.id && data.user_id !== currentUserId.value) {
+        isOtherTyping.value = data.is_typing
+        typingUsers.value[data.user_id] = data.is_typing
+        
+        // Auto-clear after 3 seconds
+        if (data.is_typing) {
+          setTimeout(() => {
+            isOtherTyping.value = false
+            typingUsers.value[data.user_id] = false
+          }, 3000)
+        }
+      }
       break
       
     case 'read':
-      // Handle read receipt
+      // Update message read status
+      if (data.conversation_id === selectedConv.value?.id) {
+        messages.value.forEach(msg => {
+          if (msg.id === data.message_id) {
+            msg.read_at = data.read_at
+          }
+        })
+      }
       break
       
     case 'presence':
-      // Update online status
       if (data.user_id && data.status) {
         onlineStatus.value[data.user_id] = data.status
       }
@@ -275,22 +364,40 @@ const handleWebSocketMessage = (data: any) => {
   }
 }
 
+// Mark message as read
+const markMessageAsRead = async (messageId: string) => {
+  try {
+    await messagingAPI.markAsRead(messageId)
+  } catch (e) {
+    // Ignore
+  }
+}
+
+// Send typing indicator
+const handleMyTyping = (isTyping: boolean) => {
+  if (ws?.readyState === WebSocket.OPEN && selectedConv.value) {
+    ws.send(JSON.stringify({
+      type: 'typing',
+      conversation_id: selectedConv.value.id,
+      is_typing: isTyping
+    }))
+  }
+}
+
 // Update conversation last message
 const updateConversationLastMessage = (convId: string, message: any) => {
   const index = userConversations.value.findIndex(c => c.id === convId)
   if (index > -1) {
-    userConversations.value[index].last_message = message
-    userConversations.value[index].updated_at = new Date().toISOString()
-    // Move to top
+    userConversations.value[index].lastMessage = message.content
+    userConversations.value[index].lastMessageAt = new Date().toISOString()
+    userConversations.value[index].lastMessageMine = message.sender_id === currentUserId.value
     const conv = userConversations.value.splice(index, 1)[0]
     userConversations.value.unshift(conv)
   }
 }
 
-// Update presence (heartbeat)
-// Enrich conversation participants with user phone/email data
+// Enrich conversation participants
 const enrichConversationParticipants = async () => {
-  // Collect user IDs of other participants who don't have phone/email
   const userIdsToFetch = new Set<string>()
   
   for (const conv of userConversations.value) {
@@ -303,7 +410,6 @@ const enrichConversationParticipants = async () => {
   
   if (userIdsToFetch.size === 0) return
   
-  // Fetch user data for each missing participant
   const userDataMap: Record<string, any> = {}
   
   for (const userId of userIdsToFetch) {
@@ -312,17 +418,13 @@ const enrichConversationParticipants = async () => {
       if (res.data) {
         userDataMap[userId] = res.data
       }
-    } catch (e) {
-      // Ignore errors for individual user fetches
-    }
+    } catch {}
   }
   
-  // Update conversations with fetched user data
   for (const conv of userConversations.value) {
     for (const p of conv.participants || []) {
       if (p.user_id !== currentUserId.value && userDataMap[p.user_id]) {
         const userData = userDataMap[p.user_id]
-        // Only update if data is missing
         if (!p.phone && userData.phone) p.phone = userData.phone
         if (!p.email && userData.email) p.email = userData.email
       }
@@ -333,20 +435,39 @@ const enrichConversationParticipants = async () => {
 const updatePresence = async () => {
   try {
     await api.post('/auth-service/api/v1/users/presence')
-  } catch (e: any) {
-    // Ignore errors - presence endpoint may not exist
-    if (e?.response?.status !== 404) {
-      console.debug('Presence update skipped')
-    }
-  }
+  } catch {}
 }
 
-// Get the name of the other participant in a conversation (not "Moi")
-// Priority: synced contact name > phone > email > fallback
+// Get the other participant's ID
+const getOtherParticipantId = (conv: any) => {
+  const participants = conv.participants || []
+  for (const p of participants) {
+    const uid = p.user_id || p
+    if (uid !== currentUserId.value) return uid
+  }
+  return ''
+}
+
+// Get participant status - first check backend data, then local cache
+const getParticipantStatus = (conv: any) => {
+  const participants = conv.participants || []
+  for (const p of participants) {
+    const uid = p.user_id || p
+    if (uid !== currentUserId.value) {
+      // Check if backend already provided online status
+      if (p.online === true) return 'online'
+      // Fall back to local cache
+      return onlineStatus.value[uid] || 'offline'
+    }
+  }
+  return 'offline'
+}
+
+
+// Get the name of the other participant
 const getOtherParticipantName = (conv: any) => {
   if (!conv) return 'Inconnu'
   
-  // If conv has participants array, find the one that's not the current user
   const participants = conv.participants || []
   for (const p of participants) {
     const uid = p.user_id || p
@@ -354,61 +475,36 @@ const getOtherParticipantName = (conv: any) => {
       const phone = p.phone
       const email = p.email
       
-      // Check if this phone/email is in synced contacts
-      // For now, we show phone/email first (like WhatsApp when contact is not saved)
-      // If user has synced contacts from mobile, the name will be in the contact
-      
-      // Show phone if available (privacy first - like WhatsApp)
       if (phone && phone.length > 0) {
-        // Check syncedContacts for this phone to show contact name
         const contact = syncedContacts.value.find(c => c.phone === phone)
-        if (contact) {
-          return contact.name
-        }
+        if (contact) return contact.name
         return formatPhoneNumber(phone)
       }
-      // Show email if available
       if (email && email.length > 0) {
-        // Check syncedContacts for this email
         const contact = syncedContacts.value.find(c => c.email === email)
-        if (contact) {
-          return contact.name
-        }
+        if (contact) return contact.name
         return email
       }
-      // Fallback to generic
       return 'Utilisateur'
     }
   }
   
-  // If conv has other_user_phone, use it
   if (conv.other_user_phone) return formatPhoneNumber(conv.other_user_phone)
   if (conv.other_user_email) return conv.other_user_email
   
   return conv.phone || 'Conversation'
 }
 
-// Get current user name from localStorage
-const getCurrentUserName = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
-    return user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : ''
-  } catch {
-    return ''
-  }
-}
-
-// Format phone number for display
+// Format phone number
 const formatPhoneNumber = (phone: string | undefined) => {
   if (!phone) return ''
-  // Format as +XXX XX XX XX XX (if long enough)
   if (phone.length >= 10) {
     return phone.replace(/(\d{3})(\d{2})(\d{2})(\d{2})(\d{2})/, '+$1 $2 $3 $4 $5')
   }
   return phone
 }
 
-// Get display status for selected conversation
+// Get display status
 const selectedUserStatus = computed(() => {
   if (!selectedConv.value) return ''
   const participants = selectedConv.value.participants || []
@@ -438,8 +534,8 @@ const formatTime = (date: any) => {
 
 const selectConversation = (conv: any) => {
   selectedConv.value = conv
+  isOtherTyping.value = false
   loadMessages()
-  // Load presence for other participant
   loadParticipantPresence(conv)
 }
 
@@ -457,9 +553,7 @@ const loadParticipantPresence = async (conv: any) => {
       for (const p of (res.data?.presences || [])) {
         onlineStatus.value[p.user_id] = p.status
       }
-    } catch (e) {
-      // Ignore
-    }
+    } catch {}
   }
 }
 
@@ -469,7 +563,6 @@ const loadMessages = async () => {
     const res = await messagingAPI.getMessages(selectedConv.value.id)
     const userId = currentUserId.value
     
-    // Get other participant IDs from the conversation
     const otherParticipantIds = (selectedConv.value.participants || [])
       .filter((p: any) => (p.user_id || p) !== userId)
       .map((p: any) => String(p.user_id || p).trim())
@@ -501,7 +594,6 @@ const loadConversations = async () => {
   }
 }
 
-// Go back to conversation list (for mobile)
 const goBackToList = () => {
   selectedConv.value = null
   messages.value = []
@@ -514,7 +606,6 @@ const handleUserSelected = (conversation: any) => {
 
 const handleContactConversation = async (user: any) => {
   showContactsModal.value = false
-  // Create or get existing conversation with this user
   try {
     const res = await messagingAPI.createConversation({
       participant_id: user.id,
@@ -535,7 +626,6 @@ const deleteConversation = async (conv: any) => {
     await messagingAPI.deleteConversation(conv.id)
     userConversations.value = userConversations.value.filter(c => c.id !== conv.id)
     
-    // Clear selection if this was the selected conversation
     if (selectedConv.value?.id === conv.id) {
       selectedConv.value = null
       messages.value = []
@@ -566,15 +656,18 @@ const closeImageModal = () => {
   imageModalUrl.value = null
 }
 
+const setChatActivity = async (active: boolean) => {
+  try {
+    await api.post('/auth-service/api/v1/users/chat-activity', { active })
+  } catch {}
+}
+
 onMounted(async () => {
-  // Wait for auth store to be ready
   if (!authStore.user) {
     await authStore.initializeAuth()
   }
   
-  // Get user ID from store (now should be available)
   currentUserId.value = authStore.user?.id || getCurrentUserId()
-  console.log('Current user ID after init:', currentUserId.value)
   
   try {
     const [convRes, contactsRes] = await Promise.all([
@@ -584,48 +677,28 @@ onMounted(async () => {
     userConversations.value = convRes.data?.conversations || []
     syncedContacts.value = contactsRes.data?.contacts || []
     
-    // Enrich participants with user data (phone/email) for conversations missing this info
     await enrichConversationParticipants()
   } catch (err) {
     console.error(err)
   }
   
-  // Connect WebSocket
   connectWebSocket()
   
-  // Start presence heartbeat (every 60 seconds)
   updatePresence()
   presenceInterval = setInterval(updatePresence, 60000)
   
-  // Mark user as active in chat
   setChatActivity(true)
   chatActivityInterval = setInterval(() => setChatActivity(true), 30000)
 })
 
-let chatActivityInterval: any = null
-
-const setChatActivity = async (active: boolean) => {
-  try {
-    await api.post('/auth-service/api/v1/users/chat-activity', { active })
-  } catch (e) {
-    // Ignore errors
-  }
-}
-
 onUnmounted(() => {
-  // Cleanup
   if (ws) {
     ws.close(1000)
     ws = null
   }
-  if (presenceInterval) {
-    clearInterval(presenceInterval)
-  }
-  if (chatActivityInterval) {
-    clearInterval(chatActivityInterval)
-  }
+  if (presenceInterval) clearInterval(presenceInterval)
+  if (chatActivityInterval) clearInterval(chatActivityInterval)
   
-  // Mark user as inactive in chat
   setChatActivity(false)
 })
 </script>
