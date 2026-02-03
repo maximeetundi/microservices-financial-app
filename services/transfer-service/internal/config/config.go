@@ -6,33 +6,35 @@ import (
 )
 
 type Config struct {
-	Environment      string
-	Port             string
-	DBUrl            string
-	KafkaBrokers     string
-	KafkaGroupID     string
+	Environment          string
+	Port                 string
+	DBUrl                string
+	KafkaBrokers         string
+	KafkaGroupID         string
 	WalletServiceURL     string
 	EnterpriseServiceURL string
 	ShopServiceURL       string
+	AdminServiceURL      string
 	JWTSecret            string
-	
+	AggregatorCacheTTL   int
+
 	// Transfer limits
-	DailyTransferLimits    map[string]float64
-	MonthlyTransferLimits  map[string]float64
-	SingleTransferLimits   map[string]float64
-	
+	DailyTransferLimits   map[string]float64
+	MonthlyTransferLimits map[string]float64
+	SingleTransferLimits  map[string]float64
+
 	// Transfer fees
 	TransferFees map[string]float64
-	
+
 	// Mobile money providers
 	MobileMoneyProviders map[string]MobileMoneyConfig
-	
+
 	// International transfer
 	InternationalProviders map[string]InternationalConfig
-	
+
 	// Compliance settings
 	ComplianceSettings ComplianceConfig
-	
+
 	// Security
 	RateLimitRPS int
 }
@@ -46,10 +48,10 @@ type MobileMoneyConfig struct {
 }
 
 type InternationalConfig struct {
-	APIKey    string
-	APISecret string
-	BaseURL   string
-	Countries []string
+	APIKey     string
+	APISecret  string
+	BaseURL    string
+	Countries  []string
 	Currencies []string
 }
 
@@ -63,32 +65,33 @@ type ComplianceConfig struct {
 
 func Load() *Config {
 	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
+	aggregatorCacheTTL, _ := strconv.Atoi(getEnv("AGGREGATOR_CACHE_TTL", "300"))
 
 	return &Config{
-		Environment:      getEnv("ENVIRONMENT", "development"),
-		Port:             getEnv("PORT", "8084"),
-		DBUrl:            getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		KafkaBrokers:     getEnv("KAFKA_BROKERS", "localhost:9092"),
-		KafkaGroupID:     getEnv("KAFKA_GROUP_ID", "transfer-service-group"),
+		Environment:          getEnv("ENVIRONMENT", "development"),
+		Port:                 getEnv("PORT", "8084"),
+		DBUrl:                getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		KafkaBrokers:         getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID:         getEnv("KAFKA_GROUP_ID", "transfer-service-group"),
 		WalletServiceURL:     getEnv("WALLET_SERVICE_URL", "http://wallet-service:8083"),
 		EnterpriseServiceURL: getEnv("ENTERPRISE_SERVICE_URL", "http://enterprise-service:8097"),
 		ShopServiceURL:       getEnv("SHOP_SERVICE_URL", "http://shop-service:8098"),
 		JWTSecret:            getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		
+
 		// Daily limits by KYC level
 		DailyTransferLimits: map[string]float64{
 			"level_1": 1000.0,
 			"level_2": 10000.0,
 			"level_3": 100000.0,
 		},
-		
+
 		// Monthly limits by KYC level
 		MonthlyTransferLimits: map[string]float64{
 			"level_1": 5000.0,
 			"level_2": 50000.0,
 			"level_3": 500000.0,
 		},
-		
+
 		// Single transaction limits
 		SingleTransferLimits: map[string]float64{
 			"USD": 10000.0,
@@ -96,15 +99,15 @@ func Load() *Config {
 			"BTC": 1.0,
 			"ETH": 10.0,
 		},
-		
+
 		// Transfer fees (percentage)
 		TransferFees: map[string]float64{
-			"domestic":      0.5,  // 0.5%
-			"international": 2.0,  // 2.0%
-			"mobile_money":  1.0,  // 1.0%
-			"crypto":        0.1,  // 0.1%
+			"domestic":      0.5, // 0.5%
+			"international": 2.0, // 2.0%
+			"mobile_money":  1.0, // 1.0%
+			"crypto":        0.1, // 0.1%
 		},
-		
+
 		// Mobile money providers
 		MobileMoneyProviders: map[string]MobileMoneyConfig{
 			"mtn": {
@@ -129,7 +132,7 @@ func Load() *Config {
 				Countries:   []string{"KE"},
 			},
 		},
-		
+
 		// International transfer providers
 		InternationalProviders: map[string]InternationalConfig{
 			"wise": {
@@ -147,7 +150,7 @@ func Load() *Config {
 				Currencies: []string{"USD", "EUR", "GBP", "CAD", "AUD"},
 			},
 		},
-		
+
 		// Compliance settings
 		ComplianceSettings: ComplianceConfig{
 			KYCRequired:           true,
@@ -156,9 +159,13 @@ func Load() *Config {
 			SanctionsCheckEnabled: true,
 			PEPCheckEnabled:       true,
 		},
-		
+
 		// Security
 		RateLimitRPS: rateLimitRPS,
+
+		// Admin Service Integration (for provider configuration)
+		AdminServiceURL:    getEnv("ADMIN_SERVICE_URL", "http://admin-service:8088"),
+		AggregatorCacheTTL: aggregatorCacheTTL,
 	}
 }
 

@@ -666,15 +666,14 @@ func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
 		})
 	}
 
-	// 2. Add global providers (international/card types that work for all countries)
-	// These are providers with type 'card', 'international', or 'crypto' that are active
+	// 2. Add all other active providers that weren't country-specific
+	// This ensures all active aggregators are shown
 	globalQuery := `
 		SELECT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
 		       pp.deposit_enabled, pp.withdraw_enabled,
 		       pp.fee_percentage, pp.fee_fixed, pp.min_transaction, pp.max_transaction
 		FROM payment_providers pp
-		WHERE pp.is_active = true 
-		  AND pp.provider_type IN ('card', 'international', 'crypto', 'bank_transfer')
+		WHERE pp.is_active = true
 		ORDER BY pp.priority DESC`
 
 	globalRows, err := h.db.Query(globalQuery)

@@ -7,6 +7,7 @@ import (
 type Config struct {
 	// Server
 	Port        string
+	GRPCPort    string // gRPC server port
 	Environment string
 
 	// Database (separate admin database)
@@ -48,6 +49,7 @@ func Load() *Config {
 
 	return &Config{
 		Port:        getEnv("PORT", "8088"),
+		GRPCPort:    getEnv("GRPC_PORT", "9088"),
 		Environment: getEnv("ENVIRONMENT", "development"),
 
 		AdminDBURL: getEnv("ADMIN_DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank_admin?sslmode=disable"),

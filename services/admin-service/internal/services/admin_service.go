@@ -690,6 +690,121 @@ func (s *AdminService) InitializeSettings() error {
 			Description: "Maximum wallet balance for Enterprise users", Type: models.FeeTypeLimit,
 			FixedAmount: 10000000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
 		},
+
+		// --- Card Settings ---
+		{
+			ID: uuid.New().String(), Key: "card_creation_fee", Name: "Card Creation Fee",
+			Description: "Fee for creating a new card", Type: models.FeeTypeFlat,
+			FixedAmount: 5.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "card_monthly_fee", Name: "Card Monthly Fee",
+			Description: "Monthly maintenance fee for cards", Type: models.FeeTypeFlat,
+			FixedAmount: 2.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "card_atm_withdrawal_fee", Name: "ATM Withdrawal Fee",
+			Description: "Fee for ATM withdrawals", Type: models.FeeTypeHybrid,
+			FixedAmount: 1.5, PercentageAmount: 0.5, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "card_limit_daily", Name: "Card Daily Limit",
+			Description: "Daily spending limit for cards", Type: models.FeeTypeLimit,
+			FixedAmount: 5000.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Shop Settings ---
+		{
+			ID: uuid.New().String(), Key: "shop_commission_rate", Name: "Shop Commission Rate",
+			Description: "Platform commission on shop sales", Type: models.FeeTypePercentage,
+			PercentageAmount: 3.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "shop_min_payout", Name: "Shop Minimum Payout",
+			Description: "Minimum amount for shop payouts", Type: models.FeeTypeLimit,
+			FixedAmount: 50.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "shop_payout_delay_days", Name: "Shop Payout Delay",
+			Description: "Days to wait before releasing funds", Type: models.FeeTypeSystem,
+			FixedAmount: 7.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "order_min_amount", Name: "Order Minimum Amount",
+			Description: "Minimum order amount", Type: models.FeeTypeLimit,
+			FixedAmount: 5.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "shipping_default_fee", Name: "Default Shipping Fee",
+			Description: "Default shipping fee", Type: models.FeeTypeFlat,
+			FixedAmount: 5.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Notification Settings ---
+		{
+			ID: uuid.New().String(), Key: "sms_enabled", Name: "SMS Notifications",
+			Description: "Enable SMS notifications", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "sms_cost_per_message", Name: "SMS Cost Per Message",
+			Description: "Cost per SMS message", Type: models.FeeTypeFlat,
+			FixedAmount: 0.05, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "email_enabled", Name: "Email Notifications",
+			Description: "Enable email notifications", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "push_enabled", Name: "Push Notifications",
+			Description: "Enable push notifications", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "notification_transaction_alert", Name: "Transaction Alerts",
+			Description: "Send alerts for transactions", Type: models.FeeTypeSystem,
+			IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Event & Campaign Settings ---
+		{
+			ID: uuid.New().String(), Key: "event_platform_commission", Name: "Event Platform Commission",
+			Description: "Commission on event ticket sales", Type: models.FeeTypePercentage,
+			PercentageAmount: 5.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "campaign_platform_commission", Name: "Campaign Platform Commission",
+			Description: "Commission on donation campaigns", Type: models.FeeTypePercentage,
+			PercentageAmount: 2.5, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "donation_min_amount", Name: "Minimum Donation",
+			Description: "Minimum donation amount", Type: models.FeeTypeLimit,
+			FixedAmount: 1.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "ticket_service_fee", Name: "Ticket Service Fee",
+			Description: "Service fee per ticket", Type: models.FeeTypeFlat,
+			FixedAmount: 1.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+
+		// --- Enterprise Features ---
+		{
+			ID: uuid.New().String(), Key: "enterprise_wallet_fee", Name: "Enterprise Wallet Fee",
+			Description: "Monthly fee for enterprise wallets", Type: models.FeeTypeFlat,
+			FixedAmount: 50.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "payroll_min_amount", Name: "Payroll Minimum Amount",
+			Description: "Minimum amount per payroll payment", Type: models.FeeTypeLimit,
+			FixedAmount: 10.0, Currency: "EUR", IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
+		{
+			ID: uuid.New().String(), Key: "multi_sig_min_approvers", Name: "Multi-Sig Min Approvers",
+			Description: "Minimum approvers for multi-signature", Type: models.FeeTypeSystem,
+			FixedAmount: 2.0, IsEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(), UpdatedBy: "system",
+		},
 	}
 
 	for _, c := range defaults {

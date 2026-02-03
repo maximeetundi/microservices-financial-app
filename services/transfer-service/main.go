@@ -98,6 +98,16 @@ func main() {
 		complianceService,
 	)
 
+	// Initialize Admin Client (Proxy for Payment Methods)
+	adminClient := services.NewAdminClient(cfg)
+
+	// Initialize Aggregator (Payment Providers)
+	aggregatorRepo := repository.NewAggregatorRepository(db)
+	if err := aggregatorRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to init aggregator schema: %v", err)
+	}
+	aggregatorHandler := handlers.NewAggregatorHandler(aggregatorRepo, adminClient)
+
 	// Setup Gin
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -122,6 +132,13 @@ func main() {
 	// Transfer routes
 	api := router.Group("/api/v1")
 	{
+		// Register Aggregator Routes (Proxy Pattern)
+		// Public routes: /api/v1/aggregators
+		// Admin routes: /api/v1/admin/aggregators (Protected)
+		adminGroup := api.Group("/admin")
+		adminGroup.Use(middleware.JWTAuth(cfg.JWTSecret)) // Apply Auth to admin routes
+		aggregatorHandler.RegisterRoutes(api, adminGroup)
+
 		// Protected routes - apply JWT auth middleware
 		api.POST("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateTransfer)
 		api.GET("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransferHistory)

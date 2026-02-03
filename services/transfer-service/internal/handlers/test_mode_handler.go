@@ -227,12 +227,22 @@ func (h *TestModeHandler) SimulateWebhook(c *gin.Context) {
 	// Simulate successful payment - credit the wallet
 	switch req.EventType {
 	case "payment.success", "payment_intent.succeeded", "charge.completed":
+		// 1. Debit from platform hot wallet first
+		if h.platformClient != nil {
+			if err := h.platformClient.DebitPlatformHotWallet(ctx, req.Currency, req.Amount,
+				"SIMULATED_"+req.Aggregator+"_"+req.TransactionID, "Simulated webhook deposit"); err != nil {
+				log.Printf("[TestMode] Warning: Failed to debit platform wallet: %v", err)
+				// Continue anyway - admin override for testing
+			}
+		}
+
+		// 2. Credit user wallet
 		reference := fmt.Sprintf("SIMULATED_%s_%s", req.Aggregator, req.TransactionID)
 		if err := h.walletClient.CreditWallet(ctx, wallet.ID, req.Amount, reference); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit wallet"})
 			return
 		}
-		log.Printf("[TestMode] ✅ Simulated payment success - credited %.2f %s", req.Amount, req.Currency)
+		log.Printf("[TestMode] ✅ Simulated payment success - credited %.2f %s (debited from hot wallet)", req.Amount, req.Currency)
 
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown event type: " + req.EventType})
@@ -358,6 +368,17 @@ func (h *TestModeHandler) QuickCredit(c *gin.Context) {
 	}
 
 	reference := fmt.Sprintf("QUICK_CREDIT_%s_%s", req.Preset, transactionID)
+
+	// 1. Debit from platform hot wallet first
+	if h.platformClient != nil {
+		if err := h.platformClient.DebitPlatformHotWallet(ctx, req.Currency, amount,
+			reference, "Quick credit by admin"); err != nil {
+			log.Printf("[TestMode] Warning: Failed to debit platform wallet: %v", err)
+			// Continue anyway - admin override for testing
+		}
+	}
+
+	// 2. Credit user wallet
 	if err := h.walletClient.CreditWallet(ctx, wallet.ID, amount, reference); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit wallet"})
 		return
@@ -369,7 +390,7 @@ func (h *TestModeHandler) QuickCredit(c *gin.Context) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, false, 'completed')
 	`, transactionID, adminID, req.UserID, wallet.ID, req.Currency, amount, creditReq.Reason)
 
-	log.Printf("[TestMode] ⚡ Quick credit %s: %.2f %s to user %s", req.Preset, amount, req.Currency, req.UserID)
+	log.Printf("[TestMode] ⚡ Quick credit %s: %.2f %s to user %s (debited from hot wallet)", req.Preset, amount, req.Currency, req.UserID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success":        true,

@@ -23,6 +23,8 @@ import {
     UserIcon,
     BuildingOfficeIcon,
     AdjustmentsHorizontalIcon,
+    ShoppingBagIcon,
+    MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { logout } from '@/lib/api';
@@ -106,11 +108,24 @@ const navigationSections: NavigationSection[] = [
         ]
     },
     {
-        title: 'Système',
+        title: 'Configuration',
+        items: [
+            { name: 'Système', href: '/dashboard/settings', icon: Cog6ToothIcon },
+            { name: 'Portefeuilles', href: '/dashboard/settings/wallet', icon: WalletIcon },
+            { name: 'Transferts', href: '/dashboard/settings/transfer', icon: ArrowsRightLeftIcon },
+            { name: 'Échange', href: '/dashboard/settings/exchange', icon: SparklesIcon },
+            { name: 'Cartes', href: '/dashboard/settings/card', icon: CreditCardIcon },
+            { name: 'Entreprises', href: '/dashboard/settings/enterprise', icon: BuildingOfficeIcon },
+            { name: 'Boutiques', href: '/dashboard/settings/shops', icon: ShoppingBagIcon },
+            { name: 'Notifications', href: '/dashboard/settings/notifications', icon: BellIcon },
+            { name: 'Événements', href: '/dashboard/settings/events', icon: MegaphoneIcon },
+        ]
+    },
+    {
+        title: 'Administration',
         items: [
             { name: 'Administrateurs', href: '/dashboard/admins', icon: Cog6ToothIcon },
             { name: 'Logs d\'audit', href: '/dashboard/logs', icon: DocumentTextIcon },
-            { name: 'Configuration', href: '/dashboard/settings', icon: AdjustmentsHorizontalIcon },
         ]
     },
 ];

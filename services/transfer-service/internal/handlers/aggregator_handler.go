@@ -1,22 +1,109 @@
-package handlers
-
 import (
 	"log"
 	"net/http"
 
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
 // AggregatorHandler handles aggregator configuration endpoints
 type AggregatorHandler struct {
-	repo *repository.AggregatorRepository
+	repo        *repository.AggregatorRepository
+	adminClient *services.AdminClient
 }
 
 // NewAggregatorHandler creates a new aggregator handler
-func NewAggregatorHandler(repo *repository.AggregatorRepository) *AggregatorHandler {
-	return &AggregatorHandler{repo: repo}
+func NewAggregatorHandler(repo *repository.AggregatorRepository, adminClient *services.AdminClient) *AggregatorHandler {
+	return &AggregatorHandler{
+		repo:        repo,
+		adminClient: adminClient,
+	}
+}
+
+// ... [Admin Endpoints Omitted/Unchanged] ...
+
+// ==================== PUBLIC ENDPOINTS (for frontend) ====================
+
+// GetAvailableForDeposit returns aggregators available for deposits
+// GET /aggregators/deposit?country=XX
+func (h *AggregatorHandler) GetAvailableForDeposit(c *gin.Context) {
+	country := c.DefaultQuery("country", "CI") // Dfault to CI if missing
+
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
+	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
+		return
+	}
+
+	// Filter for Deposit
+	var available []models.AggregatorForFrontend
+	for _, m := range allMethods {
+		if m.DepositEnabled {
+			available = append(available, m)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"aggregators": available,
+		"count":       len(available),
+		"country":     country,
+		"source":      "admin-service-proxy",
+	})
+}
+
+// GetAvailableForWithdraw returns aggregators available for withdrawals
+// GET /aggregators/withdraw?country=XX
+func (h *AggregatorHandler) GetAvailableForWithdraw(c *gin.Context) {
+	country := c.DefaultQuery("country", "CI")
+
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
+	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
+		return
+	}
+
+	// Filter for Withdraw
+	var available []models.AggregatorForFrontend
+	for _, m := range allMethods {
+		if m.WithdrawEnabled {
+			available = append(available, m)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"aggregators": available,
+		"count":       len(available),
+		"country":     country,
+		"source":      "admin-service-proxy",
+	})
+}
+
+// GetAllPublic returns all enabled aggregators for frontend display
+// GET /aggregators
+func (h *AggregatorHandler) GetAllPublic(c *gin.Context) {
+	// Frontend typically calls /payment-methods?country=XX
+	// Here we map /aggregators?country=XX to that logic
+	country := c.DefaultQuery("country", "CI")
+
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
+	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"aggregators": allMethods,
+		"count":       len(allMethods),
+		"source":      "admin-service-proxy",
+	})
 }
 
 // ==================== ADMIN ENDPOINTS ====================
@@ -212,70 +299,80 @@ func (h *AggregatorHandler) ToggleWithdraw(c *gin.Context) {
 // GetAvailableForDeposit returns aggregators available for deposits
 // GET /aggregators/deposit?country=XX
 func (h *AggregatorHandler) GetAvailableForDeposit(c *gin.Context) {
-	country := c.DefaultQuery("country", "*")
+	country := c.DefaultQuery("country", "CI") // Default to CI if missing
 
-	aggregators, err := h.repo.GetEnabledForDeposit(country)
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
 	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
 		return
 	}
 
+	// Filter for Deposit
+	var available []models.AggregatorForFrontend
+	for _, m := range allMethods {
+		if m.DepositEnabled {
+			available = append(available, m)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"aggregators": aggregators,
-		"count":       len(aggregators),
+		"aggregators": available,
+		"count":       len(available),
 		"country":     country,
+		"source":      "admin-service-proxy",
 	})
 }
 
 // GetAvailableForWithdraw returns aggregators available for withdrawals
 // GET /aggregators/withdraw?country=XX
 func (h *AggregatorHandler) GetAvailableForWithdraw(c *gin.Context) {
-	country := c.DefaultQuery("country", "*")
+	country := c.DefaultQuery("country", "CI")
 
-	aggregators, err := h.repo.GetEnabledForWithdraw(country)
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
 	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
 		return
 	}
 
+	// Filter for Withdraw
+	var available []models.AggregatorForFrontend
+	for _, m := range allMethods {
+		if m.WithdrawEnabled {
+			available = append(available, m)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"aggregators": aggregators,
-		"count":       len(aggregators),
+		"aggregators": available,
+		"count":       len(available),
 		"country":     country,
+		"source":      "admin-service-proxy",
 	})
 }
 
 // GetAllPublic returns all enabled aggregators for frontend display
 // GET /aggregators
 func (h *AggregatorHandler) GetAllPublic(c *gin.Context) {
-	aggregators, err := h.repo.GetEnabled()
+	// Frontend typically calls /payment-methods?country=XX
+	// Here we map /aggregators?country=XX to that logic
+	country := c.DefaultQuery("country", "CI")
+
+	// Use AdminClient Proxy
+	allMethods, err := h.adminClient.GetPaymentMethods(country)
 	if err != nil {
+		log.Printf("[AggregatorHandler] Error proxying to admin service: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregators"})
 		return
 	}
 
-	// Convert to frontend format
-	var result []models.AggregatorForFrontend
-	for _, a := range aggregators {
-		result = append(result, models.AggregatorForFrontend{
-			Code:            a.ProviderCode,
-			Name:            a.ProviderName,
-			LogoURL:         a.LogoURL,
-			DepositEnabled:  a.DepositEnabled,
-			WithdrawEnabled: a.WithdrawEnabled,
-			MinAmount:       a.MinAmount,
-			MaxAmount:       a.MaxAmount,
-			FeePercent:      a.FeePercent,
-			FeeFixed:        a.FeeFixed,
-			FeeCurrency:     a.FeeCurrency,
-			MaintenanceMode: a.MaintenanceMode,
-			MaintenanceMsg:  a.MaintenanceMsg,
-		})
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"aggregators": result,
-		"count":       len(result),
+		"aggregators": allMethods,
+		"count":       len(allMethods),
+		"source":      "admin-service-proxy",
 	})
 }
 

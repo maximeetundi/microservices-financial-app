@@ -799,3 +799,85 @@ func (r *AdminRepository) CreateFeeConfig(c *models.FeeConfig) error {
 	)
 	return err
 }
+
+// ========== gRPC Query Methods ==========
+
+// GetWalletByID returns a wallet from the main database
+func (r *AdminRepository) GetWalletByID(walletID string) (map[string]interface{}, error) {
+	query := `
+		SELECT id, user_id, currency, wallet_type, status, balance, available_balance, created_at
+		FROM wallets WHERE id = $1
+	`
+	rows, err := r.mainDB.Query(query, walletID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results, err := r.rowsToMaps(rows)
+	if err != nil || len(results) == 0 {
+		return nil, err
+	}
+	return results[0], nil
+}
+
+// GetPlatformAccounts returns all platform accounts from the main database
+func (r *AdminRepository) GetPlatformAccounts() ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, name, type, currency, balance, created_at
+		FROM platform_accounts
+		WHERE is_active = true
+		ORDER BY type, currency
+	`
+	return r.queryToMaps(r.mainDB, query)
+}
+
+// GetHotWallets returns all hot wallets from the main database
+func (r *AdminRepository) GetHotWallets() ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, currency, address, balance, provider, created_at
+		FROM hot_wallets
+		WHERE is_active = true
+		ORDER BY currency
+	`
+	return r.queryToMaps(r.mainDB, query)
+}
+
+// GetFeeConfigsByPrefix returns all fee configs matching a key prefix
+func (r *AdminRepository) GetFeeConfigsByPrefix(prefix string) ([]models.FeeConfig, error) {
+	query := `SELECT id, key, name, description, type, fixed_amount, percentage_amount, currency, is_enabled, created_at, updated_at, updated_by 
+			  FROM fee_configurations 
+			  WHERE key LIKE $1 
+			  ORDER BY key`
+
+	rows, err := r.adminDB.Query(query, prefix+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var configs []models.FeeConfig
+	for rows.Next() {
+		var c models.FeeConfig
+		var desc, upBy sql.NullString
+
+		err := rows.Scan(
+			&c.ID, &c.Key, &c.Name, &desc, &c.Type,
+			&c.FixedAmount, &c.PercentageAmount, &c.Currency, &c.IsEnabled,
+			&c.CreatedAt, &c.UpdatedAt, &upBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if desc.Valid {
+			c.Description = desc.String
+		}
+		if upBy.Valid {
+			c.UpdatedBy = upBy.String
+		}
+
+		configs = append(configs, c)
+	}
+	return configs, nil
+}

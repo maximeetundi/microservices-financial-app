@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package admin.v1;
+
+option go_package = "github.com/crypto-bank/microservices-financial-app/services/admin-service/proto;adminpb";
+
+// AdminConfigService provides gRPC interface for configuration queries
+// Used by other microservices to fetch configurations (synchronous reads)
+service AdminConfigService {
+    // Configuration queries
+    rpc GetConfiguration(GetConfigRequest) returns (ConfigResponse);
+    rpc GetAllConfigurations(GetAllConfigsRequest) returns (ConfigListResponse);
+    rpc GetConfigurationsByPrefix(GetConfigsByPrefixRequest) returns (ConfigListResponse);
+    
+    // System settings
+    rpc IsFeatureEnabled(FeatureRequest) returns (FeatureResponse);
+    rpc GetFee(GetFeeRequest) returns (FeeResponse);
+    rpc GetLimit(GetLimitRequest) returns (LimitResponse);
+}
+
+// AdminQueryService provides read-only queries for admin dashboard
+service AdminQueryService {
+    // Dashboard stats
+    rpc GetDashboardStats(EmptyRequest) returns (DashboardStatsResponse);
+    
+    // User queries
+    rpc GetUserStatus(GetUserStatusRequest) returns (UserStatusResponse);
+    rpc GetUserKYCStatus(GetUserStatusRequest) returns (KYCStatusResponse);
+    
+    // Wallet queries
+    rpc GetWalletStatus(GetWalletStatusRequest) returns (WalletStatusResponse);
+    
+    // Platform queries
+    rpc GetPlatformAccounts(EmptyRequest) returns (PlatformAccountsResponse);
+    rpc GetHotWallets(EmptyRequest) returns (HotWalletsResponse);
+}
+
+// ========== Request Messages ==========
+
+message EmptyRequest {}
+
+message GetConfigRequest {
+    string key = 1;
+}
+
+message GetAllConfigsRequest {
+    string service = 1;  // Optional: filter by service name
+    int32 limit = 2;
+    int32 offset = 3;
+}
+
+message GetConfigsByPrefixRequest {
+    string prefix = 1;  // e.g., "transfer_", "limit_daily_"
+}
+
+message FeatureRequest {
+    string feature_key = 1;  // e.g., "system_testnet_enabled"
+}
+
+message GetFeeRequest {
+    string fee_key = 1;
+    string currency = 2;  // Optional: for currency-specific fees
+}
+
+message GetLimitRequest {
+    string limit_key = 1;
+    int32 kyc_level = 2;  // User's KYC level for limit lookup
+}
+
+message GetUserStatusRequest {
+    string user_id = 1;
+}
+
+message GetWalletStatusRequest {
+    string wallet_id = 1;
+}
+
+// ========== Response Messages ==========
+
+message ConfigResponse {
+    string key = 1;
+    string name = 2;
+    string description = 3;
+    string type = 4;  // flat, percentage, hybrid, system, limit
+    double fixed_amount = 5;
+    double percentage_amount = 6;
+    string currency = 7;
+    bool is_enabled = 8;
+    string updated_at = 9;
+    string updated_by = 10;
+}
+
+message ConfigListResponse {
+    repeated ConfigResponse configurations = 1;
+    int32 total = 2;
+}
+
+message FeatureResponse {
+    bool is_enabled = 1;
+}
+
+message FeeResponse {
+    string fee_key = 1;
+    string type = 2;
+    double fixed_amount = 3;
+    double percentage_amount = 4;
+    string currency = 5;
+    bool is_enabled = 6;
+}
+
+message LimitResponse {
+    string limit_key = 1;
+    double limit_amount = 2;
+    string currency = 3;
+    string tier_name = 4;  // guest, standard, verified, enterprise
+}
+
+message UserStatusResponse {
+    string user_id = 1;
+    string email = 2;
+    string status = 3;        // active, blocked, suspended
+    int32 kyc_level = 4;
+    string kyc_status = 5;    // pending, verified, rejected
+    bool is_blocked = 6;
+    string blocked_reason = 7;
+    string created_at = 8;
+}
+
+message KYCStatusResponse {
+    string user_id = 1;
+    int32 kyc_level = 2;
+    string kyc_status = 3;
+    repeated KYCDocument documents = 4;
+}
+
+message KYCDocument {
+    string id = 1;
+    string type = 2;
+    string status = 3;
+    string uploaded_at = 4;
+}
+
+message WalletStatusResponse {
+    string wallet_id = 1;
+    string user_id = 2;
+    string currency = 3;
+    string wallet_type = 4;
+    string status = 5;        // active, frozen, blocked
+    double balance = 6;
+    double available_balance = 7;
+}
+
+message DashboardStatsResponse {
+    int64 total_users = 1;
+    int64 total_wallets = 2;
+    int64 total_transactions = 3;
+    int64 pending_kyc = 4;
+    int64 active_cards = 5;
+    double total_volume_24h = 6;
+    string currency = 7;
+}
+
+message PlatformAccountsResponse {
+    repeated PlatformAccount accounts = 1;
+}
+
+message PlatformAccount {
+    string id = 1;
+    string name = 2;
+    string type = 3;
+    string currency = 4;
+    double balance = 5;
+}
+
+message HotWalletsResponse {
+    repeated HotWallet wallets = 1;
+}
+
+message HotWallet {
+    string id = 1;
+    string currency = 2;
+    string address = 3;
+    double balance = 4;
+    string provider = 5;
+}

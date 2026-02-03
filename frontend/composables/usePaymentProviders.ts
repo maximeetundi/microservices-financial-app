@@ -142,8 +142,8 @@ export function usePaymentProviders() {
             const params = new URLSearchParams()
             countryList.forEach(c => params.append('country', c))
 
-            const url = `${API_URL}/api/v1/payment-methods?${params.toString()}`
-            console.log('[Debug] Fetching Payment Methods (Public):', url)
+            const url = `${API_URL}/api/v1/admin/payment-methods?${params.toString()}`
+            console.log('[Debug] Fetching Payment Methods (Admin Path):', url)
             const response = await fetch(url)
 
             if (!response.ok) {
