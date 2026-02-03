@@ -1,5 +1,5 @@
 <template>
-  <div id="app" class="min-h-screen bg-gray-50">
+  <div id="app" class="min-h-screen bg-base text-base">
     <!-- Global Loading -->
     <div v-if="pending" class="fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50">
       <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>

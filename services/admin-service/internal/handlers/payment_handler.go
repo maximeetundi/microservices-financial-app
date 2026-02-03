@@ -619,7 +619,7 @@ func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
 	countryQuery := `
 		SELECT DISTINCT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
 		       pp.deposit_enabled, pp.withdraw_enabled,
-		       pc.fee_percentage, pc.fee_fixed, pc.min_amount, pc.max_amount, pc.country_code
+		       pc.fee_percentage, pc.fee_fixed, pc.min_amount, pc.max_amount, pc.country_code, pc.priority
 		FROM payment_providers pp
 		JOIN provider_countries pc ON pp.id = pc.provider_id
 		WHERE pc.country_code = ANY($1) AND pp.is_active = true AND pc.is_active = true
@@ -638,10 +638,11 @@ func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
 		var isDemoMode, depositEnabled, withdrawEnabled bool
 		var logoURL *string
 		var feePercentage, feeFixed, minAmount, maxAmount float64
+		var priority int
 
 		err := rows.Scan(&id, &name, &displayName, &providerType, &isDemoMode, &logoURL,
 			&depositEnabled, &withdrawEnabled,
-			&feePercentage, &feeFixed, &minAmount, &maxAmount, &countryCode)
+			&feePercentage, &feeFixed, &minAmount, &maxAmount, &countryCode, &priority)
 		if err != nil {
 			continue
 		}

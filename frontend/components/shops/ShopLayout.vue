@@ -1,29 +1,38 @@
 <template>
-  <div class="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-slate-900 rounded-none md:rounded-2xl shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+  <div class="flex flex-col lg:flex-row min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] lg:overflow-hidden bg-surface rounded-xl shadow-xl border border-secondary-200 dark:border-secondary-800">
     <!-- Desktop Sidebar -->
-    <div class="hidden lg:block h-full">
+    <div class="hidden lg:block h-full w-64 border-r border-secondary-200 dark:border-secondary-800">
       <ShopSidebar />
     </div>
 
     <!-- Mobile Header for Sub-nav -->
-    <div class="lg:hidden w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between z-10">
-      <span class="font-bold text-gray-900 dark:text-white">Menu Boutique</span>
-      <button @click="isMobileMenuOpen = !isMobileMenuOpen" class="text-indigo-600 font-medium text-sm">
+    <div class="lg:hidden w-full bg-surface border-b border-secondary-200 dark:border-secondary-800 p-4 flex items-center justify-between sticky top-0 z-20">
+      <span class="font-bold text-lg text-primary-600 dark:text-primary-400">Menu Boutique</span>
+      <button 
+        @click="isMobileMenuOpen = !isMobileMenuOpen" 
+        class="px-4 py-2 rounded-lg bg-secondary-100 dark:bg-secondary-800 text-sm font-medium hover:bg-secondary-200 dark:hover:bg-secondary-700 transition-colors"
+      >
         {{ isMobileMenuOpen ? 'Fermer' : 'Menu' }}
       </button>
     </div>
 
     <!-- Mobile Sidebar Drawer -->
-    <div v-if="isMobileMenuOpen" class="lg:hidden absolute inset-0 z-40 flex">
-      <div class="absolute inset-0 bg-black/50" @click="isMobileMenuOpen = false"></div>
-      <div class="relative flex-1 max-w-xs w-full bg-white dark:bg-slate-900 shadow-2xl">
+    <div v-if="isMobileMenuOpen" class="lg:hidden fixed inset-0 z-50 flex" style="top: 0;">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isMobileMenuOpen = false"></div>
+      <div class="relative flex-1 max-w-[280px] w-full bg-surface shadow-2xl h-full overflow-y-auto">
+        <div class="p-4 border-b border-secondary-200 dark:border-secondary-800 flex justify-between items-center">
+            <span class="font-bold text-lg">Menu</span>
+            <button @click="isMobileMenuOpen = false" class="p-2 rounded-full hover:bg-secondary-100 dark:hover:bg-secondary-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
         <ShopSidebar />
       </div>
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex-1 overflow-y-auto h-full scrollbar-thin bg-gray-50 dark:bg-slate-950">
-      <div class="p-6">
+    <div class="flex-1 lg:overflow-y-auto w-full h-full scrollbar-thin bg-base">
+      <div class="p-4 lg:p-8 w-full max-w-full">
         <slot />
       </div>
     </div>

@@ -151,20 +151,19 @@
 
 html {
     scroll-behavior: smooth;
+    min-height: 100%;
+    @apply bg-base;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     min-height: 100vh;
-    /* Light mode - softer, warmer gradient */
-    background: linear-gradient(135deg, #fafbfc 0%, #f5f7f9 50%, #eef1f5 100%);
-    color: #2a3444;
+    @apply bg-base text-base;
 }
 
-.dark body {
-    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
-    color: #e2e8f0;
-}
+/* Override gradients if needed, or ensure they apply to root */
+/* We rely on bg-base which uses semantic colors defined in tailwind config */
+
 
 /* ========== Glassmorphism Cards ========== */
 

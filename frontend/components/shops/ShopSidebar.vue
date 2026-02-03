@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col h-full rounded-l-2xl">
+  <aside class="w-64 bg-surface border-r border-secondary-200 dark:border-secondary-800 flex-shrink-0 flex flex-col h-full lg:rounded-l-2xl">
     <!-- Back to App -->
     <div class="p-4 pb-0">
       <NuxtLink to="/shops/my-shops" class="flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
@@ -104,12 +104,13 @@
     </nav>
 
     <!-- Bottom Actions -->
-    <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800/50 flex items-center gap-2">
+    <!-- Bottom Actions -->
+    <div class="p-4 border-t border-secondary-200 dark:border-secondary-800 bg-surface-hover/50 flex items-center gap-2">
       <ThemeToggle />
       <NuxtLink 
         :to="`/shops/${slug}`"
         target="_blank"
-        class="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+        class="flex-1 flex items-center justify-center px-4 py-2 border border-secondary-200 dark:border-secondary-700 rounded-lg shadow-sm text-sm font-medium text-base bg-surface hover:bg-surface-hover transition-colors"
       >
         <EyeIcon class="h-4 w-4 mr-2" />
         Voir le site
