@@ -617,7 +617,7 @@ func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
 
 	// 1. First, get country-specific providers
 	countryQuery := `
-		SELECT DISTINCT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
+		SELECT pp.id, pp.name, pp.display_name, pp.provider_type, pp.is_demo_mode, pp.logo_url,
 		       pp.deposit_enabled, pp.withdraw_enabled,
 		       pc.fee_percentage, pc.fee_fixed, pc.min_amount, pc.max_amount, pc.country_code, pc.priority
 		FROM payment_providers pp
