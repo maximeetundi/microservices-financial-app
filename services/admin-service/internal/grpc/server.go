@@ -2,266 +2,289 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"log"
-	"net"
+	"net/http"
 	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/crypto-bank/microservices-financial-app/services/admin-service/internal/repository"
 )
 
-// Server wraps the gRPC server and its services
+// Server wraps a simple HTTP-based gRPC-like server
+// Note: This is a lightweight implementation that avoids the grpc package
+// due to Go version requirements. In production, upgrade Go and use real gRPC.
 type Server struct {
-	grpcServer    *grpc.Server
+	httpServer    *http.Server
 	configService *ConfigService
 	queryService  *QueryService
-	listener      net.Listener
+	repo          *repository.AdminRepository
 }
 
-// NewServer creates a new gRPC server
+// NewServer creates a new gRPC-like server (HTTP-based)
 func NewServer(repo *repository.AdminRepository) *Server {
-	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(loggingInterceptor),
-	}
-
-	grpcServer := grpc.NewServer(opts...)
-
 	configService := NewConfigService(repo)
 	queryService := NewQueryService(repo)
 
-	// Register services
-	RegisterAdminConfigServiceServer(grpcServer, configService)
-	RegisterAdminQueryServiceServer(grpcServer, queryService)
-
-	// Enable reflection for grpcurl and debugging
-	reflection.Register(grpcServer)
-
 	return &Server{
-		grpcServer:    grpcServer,
 		configService: configService,
 		queryService:  queryService,
+		repo:          repo,
 	}
 }
 
-// Start starts the gRPC server on the given port
+// Start starts the server on the given port
 func (s *Server) Start(port string) error {
-	listener, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		return err
-	}
-	s.listener = listener
+	mux := http.NewServeMux()
 
-	log.Printf("[gRPC] Admin service gRPC server starting on port %s", port)
+	// Config service endpoints
+	mux.HandleFunc("/grpc/config/get", s.handleGetConfig)
+	mux.HandleFunc("/grpc/config/all", s.handleGetAllConfigs)
+	mux.HandleFunc("/grpc/config/prefix", s.handleGetConfigsByPrefix)
+	mux.HandleFunc("/grpc/feature", s.handleIsFeatureEnabled)
+	mux.HandleFunc("/grpc/fee", s.handleGetFee)
+	mux.HandleFunc("/grpc/limit", s.handleGetLimit)
+
+	// Query service endpoints
+	mux.HandleFunc("/grpc/dashboard", s.handleGetDashboardStats)
+	mux.HandleFunc("/grpc/user/status", s.handleGetUserStatus)
+	mux.HandleFunc("/grpc/platform/accounts", s.handleGetPlatformAccounts)
+	mux.HandleFunc("/grpc/hot-wallets", s.handleGetHotWallets)
+
+	s.httpServer = &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	log.Printf("[gRPC-HTTP] Admin service gRPC-like server starting on port %s", port)
 
 	go func() {
-		if err := s.grpcServer.Serve(listener); err != nil {
-			log.Printf("[gRPC] Server error: %v", err)
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("[gRPC-HTTP] Server error: %v", err)
 		}
 	}()
 
 	return nil
 }
 
-// Stop gracefully stops the gRPC server
+// Stop gracefully stops the server
 func (s *Server) Stop() {
-	log.Println("[gRPC] Stopping gRPC server...")
-	s.grpcServer.GracefulStop()
-	if s.listener != nil {
-		s.listener.Close()
+	log.Println("[gRPC-HTTP] Stopping server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	s.httpServer.Shutdown(ctx)
+}
+
+// HTTP handlers that proxy to service methods
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	resp, err := s.configService.GetConfiguration(r.Context(), &GetConfigRequest{Key: key})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetAllConfigs(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.configService.GetAllConfigurations(r.Context(), &GetAllConfigsRequest{})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetConfigsByPrefix(w http.ResponseWriter, r *http.Request) {
+	prefix := r.URL.Query().Get("prefix")
+	resp, err := s.configService.GetConfigurationsByPrefix(r.Context(), &GetConfigsByPrefixRequest{Prefix: prefix})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleIsFeatureEnabled(w http.ResponseWriter, r *http.Request) {
+	feature := r.URL.Query().Get("feature")
+	resp, err := s.configService.IsFeatureEnabled(r.Context(), &FeatureRequest{FeatureKey: feature})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetFee(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	currency := r.URL.Query().Get("currency")
+	resp, err := s.configService.GetFee(r.Context(), &GetFeeRequest{FeeKey: key, Currency: currency})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetLimit(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	resp, err := s.configService.GetLimit(r.Context(), &GetLimitRequest{LimitKey: key})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.queryService.GetDashboardStats(r.Context(), &EmptyRequest{})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetUserStatus(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("user_id")
+	resp, err := s.queryService.GetUserStatus(r.Context(), &GetUserStatusRequest{UserId: userID})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetPlatformAccounts(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.queryService.GetPlatformAccounts(r.Context(), &EmptyRequest{})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) handleGetHotWallets(w http.ResponseWriter, r *http.Request) {
+	resp, err := s.queryService.GetHotWallets(r.Context(), &EmptyRequest{})
+	s.writeResponse(w, resp, err)
+}
+
+func (s *Server) writeResponse(w http.ResponseWriter, data interface{}, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
+	json.NewEncoder(w).Encode(data)
 }
 
-// loggingInterceptor logs gRPC requests
-func loggingInterceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (interface{}, error) {
-	start := time.Now()
-
-	resp, err := handler(ctx, req)
-
-	log.Printf("[gRPC] %s | %v | err=%v", info.FullMethod, time.Since(start), err)
-
-	return resp, err
-}
-
-// Placeholder interfaces - these would be generated by protoc
-// In production, run: protoc --go_out=. --go-grpc_out=. proto/admin.proto
-
-type AdminConfigServiceServer interface {
-	GetConfiguration(context.Context, *GetConfigRequest) (*ConfigResponse, error)
-	GetAllConfigurations(context.Context, *GetAllConfigsRequest) (*ConfigListResponse, error)
-	GetConfigurationsByPrefix(context.Context, *GetConfigsByPrefixRequest) (*ConfigListResponse, error)
-	IsFeatureEnabled(context.Context, *FeatureRequest) (*FeatureResponse, error)
-	GetFee(context.Context, *GetFeeRequest) (*FeeResponse, error)
-	GetLimit(context.Context, *GetLimitRequest) (*LimitResponse, error)
-}
-
-type AdminQueryServiceServer interface {
-	GetDashboardStats(context.Context, *EmptyRequest) (*DashboardStatsResponse, error)
-	GetUserStatus(context.Context, *GetUserStatusRequest) (*UserStatusResponse, error)
-	GetUserKYCStatus(context.Context, *GetUserStatusRequest) (*KYCStatusResponse, error)
-	GetWalletStatus(context.Context, *GetWalletStatusRequest) (*WalletStatusResponse, error)
-	GetPlatformAccounts(context.Context, *EmptyRequest) (*PlatformAccountsResponse, error)
-	GetHotWallets(context.Context, *EmptyRequest) (*HotWalletsResponse, error)
-}
-
-// Placeholder functions for registering - would be generated by protoc
-func RegisterAdminConfigServiceServer(s *grpc.Server, srv *ConfigService) {
-	// Would be generated code
-}
-
-func RegisterAdminQueryServiceServer(s *grpc.Server, srv *QueryService) {
-	// Would be generated code
-}
-
-// ========== Message Types (would be generated by protoc) ==========
+// ========== Message Types ==========
 
 type GetConfigRequest struct {
-	Key string
+	Key string `json:"key"`
 }
 
 type ConfigResponse struct {
-	Key              string
-	Name             string
-	Description      string
-	Type             string
-	FixedAmount      float64
-	PercentageAmount float64
-	Currency         string
-	IsEnabled        bool
-	UpdatedAt        string
-	UpdatedBy        string
+	Key              string  `json:"key"`
+	Name             string  `json:"name"`
+	Description      string  `json:"description"`
+	Type             string  `json:"type"`
+	FixedAmount      float64 `json:"fixed_amount"`
+	PercentageAmount float64 `json:"percentage_amount"`
+	Currency         string  `json:"currency"`
+	IsEnabled        bool    `json:"is_enabled"`
+	UpdatedAt        string  `json:"updated_at"`
+	UpdatedBy        string  `json:"updated_by"`
 }
 
 type GetAllConfigsRequest struct {
-	Service string
-	Limit   int32
-	Offset  int32
+	Service string `json:"service"`
+	Limit   int32  `json:"limit"`
+	Offset  int32  `json:"offset"`
 }
 
 type ConfigListResponse struct {
-	Configurations []*ConfigResponse
-	Total          int32
+	Configurations []*ConfigResponse `json:"configurations"`
+	Total          int32             `json:"total"`
 }
 
 type GetConfigsByPrefixRequest struct {
-	Prefix string
+	Prefix string `json:"prefix"`
 }
 
 type FeatureRequest struct {
-	FeatureKey string
+	FeatureKey string `json:"feature_key"`
 }
 
 type FeatureResponse struct {
-	IsEnabled bool
+	IsEnabled bool `json:"is_enabled"`
 }
 
 type GetFeeRequest struct {
-	FeeKey   string
-	Currency string
+	FeeKey   string `json:"fee_key"`
+	Currency string `json:"currency"`
 }
 
 type FeeResponse struct {
-	FeeKey           string
-	Type             string
-	FixedAmount      float64
-	PercentageAmount float64
-	Currency         string
-	IsEnabled        bool
+	FeeKey           string  `json:"fee_key"`
+	Type             string  `json:"type"`
+	FixedAmount      float64 `json:"fixed_amount"`
+	PercentageAmount float64 `json:"percentage_amount"`
+	Currency         string  `json:"currency"`
+	IsEnabled        bool    `json:"is_enabled"`
 }
 
 type GetLimitRequest struct {
-	LimitKey string
-	KycLevel int32
+	LimitKey string `json:"limit_key"`
+	KycLevel int32  `json:"kyc_level"`
 }
 
 type LimitResponse struct {
-	LimitKey    string
-	LimitAmount float64
-	Currency    string
-	TierName    string
+	LimitKey    string  `json:"limit_key"`
+	LimitAmount float64 `json:"limit_amount"`
+	Currency    string  `json:"currency"`
+	TierName    string  `json:"tier_name"`
 }
 
 type EmptyRequest struct{}
 
 type DashboardStatsResponse struct {
-	TotalUsers        int64
-	TotalWallets      int64
-	TotalTransactions int64
-	PendingKyc        int64
-	ActiveCards       int64
-	TotalVolume24h    float64
-	Currency          string
+	TotalUsers        int64   `json:"total_users"`
+	TotalWallets      int64   `json:"total_wallets"`
+	TotalTransactions int64   `json:"total_transactions"`
+	PendingKyc        int64   `json:"pending_kyc"`
+	ActiveCards       int64   `json:"active_cards"`
+	TotalVolume24h    float64 `json:"total_volume_24h"`
+	Currency          string  `json:"currency"`
 }
 
 type GetUserStatusRequest struct {
-	UserId string
+	UserId string `json:"user_id"`
 }
 
 type UserStatusResponse struct {
-	UserId        string
-	Email         string
-	Status        string
-	KycLevel      int32
-	KycStatus     string
-	IsBlocked     bool
-	BlockedReason string
-	CreatedAt     string
+	UserId        string `json:"user_id"`
+	Email         string `json:"email"`
+	Status        string `json:"status"`
+	KycLevel      int32  `json:"kyc_level"`
+	KycStatus     string `json:"kyc_status"`
+	IsBlocked     bool   `json:"is_blocked"`
+	BlockedReason string `json:"blocked_reason"`
+	CreatedAt     string `json:"created_at"`
 }
 
 type KYCStatusResponse struct {
-	UserId    string
-	KycLevel  int32
-	KycStatus string
-	Documents []*KYCDocument
+	UserId    string         `json:"user_id"`
+	KycLevel  int32          `json:"kyc_level"`
+	KycStatus string         `json:"kyc_status"`
+	Documents []*KYCDocument `json:"documents"`
 }
 
 type KYCDocument struct {
-	Id         string
-	Type       string
-	Status     string
-	UploadedAt string
+	Id         string `json:"id"`
+	Type       string `json:"type"`
+	Status     string `json:"status"`
+	UploadedAt string `json:"uploaded_at"`
 }
 
 type GetWalletStatusRequest struct {
-	WalletId string
+	WalletId string `json:"wallet_id"`
 }
 
 type WalletStatusResponse struct {
-	WalletId         string
-	UserId           string
-	Currency         string
-	WalletType       string
-	Status           string
-	Balance          float64
-	AvailableBalance float64
+	WalletId         string  `json:"wallet_id"`
+	UserId           string  `json:"user_id"`
+	Currency         string  `json:"currency"`
+	WalletType       string  `json:"wallet_type"`
+	Status           string  `json:"status"`
+	Balance          float64 `json:"balance"`
+	AvailableBalance float64 `json:"available_balance"`
 }
 
 type PlatformAccountsResponse struct {
-	Accounts []*PlatformAccount
+	Accounts []*PlatformAccount `json:"accounts"`
 }
 
 type PlatformAccount struct {
-	Id       string
-	Name     string
-	Type     string
-	Currency string
-	Balance  float64
+	Id       string  `json:"id"`
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Currency string  `json:"currency"`
+	Balance  float64 `json:"balance"`
 }
 
 type HotWalletsResponse struct {
-	Wallets []*HotWallet
+	Wallets []*HotWallet `json:"wallets"`
 }
 
 type HotWallet struct {
-	Id       string
-	Currency string
-	Address  string
-	Balance  float64
-	Provider string
+	Id       string  `json:"id"`
+	Currency string  `json:"currency"`
+	Address  string  `json:"address"`
+	Balance  float64 `json:"balance"`
+	Provider string  `json:"provider"`
 }
