@@ -602,43 +602,143 @@ ON CONFLICT (name) DO UPDATE SET
     config_json = EXCLUDED.config_json,
     updated_at = NOW();
 
--- Insert default country mappings
+-- Insert default country mappings - ALL COUNTRIES for ALL AGGREGATORS
+-- This ensures all aggregators appear as payment methods for users
 INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage) VALUES
--- Demo mode for all countries
+-- =====================================================
+-- DEMO MODE - All countries (Mode test pour tous les pays)
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'demo'), 'CI', 'Côte d''Ivoire', 'XOF', 1, 0),
 ((SELECT id FROM payment_providers WHERE name = 'demo'), 'SN', 'Sénégal', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'BF', 'Burkina Faso', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ML', 'Mali', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'NE', 'Niger', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'TG', 'Togo', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'BJ', 'Bénin', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GW', 'Guinée-Bissau', 'XOF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CM', 'Cameroun', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GA', 'Gabon', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CG', 'Congo', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'TD', 'Tchad', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CF', 'Centrafrique', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GQ', 'Guinée Équatoriale', 'XAF', 1, 0),
 ((SELECT id FROM payment_providers WHERE name = 'demo'), 'NG', 'Nigeria', 'NGN', 1, 0),
 ((SELECT id FROM payment_providers WHERE name = 'demo'), 'GH', 'Ghana', 'GHS', 1, 0),
-((SELECT id FROM payment_providers WHERE name = 'demo'), 'CM', 'Cameroun', 'XAF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'KE', 'Kenya', 'KES', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'TZ', 'Tanzanie', 'TZS', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'UG', 'Ouganda', 'UGX', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'RW', 'Rwanda', 'RWF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ZA', 'Afrique du Sud', 'ZAR', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CD', 'RD Congo', 'CDF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GN', 'Guinée', 'GNF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'MR', 'Mauritanie', 'MRU', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'FR', 'France', 'EUR', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'BE', 'Belgique', 'EUR', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CH', 'Suisse', 'CHF', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CA', 'Canada', 'CAD', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'US', 'États-Unis', 'USD', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'GB', 'Royaume-Uni', 'GBP', 1, 0),
 
--- CinetPay
+-- =====================================================
+-- CINETPAY - Afrique de l'Ouest et Centrale
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CI', 'Côte d''Ivoire', 'XOF', 2, 1.5),
 ((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'SN', 'Sénégal', 'XOF', 2, 1.5),
-((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CM', 'Cameroun', 'XAF', 2, 1.5),
 ((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'BF', 'Burkina Faso', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'ML', 'Mali', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'NE', 'Niger', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'TG', 'Togo', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'BJ', 'Bénin', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'GW', 'Guinée-Bissau', 'XOF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CM', 'Cameroun', 'XAF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'GA', 'Gabon', 'XAF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CG', 'Congo', 'XAF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'TD', 'Tchad', 'XAF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'GN', 'Guinée', 'GNF', 2, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'cinetpay'), 'CD', 'RD Congo', 'CDF', 2, 1.5),
 
--- Flutterwave
+-- =====================================================
+-- FLUTTERWAVE - Afrique anglophone + francophone
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'NG', 'Nigeria', 'NGN', 2, 1.4),
 ((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'GH', 'Ghana', 'GHS', 2, 1.4),
 ((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'KE', 'Kenya', 'KES', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'TZ', 'Tanzanie', 'TZS', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'UG', 'Ouganda', 'UGX', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'RW', 'Rwanda', 'RWF', 2, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'ZA', 'Afrique du Sud', 'ZAR', 2, 1.4),
 ((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'CI', 'Côte d''Ivoire', 'XOF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'SN', 'Sénégal', 'XOF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'BF', 'Burkina Faso', 'XOF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'ML', 'Mali', 'XOF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'CM', 'Cameroun', 'XAF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'BJ', 'Bénin', 'XOF', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'TG', 'Togo', 'XOF', 3, 1.4),
 
--- Paystack
+-- =====================================================
+-- PAYSTACK - Nigeria, Ghana, Afrique du Sud, Kenya
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'paystack'), 'NG', 'Nigeria', 'NGN', 3, 1.5),
 ((SELECT id FROM payment_providers WHERE name = 'paystack'), 'GH', 'Ghana', 'GHS', 3, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'paystack'), 'ZA', 'Afrique du Sud', 'ZAR', 3, 1.5),
+((SELECT id FROM payment_providers WHERE name = 'paystack'), 'KE', 'Kenya', 'KES', 3, 1.5),
 
--- Orange Money
+-- =====================================================
+-- ORANGE MONEY - Pays avec Orange présent
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'CI', 'Côte d''Ivoire', 'XOF', 4, 1.0),
 ((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'SN', 'Sénégal', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'ML', 'Mali', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'BF', 'Burkina Faso', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'CM', 'Cameroun', 'XAF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'GN', 'Guinée', 'GNF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'NE', 'Niger', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'MG', 'Madagascar', 'MGA', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'orange_money'), 'CD', 'RD Congo', 'CDF', 4, 1.0),
 
--- MTN MoMo
+-- =====================================================
+-- MTN MOMO - Pays avec MTN présent
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'CI', 'Côte d''Ivoire', 'XOF', 5, 1.0),
 ((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'CM', 'Cameroun', 'XAF', 3, 1.0),
 ((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'GH', 'Ghana', 'GHS', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'UG', 'Ouganda', 'UGX', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'RW', 'Rwanda', 'RWF', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'BJ', 'Bénin', 'XOF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'CG', 'Congo', 'XAF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'GN', 'Guinée', 'GNF', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'ZA', 'Afrique du Sud', 'ZAR', 4, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'mtn_momo'), 'NG', 'Nigeria', 'NGN', 4, 1.0),
 
--- Wave
+-- =====================================================
+-- WAVE - Sénégal et Côte d'Ivoire
+-- =====================================================
 ((SELECT id FROM payment_providers WHERE name = 'wave'), 'SN', 'Sénégal', 'XOF', 2, 1.0),
-((SELECT id FROM payment_providers WHERE name = 'wave'), 'CI', 'Côte d''Ivoire', 'XOF', 5, 1.0)
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'CI', 'Côte d''Ivoire', 'XOF', 5, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'BF', 'Burkina Faso', 'XOF', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'ML', 'Mali', 'XOF', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'GM', 'Gambie', 'GMD', 3, 1.0),
+((SELECT id FROM payment_providers WHERE name = 'wave'), 'UG', 'Ouganda', 'UGX', 3, 1.0),
+
+-- =====================================================
+-- STRIPE - International (Cartes bancaires)
+-- =====================================================
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'FR', 'France', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'BE', 'Belgique', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'CH', 'Suisse', 'CHF', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'CA', 'Canada', 'CAD', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'US', 'États-Unis', 'USD', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'GB', 'Royaume-Uni', 'GBP', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'DE', 'Allemagne', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'ES', 'Espagne', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'IT', 'Italie', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'NL', 'Pays-Bas', 'EUR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'CI', 'Côte d''Ivoire', 'XOF', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'SN', 'Sénégal', 'XOF', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'CM', 'Cameroun', 'XAF', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'NG', 'Nigeria', 'NGN', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'GH', 'Ghana', 'GHS', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'KE', 'Kenya', 'KES', 4, 2.9)
 
 ON CONFLICT (provider_id, country_code) DO UPDATE SET
     priority = EXCLUDED.priority,
