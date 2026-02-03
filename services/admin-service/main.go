@@ -139,7 +139,14 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok", "service": "admin-service"}) })
 
-	// Public routes (no auth)
+	// Public general routes
+	apiV1 := router.Group("/api/v1")
+	{
+		publicPaymentHandler := handlers.NewPaymentHandler(adminDB)
+		apiV1.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
+	}
+
+	// Public admin routes (no auth)
 	public := router.Group("/api/v1/admin")
 	{
 		public.POST("/login", handler.Login)
