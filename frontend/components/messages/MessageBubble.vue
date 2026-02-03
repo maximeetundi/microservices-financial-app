@@ -1,11 +1,11 @@
 <template>
   <div :class="['flex', message.isMine ? 'justify-end' : 'justify-start', 'animate-fade-in mb-1']">
     <div :class="[
-      'max-w-[85%] md:max-w-[70%] rounded-2xl shadow-sm overflow-hidden break-words relative',
+      'max-w-[75%] sm:max-w-[80%] md:max-w-[70%] rounded-2xl shadow-sm overflow-hidden break-words relative',
       message.isMine 
         ? 'bg-gradient-to-br from-green-500 to-green-600 text-white rounded-br-md' 
         : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-    ]">
+    ]" style="word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;">
       <!-- Reply Reference (if replying to a message) -->
       <div v-if="message.reply_to" :class="['px-3 pt-2 pb-1 border-l-4', message.isMine ? 'border-white/40 bg-white/10' : 'border-green-500 bg-gray-50 dark:bg-gray-700']">
         <p class="text-xs opacity-70 truncate">{{ message.reply_to.sender_name }}</p>

@@ -1,6 +1,7 @@
 <template>
   <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-xl max-w-full">
+    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-xl w-full">
+
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
       <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900', selectedConv ? 'hidden md:flex' : 'flex']">
         <!-- Header -->
@@ -98,27 +99,27 @@
       <!-- Chat Area -->
       <div v-if="selectedConv" class="flex-1 flex flex-col w-full max-w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
         <!-- Chat Header -->
-        <div class="bg-white dark:bg-gray-800 px-3 md:px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3 shadow-sm">
+        <div class="bg-white dark:bg-gray-800 px-2 md:px-4 py-2.5 md:py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 md:gap-3 shadow-sm">
           <!-- Back button for mobile -->
-          <button @click="goBackToList" class="md:hidden p-2 -ml-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+          <button @click="goBackToList" class="md:hidden p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors flex-shrink-0">
             <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           
           <!-- Avatar with status -->
-          <div class="relative">
-            <div class="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold shadow-md">
+          <div class="relative flex-shrink-0">
+            <div class="w-9 h-9 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-sm md:text-base shadow-md">
               {{ getOtherParticipantName(selectedConv)?.[0]?.toUpperCase() || 'U' }}
             </div>
             <!-- Online indicator -->
             <div v-if="selectedUserStatus === 'En ligne'" 
-              class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+              class="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
           </div>
           
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(selectedConv) }}</h3>
-            <p :class="['text-xs transition-colors', 
+            <h3 class="font-semibold text-sm md:text-base text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(selectedConv) }}</h3>
+            <p :class="['text-xs transition-colors truncate', 
               isOtherTyping ? 'text-green-600 dark:text-green-400 font-medium' :
               selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
               {{ isOtherTyping ? 'écrit...' : selectedUserStatus }}
@@ -126,7 +127,7 @@
           </div>
           
           <!-- Actions -->
-          <div class="flex items-center gap-1">
+          <div class="hidden sm:flex items-center gap-1">
             <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
               <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />

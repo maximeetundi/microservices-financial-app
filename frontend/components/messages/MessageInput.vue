@@ -49,8 +49,8 @@
     <AudioRecorder v-if="isRecording" :is-recording="isRecording" @audioRecorded="handleAudioRecorded" @cancel="isRecording = false" />
 
     <!-- Input Area -->
-    <div v-if="!isRecording" class="bg-gray-50 dark:bg-gray-800 px-3 py-3 border-t border-gray-200 dark:border-gray-700">
-      <div class="flex items-center gap-2">
+    <div v-if="!isRecording" class="bg-gray-50 dark:bg-gray-800 px-2 md:px-3 py-2 md:py-3 border-t border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-1.5 md:gap-2">
         <!-- Emoji Picker -->
         <EmojiPicker @select="insertEmoji" />
 
@@ -58,7 +58,7 @@
         <AttachmentMenu @fileSelected="handleFileSelected" />
 
         <!-- Text Input -->
-        <div class="flex-1 relative">
+        <div class="flex-1 relative min-w-0">
           <input 
             ref="inputRef"
             v-model="message" 
@@ -69,7 +69,7 @@
             type="text" 
             :placeholder="isUploading ? 'Envoi en cours...' : 'Tapez un message...'"
             :disabled="isUploading"
-            class="w-full px-4 py-2.5 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm transition-all disabled:opacity-50 pr-10" 
+            class="w-full px-3 md:px-4 py-2 md:py-2.5 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm transition-all disabled:opacity-50 pr-10" 
           />
           <!-- Character count when typing long message -->
           <span v-if="message.length > 100" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -82,19 +82,19 @@
           v-if="message.trim() || selectedImage || selectedDocument || selectedVideo" 
           @click="sendMessage" 
           :disabled="isUploading"
-          class="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center transition-all disabled:opacity-50 shadow-lg hover:shadow-xl hover:scale-105"
+          class="w-10 h-10 md:w-11 md:h-11 flex-shrink-0 rounded-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center transition-all disabled:opacity-50 shadow-lg hover:shadow-xl hover:scale-105"
         >
-          <svg v-if="!isUploading" class="w-5 h-5 transform rotate-45" fill="currentColor" viewBox="0 0 20 20">
+          <svg v-if="!isUploading" class="w-4 h-4 md:w-5 md:h-5 transform rotate-45" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
           </svg>
-          <svg v-else class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+          <svg v-else class="animate-spin w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         </button>
         <button v-else @click="startAudioRecording" 
-          class="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-xl hover:scale-105">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          class="w-10 h-10 md:w-11 md:h-11 flex-shrink-0 rounded-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-xl hover:scale-105">
+          <svg class="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
           </svg>
         </button>
