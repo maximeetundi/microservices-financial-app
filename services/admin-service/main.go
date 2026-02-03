@@ -144,7 +144,8 @@ func main() {
 	{
 		public.POST("/login", handler.Login)
 		// Public payment methods endpoint (moved here to ensure reachability via gateway)
-		publicPaymentHandler := handlers.NewPaymentHandler(adminDB)
+		// Note: Use mainDB because payment_providers table is in the main database, not admin database
+		publicPaymentHandler := handlers.NewPaymentHandler(mainDB)
 		public.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
 	}
 
