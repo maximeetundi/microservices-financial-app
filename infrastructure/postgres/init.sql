@@ -601,7 +601,12 @@ INSERT INTO payment_providers (name, display_name, provider_type, api_base_url, 
 -- Stripe (International)
 ('stripe', 'Stripe', 'card', 'https://api.stripe.com/v1', true, true, '/icons/stripe.svg',
  '["USD", "EUR", "GBP", "CAD", "AUD"]'::jsonb,
- '{"supports_card": true, "webhook_path": "/webhooks/stripe"}'::jsonb)
+ '{"supports_card": true, "webhook_path": "/webhooks/stripe"}'::jsonb),
+
+-- PayPal (International)
+('paypal', 'PayPal', 'wallet', 'https://api-m.paypal.com', true, true, '/icons/paypal.svg',
+ '["USD", "EUR", "GBP", "CAD", "AUD", "BRL", "MXN", "ILS"]'::jsonb,
+ '{"supports_wallet": true, "supports_card": true, "webhook_path": "/webhooks/paypal"}'::jsonb)
 
 ON CONFLICT (name) DO UPDATE SET
     display_name = EXCLUDED.display_name,
@@ -746,7 +751,140 @@ INSERT INTO provider_countries (provider_id, country_code, country_name, currenc
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'CM', 'Cameroun', 'XAF', 4, 2.9),
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'NG', 'Nigeria', 'NGN', 4, 2.9),
 ((SELECT id FROM payment_providers WHERE name = 'stripe'), 'GH', 'Ghana', 'GHS', 4, 2.9),
-((SELECT id FROM payment_providers WHERE name = 'stripe'), 'KE', 'Kenya', 'KES', 4, 2.9)
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'KE', 'Kenya', 'KES', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'ZA', 'Afrique du Sud', 'ZAR', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'EG', 'Égypte', 'EGP', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'MA', 'Maroc', 'MAD', 4, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'BR', 'Brésil', 'BRL', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'MX', 'Mexique', 'MXN', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'IN', 'Inde', 'INR', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'JP', 'Japon', 'JPY', 2, 2.9),
+((SELECT id FROM payment_providers WHERE name = 'stripe'), 'SG', 'Singapour', 'SGD', 2, 2.9),
+
+-- =====================================================
+-- FLUTTERWAVE - Expansion Afrique (Zambie, Rwanda, Malawi, etc.)
+-- =====================================================
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'ZM', 'Zambie', 'ZMW', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'MW', 'Malawi', 'MWK', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'MZ', 'Mozambique', 'MZN', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'ET', 'Éthiopie', 'ETB', 3, 1.4),
+((SELECT id FROM payment_providers WHERE name = 'flutterwave'), 'EG', 'Égypte', 'EGP', 3, 1.4),
+
+-- =====================================================
+-- PAYPAL - International (Global Expansion)
+-- =====================================================
+-- Afrique (suite)
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ZM', 'Zambie', 'ZMW', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ZW', 'Zimbabwe', 'USD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'LS', 'Lesotho', 'LSL', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'SZ', 'Eswatini', 'SZL', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'BW', 'Botswana', 'BWP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NA', 'Namibie', 'NAD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'MU', 'Maurice', 'MUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'MG', 'Madagascar', 'MGA', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'MA', 'Maroc', 'MAD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'EG', 'Égypte', 'EGP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'TN', 'Tunisie', 'TND', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'DZ', 'Algérie', 'DZD', 2, 3.5),
+-- Asie & Pacifique
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'VN', 'Vietnam', 'VND', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'KH', 'Cambodge', 'KHR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'LA', 'Laos', 'LAK', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'TW', 'Taïwan', 'TWD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CN', 'Chine', 'CNY', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'KR', 'Corée du Sud', 'KRW', 2, 3.5),
+-- Amérique Latine
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CR', 'Costa Rica', 'CRC', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'DO', 'République Dominicaine', 'DOP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'PA', 'Panama', 'PAB', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'UY', 'Uruguay', 'UYU', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'EC', 'Équateur', 'USD', 2, 3.5),
+-- Europe de l'Est & Autres
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'TR', 'Turquie', 'TRY', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'RO', 'Roumanie', 'RON', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'HU', 'Hongrie', 'HUF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CZ', 'République Tchèque', 'CZK', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'HR', 'Croatie', 'EUR', 2, 3.5),
+
+-- =====================================================
+-- DEMO MODE - Add ALL specific requested countries
+-- =====================================================
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ZM', 'Zambie', 'ZMW', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ZW', 'Zimbabwe', 'USD', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'SD', 'Soudan', 'SDG', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ER', 'Érythrée', 'ERN', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'LS', 'Lesotho', 'LSL', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'SZ', 'Eswatini', 'SZL', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'BW', 'Botswana', 'BWP', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'ET', 'Éthiopie', 'ETB', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'SO', 'Somalie', 'SOS', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'SS', 'Soudan du Sud', 'SSP', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CN', 'Chine', 'CNY', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'IN', 'Inde', 'INR', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'BR', 'Brésil', 'BRL', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'RU', 'Russie', 'RUB', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'JP', 'Japon', 'JPY', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'MX', 'Mexique', 'MXN', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'AR', 'Argentine', 'ARS', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CL', 'Chili', 'CLP', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CO', 'Colombie', 'COP', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'PE', 'Pérou', 'PEN', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'VE', 'Venezuela', 'VES', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'CU', 'Cuba', 'CUP', 1, 0),
+((SELECT id FROM payment_providers WHERE name = 'demo'), 'HT', 'Haïti', 'HTG', 1, 0),
+
+-- =====================================================
+-- PAYPAL - International (Global) - Previously Added Block
+-- =====================================================
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'US', 'États-Unis', 'USD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CA', 'Canada', 'CAD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'GB', 'Royaume-Uni', 'GBP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'FR', 'France', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'DE', 'Allemagne', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ES', 'Espagne', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'IT', 'Italie', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'BE', 'Belgique', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NL', 'Pays-Bas', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'SE', 'Suède', 'SEK', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NO', 'Norvège', 'NOK', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'DK', 'Danemark', 'DKK', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'FI', 'Finlande', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'PL', 'Pologne', 'PLN', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'PT', 'Portugal', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'IE', 'Irlande', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CH', 'Suisse', 'CHF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'AT', 'Autriche', 'EUR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'IL', 'Israël', 'ILS', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'AU', 'Australie', 'AUD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NZ', 'Nouvelle-Zélande', 'NZD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'JP', 'Japon', 'JPY', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'SG', 'Singapour', 'SGD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'HK', 'Hong Kong', 'HKD', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'MY', 'Malaisie', 'MYR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'PH', 'Philippines', 'PHP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ID', 'Indonésie', 'IDR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'TH', 'Thaïlande', 'THB', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'IN', 'Inde', 'INR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'BR', 'Brésil', 'BRL', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'MX', 'Mexique', 'MXN', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'AR', 'Argentine', 'ARS', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CL', 'Chili', 'CLP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CO', 'Colombie', 'COP', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'PE', 'Pérou', 'PEN', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'AE', 'Émirats arabes unis', 'AED', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'SA', 'Arabie saoudite', 'SAR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ZA', 'Afrique du Sud', 'ZAR', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'KE', 'Kenya', 'KES', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NG', 'Nigeria', 'NGN', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'GH', 'Ghana', 'GHS', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CI', 'Côte d''Ivoire', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'SN', 'Sénégal', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'CM', 'Cameroun', 'XAF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'BJ', 'Bénin', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'BF', 'Burkina Faso', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'ML', 'Mali', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'TG', 'Togo', 'XOF', 2, 3.5),
+((SELECT id FROM payment_providers WHERE name = 'paypal'), 'NE', 'Niger', 'XOF', 2, 3.5)
 
 ON CONFLICT (provider_id, country_code) DO UPDATE SET
     priority = EXCLUDED.priority,
