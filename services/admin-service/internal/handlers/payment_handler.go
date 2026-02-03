@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // PaymentProvider represents a payment aggregator
@@ -623,9 +625,10 @@ func (h *PaymentHandler) GetPaymentMethodsForCountry(c *gin.Context) {
 		WHERE pc.country_code = ANY($1) AND pp.is_active = true AND pc.is_active = true
 		ORDER BY pc.priority ASC`
 
-	rows, err := h.db.Query(countryQuery, countries)
+	rows, err := h.db.Query(countryQuery, pq.Array(countries))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch payment methods"})
+		log.Printf("[PaymentHandler] Error querying payment methods for countries %v: %v", countries, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch payment methods", "details": err.Error()})
 		return
 	}
 	defer rows.Close()
