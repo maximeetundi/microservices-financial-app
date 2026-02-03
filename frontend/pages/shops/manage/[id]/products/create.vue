@@ -1,6 +1,5 @@
 <template>
-  <ShopLayout>
-    <div class="create-product-page">
+  <div class="create-product-page">
       <!-- Page Header -->
       <div class="page-header">
         <NuxtLink :to="`/shops/manage/${slug}/products`" class="back-link">
@@ -174,7 +173,6 @@
 
       </form>
     </div>
-  </ShopLayout>
 </template>
 
 <script setup lang="ts">

@@ -1,6 +1,5 @@
 <template>
-  <ShopLayout>
-    <div class="managers-page">
+  <div class="managers-page">
       <!-- Page Header -->
       <div class="page-header">
         <div class="header-content">
@@ -143,8 +142,6 @@
           </div>
         </div>
       </Teleport>
-    </div>
-  </ShopLayout>
 </template>
 
 <script setup lang="ts">
