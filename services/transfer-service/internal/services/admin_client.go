@@ -32,7 +32,7 @@ type cacheEntry struct {
 func NewAdminClient(cfg *config.Config) *AdminClient {
 	ttl := time.Duration(cfg.AggregatorCacheTTL) * time.Second
 	if ttl == 0 {
-		ttl = 5 * time.Minute // Default fallback
+		ttl = 30 * time.Minute // Increased to 30 mins to reduce load
 	}
 
 	return &AdminClient{

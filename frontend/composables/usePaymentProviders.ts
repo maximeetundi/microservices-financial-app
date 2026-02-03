@@ -142,8 +142,9 @@ export function usePaymentProviders() {
             const params = new URLSearchParams()
             countryList.forEach(c => params.append('country', c))
 
-            const url = `${API_URL}/api/v1/admin/payment-methods?${params.toString()}`
-            console.log('[Debug] Fetching Payment Methods (Admin Path):', url)
+            // Use Transfer Service Aggregator Proxy instead of direct Admin Service call
+            const url = `${API_URL}/transfer-service/api/v1/aggregators?${params.toString()}`
+            console.log('[Debug] Fetching Payment Methods (Transfer Service):', url)
             const response = await fetch(url)
 
             if (!response.ok) {
@@ -151,25 +152,27 @@ export function usePaymentProviders() {
             }
 
             const data = await response.json()
-            const methods = data.payment_methods || []
+            const methods = data.aggregators || []
 
             // Transform to our format
             providers.value = methods.map((m: any) => {
-                const mapping = PROVIDER_DISPLAY_NAMES[m.name] || PROVIDER_DISPLAY_NAMES[m.name.toLowerCase()] || {
-                    label: m.display_name || m.name,
+                // Transfer Service returns 'code' (e.g. mtn_momo) and 'name' (e.g. MTN Mobile Money)
+                const code = m.code || m.name
+                const mapping = PROVIDER_DISPLAY_NAMES[code] || PROVIDER_DISPLAY_NAMES[code.toLowerCase()] || {
+                    label: m.name || code,
                     icon: '💰',
                     color: 'gray',
                     category: 'mobile_money' as const
                 }
 
                 return {
-                    id: m.id,
-                    name: m.name,
-                    display_name: m.display_name,
-                    provider_type: m.provider_type,
+                    id: m.code || m.id,
+                    name: code,
+                    display_name: m.name || m.display_name,
+                    provider_type: m.provider_type || 'aggregator',
                     logo_url: m.logo_url,
-                    is_demo_mode: m.is_demo_mode,
-                    fee_percentage: m.fee_percentage || 0,
+                    is_demo_mode: m.is_demo_mode || false,
+                    fee_percentage: m.fee_percent || m.fee_percentage || 0,
                     fee_fixed: m.fee_fixed || 0,
                     min_amount: m.min_amount || 0,
                     max_amount: m.max_amount || 1000000,
