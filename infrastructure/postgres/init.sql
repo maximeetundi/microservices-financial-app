@@ -569,37 +569,37 @@ INSERT INTO payment_providers (name, display_name, provider_type, api_base_url, 
  '{"description": "Mode test - crédite directement le compte sans paiement réel"}'::jsonb),
 
 -- Flutterwave
-('flutterwave', 'Flutterwave', 'all', 'https://api.flutterwave.com/v3', false, true, '/icons/flutterwave.svg',
+('flutterwave', 'Flutterwave', 'all', 'https://api.flutterwave.com/v3', true, true, '/icons/flutterwave.svg',
  '["NGN", "GHS", "KES", "ZAR", "XOF", "XAF", "USD", "EUR", "GBP"]'::jsonb,
  '{"supports_mobile_money": true, "supports_card": true, "supports_bank": true, "webhook_path": "/webhooks/flutterwave"}'::jsonb),
 
 -- CinetPay
-('cinetpay', 'CinetPay', 'mobile_money', 'https://api-checkout.cinetpay.com/v2', false, true, '/icons/cinetpay.svg',
+('cinetpay', 'CinetPay', 'mobile_money', 'https://api-checkout.cinetpay.com/v2', true, true, '/icons/cinetpay.svg',
  '["XOF", "XAF", "GNF"]'::jsonb,
  '{"supports_mobile_money": true, "operators": ["orange_money", "mtn_momo", "moov_money", "wave"], "webhook_path": "/webhooks/cinetpay"}'::jsonb),
 
 -- Paystack
-('paystack', 'Paystack', 'all', 'https://api.paystack.co', false, true, '/icons/paystack.svg',
+('paystack', 'Paystack', 'all', 'https://api.paystack.co', true, true, '/icons/paystack.svg',
  '["NGN", "GHS", "ZAR", "KES"]'::jsonb,
  '{"supports_mobile_money": true, "supports_card": true, "supports_bank": true, "webhook_path": "/webhooks/paystack"}'::jsonb),
 
 -- Orange Money Direct API
-('orange_money', 'Orange Money', 'mobile_money', 'https://api.orange.com/orange-money-webpay', false, true, '/icons/orange.svg',
+('orange_money', 'Orange Money', 'mobile_money', 'https://api.orange.com/orange-money-webpay', true, true, '/icons/orange.svg',
  '["XOF", "XAF"]'::jsonb,
  '{"countries": ["CI", "SN", "ML", "BF", "CM", "GN"], "webhook_path": "/webhooks/orange"}'::jsonb),
 
 -- MTN MoMo
-('mtn_momo', 'MTN Mobile Money', 'mobile_money', 'https://sandbox.momodeveloper.mtn.com', false, true, '/icons/mtn.svg',
+('mtn_momo', 'MTN Mobile Money', 'mobile_money', 'https://sandbox.momodeveloper.mtn.com', true, true, '/icons/mtn.svg',
  '["XOF", "XAF", "GHS", "UGX", "RWF"]'::jsonb,
  '{"countries": ["CI", "CM", "GH", "UG", "RW", "BJ"], "webhook_path": "/webhooks/mtn"}'::jsonb),
 
 -- Wave (Sénégal, CI)
-('wave', 'Wave', 'mobile_money', 'https://api.wave.com/v1', false, true, '/icons/wave.svg',
+('wave', 'Wave', 'mobile_money', 'https://api.wave.com/v1', true, true, '/icons/wave.svg',
  '["XOF"]'::jsonb,
  '{"countries": ["SN", "CI"], "webhook_path": "/webhooks/wave"}'::jsonb),
 
 -- Stripe (International)
-('stripe', 'Stripe', 'card', 'https://api.stripe.com/v1', false, true, '/icons/stripe.svg',
+('stripe', 'Stripe', 'card', 'https://api.stripe.com/v1', true, true, '/icons/stripe.svg',
  '["USD", "EUR", "GBP", "CAD", "AUD"]'::jsonb,
  '{"supports_card": true, "webhook_path": "/webhooks/stripe"}'::jsonb)
 
