@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config"
+	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository"
-	"github.com/streadway/amqp"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -20,14 +21,14 @@ type CardService struct {
 	transactionRepo *repository.CardTransactionRepository
 	cardIssuer      *CardIssuerService
 	config          *config.Config
-	mqChannel       *amqp.Channel
+	kafkaClient     *database.KafkaClient
 }
 
 func NewCardService(
 	cardRepo *repository.CardRepository,
 	transactionRepo *repository.CardTransactionRepository,
 	cardIssuer *CardIssuerService,
-	mqChannel *amqp.Channel,
+	kafkaClient *database.KafkaClient,
 	cfg *config.Config,
 ) *CardService {
 	return &CardService{
@@ -35,7 +36,7 @@ func NewCardService(
 		transactionRepo: transactionRepo,
 		cardIssuer:      cardIssuer,
 		config:          cfg,
-		mqChannel:       mqChannel,
+		kafkaClient:     kafkaClient,
 	}
 }
 
@@ -84,39 +85,39 @@ func (s *CardService) CreateCard(userID string, req *models.CreateCardRequest) (
 
 	// Créer la carte
 	card := &models.Card{
-		ID:                cardID,
-		UserID:            userID,
-		CardNumber:        s.maskCardNumber(cardNumber),
-		CardNumberFull:    cardNumberFull,
-		CardType:          req.CardType,
-		CardCategory:      req.CardCategory,
-		Currency:          strings.ToUpper(req.Currency),
-		Balance:           req.InitialAmount,
-		AvailableBalance:  req.InitialAmount,
-		CardholderName:    req.CardholderName,
-		ExpiryMonth:       int(time.Now().Month()),
-		ExpiryYear:        time.Now().Year() + 3, // 3 ans de validité
-		CVV:               cvvEncrypted,
-		Status:            "inactive",
-		IsVirtual:         req.CardType == "virtual",
-		IsActive:          false,
-		ExpiresAt:         time.Now().AddDate(3, 0, 0), // 3 ans
-		
+		ID:               cardID,
+		UserID:           userID,
+		CardNumber:       s.maskCardNumber(cardNumber),
+		CardNumberFull:   cardNumberFull,
+		CardType:         req.CardType,
+		CardCategory:     req.CardCategory,
+		Currency:         strings.ToUpper(req.Currency),
+		Balance:          req.InitialAmount,
+		AvailableBalance: req.InitialAmount,
+		CardholderName:   req.CardholderName,
+		ExpiryMonth:      int(time.Now().Month()),
+		ExpiryYear:       time.Now().Year() + 3, // 3 ans de validité
+		CVV:              cvvEncrypted,
+		Status:           "inactive",
+		IsVirtual:        req.CardType == "virtual",
+		IsActive:         false,
+		ExpiresAt:        time.Now().AddDate(3, 0, 0), // 3 ans
+
 		// Limites
-		DailyLimit:        limits.DailyLimit,
-		MonthlyLimit:      limits.MonthlyLimit,
-		SingleTxLimit:     limits.SingleTxLimit,
-		ATMDailyLimit:     limits.ATMDailyLimit,
-		OnlineTxLimit:     limits.OnlineTxLimit,
-		
+		DailyLimit:    limits.DailyLimit,
+		MonthlyLimit:  limits.MonthlyLimit,
+		SingleTxLimit: limits.SingleTxLimit,
+		ATMDailyLimit: limits.ATMDailyLimit,
+		OnlineTxLimit: limits.OnlineTxLimit,
+
 		// Paramètres par défaut
-		AllowATM:          req.AllowATM != nil && *req.AllowATM,
-		AllowOnline:       req.AllowOnline == nil || *req.AllowOnline, // true par défaut
+		AllowATM:           req.AllowATM != nil && *req.AllowATM,
+		AllowOnline:        req.AllowOnline == nil || *req.AllowOnline, // true par défaut
 		AllowInternational: req.AllowInternational != nil && *req.AllowInternational,
-		AllowContactless:  req.AllowContactless == nil || *req.AllowContactless, // true par défaut
-		
+		AllowContactless:   req.AllowContactless == nil || *req.AllowContactless, // true par défaut
+
 		// Issuer
-		IssuerID:          s.config.DefaultCardIssuer,
+		IssuerID: s.config.DefaultCardIssuer,
 	}
 
 	// Créer la carte chez l'émetteur (Marqeta, etc.)
@@ -225,7 +226,7 @@ func (s *CardService) OrderPhysicalCard(userID string, req *models.OrderPhysical
 	if err != nil {
 		return nil, fmt.Errorf("failed to order physical card: %w", err)
 	}
-	
+
 	card.TrackingNumber = &trackingNumber
 	card.ShippingStatus = stringPtr("shipped")
 	now := time.Now()
@@ -465,15 +466,15 @@ func (s *CardService) UpdateCard(userID, cardID string, req *models.UpdateCardRe
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if req.Name != nil {
 		card.CardholderName = *req.Name
 	}
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return nil, fmt.Errorf("failed to update card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.updated", card)
 	return card, nil
 }
@@ -484,14 +485,14 @@ func (s *CardService) DeleteCard(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	card.Status = "deleted"
 	card.IsActive = false
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to delete card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.deleted", card)
 	return nil
 }
@@ -502,26 +503,26 @@ func (s *CardService) ActivateCard(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if card.Status == "blocked" {
 		return fmt.Errorf("cannot activate blocked card")
 	}
-	
+
 	card.Status = "active"
 	card.IsActive = true
 	now := time.Now()
 	card.ActivatedAt = &now
-	
+
 	if card.ExternalCardID != nil {
 		if err := s.cardIssuer.ActivateCard(*card.ExternalCardID); err != nil {
 			return fmt.Errorf("failed to activate card with issuer: %w", err)
 		}
 	}
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to update card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.activated", card)
 	return nil
 }
@@ -532,14 +533,14 @@ func (s *CardService) DeactivateCard(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	card.Status = "inactive"
 	card.IsActive = false
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to update card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.deactivated", card)
 	return nil
 }
@@ -550,16 +551,16 @@ func (s *CardService) FreezeCard(userID, cardID, reason string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	card.Status = "frozen"
 	card.FreezeReason = &reason
 	now := time.Now()
 	card.FrozenAt = &now
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to freeze card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.frozen", card)
 	return nil
 }
@@ -570,20 +571,20 @@ func (s *CardService) UnfreezeCard(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if card.Status != "frozen" {
 		return fmt.Errorf("card is not frozen")
 	}
-	
+
 	card.Status = "active"
 	card.IsActive = true
 	card.FreezeReason = nil
 	card.FrozenAt = nil
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to unfreeze card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.unfrozen", card)
 	return nil
 }
@@ -594,23 +595,23 @@ func (s *CardService) BlockCard(userID, cardID, reason string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	card.Status = "blocked"
 	card.IsActive = false
 	card.BlockReason = &reason
 	now := time.Now()
 	card.BlockedAt = &now
-	
+
 	if card.ExternalCardID != nil {
 		if err := s.cardIssuer.BlockCard(*card.ExternalCardID, reason); err != nil {
 			return fmt.Errorf("failed to block card with issuer: %w", err)
 		}
 	}
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to block card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.blocked", card)
 	return nil
 }
@@ -621,16 +622,16 @@ func (s *CardService) CancelAutoLoad(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	card.AutoReloadEnabled = false
 	card.AutoReloadAmount = 0
 	card.AutoReloadThreshold = 0
 	card.AutoReloadWalletID = nil
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to cancel auto-load: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.autoload_cancelled", card)
 	return nil
 }
@@ -641,7 +642,7 @@ func (s *CardService) GetCardLimits(userID, cardID string) (*models.CardLimits, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &models.CardLimits{
 		DailyLimit:    card.DailyLimit,
 		MonthlyLimit:  card.MonthlyLimit,
@@ -657,7 +658,7 @@ func (s *CardService) UpdateCardLimits(userID, cardID string, req *models.Update
 	if err != nil {
 		return err
 	}
-	
+
 	if req.DailyLimit != nil {
 		card.DailyLimit = *req.DailyLimit
 	}
@@ -670,11 +671,11 @@ func (s *CardService) UpdateCardLimits(userID, cardID string, req *models.Update
 	if req.ATMDailyLimit != nil {
 		card.ATMDailyLimit = *req.ATMDailyLimit
 	}
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return fmt.Errorf("failed to update card limits: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.limits_updated", card)
 	return nil
 }
@@ -685,7 +686,7 @@ func (s *CardService) GetCardTransactions(userID, cardID string, limit, offset i
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.transactionRepo.GetByCardID(cardID, limit, offset)
 }
 
@@ -713,12 +714,12 @@ func (s *CardService) ChangeCardPIN(userID, cardID, currentPIN, newPIN string) e
 	if err != nil {
 		return err
 	}
-	
+
 	// Verify current PIN
 	if err := bcrypt.CompareHashAndPassword([]byte(card.PINHash), []byte(currentPIN)); err != nil {
 		return fmt.Errorf("invalid current PIN")
 	}
-	
+
 	// Set new PIN
 	return s.SetCardPIN(userID, cardID, newPIN)
 }
@@ -729,7 +730,7 @@ func (s *CardService) ResetCardPIN(userID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// TODO: Send PIN reset email/SMS
 	s.publishCardEvent("card.pin_reset_requested", nil)
 	return nil
@@ -741,27 +742,27 @@ func (s *CardService) RegenerateVirtualCard(userID, cardID string) (*models.Card
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if !card.IsVirtual {
 		return nil, fmt.Errorf("can only regenerate virtual cards")
 	}
-	
+
 	// Generate new card details
 	newCardNumber, newCVV, err := s.generateCardDetails()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate new card details: %w", err)
 	}
-	
+
 	card.CardNumberFull = newCardNumber
 	card.CardNumber = s.maskCardNumber(newCardNumber)
 	card.CVV = newCVV
 	card.ExpiryMonth = int(time.Now().Month())
 	card.ExpiryYear = time.Now().Year() + 3
-	
+
 	if err := s.cardRepo.Update(card); err != nil {
 		return nil, fmt.Errorf("failed to update card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.regenerated", card)
 	return card, nil
 }
@@ -772,11 +773,11 @@ func (s *CardService) GenerateCardQR(userID, cardID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	if !card.IsVirtual {
 		return "", fmt.Errorf("QR codes only available for virtual cards")
 	}
-	
+
 	// Generate QR code data (in production, this would be encrypted)
 	qrData := fmt.Sprintf("ZEKORA:%s:%s", card.ID, card.CardNumber)
 	return qrData, nil
@@ -788,22 +789,22 @@ func (s *CardService) GetShippingStatus(userID, cardID string) (*models.Shipping
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if card.IsVirtual {
 		return nil, fmt.Errorf("virtual cards don't have shipping status")
 	}
-	
+
 	status := &models.ShippingStatus{
 		Status:         "pending",
 		TrackingNumber: card.TrackingNumber,
 		ShippedAt:      card.ShippedAt,
 		DeliveredAt:    card.DeliveredAt,
 	}
-	
+
 	if card.ShippingStatus != nil {
 		status.Status = *card.ShippingStatus
 	}
-	
+
 	return status, nil
 }
 
@@ -813,11 +814,11 @@ func (s *CardService) ActivatePhysicalCard(userID, cardID, activationCode, lastF
 	if err != nil {
 		return err
 	}
-	
+
 	if card.IsVirtual {
 		return fmt.Errorf("cannot activate physical card: this is a virtual card")
 	}
-	
+
 	// Verify last four digits match
 	if len(card.CardNumber) >= 4 {
 		last4 := card.CardNumber[len(card.CardNumber)-4:]
@@ -825,7 +826,7 @@ func (s *CardService) ActivatePhysicalCard(userID, cardID, activationCode, lastF
 			return fmt.Errorf("card verification failed")
 		}
 	}
-	
+
 	// Activate the card
 	return s.ActivateCard(userID, cardID)
 }
@@ -841,24 +842,24 @@ func (s *CardService) RequestReplacement(userID, cardID, reason string, shipping
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Block the old card
 	if err := s.BlockCard(userID, cardID, "replacement_requested"); err != nil {
 		return nil, err
 	}
-	
+
 	// Create a new card with the same settings
 	req := &models.OrderPhysicalCardRequest{
 		Currency:        oldCard.Currency,
 		CardholderName:  oldCard.CardholderName,
 		ShippingAddress: *shippingAddress,
 	}
-	
+
 	newCard, err := s.OrderPhysicalCard(userID, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to order replacement card: %w", err)
 	}
-	
+
 	s.publishCardEvent("card.replacement_requested", newCard)
 	return newCard, nil
 }
@@ -869,20 +870,20 @@ func (s *CardService) SendGiftCard(userID, giftCardID, message string) error {
 	if err != nil {
 		return fmt.Errorf("gift card not found: %w", err)
 	}
-	
+
 	if giftCard.SenderID != userID {
 		return fmt.Errorf("unauthorized")
 	}
-	
+
 	if giftCard.Status != "active" {
 		return fmt.Errorf("gift card not available for sending")
 	}
-	
+
 	giftCard.Status = "sent"
 	if err := s.cardRepo.UpdateGiftCard(giftCard); err != nil {
 		return fmt.Errorf("failed to update gift card: %w", err)
 	}
-	
+
 	// TODO: Send notification to recipient
 	s.publishGiftCardEvent("gift_card.sent", giftCard)
 	return nil
@@ -898,7 +899,7 @@ func (s *CardService) GetUserGiftCards(userID string) ([]models.GiftCard, error)
 func (s *CardService) generateCardDetails() (cardNumber, cvv string, err error) {
 	// Générer un numéro de carte (format Luhn valide)
 	cardNumber = s.generateCardNumber()
-	
+
 	// Générer le CVV
 	cvvNum, err := rand.Int(rand.Reader, big.NewInt(900))
 	if err != nil {
@@ -912,7 +913,7 @@ func (s *CardService) generateCardDetails() (cardNumber, cvv string, err error) 
 func (s *CardService) generateCardNumber() string {
 	// Générer un numéro de carte commençant par 4 (Visa) ou 5 (Mastercard)
 	prefix := "4532" // Préfixe Visa test
-	
+
 	// Générer 12 chiffres aléatoires
 	number := prefix
 	for i := 0; i < 12; i++ {
@@ -931,14 +932,14 @@ func (s *CardService) calculateLuhnChecksum(number string) int {
 
 	for i := len(number) - 1; i >= 0; i-- {
 		digit := int(number[i] - '0')
-		
+
 		if alternate {
 			digit *= 2
 			if digit > 9 {
 				digit = digit%10 + digit/10
 			}
 		}
-		
+
 		sum += digit
 		alternate = !alternate
 	}
@@ -968,7 +969,7 @@ func (s *CardService) maskCardNumber(cardNumber string) string {
 	if len(cardNumber) < 8 {
 		return cardNumber
 	}
-	
+
 	masked := "****-****-****-" + cardNumber[len(cardNumber)-4:]
 	return masked
 }
@@ -1003,12 +1004,12 @@ func (s *CardService) getDefaultLimits(cardType, currency string) *models.CardLi
 func (s *CardService) calculateLoadFee(amount float64, currency string) float64 {
 	feeRate := s.config.CardFees["load_fee_percentage"]
 	minimumFee := s.config.CardFees["load_fee_minimum"]
-	
+
 	fee := amount * feeRate / 100
 	if fee < minimumFee {
 		fee = minimumFee
 	}
-	
+
 	return fee
 }
 
@@ -1018,7 +1019,7 @@ func (s *CardService) processCardLoad(cardID string, amount, fee float64, transa
 
 	// Mettre à jour le solde de la carte
 	s.cardRepo.UpdateBalance(cardID, amount)
-	
+
 	// Marquer la transaction comme terminée
 	s.transactionRepo.UpdateStatus(transactionID, "completed")
 
@@ -1046,11 +1047,11 @@ func (s *CardService) isNumeric(str string) bool {
 
 func (s *CardService) publishCardEvent(eventType string, card *models.Card) {
 	event := map[string]interface{}{
-		"type":     eventType,
-		"card_id":  card.ID,
-		"user_id":  card.UserID,
-		"currency": card.Currency,
-		"status":   card.Status,
+		"type":      eventType,
+		"card_id":   card.ID,
+		"user_id":   card.UserID,
+		"currency":  card.Currency,
+		"status":    card.Status,
 		"timestamp": time.Now(),
 	}
 
@@ -1059,35 +1060,33 @@ func (s *CardService) publishCardEvent(eventType string, card *models.Card) {
 
 func (s *CardService) publishGiftCardEvent(eventType string, giftCard *models.GiftCard) {
 	event := map[string]interface{}{
-		"type":        eventType,
+		"type":         eventType,
 		"gift_card_id": giftCard.ID,
-		"sender_id":   giftCard.SenderID,
-		"amount":      giftCard.Amount,
-		"currency":    giftCard.Currency,
-		"status":      giftCard.Status,
-		"timestamp":   time.Now(),
+		"sender_id":    giftCard.SenderID,
+		"amount":       giftCard.Amount,
+		"currency":     giftCard.Currency,
+		"status":       giftCard.Status,
+		"timestamp":    time.Now(),
 	}
 
 	s.publishEvent("gift_card.events", event)
 }
 
-func (s *CardService) publishEvent(exchange string, event map[string]interface{}) {
-	if s.mqChannel == nil {
+func (s *CardService) publishEvent(topic string, event map[string]interface{}) {
+	if s.kafkaClient == nil {
 		return
 	}
 
-	eventJSON, _ := json.Marshal(event)
+	eventType, ok := event["type"].(string)
+	if !ok {
+		eventType = "unknown"
+	}
 
-	s.mqChannel.Publish(
-		exchange,        // exchange
-		event["type"].(string), // routing key
-		false,           // mandatory
-		false,           // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        eventJSON,
-		},
-	)
+	// Use the event map directly as payload
+	err := s.kafkaClient.Publish(topic, eventType, event)
+	if err != nil {
+		fmt.Printf("Failed to publish event to topic %s: %v\n", topic, err)
+	}
 }
 
 func stringPtr(s string) *string {
@@ -1102,8 +1101,7 @@ func (s *CardService) loadCardFromWallet(cardID, walletID string, amount float64
 		SourceWalletID: walletID,
 		Description:    "Initial card load",
 	}
-	
-	
+
 	s.LoadCard(userID, cardID, loadReq)
 }
 

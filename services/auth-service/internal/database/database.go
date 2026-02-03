@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/streadway/amqp"
 	_ "github.com/lib/pq"
 )
 
@@ -33,7 +32,7 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 	}
 
 	client := redis.NewClient(opts)
-	
+
 	// Test connection
 	_, err = client.Ping(client.Context()).Result()
 	if err != nil {
@@ -41,41 +40,4 @@ func InitializeRedis(redisURL string) (*redis.Client, error) {
 	}
 
 	return client, nil
-}
-
-func InitializeRabbitMQ(rabbitMQURL string) (*amqp.Channel, error) {
-	conn, err := amqp.Dial(rabbitMQURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
-	}
-
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, fmt.Errorf("failed to open channel: %w", err)
-	}
-
-	// Declare exchanges for auth events
-	exchanges := []string{
-		"auth.events",
-		"audit.events",
-		"notification.events",
-		"user.events", // For KYC, PIN events consumed by admin-service
-	}
-
-	for _, exchange := range exchanges {
-		err = channel.ExchangeDeclare(
-			exchange, // name
-			"topic",  // type
-			true,     // durable
-			false,    // auto-deleted
-			false,    // internal
-			false,    // no-wait
-			nil,      // arguments
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to declare exchange %s: %w", exchange, err)
-		}
-	}
-
-	return channel, nil
 }

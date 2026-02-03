@@ -6,32 +6,38 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/config"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/database"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/handlers"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/services"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
+	httpRequestsTotal   = promauto.NewCounterVec(prometheus.CounterOpts{Name: "http_requests_total", Help: "Total HTTP requests"}, []string{"method", "path", "status"})
 	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{Name: "http_request_duration_seconds", Help: "HTTP request duration", Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"method", "path", "status"})
 	cardOperationsTotal = promauto.NewCounterVec(prometheus.CounterOpts{Name: "card_operations_total", Help: "Total card operations"}, []string{"type", "status"})
 )
 
 func prometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" { c.Next(); return }
+		if c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
 		start := time.Now()
 		c.Next()
 		status := strconv.Itoa(c.Writer.Status())
-		path := c.FullPath(); if path == "" { path = c.Request.URL.Path }
+		path := c.FullPath()
+		if path == "" {
+			path = c.Request.URL.Path
+		}
 		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(time.Since(start).Seconds())
 	}
@@ -49,11 +55,12 @@ func main() {
 	defer db.Close()
 
 	// Initialize message queue
-	mqClient, err := database.InitializeRabbitMQ(cfg.RabbitMQURL)
+	kafkaClient, err := database.InitializeKafka(cfg.KafkaBrokers)
 	if err != nil {
-		log.Fatal("Failed to initialize RabbitMQ:", err)
+		log.Printf("Failed to initialize Kafka (continuing without it): %v", err)
+		// Don't fatal here to allow service to start even if Kafka is down temporarily
 	}
-	defer mqClient.Close()
+	defer kafkaClient.Close()
 
 	// Initialize repositories
 	cardRepo := repository.NewCardRepository(db)
@@ -61,9 +68,9 @@ func main() {
 
 	// Initialize services
 	cardIssuer := services.NewCardIssuerService(cfg)
-	cardService := services.NewCardService(cardRepo, transactionRepo, cardIssuer, mqClient.GetChannel(), cfg)
+	cardService := services.NewCardService(cardRepo, transactionRepo, cardIssuer, kafkaClient, cfg)
 	walletClient := services.NewWalletClient(cfg.WalletServiceURL)
-	
+
 	// Initialize handlers
 	cardHandler := handlers.NewCardHandler(cardService, walletClient)
 
@@ -92,7 +99,7 @@ func main() {
 
 	// Card routes
 	api := router.Group("/api/v1")
-	
+
 	// Protected routes - use Group with middleware
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth(cfg.JWTSecret))

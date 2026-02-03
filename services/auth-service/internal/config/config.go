@@ -8,42 +8,41 @@ import (
 )
 
 type Config struct {
-	Environment string
-	Port        string
-	DBUrl       string
-	RedisURL    string
-	RabbitMQURL string
+	Environment  string
+	Port         string
+	DBUrl        string
+	RedisURL     string
 	KafkaBrokers []string
-	JWTSecret   string
-	
+	JWTSecret    string
+
 	// JWT settings
 	AccessTokenExpiry  time.Duration
 	RefreshTokenExpiry time.Duration
-	
+
 	// Email settings
 	SMTPHost     string
 	SMTPPort     int
 	SMTPUsername string
 	SMTPPassword string
 	FromEmail    string
-	
+
 	// SMS settings
 	TwilioAccountSID string
 	TwilioAuthToken  string
 	TwilioFromNumber string
-	
+
 	// Security settings
 	PasswordMinLength int
 	MaxLoginAttempts  int
 	LockoutDuration   time.Duration
-	
+
 	// Rate limiting
 	RateLimitRPS int
-	
+
 	// Verification settings
 	EmailVerificationExpiry time.Duration
 	PhoneVerificationExpiry time.Duration
-	
+
 	// 2FA settings
 	TOTPIssuer string
 
@@ -72,13 +71,13 @@ func Load() *Config {
 	minioUseSSL := getEnv("MINIO_USE_SSL", "false") == "true"
 
 	return &Config{
-		Environment: getEnv("ENVIRONMENT", "development"),
-		Port:        getEnv("PORT", "8081"),
-		DBUrl:       getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
+		Environment:  getEnv("ENVIRONMENT", "development"),
+		Port:         getEnv("PORT", "8081"),
+		DBUrl:        getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
 		KafkaBrokers: strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
-		JWTSecret:   getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
+		JWTSecret:    getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
 
 		// JWT settings
 		AccessTokenExpiry:  accessTokenExpiry,

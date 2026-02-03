@@ -117,9 +117,8 @@ func main() {
 		log.Printf("Warning: Failed to initialize Minio storage: %v (KYC uploads will fail)", err)
 	}
 
-	// Initialize event publisher for admin notifications (Deprecated: moved to Kafka)
-	// var eventPublisher *services.EventPublisher
-	var eventPublisher *services.EventPublisher // Keeping var for compatibility if used elsewhere, but null
+	// Initialize event publisher for admin notifications (moved to Kafka)
+	eventPublisher := services.NewEventPublisher(kafkaClient)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, emailService, smsService, totpService, auditService)

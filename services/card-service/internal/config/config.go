@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
-	
+
 	"github.com/crypto-bank/microservices-financial-app/services/card-service/internal/models"
 )
 
@@ -11,14 +11,15 @@ type Config struct {
 	Environment      string
 	Port             string
 	DBUrl            string
-	RabbitMQURL      string
+	KafkaBrokers     string
+	KafkaGroupID     string
 	JWTSecret        string
 	WalletServiceURL string
-	
+
 	// Card issuer settings
 	CardIssuer        CardIssuerConfig
 	DefaultCardIssuer string
-	
+
 	// Card limits
 	MaxCardsPerUser     int
 	DefaultDailyLimit   float64
@@ -26,11 +27,11 @@ type Config struct {
 	MinLoadAmount       float64
 	MaxLoadAmount       float64
 	MaxAutoReloadAmount float64
-	
+
 	// Fees
 	CardFees      map[string]float64
 	DefaultLimits map[string]*models.CardLimits
-	
+
 	// Security
 	RateLimitRPS int
 }
@@ -50,14 +51,15 @@ func Load() *Config {
 	monthlyLimit, _ := strconv.ParseFloat(getEnv("DEFAULT_MONTHLY_LIMIT", "10000"), 64)
 
 	return &Config{
-		Environment:      getEnv("ENVIRONMENT", "development"),
-		Port:             getEnv("PORT", "8086"),
-		DBUrl:            getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
-		RabbitMQURL:      getEnv("RABBITMQ_URL", "amqp://admin:secure_password@localhost:5672/"),
-		JWTSecret:        getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
-		WalletServiceURL: getEnv("WALLET_SERVICE_URL", "http://wallet-service:8083"),
+		Environment:       getEnv("ENVIRONMENT", "development"),
+		Port:              getEnv("PORT", "8086"),
+		DBUrl:             getEnv("DB_URL", "postgres://admin:secure_password@localhost:5432/crypto_bank?sslmode=disable"),
+		KafkaBrokers:      getEnv("KAFKA_BROKERS", "kafka:9092"),
+		KafkaGroupID:      getEnv("KAFKA_GROUP_ID", "card-service-group"),
+		JWTSecret:         getEnv("JWT_SECRET", "ultra_secure_jwt_secret_key_2024"),
+		WalletServiceURL:  getEnv("WALLET_SERVICE_URL", "http://wallet-service:8083"),
 		DefaultCardIssuer: getEnv("DEFAULT_CARD_ISSUER", "marqeta"),
-		
+
 		CardIssuer: CardIssuerConfig{
 			Provider:      getEnv("CARD_ISSUER_PROVIDER", "marqeta"),
 			APIKey:        getEnv("CARD_ISSUER_API_KEY", ""),
@@ -65,7 +67,7 @@ func Load() *Config {
 			BaseURL:       getEnv("CARD_ISSUER_BASE_URL", "https://sandbox-api.marqeta.com/v3"),
 			WebhookSecret: getEnv("CARD_ISSUER_WEBHOOK_SECRET", ""),
 		},
-		
+
 		MaxCardsPerUser:     maxCardsPerUser,
 		DefaultDailyLimit:   dailyLimit,
 		DefaultMonthlyLimit: monthlyLimit,
@@ -73,7 +75,7 @@ func Load() *Config {
 		MaxLoadAmount:       10000.0,
 		MaxAutoReloadAmount: 5000.0,
 		RateLimitRPS:        rateLimitRPS,
-		
+
 		CardFees: map[string]float64{
 			"load_fee_percentage": 0.5,
 			"load_fee_minimum":    0.50,
@@ -81,7 +83,7 @@ func Load() *Config {
 			"express_shipping":    15.00,
 			"replacement":         10.00,
 		},
-		
+
 		DefaultLimits: map[string]*models.CardLimits{
 			"prepaid": {
 				DailyLimit:    1000,
