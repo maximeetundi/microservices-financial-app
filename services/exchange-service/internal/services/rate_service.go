@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/exchange-service/internal/config"
@@ -19,6 +20,8 @@ type RateService struct {
 	fiatProvider      *FailoverFiatProvider // Updated type
 	coingeckoProvider *CoinGeckoProvider
 	hexarateProvider  *HexarateProvider
+	updateMu          sync.Mutex
+	lastUpdateAttempt time.Time
 }
 
 func NewRateService(rateRepo *repository.RateRepository, cfg *config.Config) *RateService {
@@ -77,7 +80,7 @@ func (s *RateService) getUpdateInterval() int {
 func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.ExchangeRate, error) {
 	// Try to get from cache/db first
 	rate, err := s.rateRepo.GetRate(fromCurrency, toCurrency)
-	if err == nil && time.Since(rate.LastUpdated) < time.Duration(s.config.RateUpdateInterval)*time.Second {
+	if err == nil && time.Since(rate.LastUpdated) < time.Duration(s.getUpdateInterval())*time.Second {
 		return rate, nil
 	}
 
@@ -212,6 +215,14 @@ func (s *RateService) StartRateUpdater() {
 }
 
 func (s *RateService) updateAllRates() {
+	s.updateMu.Lock()
+	if time.Since(s.lastUpdateAttempt) < 30*time.Second {
+		s.updateMu.Unlock()
+		return
+	}
+	s.lastUpdateAttempt = time.Now()
+	s.updateMu.Unlock()
+
 	fmt.Println("[RateService] Starting rate update...")
 
 	// ========== 1. FIAT RATES VIA FAILOVER PROVIDER ==========
