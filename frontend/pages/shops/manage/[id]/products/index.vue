@@ -1,6 +1,5 @@
 <template>
-  <ShopLayout>
-    <div class="products-page">
+  <div class="products-page">
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-content">
@@ -135,6 +134,7 @@
         </div>
       </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">

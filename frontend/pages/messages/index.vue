@@ -1,6 +1,6 @@
 <template>
-  <NuxtLayout name="dashboard">
-    <div class="h-[calc(100vh-60px)] md:h-[calc(100vh-120px)] flex bg-white dark:bg-gray-900 rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-gray-200 dark:border-gray-800 shadow-none md:shadow-xl w-full">
+<NuxtLayout name="chat">
+    <div class="h-full w-full flex bg-white dark:bg-gray-900 lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100%-2rem)] lg:rounded-2xl lg:shadow-xl lg:border lg:border-gray-200 lg:dark:border-gray-800 overflow-hidden relative">
 
       <!-- Sidebar Conversations - Hide on mobile when chat is selected -->
       <div :class="['w-full md:w-96 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900', selectedConv ? 'hidden md:flex' : 'flex']">
