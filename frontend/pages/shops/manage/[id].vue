@@ -1,63 +1,68 @@
 <template>
   <ShopLayout>
-    <div class="shop-dashboard">
+    <div class="animate-fade-in-up">
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Chargement de votre boutique...</p>
+      <div v-if="loading" class="flex flex-col items-center justify-center min-h-[400px]">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+        <p class="text-gray-500 dark:text-gray-400">Chargement de votre boutique...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="error-state">
-        <div class="error-icon">⚠️</div>
-        <h2>Une erreur est survenue</h2>
-        <p>{{ error }}</p>
+      <div v-else-if="error" class="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <div class="text-4xl mb-4">⚠️</div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Une erreur est survenue</h2>
+        <p class="text-gray-500 dark:text-gray-400 mb-6">{{ error }}</p>
         <NuxtLink to="/shops/my-shops" class="btn-primary">Retour aux boutiques</NuxtLink>
       </div>
 
-      <div v-else-if="shop" class="dashboard-content">
+      <div v-else-if="shop" class="space-y-8">
         <!-- Breadcrumb -->
-        <nav class="breadcrumb">
-          <NuxtLink to="/shops" class="breadcrumb-item">Marketplace</NuxtLink>
-          <span class="separator">/</span>
-          <NuxtLink to="/shops/my-shops" class="breadcrumb-item">Mes Boutiques</NuxtLink>
-          <span class="separator">/</span>
-          <span class="current">{{ shop.name }}</span>
+        <nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <NuxtLink to="/shops" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Marketplace</NuxtLink>
+          <span class="text-gray-300 dark:text-gray-600">/</span>
+          <NuxtLink to="/shops/my-shops" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Mes Boutiques</NuxtLink>
+          <span class="text-gray-300 dark:text-gray-600">/</span>
+          <span class="font-medium text-gray-900 dark:text-white">{{ shop.name }}</span>
         </nav>
 
         <!-- Shop Header Banner -->
-        <div class="shop-header">
-          <div class="header-bg">
-            <div class="gradient-overlay"></div>
-            <img v-if="shop.banner_url" :src="shop.banner_url" class="banner-img" alt="Banner">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
+          <div class="relative h-48 bg-gradient-to-br from-indigo-500 to-violet-600">
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/30"></div>
+            <img v-if="shop.banner_url" :src="shop.banner_url" class="w-full h-full object-cover" alt="Banner">
           </div>
           
-          <div class="header-content">
-            <div class="shop-identity">
-              <div class="shop-logo">
-                <img v-if="shop.logo_url" :src="shop.logo_url" alt="Logo">
-                <div v-else class="logo-placeholder">{{ shop.name.charAt(0) }}</div>
-              </div>
-              <div class="shop-text">
-                <div class="flex items-center gap-3">
-                  <h1>{{ shop.name }}</h1>
-                  <span :class="['status-badge', shop.status]">{{ getStatusLabel(shop.status) }}</span>
+          <div class="px-8 pb-8 -mt-10 relative flex flex-wrap gap-6 items-end justify-between">
+            <div class="flex items-end gap-6">
+              <div class="w-32 h-32 rounded-3xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-900 shadow-xl overflow-hidden flex-shrink-0">
+                <img v-if="shop.logo_url" :src="shop.logo_url" alt="Logo" class="w-full h-full object-cover">
+                <div v-else class="w-full h-full flex items-center justify-center text-4xl font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">
+                  {{ shop.name.charAt(0) }}
                 </div>
-                <p class="description">{{ shop.description || 'Ajoutez une description pour vos clients' }}</p>
-                <div class="meta-info">
+              </div>
+              
+              <div class="pb-2 space-y-2">
+                <div class="flex items-center gap-3 flex-wrap">
+                  <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white">{{ shop.name }}</h1>
+                  <span :class="['px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide', getStatusClass(shop.status)]">
+                    {{ getStatusLabel(shop.status) }}
+                  </span>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 max-w-xl">{{ shop.description || 'Ajoutez une description pour vos clients' }}</p>
+                <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
                   <span>📅 Créée le {{ formatDate(shop.created_at) }}</span>
-                  <span class="divider">•</span>
+                  <span class="text-gray-300 dark:text-gray-600">•</span>
                   <span>🌍 {{ shop.is_public ? 'Publique' : 'Privée' }}</span>
                 </div>
               </div>
             </div>
             
-            <div class="header-actions">
-              <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="btn-glass">
+            <div class="flex gap-3 mb-2 w-full sm:w-auto">
+              <NuxtLink :to="`/shops/${shop.slug}`" target="_blank" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
                 <EyeIcon class="w-5 h-5" />
                 Voir la boutique
               </NuxtLink>
-              <NuxtLink :to="`/shops/manage/${slug}/settings`" class="btn-primary">
+              <NuxtLink :to="`/shops/manage/${slug}/settings`" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold hover:opacity-90 transition-all shadow-lg shadow-gray-200 dark:shadow-none">
                 <Cog6ToothIcon class="w-5 h-5" />
                 Paramètres
               </NuxtLink>
@@ -66,100 +71,114 @@
         </div>
 
         <!-- Stats Grid -->
-        <div class="stats-grid">
-          <div class="stat-card primary">
-            <div class="stat-icon-wrapper">
-              <CurrencyEuroIcon class="w-6 h-6" />
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-6 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden group">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-4">
+              <CurrencyEuroIcon class="w-6 h-6 text-white" />
             </div>
-            <div class="stat-details">
-              <span class="stat-label">Chiffre d'affaires (Mois)</span>
-              <span class="stat-value">{{ formatPrice(shop.stats?.total_revenue || 0, shop.currency) }}</span>
-              <span class="stat-trend positive">↗ +12% vs mois dernier</span>
-            </div>
-            <div class="stat-chart-placeholder"></div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon-wrapper blue">
-              <shopping-bag-icon class="w-6 h-6" />
-            </div>
-            <div class="stat-details">
-              <span class="stat-label">Commandes</span>
-              <span class="stat-value">{{ shop.stats?.total_orders || 0 }}</span>
-              <span class="stat-sub">0 en attente</span>
+            <div class="relative z-10">
+              <p class="text-indigo-100 font-medium mb-1">Chiffre d'affaires (Mois)</p>
+              <p class="text-3xl font-extrabold mb-2">{{ formatPrice(shop.stats?.total_revenue || 0, shop.currency) }}</p>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-green-500/20 text-green-100 text-xs font-bold">
+                ↗ +12% vs mois dernier
+              </span>
             </div>
           </div>
 
-          <div class="stat-card">
-            <div class="stat-icon-wrapper purple">
+          <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow group">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <ShoppingBagIcon class="w-6 h-6" />
+            </div>
+            <div>
+              <p class="text-gray-500 dark:text-gray-400 font-medium mb-1">Commandes</p>
+              <p class="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">{{ shop.stats?.total_orders || 0 }}</p>
+              <p class="text-xs text-gray-400 font-medium">0 en attente</p>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow group">
+            <div class="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <TagIcon class="w-6 h-6" />
             </div>
-            <div class="stat-details">
-              <span class="stat-label">Produits actifs</span>
-              <span class="stat-value">{{ shop.stats?.total_products || 0 }}</span>
-              <span class="stat-sub">Catalogue en ligne</span>
+            <div>
+              <p class="text-gray-500 dark:text-gray-400 font-medium mb-1">Produits actifs</p>
+              <p class="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">{{ shop.stats?.total_products || 0 }}</p>
+              <p class="text-xs text-gray-400 font-medium">Catalogue en ligne</p>
             </div>
           </div>
         </div>
 
         <!-- Main Content Grid -->
-        <div class="content-grid">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           <!-- Quick Actions -->
-          <div class="dashboard-card actions-card">
-            <div class="card-header">
-              <h3>⚡ Actions Rapides</h3>
+          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-gray-50 dark:border-gray-800">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>⚡</span> Actions Rapides
+              </h3>
             </div>
-            <div class="actions-list">
-              <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="action-item">
-                <div class="action-icon orange"><PlusIcon class="w-6 h-6" /></div>
-                <div class="action-text">
-                  <h4>Ajouter un produit</h4>
-                  <p>Créez une nouvelle fiche produit</p>
+            <div class="p-6 space-y-3">
+              <NuxtLink :to="`/shops/manage/${slug}/products/create`" class="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all group cursor-pointer shadow-sm hover:shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <PlusIcon class="w-6 h-6" />
                 </div>
-                <ChevronRightIcon class="arrow-icon" />
+                <div class="flex-1">
+                  <h4 class="font-bold text-gray-900 dark:text-white">Ajouter un produit</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Créez une nouvelle fiche produit</p>
+                </div>
+                <ChevronRightIcon class="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
               </NuxtLink>
 
-              <NuxtLink :to="`/shops/manage/${slug}/categories`" class="action-item">
-                <div class="action-icon pink"><TagIcon class="w-6 h-6" /></div>
-                <div class="action-text">
-                  <h4>Gérer les catégories</h4>
-                  <p>Organisez vos rayons</p>
+              <NuxtLink :to="`/shops/manage/${slug}/categories`" class="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all group cursor-pointer shadow-sm hover:shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TagIcon class="w-6 h-6" />
                 </div>
-                <ChevronRightIcon class="arrow-icon" />
+                <div class="flex-1">
+                  <h4 class="font-bold text-gray-900 dark:text-white">Gérer les catégories</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Organisez vos rayons</p>
+                </div>
+                <ChevronRightIcon class="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
               </NuxtLink>
 
-              <NuxtLink :to="`/shops/manage/${slug}/managers`" class="action-item">
-                <div class="action-icon green"><UsersIcon class="w-6 h-6" /></div>
-                <div class="action-text">
-                  <h4>Gérer l'équipe</h4>
-                  <p>Ajoutez des vendeurs</p>
+              <NuxtLink :to="`/shops/manage/${slug}/managers`" class="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all group cursor-pointer shadow-sm hover:shadow-md">
+                <div class="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <UsersIcon class="w-6 h-6" />
                 </div>
-                <ChevronRightIcon class="arrow-icon" />
+                <div class="flex-1">
+                  <h4 class="font-bold text-gray-900 dark:text-white">Gérer l'équipe</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Ajoutez des vendeurs</p>
+                </div>
+                <ChevronRightIcon class="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
               </NuxtLink>
               
-              <button class="action-item" @click="shareShop">
-                <div class="action-icon blue"><ShareIcon class="w-6 h-6" /></div>
-                <div class="action-text">
-                  <h4>Partager la boutique</h4>
-                  <p>Copier le lien public</p>
+              <button @click="shareShop" class="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all group cursor-pointer shadow-sm hover:shadow-md text-left">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ShareIcon class="w-6 h-6" />
                 </div>
-                <ChevronRightIcon class="arrow-icon" />
+                <div class="flex-1">
+                  <h4 class="font-bold text-gray-900 dark:text-white">Partager la boutique</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Copier le lien public</p>
+                </div>
+                <ChevronRightIcon class="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
               </button>
             </div>
           </div>
 
           <!-- Recent Orders -->
-          <div class="dashboard-card orders-card">
-            <div class="card-header">
-              <h3>📦 Dernières Commandes</h3>
-              <NuxtLink :to="`/shops/manage/${slug}/orders`" class="link-more">Tout voir</NuxtLink>
+          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden flex flex-col h-full">
+            <div class="p-6 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>📦</span> Dernières Commandes
+              </h3>
+              <NuxtLink :to="`/shops/manage/${slug}/orders`" class="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">Tout voir</NuxtLink>
             </div>
             
-            <div class="empty-orders">
-              <div class="empty-illustration">🛍️</div>
-              <p>Aucune commande récente</p>
-              <span class="empty-hint">Partagez votre boutique pour faire vos premières ventes !</span>
+            <div class="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div class="text-6xl mb-4 opacity-50 grayscale">🛍️</div>
+              <p class="text-gray-500 dark:text-gray-400 font-medium mb-2">Aucune commande récente</p>
+              <span class="text-xs text-indigo-500 dark:text-indigo-400">Partagez votre boutique pour faire vos premières ventes !</span>
             </div>
           </div>
         </div>
@@ -172,6 +191,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi } from '@/composables/useShopApi'
+// Removed relative import for ShopLayout as usually components are auto-imported or use #components alias. 
+// However, assuming user structure:
 import ShopLayout from '@/components/shops/ShopLayout.vue'
 import { 
   BuildingStorefrontIcon, 
@@ -219,6 +240,16 @@ const getStatusLabel = (status: string) => {
   return labels[status] || status
 }
 
+const getStatusClass = (status: string) => {
+  const classes: Record<string, string> = {
+    active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    suspended: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+  }
+  return classes[status] || classes.draft
+}
+
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('fr-FR', {
     day: 'numeric', 
@@ -253,402 +284,3 @@ definePageMeta({
   layout: 'dashboard'
 })
 </script>
-
-<style scoped>
-/* Scoped styles remain mostly the same, but removing shop-dashboard padding/margin since wrapper handles it */
-.shop-dashboard {
-  /* padding removed, handled by wrapper */
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Header & Banner */
-.shop-header {
-  position: relative;
-  border-radius: 24px;
-  overflow: hidden;
-  background: white;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-  margin-bottom: 32px;
-}
-
-.header-bg {
-  height: 200px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  position: relative;
-}
-
-.banner-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.gradient-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 100%);
-}
-
-.header-content {
-  padding: 0 32px 32px;
-  margin-top: -60px;
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.shop-identity {
-  display: flex;
-  gap: 24px;
-  align-items: flex-end;
-}
-
-.shop-logo {
-  width: 120px;
-  height: 120px;
-  border-radius: 24px;
-  border: 4px solid white;
-  background: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.shop-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.logo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48px;
-  font-weight: 800;
-  color: #6366f1;
-  background: #eff6ff;
-}
-
-.shop-text h1 {
-  font-size: 32px;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: -0.5px;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.status-badge.active { background: #dcfce7; color: #166534; }
-.status-badge.pending { background: #fef9c3; color: #854d0e; }
-.status-badge.suspended { background: #fee2e2; color: #991b1b; }
-
-:global(.dark) .status-badge.active { background: rgba(22, 101, 52, 0.3); color: #86efac; }
-:global(.dark) .status-badge.pending { background: rgba(133, 77, 14, 0.3); color: #fde047; }
-:global(.dark) .status-badge.suspended { background: rgba(153, 27, 27, 0.3); color: #fca5a5; }
-
-.description {
-  color: #6b7280;
-  margin-top: 8px;
-  max-width: 600px;
-  line-height: 1.5;
-}
-
-.meta-info {
-  display: flex;
-  gap: 8px;
-  color: #9ca3af;
-  font-size: 14px;
-  margin-top: 8px;
-}
-
-/* Stats */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f3f4f6;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card.primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: white;
-}
-
-.stat-card.primary .stat-label, 
-.stat-card.primary .stat-sub { color: rgba(255,255,255,0.8); }
-.stat-card.primary .stat-value { color: white; }
-.stat-card.primary .stat-icon-wrapper { background: rgba(255,255,255,0.2); color: white; }
-.stat-card.primary .stat-trend { background: rgba(255,255,255,0.2); color: white; }
-
-.stat-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-  background: #eff6ff;
-  color: #6366f1;
-}
-
-.stat-icon-wrapper.blue { background: #eff6ff; color: #3b82f6; }
-.stat-icon-wrapper.purple { background: #f3f0ff; color: #a855f7; }
-
-:global(.dark) .stat-icon-wrapper:not(.primary) {
-  background: #334155;
-  color: #a5b4fc;
-}
-
-:global(.dark) .stat-icon-wrapper.blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-:global(.dark) .stat-icon-wrapper.purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-
-.stat-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-label { font-size: 14px; color: #6b7280; font-weight: 500; }
-.stat-value { font-size: 32px; font-weight: 800; margin: 4px 0; color: #111827; }
-.stat-sub { font-size: 13px; color: #9ca3af; }
-
-.stat-trend {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 8px;
-  background: #dcfce7;
-  color: #166534;
-  width: fit-content;
-}
-
-/* Content Grid */
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-.dashboard-card {
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.card-header h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #111827;
-}
-
-.action-item {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #f9fafb;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  margin-bottom: 12px;
-  transition: all 0.2s;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-}
-
-.action-item:hover {
-  background: white;
-  border-color: #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  transform: translateX(4px);
-}
-
-.action-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-  font-size: 20px;
-}
-
-.action-icon.orange { background: #fff7ed; color: #f97316; }
-.action-icon.pink { background: #fdf2f8; color: #db2777; }
-.action-icon.green { background: #f0fdf4; color: #16a34a; }
-.action-icon.blue { background: #eff6ff; color: #2563eb; }
-
-.action-text h4 { font-weight: 600; color: #1f2937; margin: 0; }
-.action-text p { font-size: 13px; color: #6b7280; margin: 2px 0 0; }
-.arrow-icon { width: 16px; color: #d1d5db; margin-left: auto; }
-
-/* Breadcrumb */
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.breadcrumb-item { color: #6b7280; text-decoration: none; transition: color 0.2s; }
-.breadcrumb-item:hover { color: #6366f1; }
-.current { color: #111827; font-weight: 500; }
-.separator { color: #d1d5db; }
-
-/* Buttons */
-.btn-primary, .btn-glass {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #111827 0%, #374151 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-}
-
-.btn-glass {
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(10px);
-  color: #1f2937;
-  border: 1px solid rgba(0,0,0,0.05);
-}
-
-.btn-glass:hover {
-  background: white;
-}
-
-/* Empty State */
-.empty-orders {
-  text-align: center;
-  padding: 40px;
-  color: #9ca3af;
-}
-
-.empty-illustration { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-.empty-hint { display: block; margin-top: 8px; font-size: 13px; color: #6366f1; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 1024px) {
-  .content-grid { grid-template-columns: 1fr; }
-  .header-content { flex-direction: column; align-items: flex-start; }
-  .header-actions { width: 100%; display: flex; gap: 12px; }
-  .btn-primary, .btn-glass { flex: 1; justify-content: center; }
-}
-
-/* Dark Mode Overrides */
-:global(.dark) .shop-header {
-  background: #1e293b;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-
-:global(.dark) .shop-logo {
-  border-color: #1e293b;
-  background: #1e293b;
-}
-
-:global(.dark) .shop-text h1 {
-  color: #f3f4f6;
-}
-
-:global(.dark) .description {
-  color: #9ca3af;
-}
-
-:global(.dark) .stat-card:not(.primary) {
-  background: #1e293b;
-  border-color: #374151;
-}
-
-:global(.dark) .stat-card .stat-value {
-  color: #f3f4f6;
-}
-
-:global(.dark) .stat-card .stat-label {
-  color: #9ca3af;
-}
-
-:global(.dark) .stat-icon-wrapper:not(.primary) {
-  background: #334155;
-}
-
-:global(.dark) .dashboard-card {
-  background: #1e293b;
-  border-color: #374151;
-}
-
-:global(.dark) .dashboard-card h3,
-:global(.dark) .dashboard-card h4 {
-  color: #f3f4f6;
-}
-
-:global(.dark) .action-item:hover {
-  background: #334155;
-}
-
-:global(.dark) .btn-glass {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-:global(.dark) .btn-glass:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-</style>
