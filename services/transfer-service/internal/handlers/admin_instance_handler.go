@@ -29,6 +29,7 @@ func NewAdminInstanceHandler(
 // GET /api/v1/admin/instances
 func (h *AdminInstanceHandler) ListInstances(c *gin.Context) {
 	aggregatorID := c.Query("aggregator_id")
+	_ = aggregatorID // Will be used for filtering
 
 	// TODO: Get all instances
 	// For now return empty array

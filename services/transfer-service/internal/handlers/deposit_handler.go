@@ -1,12 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/providers"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/service"
@@ -107,8 +105,7 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		Country:     req.Country,
 		Email:       req.Email,
 		PhoneNumber: req.Phone,
-		FirstName:   "",
-		LastName:    "",
+		WalletID:    walletID,
 		RedirectURL: req.ReturnURL,
 	}
 
@@ -209,57 +206,6 @@ func (h *DepositHandler) ProcessDepositWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "processed"})
-}
-
-// processRealProviderDeposit handles deposits through real aggregator APIs
-func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req InitiateDepositRequest, provider *models.AggregatorSetting, transactionID string) {
-	ctx := context.Background()
-
-	// Prepare collection request for the provider
-	collectionReq := &providers.CollectionRequest{
-		ReferenceID: transactionID,
-		UserID:      req.UserID,
-		WalletID:    req.WalletID,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Country:     req.Country,
-		Email:       "", // TODO: Get from user profile
-		PhoneNumber: "", // TODO: Get from request or user profile
-		RedirectURL: req.ReturnURL,
-		Metadata: map[string]string{
-			"user_id":   req.UserID,
-			"wallet_id": req.WalletID,
-		},
-	}
-
-	// Call the real provider API via FullTransferService
-	var response *providers.CollectionResponse
-	var err error
-
-	// Use the generic InitiateDeposit which routes based on country
-	response, err = h.fullService.InitiateDeposit(ctx, collectionReq)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to initiate payment",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Return payment URL for user to complete payment
-	c.JSON(http.StatusOK, InitiateDepositResponse{
-		TransactionID: transactionID,
-		Status:        "pending_payment",
-		PaymentURL:    response.PaymentLink,
-		Provider:      provider.ProviderCode,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Message:       "Please complete payment on the provider's page",
-	})
-
-	// Store transaction in database as pending
-	// Will be updated when webhook is received
 }
 
 // GetDepositStatus returns the status of a deposit
