@@ -259,6 +259,11 @@ func (f *FlutterwaveCollectionProvider) VerifyCollection(ctx context.Context, re
 		status = CollectionStatusPending
 	}
 
+	var metaMap map[string]interface{}
+	if m, ok := result.Data.Meta.(map[string]interface{}); ok {
+		metaMap = m
+	}
+
 	return &CollectionResponse{
 		ReferenceID:       referenceID,
 		ProviderReference: fmt.Sprintf("%d", result.Data.ID),
@@ -267,7 +272,7 @@ func (f *FlutterwaveCollectionProvider) VerifyCollection(ctx context.Context, re
 		Currency:          result.Data.Currency,
 		Fee:               result.Data.AppFee,
 		NetAmount:         result.Data.ChargedAmount - result.Data.AppFee,
-		Metadata:          convertMeta(result.Data.Meta),
+		Metadata:          convertMeta(metaMap),
 	}, nil
 }
 
