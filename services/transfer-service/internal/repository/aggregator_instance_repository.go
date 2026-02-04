@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/lib/pq"
@@ -34,7 +33,7 @@ func (r *AggregatorInstanceRepository) GetByID(ctx context.Context, id string) (
 	var instance models.AggregatorInstance
 	var apiCredsBytes []byte
 	var restrictedCountries pq.StringArray
-	
+
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&instance.ID, &instance.AggregatorID, &instance.InstanceName, &instance.HotWalletID,
 		&apiCredsBytes, &instance.Enabled, &instance.Priority, &instance.MinBalance,
@@ -354,8 +353,8 @@ func (r *AggregatorInstanceRepository) UpdateWallet(ctx context.Context, instanc
 }
 
 // Helper function to scan instance with details
-func (r *AggregatorInstanceRepository) scanInstanceWithDetails(scanner interface{
-	Scan(dest ...interface{}) error,
+func (r *AggregatorInstanceRepository) scanInstanceWithDetails(scanner interface {
+	Scan(dest ...interface{}) error
 }) (*models.AggregatorInstanceWithDetails, error) {
 	var instance models.AggregatorInstanceWithDetails
 	var restrictedCountries pq.StringArray

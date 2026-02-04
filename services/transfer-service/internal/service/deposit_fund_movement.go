@@ -109,7 +109,7 @@ func (s *DepositFundMovementService) ProcessDepositFromWallet(
 			related_user_id, related_transaction_id, description, created_at
 		) VALUES ($1, 'debit', $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
 	`, hotWalletID, amount, currency, hotWalletBalance-amount, userID, transactionID,
-	`, hotWalletID, amount, currency, hotWalletBalanceAfter, userID, transactionID,
+
 		fmt.Sprintf("Deposit to user via %s", providerName))
 
 	if err != nil {
@@ -128,7 +128,7 @@ func (s *DepositFundMovementService) ProcessDepositFromWallet(
 	fmt.Printf("  User: %s\n", userID)
 	fmt.Printf("  Hot Wallet: %s\n", hotWalletID)
 	fmt.Printf("  Flow: Provider → Hot Wallet(%.2f) → User Account(+%.2f)\n", -amount, amount)
-	fmt.Printf("  Hot Wallet Balance After: %.2f %s\n", hotWalletBalanceAfter, currency)
+	fmt.Printf("  Hot Wallet Balance After: %.2f %s\n", hotWalletBalance-amount, currency)
 	fmt.Printf("════════════════════════════════════════════════════════════\n")
 
 	return nil
