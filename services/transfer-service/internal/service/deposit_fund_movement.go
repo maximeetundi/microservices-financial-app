@@ -109,15 +109,27 @@ func (s *DepositFundMovementService) ProcessDepositFromWallet(
 			related_user_id, related_transaction_id, description, created_at
 		) VALUES ($1, 'debit', $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
 	`, hotWalletID, amount, currency, hotWalletBalance-amount, userID, transactionID,
+	`, hotWalletID, amount, currency, hotWalletBalanceAfter, userID, transactionID,
 		fmt.Sprintf("Deposit to user via %s", providerName))
 
 	if err != nil {
 		return fmt.Errorf("log hot wallet movement: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	// Success logging with details
+	fmt.Printf("════════════════════════════════════════════════════════════\n")
+	fmt.Printf("[DEPOSIT COMPLETED] Transaction: %s\n", transactionID)
+	fmt.Printf("  Provider: %s\n", providerName)
+	fmt.Printf("  Amount: %.2f %s\n", amount, currency)
+	fmt.Printf("  User: %s\n", userID)
+	fmt.Printf("  Hot Wallet: %s\n", hotWalletID)
+	fmt.Printf("  Flow: Provider → Hot Wallet(%.2f) → User Account(+%.2f)\n", -amount, amount)
+	fmt.Printf("  Hot Wallet Balance After: %.2f %s\n", hotWalletBalanceAfter, currency)
+	fmt.Printf("════════════════════════════════════════════════════════════\n")
 
 	return nil
 }
