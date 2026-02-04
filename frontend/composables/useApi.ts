@@ -251,8 +251,13 @@ export const walletAPI = {
     getBalance: (id: string) => api.get(`/wallet-service/api/v1/wallets/${id}/balance`),
     getTransactions: (id: string, limit = 50, offset = 0) =>
         api.get(`/wallet-service/api/v1/wallets/${id}/transactions?limit=${limit}&offset=${offset}`),
-    deposit: (id: string, amount: number, method: string) =>
-        api.post(`/wallet-service/api/v1/wallets/${id}/deposit`, { amount, method }),
+    deposit: (id: string, amount: number, method: string, provider?: string, country?: string) =>
+        api.post(`/wallet-service/api/v1/wallets/${id}/deposit`, {
+            amount,
+            method,
+            provider: provider || method, // provider takes precedence if provided
+            country
+        }),
     withdraw: (id: string, amount: number, destination: string) =>
         api.post(`/wallet-service/api/v1/wallets/${id}/withdraw`, { amount, destination }),
     delete: (id: string, pin?: string) => {

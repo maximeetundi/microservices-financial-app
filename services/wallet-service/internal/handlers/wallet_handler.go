@@ -725,13 +725,21 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 	walletID := c.Param("wallet_id")
 
 	var req struct {
-		Amount float64 `json:"amount" binding:"required,gt=0"`
-		Method string  `json:"method" binding:"required"`
+		Amount   float64 `json:"amount" binding:"required,gt=0"`
+		Method   string  `json:"method" binding:"required"` // Provider name: demo, flutterwave, stripe, etc.
+		Provider string  `json:"provider"`                  // Alias for method
+		Country  string  `json:"country"`                   // User's country for routing
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Support both 'method' and 'provider' for backwards compatibility
+	provider := req.Method
+	if req.Provider != "" {
+		provider = req.Provider
 	}
 
 	// Verify wallet exists and belongs to user
@@ -741,25 +749,56 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 		return
 	}
 
-	// For test/demo mode: Actually update the balance
-	// In production, this would integrate with payment providers (Orange Money, Stripe, etc.)
-	err = h.balanceService.UpdateBalance(walletID, req.Amount, "deposit")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process deposit: " + err.Error()})
+	// Check if this is a demo provider (instant credit)
+	if provider == "demo" || provider == "Mode Démo" {
+		// DEMO MODE: Instant credit using ProcessDepositFromPlatform
+		transactionID := "dep_demo_" + strconv.FormatInt(time.Now().Unix(), 10)
+
+		err = h.walletService.ProcessDepositFromPlatform(
+			userID.(string),
+			walletID,
+			req.Amount,
+			wallet.Currency,
+			transactionID,
+			"demo",
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process deposit: " + err.Error()})
+			return
+		}
+
+		// Get updated balance
+		updatedWallet, _ := h.walletService.GetWallet(walletID, userID.(string))
+		newBalance := wallet.Balance + req.Amount
+		if updatedWallet != nil {
+			newBalance = updatedWallet.Balance
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":        "Deposit successful (demo mode)",
+			"transaction_id": transactionID,
+			"status":         "completed",
+			"amount":         req.Amount,
+			"new_balance":    newBalance,
+			"currency":       wallet.Currency,
+		})
 		return
 	}
 
-	// Return success with new balance
-	newBalance := wallet.Balance + req.Amount
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":        "Deposit successful",
-		"transaction_id": "dep_" + strconv.FormatInt(time.Now().Unix(), 10),
-		"status":         "completed",
-		"amount":         req.Amount,
-		"new_balance":    newBalance,
-		"currency":       wallet.Currency,
+	// REAL PROVIDER MODE: TODO - Call transfer-service to initiate real payment
+	// For now, return an error indicating this needs to be implemented
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"error":      "Real provider deposits not yet implemented",
+		"message":    "Please use 'demo' provider for testing, or wait for full implementation",
+		"provider":   provider,
+		"next_steps": "Will redirect to transfer-service for payment URL",
 	})
+
+	// Future implementation:
+	// 1. Call transfer-service POST /api/v1/deposits/initiate
+	// 2. Get back payment_url or instant success
+	// 3. Return payment_url to frontend for redirection
 }
 
 func (h *WalletHandler) Withdraw(c *gin.Context) {

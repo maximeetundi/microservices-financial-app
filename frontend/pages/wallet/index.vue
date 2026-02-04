@@ -888,20 +888,43 @@ const closeTopUpModal = () => {
   targetAddress.value = ''
 }
 
+
 const submitDeposit = async () => {
   if (!selectedWallet.value || !depositAmount.value || depositAmount.value <= 0) return
+  if (!selectedProvider.value) {
+    depositError.value = 'Veuillez sélectionner une méthode de paiement'
+    return
+  }
   
   depositLoading.value = true
   depositError.value = ''
   depositSuccess.value = ''
   
   try {
-    const response = await walletAPI.deposit(selectedWallet.value.id, depositAmount.value, depositMethod.value)
+    // Get the provider name (handle both object and string)
+    const providerName = typeof selectedProvider.value === 'string' 
+      ? selectedProvider.value 
+      : selectedProvider.value.name
+
+    // Call API with provider and country
+    const response = await walletAPI.deposit(
+      selectedWallet.value.id, 
+      depositAmount.value, 
+      depositMethod.value || providerName,  // method (backward compat)
+      providerName,                          // provider (new)
+      userCountry.value || ipCountry.value   // country for routing
+    )
     
     if (response.data) {
-      depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${depositMethod.value.toUpperCase()}!`
+      const providerDisplay = typeof selectedProvider.value === 'string' 
+        ? selectedProvider.value 
+        : selectedProvider.value.displayLabel || selectedProvider.value.name
+
+      depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${providerDisplay}!`
+      
       // Refresh wallets to show new balance
       await fetchWallets()
+      
       // Reset form after 2 seconds
       setTimeout(() => {
         closeTopUpModal()
@@ -910,11 +933,12 @@ const submitDeposit = async () => {
     }
   } catch (e) {
     console.error('Deposit error:', e)
-    depositError.value = e.response?.data?.error || 'Erreur lors du dépôt. Veuillez réessayer.'
+    depositError.value = e.response?.data?.error || e.response?.data?.message || 'Erreur lors du dépôt. Veuillez réessayer.'
   } finally {
     depositLoading.value = false
   }
 }
+
 
 const fetchWallets = async () => {
   await walletStore.fetchWallets()
