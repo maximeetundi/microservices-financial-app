@@ -110,7 +110,7 @@
 import { useShopApi } from '~/composables/useShopApi'
 
 definePageMeta({
-  layout: 'shop-customer'
+  layout: 'shop-layout'
 })
 
 const route = useRoute()

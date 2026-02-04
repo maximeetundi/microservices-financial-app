@@ -242,7 +242,7 @@ import { inject } from 'vue'
 import { useShopApi, type Shop, type Product, type Category } from '~/composables/useShopApi'
 
 definePageMeta({
-  layout: 'shop-customer'
+  layout: 'shop-layout'
 })
 
 const route = useRoute()
