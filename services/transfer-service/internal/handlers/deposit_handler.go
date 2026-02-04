@@ -83,7 +83,7 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	transactionID := fmt.Sprintf("dep_%s_%d", uuid.New().String()[:8], time.Now().Unix())
 
 	// Check if this is demo mode
-	if provider.IsDemoMode {
+	if provider.ProviderCode == "demo" {
 		// INSTANT CREDIT for demo mode
 		h.processInstantDemoDeposit(c, req, transactionID)
 		return
@@ -151,7 +151,7 @@ func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req Initiate
 		TransactionID: transactionID,
 		Status:        "pending_payment",
 		PaymentURL:    response.PaymentLink,
-		Provider:      provider.Code,
+		Provider:      provider.ProviderCode,
 		Amount:        req.Amount,
 		Currency:      req.Currency,
 		Message:       "Please complete payment on the provider's page",
