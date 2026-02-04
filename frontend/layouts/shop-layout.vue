@@ -7,8 +7,7 @@
       @click="isMobileMenuOpen = false"
     ></div>
 
-    <!-- Debug Border -->
-    <div class="fixed top-0 left-0 w-full h-2 bg-red-500 z-[9999]" title="Shop Layout Active"></div>
+    
 
     <aside 
       class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out lg:transform-none flex flex-col"
@@ -36,7 +35,11 @@
 
       <!-- Navigation -->
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-        <!-- Main Navigation -->
+        <!-- NAVIGATION Section -->
+        <div class="pb-2">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">Navigation</p>
+        </div>
+
         <NuxtLink 
           :to="`/shops/${shopSlug}`"
           class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group"
@@ -54,8 +57,13 @@
           @click="isMobileMenuOpen = false"
         >
           <span class="mr-3 text-lg">📂</span>
-          Catégories
+          Toutes les Catégories
         </NuxtLink>
+
+        <!-- MON ESPACE Section -->
+        <div class="pt-4 pb-2">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">Mon Espace</p>
+        </div>
 
         <NuxtLink 
           :to="`/shops/${shopSlug}/favorites`"
@@ -65,7 +73,7 @@
         >
           <span class="mr-3 text-lg">❤️</span>
           Mes Favoris
-          <span v-if="favoritesCount > 0" class="ml-auto text-xs bg-red-100 dark:bg-red-900/30 text-red-600 px-2 py-0.5 rounded-full">{{ favoritesCount }}</span>
+          <span v-if="favoritesCount > 0" class="ml-auto text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-semibold">{{ favoritesCount }}</span>
         </NuxtLink>
 
         <NuxtLink 
@@ -85,51 +93,54 @@
           @click="isMobileMenuOpen = false"
         >
           <span class="mr-3 text-lg">🛒</span>
-          Panier
-          <span v-if="cartStore.itemCount > 0" class="ml-auto text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-2 py-0.5 rounded-full">{{ cartStore.itemCount }}</span>
+          Mon Panier
+          <span v-if="cartStore.itemCount > 0" class="ml-auto text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full font-semibold">{{ cartStore.itemCount }}</span>
         </NuxtLink>
 
-        <!-- Categories Section -->
+        <!-- EXPLORER Section -->
         <div class="pt-4 pb-2">
-          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4">Catégories</p>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">Explorer</p>
         </div>
 
-        <NuxtLink 
-          v-for="cat in categories.slice(0, 8)" 
-          :key="cat.id"
-          :to="`/shops/${shopSlug}?category=${cat.slug}`"
-          class="flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors group"
-          :class="route.query.category === cat.slug ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'"
-          @click="isMobileMenuOpen = false"
-        >
-          <span class="mr-3">{{ cat.icon || '📁' }}</span>
-          <span class="truncate">{{ cat.name }}</span>
-          <span class="ml-auto text-xs text-gray-400">{{ cat.product_count || 0 }}</span>
-        </NuxtLink>
+        <div v-if="categories.length > 0" class="space-y-1">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 px-4 py-1">🏷️ Catégories</p>
+          
+          <NuxtLink 
+            v-for="cat in categories.slice(0, 8)" 
+            :key="cat.id"
+            :to="`/shops/${shopSlug}?category=${cat.slug}`"
+            class="flex items-center px-8 py-2 text-sm font-medium rounded-lg transition-colors group"
+            :class="route.query.category === cat.slug ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'"
+            @click="isMobileMenuOpen = false"
+          >
+            <span class="mr-2 text-base">{{ cat.icon || '📁' }}</span>
+            <span class="truncate flex-1">{{ cat.name }}</span>
+            <span class="ml-auto text-xs text-gray-400">{{ cat.product_count || 0 }}</span>
+          </NuxtLink>
 
-        <NuxtLink 
-          v-if="categories.length > 8"
-          :to="`/shops/${shopSlug}/categories`"
-          class="flex items-center px-4 py-2 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-          @click="isMobileMenuOpen = false"
-        >
-          Voir toutes les catégories →
-        </NuxtLink>
+          <NuxtLink 
+            v-if="categories.length > 8"
+            :to="`/shops/${shopSlug}/categories`"
+            class="flex items-center px-8 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            @click="isMobileMenuOpen = false"
+          >
+            → Voir toutes les catégories
+          </NuxtLink>
+        </div>
 
         <!-- Tags Section -->
-        <div v-if="popularTags.length > 0" class="pt-4 pb-2">
-          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4">Tags Populaires</p>
-        </div>
-
-        <div v-if="popularTags.length > 0" class="px-4 flex flex-wrap gap-1.5">
-          <button 
-            v-for="tag in popularTags.slice(0, 8)" 
-            :key="tag"
-            @click="searchByTag(tag)"
-            class="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-600 transition-colors"
-          >
-            #{{ tag }}
-          </button>
+        <div v-if="popularTags.length > 0" class="pt-3">
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 px-4 py-1">#️⃣ Tags Populaires</p>
+          <div class="px-4 flex flex-wrap gap-1.5 mt-2">
+            <button 
+              v-for="tag in popularTags.slice(0, 8)" 
+              :key="tag"
+              @click="searchByTag(tag)"
+              class="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              #{{ tag }}
+            </button>
+          </div>
         </div>
       </nav>
 
