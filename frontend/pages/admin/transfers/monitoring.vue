@@ -125,7 +125,7 @@
                     ]"
                   ></div>
                 </div>
-                <divclass="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
                   <span>Min: {{ formatCurrency(wallet.min_balance || 0) }}</span>
                   <span>Max: {{ formatCurrency(wallet.max_balance || 0) }}</span>
                 </div>
