@@ -36,6 +36,7 @@ type PlatformAccountServiceInterface interface {
 type WalletServiceInterface interface {
 	CreditWallet(ctx context.Context, walletID string, amount float64, reference string) error
 	GetWalletByID(ctx context.Context, walletID string) (*Wallet, error)
+	CreditWalletFromPlatform(ctx context.Context, userID, walletID string, amount float64, currency, providerRef, providerName string) error
 }
 
 type DepositRepositoryInterface interface {

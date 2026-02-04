@@ -249,6 +249,7 @@ func main() {
 				admin.POST("/platform/crypto-wallets", adminPlatformHandler.CreateCryptoWallet)
 				admin.PUT("/platform/crypto-wallets/:id/sync", adminPlatformHandler.SyncCryptoWalletBalance)
 				admin.POST("/platform/crypto-wallets/consolidate", adminPlatformHandler.ConsolidateFunds)
+				admin.POST("/platform/crypto-wallets/transfer", adminPlatformHandler.TransferPlatformFunds)
 
 				// Platform Transactions & Reconciliation
 				admin.GET("/platform/transactions", adminPlatformHandler.GetTransactions)
@@ -258,6 +259,7 @@ func main() {
 
 		// Service-to-Service routes (should be protected by internal network or secret)
 		api.POST("/wallets/transaction", walletHandler.ProcessInterServiceTransaction)
+		api.POST("/wallets/deposit-platform", walletHandler.ProcessPlatformDeposit)
 
 		// Internal Wallet Management (for other services like transfer-service)
 		internal := api.Group("/internal")

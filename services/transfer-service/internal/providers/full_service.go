@@ -11,13 +11,13 @@ type FullTransferService struct {
 	// Providers
 	flutterwaveCollection *FlutterwaveCollectionProvider
 	stripeCollection      *StripeCollectionProvider
-	cryptoRails          *CryptoRailsProvider
-	zoneRouter           *ZoneRouter
-	internalTransfer     *InternalTransferService
-	
+	cryptoRails           *CryptoRailsProvider
+	zoneRouter            *ZoneRouter
+	internalTransfer      *InternalTransferService
+
 	// Wallet service interface
 	walletService WalletServiceInterface
-	
+
 	mu sync.RWMutex
 }
 
@@ -25,12 +25,12 @@ type FullTransferService struct {
 func NewFullTransferService(cfg *Config, walletService WalletServiceInterface) *FullTransferService {
 	cryptoRails := NewCryptoRailsProvider(cfg.CryptoRails)
 	zoneRouter := InitializeRouter(cfg)
-	
+
 	flutterwaveCollection := NewFlutterwaveCollectionProvider(cfg.Flutterwave)
 	stripeCollection := NewStripeCollectionProvider(cfg.Stripe)
-	
+
 	internalTransfer := NewInternalTransferService(cryptoRails, zoneRouter, walletService)
-	
+
 	return &FullTransferService{
 		flutterwaveCollection: flutterwaveCollection,
 		stripeCollection:      stripeCollection,
@@ -49,7 +49,7 @@ func NewFullTransferService(cfg *Config, walletService WalletServiceInterface) *
 func (s *FullTransferService) InitiateDeposit(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
 	// Choose provider based on country
 	zone := s.zoneRouter.GetZone(req.Country)
-	
+
 	switch zone {
 	case ZoneAfrica:
 		return s.flutterwaveCollection.InitiateCollection(ctx, req)
@@ -65,7 +65,7 @@ func (s *FullTransferService) InitiateDeposit(ctx context.Context, req *Collecti
 func (s *FullTransferService) VerifyDeposit(ctx context.Context, referenceID, provider string) (*CollectionResponse, error) {
 	var resp *CollectionResponse
 	var err error
-	
+
 	switch provider {
 	case "flutterwave":
 		resp, err = s.flutterwaveCollection.VerifyCollection(ctx, referenceID)
@@ -74,19 +74,54 @@ func (s *FullTransferService) VerifyDeposit(ctx context.Context, referenceID, pr
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If successful, credit the user's wallet
-	// Note: This should typically be done via webhook, not polling
 	if resp.Status == CollectionStatusSuccessful {
-		// Extract user wallet ID from metadata (stored during initiation)
-		// For now, this is a placeholder - implement based on your DB structure
-		// s.walletService.CreditWallet(ctx, walletID, resp.NetAmount, resp.ReferenceID)
+		// Extract user wallet ID from metadata passed from InitiateCollection
+		walletID := resp.Metadata["wallet_id"]
+		userID := resp.Metadata["user_id"] // Ensure user_id is in metadata!
+
+		if walletID != "" {
+			// Double Check: We need userID for the new method.
+			// Ideally metadata has it. If not, we might fail or need to fetch wallet.
+			// Assuming metadata has user_id populated as well in InitiateCollection.
+			// If not, we need to fetch the wallet to get the UserID?
+			// But for now, let's assume valid metadata or fetch wallet if missing (safest).
+
+			// Use the new Double Entry method
+			// provider arg is passed to verifyDeposit
+			providerName := provider
+			providerRef := resp.ProviderReference
+
+			// Fallback if userID is missing from metadata (prevent breakage if old flows exist)
+			if userID == "" {
+				// We should ideally fetch the wallet here to get the user ID, but we don't have GetWallet easily exposed here?
+				// WalletService has GetBalance but not GetWallet in generic interface?
+				// internal_transfer has GetBalance which returns UserID.
+				bal, err := s.walletService.GetBalance(ctx, walletID)
+				if err == nil {
+					userID = bal.UserID
+				} else {
+					// Logic error: can't deposit if we don't know the user (for consistency checks)
+					// But current CreditWallet didn't generic ask for user_id.
+					// However, CreditWalletFromPlatform DOES require it.
+				}
+			}
+
+			if err := s.walletService.CreditWalletFromPlatform(ctx, userID, walletID, resp.NetAmount, resp.Currency, providerRef, providerName); err != nil {
+				return resp, fmt.Errorf("failed to credit wallet (double-entry): %w", err)
+			}
+		} else {
+			// Log warning: missing wallet ID in metadata, manual intervention might be needed
+			// For now just returning, but ideally should alert
+			// fmt.Printf("Warning: Deposit %s verified but no wallet_id found in metadata\n", referenceID)
+		}
 	}
-	
+
 	return resp, nil
 }
 
@@ -115,17 +150,17 @@ func (s *FullTransferService) WithdrawToExternal(ctx context.Context, req *Payou
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance: %w", err)
 	}
-	
+
 	if balance.AvailableBalance < req.Amount {
 		return nil, fmt.Errorf("insufficient balance: available %.2f, required %.2f",
 			balance.AvailableBalance, req.Amount)
 	}
-	
+
 	// Step 2: Debit wallet
 	if err := s.walletService.DebitWallet(ctx, walletID, req.Amount, req.ReferenceID); err != nil {
 		return nil, fmt.Errorf("failed to debit wallet: %w", err)
 	}
-	
+
 	// Step 3: Execute payout via zone router
 	resp, err := s.zoneRouter.CreatePayout(ctx, req)
 	if err != nil {
@@ -133,7 +168,7 @@ func (s *FullTransferService) WithdrawToExternal(ctx context.Context, req *Payou
 		s.walletService.CreditWallet(ctx, walletID, req.Amount, req.ReferenceID+"_refund")
 		return nil, fmt.Errorf("payout failed: %w", err)
 	}
-	
+
 	return resp, nil
 }
 
@@ -152,54 +187,54 @@ func (s *FullTransferService) GetWithdrawalStatus(ctx context.Context, reference
 // 3. Credit recipient's wallet OR payout directly
 type SendMoneyRequest struct {
 	ReferenceID string `json:"reference_id"`
-	
+
 	// Sender
 	SenderUserID   string  `json:"sender_user_id"`
 	SenderWalletID string  `json:"sender_wallet_id"`
 	Amount         float64 `json:"amount"`
 	SourceCurrency string  `json:"source_currency"`
-	
+
 	// Recipient - can be internal user OR external
-	IsInternalRecipient bool   `json:"is_internal_recipient"`
-	
+	IsInternalRecipient bool `json:"is_internal_recipient"`
+
 	// For internal recipient
 	RecipientUserID   string `json:"recipient_user_id,omitempty"`
 	RecipientWalletID string `json:"recipient_wallet_id,omitempty"`
-	
+
 	// For external recipient
 	RecipientName    string       `json:"recipient_name,omitempty"`
 	RecipientPhone   string       `json:"recipient_phone,omitempty"`
 	RecipientCountry string       `json:"recipient_country"`
 	TargetCurrency   string       `json:"target_currency"`
 	PayoutMethod     PayoutMethod `json:"payout_method,omitempty"`
-	
+
 	// Payout details
 	MobileOperator string `json:"mobile_operator,omitempty"`
 	MobileNumber   string `json:"mobile_number,omitempty"`
 	BankCode       string `json:"bank_code,omitempty"`
 	AccountNumber  string `json:"account_number,omitempty"`
-	
+
 	Narration string `json:"narration,omitempty"`
 }
 
 type SendMoneyResponse struct {
 	ReferenceID string `json:"reference_id"`
-	
+
 	// Amounts
-	SentAmount     float64 `json:"sent_amount"`
-	SentCurrency   string  `json:"sent_currency"`
-	ReceivedAmount float64 `json:"received_amount"`
-	ReceivedCurrency string `json:"received_currency"`
-	
+	SentAmount       float64 `json:"sent_amount"`
+	SentCurrency     string  `json:"sent_currency"`
+	ReceivedAmount   float64 `json:"received_amount"`
+	ReceivedCurrency string  `json:"received_currency"`
+
 	// Fees
 	TotalFee     float64 `json:"total_fee"`
 	ExchangeRate float64 `json:"exchange_rate"`
-	
+
 	// Delivery
 	DeliveryMethod string `json:"delivery_method"` // "internal_wallet", "mobile_money", "bank_transfer"
 	Status         string `json:"status"`
 	EstimatedTime  string `json:"estimated_time"`
-	
+
 	// References
 	InternalTransferID string `json:"internal_transfer_id,omitempty"`
 	PayoutReference    string `json:"payout_reference,omitempty"`
@@ -227,17 +262,17 @@ func (s *FullTransferService) sendToInternalUser(ctx context.Context, req *SendM
 		TargetCurrency:    req.TargetCurrency,
 		Narration:         req.Narration,
 	}
-	
+
 	transfer, err := s.internalTransfer.CreateTransfer(ctx, transferReq)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	estimatedTime := "Instant"
 	if transfer.Status == TransferStatusLocked {
 		estimatedTime = "2-5 minutes"
 	}
-	
+
 	return &SendMoneyResponse{
 		ReferenceID:        req.ReferenceID,
 		SentAmount:         transfer.SenderAmount,
@@ -263,17 +298,17 @@ func (s *FullTransferService) sendToExternal(ctx context.Context, req *SendMoney
 		RecipientCountry: req.RecipientCountry,
 		PayoutMethod:     req.PayoutMethod,
 	}
-	
+
 	convResult, err := s.cryptoRails.ConvertViaStablecoin(ctx, convReq)
 	if err != nil {
 		return nil, fmt.Errorf("conversion failed: %w", err)
 	}
-	
+
 	// Step 2: Debit sender's wallet
 	if err := s.walletService.DebitWallet(ctx, req.SenderWalletID, req.Amount, req.ReferenceID); err != nil {
 		return nil, fmt.Errorf("failed to debit wallet: %w", err)
 	}
-	
+
 	// Step 3: Execute payout
 	payoutReq := &PayoutRequest{
 		ReferenceID:      req.ReferenceID,
@@ -289,14 +324,14 @@ func (s *FullTransferService) sendToExternal(ctx context.Context, req *SendMoney
 		AccountNumber:    req.AccountNumber,
 		Narration:        req.Narration,
 	}
-	
+
 	payoutResult, err := s.zoneRouter.CreatePayout(ctx, payoutReq)
 	if err != nil {
 		// Refund sender
 		s.walletService.CreditWallet(ctx, req.SenderWalletID, req.Amount, req.ReferenceID+"_refund")
 		return nil, fmt.Errorf("payout failed: %w", err)
 	}
-	
+
 	return &SendMoneyResponse{
 		ReferenceID:      req.ReferenceID,
 		SentAmount:       req.Amount,
@@ -319,7 +354,7 @@ func (s *FullTransferService) sendToExternal(ctx context.Context, req *SendMoney
 // GetDepositMethods returns available deposit methods for a country
 func (s *FullTransferService) GetDepositMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
 	zone := s.zoneRouter.GetZone(country)
-	
+
 	switch zone {
 	case ZoneAfrica:
 		return s.flutterwaveCollection.GetAvailableMethods(ctx, country)

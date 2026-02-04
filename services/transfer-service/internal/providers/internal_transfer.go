@@ -11,85 +11,85 @@ import (
 type TransferStatus string
 
 const (
-	TransferStatusPending     TransferStatus = "pending"
-	TransferStatusProcessing  TransferStatus = "processing"
-	TransferStatusLocked      TransferStatus = "locked"      // Funds locked during crypto conversion
-	TransferStatusCompleted   TransferStatus = "completed"
-	TransferStatusFailed      TransferStatus = "failed"
-	TransferStatusRefunded    TransferStatus = "refunded"
+	TransferStatusPending    TransferStatus = "pending"
+	TransferStatusProcessing TransferStatus = "processing"
+	TransferStatusLocked     TransferStatus = "locked" // Funds locked during crypto conversion
+	TransferStatusCompleted  TransferStatus = "completed"
+	TransferStatusFailed     TransferStatus = "failed"
+	TransferStatusRefunded   TransferStatus = "refunded"
 )
 
 // InternalTransfer represents a wallet-to-wallet transfer
 type InternalTransfer struct {
-	ID              string         `json:"id"`
-	ReferenceID     string         `json:"reference_id"`
-	
+	ID          string `json:"id"`
+	ReferenceID string `json:"reference_id"`
+
 	// Sender
-	SenderUserID    string         `json:"sender_user_id"`
-	SenderWalletID  string         `json:"sender_wallet_id"`
-	SenderAmount    float64        `json:"sender_amount"`
-	SenderCurrency  string         `json:"sender_currency"`
-	
+	SenderUserID   string  `json:"sender_user_id"`
+	SenderWalletID string  `json:"sender_wallet_id"`
+	SenderAmount   float64 `json:"sender_amount"`
+	SenderCurrency string  `json:"sender_currency"`
+
 	// Recipient
-	RecipientUserID   string       `json:"recipient_user_id"`
-	RecipientWalletID string       `json:"recipient_wallet_id"`
-	RecipientAmount   float64      `json:"recipient_amount"`
-	RecipientCurrency string       `json:"recipient_currency"`
-	
+	RecipientUserID   string  `json:"recipient_user_id"`
+	RecipientWalletID string  `json:"recipient_wallet_id"`
+	RecipientAmount   float64 `json:"recipient_amount"`
+	RecipientCurrency string  `json:"recipient_currency"`
+
 	// Conversion info
-	ExchangeRate      float64      `json:"exchange_rate"`
-	UsedCryptoRails   bool         `json:"used_crypto_rails"`
-	CryptoTxHash      string       `json:"crypto_tx_hash,omitempty"`
-	
+	ExchangeRate    float64 `json:"exchange_rate"`
+	UsedCryptoRails bool    `json:"used_crypto_rails"`
+	CryptoTxHash    string  `json:"crypto_tx_hash,omitempty"`
+
 	// Fees
-	ConversionFee     float64      `json:"conversion_fee"`
-	TransferFee       float64      `json:"transfer_fee"`
-	TotalFee          float64      `json:"total_fee"`
-	
+	ConversionFee float64 `json:"conversion_fee"`
+	TransferFee   float64 `json:"transfer_fee"`
+	TotalFee      float64 `json:"total_fee"`
+
 	// Status
-	Status            TransferStatus `json:"status"`
-	StatusMessage     string        `json:"status_message,omitempty"`
-	
+	Status        TransferStatus `json:"status"`
+	StatusMessage string         `json:"status_message,omitempty"`
+
 	// Timestamps
-	CreatedAt         time.Time    `json:"created_at"`
-	LockedAt          *time.Time   `json:"locked_at,omitempty"`
-	CompletedAt       *time.Time   `json:"completed_at,omitempty"`
-	
+	CreatedAt   time.Time  `json:"created_at"`
+	LockedAt    *time.Time `json:"locked_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+
 	// Estimated time for locked transfers
-	EstimatedUnlockAt *time.Time   `json:"estimated_unlock_at,omitempty"`
+	EstimatedUnlockAt *time.Time `json:"estimated_unlock_at,omitempty"`
 }
 
 // InternalTransferRequest represents a request to transfer between wallets
 type InternalTransferRequest struct {
-	ReferenceID       string  `json:"reference_id"`
-	
+	ReferenceID string `json:"reference_id"`
+
 	// Sender
-	SenderUserID      string  `json:"sender_user_id"`
-	SenderWalletID    string  `json:"sender_wallet_id"`
-	Amount            float64 `json:"amount"`
-	SourceCurrency    string  `json:"source_currency"`
-	
+	SenderUserID   string  `json:"sender_user_id"`
+	SenderWalletID string  `json:"sender_wallet_id"`
+	Amount         float64 `json:"amount"`
+	SourceCurrency string  `json:"source_currency"`
+
 	// Recipient
-	RecipientUserID   string  `json:"recipient_user_id"`
-	RecipientWalletID string  `json:"recipient_wallet_id"`
-	TargetCurrency    string  `json:"target_currency"`
-	
+	RecipientUserID   string `json:"recipient_user_id"`
+	RecipientWalletID string `json:"recipient_wallet_id"`
+	TargetCurrency    string `json:"target_currency"`
+
 	// Optional: for external payout after internal transfer
-	PayoutAfterTransfer bool         `json:"payout_after_transfer"`
-	PayoutMethod        PayoutMethod `json:"payout_method,omitempty"`
+	PayoutAfterTransfer bool           `json:"payout_after_transfer"`
+	PayoutMethod        PayoutMethod   `json:"payout_method,omitempty"`
 	PayoutDetails       *PayoutRequest `json:"payout_details,omitempty"`
-	
-	Narration         string  `json:"narration,omitempty"`
+
+	Narration string `json:"narration,omitempty"`
 }
 
 // WalletBalance represents a wallet balance (interface to wallet-service)
 type WalletBalance struct {
-	WalletID        string  `json:"wallet_id"`
-	UserID          string  `json:"user_id"`
-	Currency        string  `json:"currency"`
+	WalletID         string  `json:"wallet_id"`
+	UserID           string  `json:"user_id"`
+	Currency         string  `json:"currency"`
 	AvailableBalance float64 `json:"available_balance"`
-	LockedBalance   float64 `json:"locked_balance"`
-	TotalBalance    float64 `json:"total_balance"`
+	LockedBalance    float64 `json:"locked_balance"`
+	TotalBalance     float64 `json:"total_balance"`
 }
 
 // WalletServiceInterface interface to communicate with wallet-service
@@ -99,6 +99,7 @@ type WalletServiceInterface interface {
 	UnlockFunds(ctx context.Context, walletID string, referenceID string) error
 	DebitWallet(ctx context.Context, walletID string, amount float64, referenceID string) error
 	CreditWallet(ctx context.Context, walletID string, amount float64, referenceID string) error
+	CreditWalletFromPlatform(ctx context.Context, userID, walletID string, amount float64, currency, providerRef, providerName string) error
 }
 
 // InternalTransferService handles wallet-to-wallet transfers
@@ -106,11 +107,11 @@ type InternalTransferService struct {
 	cryptoRails   *CryptoRailsProvider
 	zoneRouter    *ZoneRouter
 	walletService WalletServiceInterface
-	
+
 	// In-memory store for transfers (in production, use database)
-	transfers     map[string]*InternalTransfer
-	mu            sync.RWMutex
-	
+	transfers map[string]*InternalTransfer
+	mu        sync.RWMutex
+
 	// Threshold for instant vs crypto transfer
 	instantThreshold float64
 }
@@ -137,35 +138,35 @@ func (s *InternalTransferService) CreateTransfer(ctx context.Context, req *Inter
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sender balance: %w", err)
 	}
-	
+
 	if senderBalance.AvailableBalance < req.Amount {
-		return nil, fmt.Errorf("insufficient balance: available %.2f, required %.2f", 
+		return nil, fmt.Errorf("insufficient balance: available %.2f, required %.2f",
 			senderBalance.AvailableBalance, req.Amount)
 	}
-	
+
 	// Step 2: Determine if same currency or needs conversion
 	needsConversion := req.SourceCurrency != req.TargetCurrency
-	
+
 	// Step 3: Create transfer record
 	transfer := &InternalTransfer{
-		ID:              fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		ID: fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 			time.Now().Unix(),
 			time.Now().Nanosecond()&0xffff,
 			0x4000|time.Now().Nanosecond()&0x0fff,
 			0x8000|time.Now().Nanosecond()&0x3fff,
 			time.Now().UnixNano()&0xffffffffffff),
-		ReferenceID:     req.ReferenceID,
-		SenderUserID:    req.SenderUserID,
-		SenderWalletID:  req.SenderWalletID,
-		SenderAmount:    req.Amount,
-		SenderCurrency:  req.SourceCurrency,
-		RecipientUserID: req.RecipientUserID,
+		ReferenceID:       req.ReferenceID,
+		SenderUserID:      req.SenderUserID,
+		SenderWalletID:    req.SenderWalletID,
+		SenderAmount:      req.Amount,
+		SenderCurrency:    req.SourceCurrency,
+		RecipientUserID:   req.RecipientUserID,
 		RecipientWalletID: req.RecipientWalletID,
 		RecipientCurrency: req.TargetCurrency,
-		Status:          TransferStatusPending,
-		CreatedAt:       time.Now(),
+		Status:            TransferStatusPending,
+		CreatedAt:         time.Now(),
 	}
-	
+
 	// Step 4: Process based on amount and conversion need
 	if needsConversion {
 		// Use crypto rails for currency conversion
@@ -190,14 +191,14 @@ func (s *InternalTransferService) processDirectTransfer(ctx context.Context, tra
 	transfer.RecipientAmount = transfer.SenderAmount - transfer.TransferFee
 	transfer.ExchangeRate = 1.0
 	transfer.UsedCryptoRails = false
-	
+
 	// Debit sender
 	if err := s.walletService.DebitWallet(ctx, req.SenderWalletID, transfer.SenderAmount, transfer.ReferenceID); err != nil {
 		transfer.Status = TransferStatusFailed
 		transfer.StatusMessage = err.Error()
 		return transfer, err
 	}
-	
+
 	// Credit recipient
 	if err := s.walletService.CreditWallet(ctx, req.RecipientWalletID, transfer.RecipientAmount, transfer.ReferenceID); err != nil {
 		// Rollback: refund sender
@@ -206,13 +207,13 @@ func (s *InternalTransferService) processDirectTransfer(ctx context.Context, tra
 		transfer.StatusMessage = err.Error()
 		return transfer, err
 	}
-	
+
 	now := time.Now()
 	transfer.Status = TransferStatusCompleted
 	transfer.CompletedAt = &now
-	
+
 	s.storeTransfer(transfer)
-	
+
 	return transfer, nil
 }
 
@@ -225,27 +226,27 @@ func (s *InternalTransferService) processInstantTransfer(ctx context.Context, tr
 		SourceCurrency: req.SourceCurrency,
 		TargetCurrency: req.TargetCurrency,
 	}
-	
+
 	convResult, err := s.cryptoRails.ConvertViaStablecoin(ctx, convReq)
 	if err != nil {
 		transfer.Status = TransferStatusFailed
 		transfer.StatusMessage = err.Error()
 		return transfer, err
 	}
-	
+
 	transfer.RecipientAmount = convResult.TargetAmount
 	transfer.ExchangeRate = convResult.USDToTargetRate
 	transfer.ConversionFee = convResult.ConversionFee
 	transfer.TransferFee = transfer.SenderAmount * 0.001
 	transfer.TotalFee = convResult.TotalFee + transfer.TransferFee
 	transfer.UsedCryptoRails = true
-	
+
 	// Debit sender in source currency
 	if err := s.walletService.DebitWallet(ctx, req.SenderWalletID, transfer.SenderAmount, transfer.ReferenceID); err != nil {
 		transfer.Status = TransferStatusFailed
 		return transfer, err
 	}
-	
+
 	// Credit recipient in target currency
 	if err := s.walletService.CreditWallet(ctx, req.RecipientWalletID, transfer.RecipientAmount, transfer.ReferenceID); err != nil {
 		// Rollback
@@ -253,13 +254,13 @@ func (s *InternalTransferService) processInstantTransfer(ctx context.Context, tr
 		transfer.Status = TransferStatusFailed
 		return transfer, err
 	}
-	
+
 	now := time.Now()
 	transfer.Status = TransferStatusCompleted
 	transfer.CompletedAt = &now
-	
+
 	s.storeTransfer(transfer)
-	
+
 	return transfer, nil
 }
 
@@ -271,20 +272,20 @@ func (s *InternalTransferService) processLargeTransfer(ctx context.Context, tran
 		transfer.StatusMessage = "Failed to lock funds: " + err.Error()
 		return transfer, err
 	}
-	
+
 	now := time.Now()
 	transfer.Status = TransferStatusLocked
 	transfer.LockedAt = &now
-	
+
 	// Estimate unlock time (2-5 minutes for crypto)
 	unlockTime := now.Add(5 * time.Minute)
 	transfer.EstimatedUnlockAt = &unlockTime
-	
+
 	s.storeTransfer(transfer)
-	
+
 	// Step 2: Process conversion in background (goroutine)
 	go s.processLockedTransfer(context.Background(), transfer, req)
-	
+
 	return transfer, nil
 }
 
@@ -297,7 +298,7 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 		SourceCurrency: req.SourceCurrency,
 		TargetCurrency: req.TargetCurrency,
 	}
-	
+
 	convResult, err := s.cryptoRails.ConvertViaStablecoin(ctx, convReq)
 	if err != nil {
 		// Unlock funds and mark as failed
@@ -307,7 +308,7 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 		s.storeTransfer(transfer)
 		return
 	}
-	
+
 	transfer.RecipientAmount = convResult.TargetAmount
 	transfer.ExchangeRate = convResult.USDToTargetRate
 	transfer.ConversionFee = convResult.ConversionFee
@@ -315,7 +316,7 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 	transfer.CryptoTxHash = convResult.BlockchainTxHash
 	transfer.Status = TransferStatusProcessing
 	s.storeTransfer(transfer)
-	
+
 	// Unlock and debit sender
 	s.walletService.UnlockFunds(ctx, req.SenderWalletID, transfer.ReferenceID)
 	if err := s.walletService.DebitWallet(ctx, req.SenderWalletID, transfer.SenderAmount, transfer.ReferenceID); err != nil {
@@ -324,7 +325,7 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 		s.storeTransfer(transfer)
 		return
 	}
-	
+
 	// Credit recipient
 	if err := s.walletService.CreditWallet(ctx, req.RecipientWalletID, transfer.RecipientAmount, transfer.ReferenceID); err != nil {
 		// Refund sender
@@ -334,18 +335,18 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 		s.storeTransfer(transfer)
 		return
 	}
-	
+
 	// If payout requested, execute it
 	if req.PayoutAfterTransfer && req.PayoutDetails != nil {
 		// Trigger payout to external (Mobile Money, Bank, etc.)
 		req.PayoutDetails.ReferenceID = transfer.ReferenceID
 		req.PayoutDetails.Amount = transfer.RecipientAmount
 		req.PayoutDetails.Currency = transfer.RecipientCurrency
-		
+
 		// Note: Payout is fire-and-forget here, could be improved with proper error handling
 		// The payout result should be tracked separately
 	}
-	
+
 	now := time.Now()
 	transfer.Status = TransferStatusCompleted
 	transfer.CompletedAt = &now
@@ -356,7 +357,7 @@ func (s *InternalTransferService) processLockedTransfer(ctx context.Context, tra
 func (s *InternalTransferService) GetTransfer(ctx context.Context, transferID string) (*InternalTransfer, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	transfer, ok := s.transfers[transferID]
 	if !ok {
 		return nil, fmt.Errorf("transfer not found: %s", transferID)
@@ -368,7 +369,7 @@ func (s *InternalTransferService) GetTransfer(ctx context.Context, transferID st
 func (s *InternalTransferService) GetTransferByReference(ctx context.Context, referenceID string) (*InternalTransfer, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	for _, t := range s.transfers {
 		if t.ReferenceID == referenceID {
 			return t, nil

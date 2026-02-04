@@ -649,6 +649,73 @@ func (s *WalletService) ProcessTransaction(req *models.TransactionRequest) error
 	return nil
 }
 
+// ProcessDepositFromPlatform handles a user deposit by debiting the platform's reserve account and crediting the user's wallet.
+// This ensures double-entry bookkeeping where funds originate from the platform's holding (Hot Wallet/Reserve).
+func (s *WalletService) ProcessDepositFromPlatform(userID, walletID string, amount float64, currency, providerRef, providerName string) error {
+	// 1. Validate User Wallet
+	wallet, err := s.walletRepo.GetByID(walletID)
+	if err != nil {
+		return fmt.Errorf("wallet not found: %w", err)
+	}
+	if wallet.UserID != userID {
+		return fmt.Errorf("wallet does not belong to user")
+	}
+	if wallet.Currency != currency {
+		return fmt.Errorf("currency mismatch: wallet %s vs deposit %s", wallet.Currency, currency)
+	}
+
+	// 2. Debit Platform Reserve (The "Hot Wallet" logic)
+	description := fmt.Sprintf("Deposit via %s (%s)", providerName, providerRef)
+	err = s.platformService.DebitPlatformReserve(currency, amount, "deposit", providerRef, description)
+	if err != nil {
+		// If reserve is insufficient, we fail the deposit to enforce strict "funds must exist" logic
+		return fmt.Errorf("failed to debit platform reserve (hot wallet): %w", err)
+	}
+
+	// 3. Credit User Wallet
+	err = s.walletRepo.UpdateBalanceWithTransaction(walletID, amount, "deposit")
+	if err != nil {
+		// Critical error: debited platform but failed to credit user.
+		// In production, this needs detailed logging or automatic rollback.
+		return fmt.Errorf("failed to credit user wallet: %w", err)
+	}
+
+	// 4. Record User Transaction
+	transaction := &models.Transaction{
+		ID:              fmt.Sprintf("dep_%d", time.Now().UnixNano()),
+		ToWalletID:      &walletID,
+		TransactionType: "deposit",
+		Amount:          amount,
+		Fee:             0,
+		Currency:        currency,
+		Status:          "completed",
+		Description:     &description,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	// Metadata
+	meta := map[string]interface{}{
+		"provider":     providerName,
+		"provider_ref": providerRef,
+		"source":       "platform_reserve",
+		"type":         "double_entry_deposit",
+	}
+	if metaJSON, err := json.Marshal(meta); err == nil {
+		metaStr := string(metaJSON)
+		transaction.Metadata = &metaStr
+	}
+
+	if err := s.transactionRepo.Create(transaction); err != nil {
+		fmt.Printf("Error creating transaction record: %v\n", err)
+	}
+
+	// 5. Publish Event
+	s.publishTransactionEvent("transaction.deposit.completed", transaction)
+
+	return nil
+}
+
 // Transfer performs an internal wallet-to-wallet transfer
 func (s *WalletService) Transfer(userID string, req *models.TransferRequest) (*models.Transaction, error) {
 	// Validate source wallet ownership

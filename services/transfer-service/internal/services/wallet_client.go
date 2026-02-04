@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,10 +64,52 @@ func (c *WalletClient) ProcessTransaction(req *WalletTransactionRequest) error {
 	log.Printf("[WALLET-CLIENT DEBUG] Transaction successful: %s %s", req.Type, req.WalletID)
 	return nil
 }
+
+// CreditWalletFromPlatform credits a user wallet by debiting the platform reserve (Double Entry)
+func (c *WalletClient) CreditWalletFromPlatform(ctx context.Context, userID, walletID string, amount float64, currency, providerRef, providerName string) error {
+	url := fmt.Sprintf("%s/api/v1/wallets/deposit-platform", c.baseURL)
+
+	reqBody := map[string]interface{}{
+		"user_id":       userID,
+		"wallet_id":     walletID,
+		"amount":        amount,
+		"currency":      currency,
+		"provider_ref":  providerRef,
+		"provider_name": providerName,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	log.Printf("[WALLET-CLIENT] Initiating platform deposit: %s -> %s (%f %s)", providerName, walletID, amount, currency)
+
+	// Create request with context
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("wallet service error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 // GetUserWallets fetches wallets for a specific user via internal API
 func (c *WalletClient) GetUserWallets(userID string) ([]map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/api/v1/internal/wallets?user_id=%s", c.baseURL, userID)
-	
+
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get wallets: %w", err)
@@ -90,7 +133,7 @@ func (c *WalletClient) GetUserWallets(userID string) ([]map[string]interface{}, 
 // CreateUserWallet creates a wallet for a user via internal API
 func (c *WalletClient) CreateUserWallet(userID, currency string) (string, error) {
 	url := fmt.Sprintf("%s/api/v1/internal/wallets", c.baseURL)
-	
+
 	reqBody := map[string]string{
 		"user_id":  userID,
 		"currency": currency,

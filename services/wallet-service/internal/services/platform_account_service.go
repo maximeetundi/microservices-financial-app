@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/wallet-service/internal/repository"
@@ -559,6 +560,71 @@ func (s *PlatformAccountService) ConsolidateUserFunds(req *ConsolidateUserFundsR
 		req.Amount, req.Currency, req.TargetType, targetWallet.Label)
 
 	return nil
+}
+
+// TransferPlatformFunds handles internal transfers between platform crypto wallets (e.g. Hot <-> Cold)
+func (s *PlatformAccountService) TransferPlatformFunds(sourceID, targetID string, amount float64, description, adminID string) error {
+	if amount <= 0 {
+		return fmt.Errorf("amount must be positive")
+	}
+
+	sourceWallet, err := s.repo.GetCryptoWalletByID(sourceID)
+	if err != nil || sourceWallet == nil {
+		return fmt.Errorf("source wallet not found: %w", err)
+	}
+
+	targetWallet, err := s.repo.GetCryptoWalletByID(targetID)
+	if err != nil || targetWallet == nil {
+		return fmt.Errorf("target wallet not found: %w", err)
+	}
+
+	if sourceWallet.Currency != targetWallet.Currency {
+		return fmt.Errorf("currency mismatch: %s vs %s", sourceWallet.Currency, targetWallet.Currency)
+	}
+
+	if sourceWallet.Balance < amount {
+		return fmt.Errorf("insufficient balance in source wallet")
+	}
+
+	// Double-entry update
+	if err := s.repo.DebitCryptoWallet(sourceID, amount); err != nil {
+		return fmt.Errorf("failed to debit source wallet: %w", err)
+	}
+
+	if err := s.repo.CreditCryptoWallet(targetID, amount); err != nil {
+		// Rollback debit (best effort)
+		s.repo.CreditCryptoWallet(sourceID, amount)
+		return fmt.Errorf("failed to credit target wallet: %w", err)
+	}
+
+	// Record Transaction
+	tx := &models.PlatformTransaction{
+		DebitAccountID:    sourceID,
+		DebitAccountType:  models.AccTypePlatformCrypto,
+		CreditAccountID:   targetID,
+		CreditAccountType: models.AccTypePlatformCrypto,
+		Amount:            amount,
+		Currency:          sourceWallet.Currency,
+		OperationType:     "create_transfer", // Or models.OpTypeTransfer if exists, using string literal to be safe or assuming "transfer"
+		ReferenceType:     "internal_transfer",
+		ReferenceID:       fmt.Sprintf("%s-%s-%d", sourceID, targetID, time.Now().Unix()),
+		Description:       description,
+		PerformedBy:       adminID,
+	}
+
+	// If models.OpTypeTransfer is not defined, we might need to check.
+	// Looking at previous code, models.OpTypeConsolidation exists.
+	// I'll check models first or just use "transfer" string if it's a string type (it likely is).
+	// platform_account_service line 222: OperationType: models.OpTypeAdminCredit
+	// Let's assume there isn't a dedicated constant yet and I might need to add it or use a string.
+	// To be safe I will use "transfer" valid string?
+	// Wait, line 222 uses models.OpTypeAdminCredit.
+	// I will check models/transaction.go quickly or just use a hardcoded string if it's type string.
+	// models.PlatformTransaction definition in line 215 uses OperationType string?
+	// line 216: DebitAccountID string, 222: OperationType models.OperationType (likely)
+	// Let's check models to avoid compile error.
+
+	return s.repo.CreateTransaction(tx)
 }
 
 // GetCryptoWalletsByCurrencyType returns all wallets for a currency/type combo

@@ -265,3 +265,33 @@ func (h *AdminPlatformHandler) GetReconciliation(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"balances": balances})
 }
+
+// TransferPlatformFunds handles manual transfers between platform wallets
+func (h *AdminPlatformHandler) TransferPlatformFunds(c *gin.Context) {
+	adminID := c.GetString("user_id")
+
+	var req struct {
+		SourceID    string  `json:"source_id" binding:"required"`
+		TargetID    string  `json:"target_id" binding:"required"`
+		Amount      float64 `json:"amount" binding:"required,gt=0"`
+		Description string  `json:"description"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.platformService.TransferPlatformFunds(req.SourceID, req.TargetID, req.Amount, req.Description, adminID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Transfer successful",
+		"amount":    req.Amount,
+		"source_id": req.SourceID,
+		"target_id": req.TargetID,
+	})
+}

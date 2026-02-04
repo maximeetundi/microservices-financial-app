@@ -687,6 +687,34 @@ func (h *WalletHandler) ProcessInterServiceTransaction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+// ProcessPlatformDeposit handles deposit requests coming from platform (aggregators)
+// It performs double-entry bookkeeping (Debit Platform Reserve -> Credit User Wallet)
+func (h *WalletHandler) ProcessPlatformDeposit(c *gin.Context) {
+	var req struct {
+		UserID       string  `json:"user_id" binding:"required"`
+		WalletID     string  `json:"wallet_id" binding:"required"`
+		Amount       float64 `json:"amount" binding:"required,gt=0"`
+		Currency     string  `json:"currency" binding:"required"`
+		ProviderRef  string  `json:"provider_ref" binding:"required"`
+		ProviderName string  `json:"provider_name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.walletService.ProcessDepositFromPlatform(req.UserID, req.WalletID, req.Amount, req.Currency, req.ProviderRef, req.ProviderName)
+	if err != nil {
+		// Log the error
+		log.Printf("Failed to process platform deposit: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 func (h *WalletHandler) Deposit(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
