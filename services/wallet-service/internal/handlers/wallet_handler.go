@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -786,19 +789,60 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 		return
 	}
 
-	// REAL PROVIDER MODE: TODO - Call transfer-service to initiate real payment
-	// For now, return an error indicating this needs to be implemented
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":      "Real provider deposits not yet implemented",
-		"message":    "Please use 'demo' provider for testing, or wait for full implementation",
-		"provider":   provider,
-		"next_steps": "Will redirect to transfer-service for payment URL",
-	})
+	// REAL PROVIDER MODE: Call transfer-service to initiate payment
+	transferServiceURL := os.Getenv("TRANSFER_SERVICE_URL")
+	if transferServiceURL == "" {
+		transferServiceURL = "http://transfer-service:8086"
+	}
 
-	// Future implementation:
-	// 1. Call transfer-service POST /api/v1/deposits/initiate
-	// 2. Get back payment_url or instant success
-	// 3. Return payment_url to frontend for redirection
+	// Prepare request to transfer-service
+	depositReq := map[string]interface{}{
+		"user_id":    userID.(string),
+		"amount":     req.Amount,
+		"currency":   wallet.Currency,
+		"provider":   provider,
+		"country":    req.Country,
+		"return_url": c.Request.Header.Get("Origin") + "/wallet?deposit=success",
+	}
+
+	reqBody, _ := json.Marshal(depositReq)
+	resp, err := http.Post(
+		transferServiceURL+"/api/v1/deposits/initiate",
+		"application/json",
+		bytes.NewBuffer(reqBody),
+	)
+
+	if err != nil {
+		log.Printf("Failed to call transfer-service: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Payment service temporarily unavailable",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	var transferResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&transferResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse payment response"})
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(resp.StatusCode, transferResp)
+		return
+	}
+
+	// Return payment URL to frontend
+	c.JSON(http.StatusOK, gin.H{
+		"status":         transferResp["status"],
+		"transaction_id": transferResp["transaction_id"],
+		"payment_url":    transferResp["payment_url"],
+		"provider":       provider,
+		"amount":         req.Amount,
+		"currency":       wallet.Currency,
+		"message":        "Please complete payment on the provider's page",
+	})
 }
 
 func (h *WalletHandler) Withdraw(c *gin.Context) {
