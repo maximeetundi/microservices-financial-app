@@ -108,6 +108,9 @@ func main() {
 	}
 	aggregatorHandler := handlers.NewAggregatorHandler(aggregatorRepo, adminClient)
 
+	// Initialize Deposit Handler (for collection/deposits)
+	depositHandler := handlers.NewSimpleDepositHandler(providerCfg)
+
 	// Setup Gin
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -179,6 +182,14 @@ func main() {
 		{
 			webhooks.POST("/mobile/callback", transferHandler.HandleMobileMoneyCallback)
 			webhooks.POST("/bank/callback", transferHandler.HandleBankCallback)
+		}
+
+		// Deposit/Collection routes
+		deposits := api.Group("/deposits")
+		{
+			deposits.POST("/initiate", depositHandler.InitiateDeposit)
+			deposits.GET("/:id/status", depositHandler.GetDepositStatus)
+			deposits.POST("/webhook/:provider", depositHandler.HandleDepositWebhook)
 		}
 	}
 
