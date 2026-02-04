@@ -79,9 +79,6 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 	clientRepo := repository.NewClientRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
-	orderRepo := repository.NewOrderRepository(db)
-	clientRepo := repository.NewClientRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
 	log.Println("Repositories initialized")
 
@@ -117,7 +114,6 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	uploadHandler := handlers.NewUploadHandler(storageService)
-	uploadHandler := handlers.NewUploadHandler(storageService)
 	clientHandler := handlers.NewClientHandler(clientService)
 	reviewHandler := handlers.NewReviewHandler(reviewRepo, productRepo)
 
@@ -148,7 +144,6 @@ func main() {
 		api.GET("/shops/:id/products", productHandler.ListByShop)
 		api.GET("/shops/:id/products/:productSlug", productHandler.Get)
 		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
-		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
 		api.GET("/shops/:id/categories/tree", categoryHandler.ListWithHierarchy)
 		api.GET("/products/:id/reviews", reviewHandler.ListByProduct)
 
@@ -177,7 +172,6 @@ func main() {
 			// Products
 			protected.POST("/products", productHandler.Create)
 			protected.GET("/products/:id", productHandler.GetByID)
-			protected.PUT("/products/:id", productHandler.Update)
 			protected.PUT("/products/:id", productHandler.Update)
 			protected.DELETE("/products/:id", productHandler.Delete)
 			protected.POST("/products/:id/reviews", reviewHandler.Create)
