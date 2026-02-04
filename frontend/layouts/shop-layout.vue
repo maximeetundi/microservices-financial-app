@@ -7,8 +7,11 @@
       @click="isMobileMenuOpen = false"
     ></div>
 
+    <!-- Debug Border -->
+    <div class="fixed top-0 left-0 w-full h-2 bg-red-500 z-[9999]" title="Shop Layout Active"></div>
+
     <aside 
-      class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out lg:translate-x-0 flex flex-col"
+      class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out lg:transform-none flex flex-col"
       :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
     >
       <!-- Shop Logo & Name -->
