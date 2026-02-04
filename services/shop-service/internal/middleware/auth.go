@@ -10,6 +10,8 @@ import (
 
 var jwtSecret string
 
+const UserIDKey = "user_id"
+
 func SetJWTSecret(secret string) {
 	jwtSecret = secret
 }
@@ -52,16 +54,16 @@ func AuthMiddleware() gin.HandlerFunc {
 		if userID == "" {
 			userID, _ = claims["user_id"].(string)
 		}
-		
+
 		email, _ := claims["email"].(string)
 		firstName, _ := claims["first_name"].(string)
 		lastName, _ := claims["last_name"].(string)
 
-		c.Set("user_id", userID)
+		c.Set(UserIDKey, userID)
 		c.Set("email", email)
 		c.Set("first_name", firstName)
 		c.Set("last_name", lastName)
-		c.Set("user_name", firstName + " " + lastName)
+		c.Set("user_name", firstName+" "+lastName)
 
 		c.Next()
 	}
@@ -104,16 +106,16 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		if userID == "" {
 			userID, _ = claims["user_id"].(string)
 		}
-		
+
 		email, _ := claims["email"].(string)
 		firstName, _ := claims["first_name"].(string)
 		lastName, _ := claims["last_name"].(string)
 
-		c.Set("user_id", userID)
+		c.Set(UserIDKey, userID)
 		c.Set("email", email)
 		c.Set("first_name", firstName)
 		c.Set("last_name", lastName)
-		c.Set("user_name", firstName + " " + lastName)
+		c.Set("user_name", firstName+" "+lastName)
 
 		c.Next()
 	}
