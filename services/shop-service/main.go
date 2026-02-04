@@ -171,7 +171,6 @@ func main() {
 
 			// Products
 			protected.POST("/products", productHandler.Create)
-			protected.GET("/products/:id", productHandler.GetByID)
 			protected.PUT("/products/:id", productHandler.Update)
 			protected.DELETE("/products/:id", productHandler.Delete)
 			protected.POST("/products/:id/reviews", reviewHandler.Create)
