@@ -1,269 +1,291 @@
 <template>
-  <div class="space-y-8">
-    <!-- Loading -->
-    <div v-if="loading" class="space-y-6">
-      <div class="animate-pulse bg-gray-100 dark:bg-slate-800 h-48 rounded-2xl"></div>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div v-for="i in 8" :key="i" class="animate-pulse bg-gray-100 dark:bg-slate-800 h-64 rounded-xl"></div>
+  <div class="space-y-10">
+    <!-- Hero Banner with Advanced Search -->
+    <div class="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-8 lg:p-12 overflow-hidden">
+      <!-- Background Pattern -->
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%23ffffff\" fill-opacity=\"0.4\"%3E%3Cpath d=\"M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
       </div>
-    </div>
-
-    <!-- Error -->
-    <div v-else-if="error" class="text-center py-16">
-      <div class="text-6xl mb-4">😞</div>
-      <h3 class="text-xl font-bold text-gray-900 dark:text-white">Boutique non trouvée</h3>
-      <NuxtLink to="/shops" class="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold">
-        Retour aux boutiques
-      </NuxtLink>
-    </div>
-
-    <div v-else-if="shop">
-      <!-- Banner -->
-      <div class="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-8 shadow-lg">
-        <img v-if="shop.banner_url" :src="shop.banner_url" class="w-full h-full object-cover" alt="">
-        <div v-else class="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+      
+      <div class="relative z-10 max-w-3xl mx-auto text-center">
+        <h1 class="text-3xl lg:text-5xl font-bold text-white mb-4">
+          Bienvenue chez {{ shop?.name || 'la boutique' }}
+        </h1>
+        <p class="text-white/80 text-lg mb-8">
+          {{ shop?.description || 'Découvrez nos produits de qualité' }}
+        </p>
         
-        <!-- Shop Info -->
-        <div class="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-4">
-          <div class="w-20 h-20 rounded-xl bg-white dark:bg-slate-800 border-4 border-white dark:border-slate-700 shadow-xl overflow-hidden flex-shrink-0">
-            <img v-if="shop.logo_url" :src="shop.logo_url" class="w-full h-full object-cover" alt="">
-            <div v-else class="w-full h-full flex items-center justify-center text-3xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
-              {{ shop.name.charAt(0) }}
+        <!-- Advanced Search -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-2xl">
+          <div class="flex flex-col lg:flex-row gap-3">
+            <div class="flex-1 relative">
+              <input 
+                v-model="searchQuery"
+                type="text" 
+                placeholder="Que recherchez-vous ?" 
+                class="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white text-base"
+              >
+              <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
             </div>
+            <select 
+              v-model="selectedCategory"
+              class="px-4 py-4 bg-gray-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white min-w-[180px]"
+            >
+              <option value="">Toutes catégories</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.slug">{{ cat.name }}</option>
+            </select>
+            <div class="flex gap-2">
+              <input 
+                v-model.number="priceMin"
+                type="number" 
+                placeholder="Prix min" 
+                class="w-28 px-4 py-4 bg-gray-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white"
+              >
+              <input 
+                v-model.number="priceMax"
+                type="number" 
+                placeholder="Prix max" 
+                class="w-28 px-4 py-4 bg-gray-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white"
+              >
+            </div>
+            <button 
+              @click="applyFilters"
+              class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-500/30"
+            >
+              Rechercher
+            </button>
           </div>
-          <div class="flex-1 text-white">
-            <h1 class="text-2xl md:text-3xl font-bold mb-1">{{ shop.name }}</h1>
-            <p v-if="shop.description" class="text-white/90 text-sm line-clamp-2 max-w-2xl">{{ shop.description }}</p>
-          </div>
-          
-          <!-- QR Code -->
-          <button v-if="shop.qr_code" @click="showQR = true" class="p-3 bg-white/20 backdrop-blur rounded-xl hover:bg-white/30 transition-colors border border-white/30 text-white">
-            <span class="text-2xl">📱</span>
-          </button>
         </div>
       </div>
+    </div>
 
-      <!-- Categories Filter -->
-      <div v-if="categories.length > 0" class="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-        <button 
-          @click="selectCategory('')"
-          :class="[
-            'px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all duration-200 border',
-            !selectedCategory 
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105' 
-              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700'
-          ]"
-        >
-          Tous
-        </button>
-        <button 
-          v-for="cat in categories" 
+    <!-- Categories Grid -->
+    <section v-if="categories.length > 0">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <span class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center">📂</span>
+          Catégories
+        </h2>
+        <NuxtLink :to="`/shops/${shopSlug}/categories`" class="text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
+          Voir tout →
+        </NuxtLink>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <NuxtLink 
+          v-for="cat in categories.slice(0, 6)" 
           :key="cat.id"
-          @click="selectCategory(cat.slug)"
-          :class="[
-            'px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all duration-200 border',
-            selectedCategory === cat.slug 
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105' 
-              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700'
-          ]"
+          :to="`/shops/${shopSlug}?category=${cat.slug}`"
+          class="group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:border-indigo-500/30 hover:-translate-y-1 transition-all text-center"
         >
-          {{ cat.name }} <span class="ml-1 opacity-75 text-xs">({{ cat.product_count }})</span>
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-800 dark:to-slate-700 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+            {{ cat.icon || '📦' }}
+          </div>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1 truncate">{{ cat.name }}</h3>
+          <p class="text-sm text-gray-500">{{ cat.product_count || 0 }} produits</p>
+        </NuxtLink>
+      </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section v-if="featuredProducts.length > 0">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <span class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">⭐</span>
+          Produits Vedettes
+        </h2>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <ProductCard 
+          v-for="product in featuredProducts" 
+          :key="product.id" 
+          :product="product" 
+          :shop-slug="shopSlug"
+          @toggle-favorite="toggleFavorite"
+        />
+      </div>
+    </section>
+
+    <!-- All Products -->
+    <section>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <span class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">🛍️</span>
+          {{ activeFilters ? 'Résultats' : 'Tous les produits' }}
+          <span v-if="products.length > 0" class="text-base font-normal text-gray-500">({{ products.length }} produits)</span>
+        </h2>
+        
+        <!-- Sort -->
+        <select 
+          v-model="sortBy"
+          @change="loadProducts"
+          class="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="newest">Plus récents</option>
+          <option value="price_asc">Prix croissant</option>
+          <option value="price_desc">Prix décroissant</option>
+          <option value="popular">Populaires</option>
+        </select>
+      </div>
+
+      <!-- Active Filters -->
+      <div v-if="activeFilters" class="flex flex-wrap gap-2 mb-6">
+        <span 
+          v-if="route.query.search"
+          class="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-sm flex items-center gap-2"
+        >
+          Recherche: {{ route.query.search }}
+          <button @click="clearFilter('search')" class="hover:text-red-500">×</button>
+        </span>
+        <span 
+          v-if="route.query.category"
+          class="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm flex items-center gap-2"
+        >
+          Catégorie: {{ route.query.category }}
+          <button @click="clearFilter('category')" class="hover:text-red-500">×</button>
+        </span>
+        <span 
+          v-if="route.query.tag"
+          class="px-3 py-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full text-sm flex items-center gap-2"
+        >
+          Tag: #{{ route.query.tag }}
+          <button @click="clearFilter('tag')" class="hover:text-red-500">×</button>
+        </span>
+        <button 
+          @click="clearAllFilters"
+          class="px-3 py-1.5 text-gray-500 hover:text-red-500 text-sm underline"
+        >
+          Effacer tout
         </button>
+      </div>
+
+      <!-- Loading -->
+      <div v-if="loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div v-for="i in 8" :key="i" class="animate-pulse">
+          <div class="bg-gray-200 dark:bg-slate-800 aspect-square rounded-2xl mb-4"></div>
+          <div class="h-4 bg-gray-200 dark:bg-slate-800 rounded mb-2"></div>
+          <div class="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/2"></div>
+        </div>
       </div>
 
       <!-- Products Grid -->
-      <div v-if="products.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <div 
+      <div v-else-if="products.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <ProductCard 
           v-for="product in products" 
-          :key="product.id"
-          @click="openProduct(product)"
-          class="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:-translate-y-1 hover:border-indigo-500/30 transition-all duration-300 cursor-pointer flex flex-col h-full"
-        >
-          <!-- Image -->
-          <div class="aspect-[4/3] bg-gray-100 dark:bg-slate-800 relative overflow-hidden">
-            <img v-if="product.images?.length" :src="product.images[0]" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="">
-            <div v-else class="w-full h-full flex items-center justify-center text-4xl text-gray-300">📦</div>
-            
-            <!-- Badges -->
-            <div class="absolute top-3 left-3 flex flex-col gap-2">
-                 <div v-if="product.is_featured" class="px-2.5 py-1 bg-amber-500/90 backdrop-blur text-white text-xs font-bold rounded-lg shadow-sm">
-                    ⭐ Featured
-                 </div>
-                 <div v-if="product.stock === 0" class="px-2.5 py-1 bg-red-500/90 backdrop-blur text-white text-xs font-bold rounded-lg shadow-sm">
-                    Épuisé
-                 </div>
-            </div>
-
-             <!-- Quick Actions (Hover) -->
-             <div class="absolute bottom-3 right-3 translate-y-10 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 flex gap-2">
-                 <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-md text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400">
-                     👁️
-                 </div>
-             </div>
-          </div>
-          
-          <!-- Info -->
-          <div class="p-4 flex-1 flex flex-col">
-             <!-- Tags? -->
-             <div v-if="product.tags?.length" class="flex gap-1 mb-2 overflow-hidden">
-                 <span v-for="tag in product.tags.slice(0,2)" :key="tag" class="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 rounded-md">
-                     {{ tag }}
-                 </span>
-             </div>
-
-            <h3 class="font-bold text-gray-900 dark:text-white text-base mb-1 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-              {{ product.name }}
-            </h3>
-            
-            <div class="mt-auto pt-3 flex items-center justify-between">
-              <div class="flex flex-col">
-                  <span class="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                    {{ formatPrice(product.price, product.currency) }}
-                  </span>
-                  <span v-if="product.compare_at_price" class="text-xs text-gray-400 line-through">
-                    {{ formatPrice(product.compare_at_price, product.currency) }}
-                  </span>
-              </div>
-              <button class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-colors">
-                  +
-              </button>
-            </div>
-          </div>
-        </div>
+          :key="product.id" 
+          :product="product" 
+          :shop-slug="shopSlug"
+          @toggle-favorite="toggleFavorite"
+        />
       </div>
 
-      <!-- Empty Products -->
-      <div v-else class="text-center py-24 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
-        <div class="w-24 h-24 mx-auto mb-6 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-6xl">📦</div>
+      <!-- Empty -->
+      <div v-else class="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+        <div class="text-6xl mb-4">🔍</div>
         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Aucun produit trouvé</h3>
-        <p class="text-gray-500 max-w-xs mx-auto">Cette boutique n'a pas encore de produits dans cette catégorie.</p>
-        <button v-if="selectedCategory" @click="selectedCategory = ''" class="mt-6 px-6 py-2 text-indigo-600 font-medium hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-            Voir tous les produits
+        <p class="text-gray-500 mb-6">Essayez d'autres critères de recherche</p>
+        <button @click="clearAllFilters" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+          Voir tous les produits
         </button>
       </div>
-
-    </div>
-
-    <!-- QR Modal -->
-    <ShareQRCodeModal
-      v-model="showQR"
-      :qr-data="windowLocation"
-      :display-code="shop?.slug"
-      :title="shop?.name"
-      subtitle="Scanner pour visiter"
-      :share-text="'Visitez la boutique ' + shop?.name"
-    />
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue'
 import { useShopApi, type Shop, type Product, type Category } from '~/composables/useShopApi'
-import { useCartStore } from '~/stores/cart'
-import ShareQRCodeModal from '~/components/common/ShareQRCodeModal.vue'
 
 definePageMeta({
-  layout: 'shop-store'
+  layout: 'shop-customer'
 })
 
 const route = useRoute()
 const router = useRouter()
 const shopApi = useShopApi()
-const cartStore = useCartStore()
 
-const slug = computed(() => route.params.slug as string)
+const shopSlug = computed(() => route.params.slug as string)
+const shop = inject<Ref<Shop | null>>('shop', ref(null))
+const categories = inject<Ref<Category[]>>('categories', ref([]))
 
 const loading = ref(true)
-const error = ref(false)
-const shop = ref<Shop | null>(null)
 const products = ref<Product[]>([])
-const categories = ref<Category[]>([])
-const showQR = ref(false)
-const windowLocation = ref('')
+const featuredProducts = ref<Product[]>([])
 
-// Computed from route for reactivity
-const selectedCategory = computed(() => route.query.category as string || '')
-const searchQuery = computed(() => route.query.search as string || '')
+// Search & Filter State
+const searchQuery = ref('')
+const selectedCategory = ref('')
+const priceMin = ref<number | null>(null)
+const priceMax = ref<number | null>(null)
+const sortBy = ref('newest')
 
-const formatPrice = (amount: number, currency: string) => {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currency || 'XOF' }).format(amount)
+const activeFilters = computed(() => {
+  return route.query.search || route.query.category || route.query.tag || route.query.price_min || route.query.price_max
+})
+
+const applyFilters = () => {
+  const query: Record<string, any> = {}
+  if (searchQuery.value) query.search = searchQuery.value
+  if (selectedCategory.value) query.category = selectedCategory.value
+  if (priceMin.value) query.price_min = priceMin.value
+  if (priceMax.value) query.price_max = priceMax.value
+  
+  router.push({ path: route.path, query })
 }
 
-const openProduct = (product: Product) => {
-  navigateTo(`/shops/${slug.value}/product/${product.slug}`)
+const clearFilter = (key: string) => {
+  const query = { ...route.query }
+  delete query[key]
+  router.push({ path: route.path, query })
 }
 
-const selectCategory = (catSlug: string) => {
-    // If clicking same category, clear it (toggle)
-    const newCat = selectedCategory.value === catSlug ? undefined : catSlug
-    router.push({ 
-        path: route.path, 
-        query: { 
-            ...route.query, 
-            category: newCat,
-            // Reset search when changing category? Maybe not.
-        } 
-    })
+const clearAllFilters = () => {
+  router.push({ path: route.path })
+}
+
+const toggleFavorite = (productId: string) => {
+  const key = `shop_favorites_${shopSlug.value}`
+  const favs = JSON.parse(localStorage.getItem(key) || '[]')
+  const index = favs.indexOf(productId)
+  if (index > -1) {
+    favs.splice(index, 1)
+  } else {
+    favs.push(productId)
+  }
+  localStorage.setItem(key, JSON.stringify(favs))
 }
 
 const loadProducts = async () => {
-    loading.value = true
-    try {
-        const options: any = {}
-        if (selectedCategory.value) options.category = selectedCategory.value
-        if (searchQuery.value) options.search = searchQuery.value
-        
-        // Note: listProducts(shopSlug, page, pageSize, options)
-        const result = await shopApi.listProducts(slug.value, 1, 100, options)
-        products.value = result.products || []
-    } catch (e) {
-        console.error('Failed to load products', e)
-    } finally {
-        loading.value = false
-    }
-}
-
-const loadShop = async () => {
   loading.value = true
-  error.value = false
   try {
-    shop.value = await shopApi.getShop(slug.value)
-    if (typeof window !== 'undefined') {
-        windowLocation.value = window.location.href
-    }
+    const options: Record<string, any> = {}
+    if (route.query.search) options.search = route.query.search
+    if (route.query.category) options.category = route.query.category
+    if (route.query.tag) options.tag = route.query.tag
+    if (route.query.price_min) options.price_min = route.query.price_min
+    if (route.query.price_max) options.price_max = route.query.price_max
+    options.sort = sortBy.value
     
-    // Load categories
-    const catResult = await shopApi.listCategories(slug.value)
-    categories.value = catResult.categories || []
-
-    // Load Initial Products
-    await loadProducts()
+    const result = await shopApi.listProducts(shopSlug.value, 1, 100, options)
+    products.value = result.products || []
+    
+    // Featured = products with is_featured flag
+    featuredProducts.value = products.value.filter(p => p.is_featured).slice(0, 4)
     
   } catch (e) {
-    console.error('Failed to load shop', e)
-    error.value = true
+    console.error('Failed to load products', e)
+  } finally {
     loading.value = false
   }
 }
 
-// Watch for URL changes to reload products
-watch(() => route.query, () => {
-    if (shop.value) {
-        loadProducts()
-    }
-})
-
+// Initialize from URL
 onMounted(() => {
-  loadShop()
+  searchQuery.value = (route.query.search as string) || ''
+  selectedCategory.value = (route.query.category as string) || ''
+  priceMin.value = route.query.price_min ? Number(route.query.price_min) : null
+  priceMax.value = route.query.price_max ? Number(route.query.price_max) : null
 })
-</script>
 
-<style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-</style>
+// Watch for URL changes
+watch(() => route.query, loadProducts, { immediate: true })
+</script>

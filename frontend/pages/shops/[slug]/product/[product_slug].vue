@@ -256,7 +256,7 @@ import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
-  layout: 'shop-store'
+  layout: 'shop-customer'
 })
 
 const route = useRoute()
