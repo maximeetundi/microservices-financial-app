@@ -1,37 +1,39 @@
 <template>
   <div class="space-y-12">
-    <!-- Hero Slider -->
-    <section class="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 h-[400px] lg:h-[500px]">
-      <div class="absolute inset-0 bg-black/20"></div>
+    <!-- Hero Banner (Customizable from Shop Settings) -->
+    <section 
+      class="relative rounded-3xl overflow-hidden h-[300px] lg:h-[400px]"
+      :style="shop?.banner_url ? `background-image: url('${shop.banner_url}'); background-size: cover; background-position: center;` : ''"
+      :class="!shop?.banner_url ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500' : ''"
+    >
+      <div class="absolute inset-0 bg-black/40"></div>
       <div class="absolute inset-0 flex items-center">
         <div class="max-w-2xl mx-auto text-center px-6">
-          <span class="inline-block px-4 py-1.5 bg-white/20 backdrop-blur rounded-full text-white text-sm font-medium mb-6">
-            🎉 Bienvenue dans notre boutique
+          <span class="inline-block px-4 py-1.5 bg-white/20 backdrop-blur rounded-full text-white text-sm font-medium mb-4">
+            🎉 Bienvenue
           </span>
-          <h1 class="text-4xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 class="text-3xl lg:text-5xl font-bold text-white mb-4 leading-tight drop-shadow-lg">
             {{ shop?.name || 'Notre Boutique' }}
           </h1>
-          <p class="text-xl text-white/90 mb-8">
-            {{ shop?.description || 'Découvrez nos produits de qualité à des prix imbattables' }}
+          <p class="text-lg text-white/90 mb-6 drop-shadow">
+            {{ shop?.description || 'Découvrez nos produits de qualité' }}
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <button 
               @click="scrollToProducts"
-              class="px-8 py-4 bg-white text-indigo-600 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-xl"
+              class="px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-xl"
             >
               Voir les produits
             </button>
             <NuxtLink 
               :to="`/shops/${shopSlug}/categories`"
-              class="px-8 py-4 bg-white/20 backdrop-blur text-white font-bold rounded-xl hover:bg-white/30 transition-colors"
+              class="px-6 py-3 bg-white/20 backdrop-blur text-white font-bold rounded-xl hover:bg-white/30 transition-colors border border-white/30"
             >
               Nos catégories
             </NuxtLink>
           </div>
         </div>
       </div>
-      <!-- Decorative elements -->
-      <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-100 dark:from-slate-950 to-transparent"></div>
     </section>
 
     <!-- Features Bar -->
@@ -108,7 +110,7 @@
         </div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <ProductCard 
+        <ShopProductCard 
           v-for="product in featuredProducts.slice(0, 4)" 
           :key="product.id" 
           :product="product" 
@@ -193,7 +195,7 @@
 
       <!-- Products Grid -->
       <div v-else-if="products.length > 0" :class="viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6' : 'space-y-4'">
-        <ProductCard 
+        <ShopProductCard 
           v-for="product in products" 
           :key="product.id" 
           :product="product" 
