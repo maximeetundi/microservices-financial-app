@@ -210,13 +210,13 @@ func (p *ProviderConfigLoader) LoadOrangeMoneyConfig(ctx context.Context) (Orang
 }
 
 // LoadMTNMoMoConfig loads MTN MoMo configuration from Vault
-func (p *ProviderConfigLoader) LoadMTNMoMoConfig(ctx context.Context) (MTNMoMoConfig, error) {
+func (p *ProviderConfigLoader) LoadMTNMoMoConfig(ctx context.Context) (MTNMomoConfig, error) {
 	data, err := p.getSecret("payment/mtn_momo")
 	if err != nil {
-		return MTNMoMoConfig{}, err
+		return MTNMomoConfig{}, err
 	}
 
-	return MTNMoMoConfig{
+	return MTNMomoConfig{
 		APIUser:         p.getString(data, "api_user"),
 		APIKey:          p.getString(data, "api_key"),
 		SubscriptionKey: p.getString(data, "subscription_key"),

@@ -146,7 +146,7 @@ func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.A
 		environment = "prod"
 	}
 
-	config := MTNMoMoConfig{
+	config := MTNMomoConfig{
 		APIUser:         instance.APICredentials["api_user"],
 		APIKey:          instance.APICredentials["api_key"],
 		SubscriptionKey: instance.APICredentials["subscription_key"],
@@ -172,7 +172,7 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 		return nil, nil, fmt.Errorf("no available instance for provider %s: %w", providerCode, err)
 	}
 
-	if !instance.IsAvailable() {
+	if instance.AvailabilityStatus != "available" && instance.AvailabilityStatus != "" {
 		return nil, nil, fmt.Errorf("provider %s instance not available: %s", providerCode, instance.AvailabilityStatus)
 	}
 
