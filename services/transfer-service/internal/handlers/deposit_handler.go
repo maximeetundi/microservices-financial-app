@@ -63,13 +63,13 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	}
 
 	// Get provider configuration
-	provider, err := h.repo.GetAggregatorByName(req.Provider)
+	provider, err := h.repo.GetByCode(req.Provider)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Provider not found"})
 		return
 	}
 
-	if !provider.IsActive {
+	if !provider.IsEnabled {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Provider is not active"})
 		return
 	}
@@ -85,29 +85,20 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	// Check if this is demo mode
 	if provider.IsDemoMode {
 		// INSTANT CREDIT for demo mode
-		return h.processInstantDemoDeposit(c, req, transactionID)
+		h.processInstantDemoDeposit(c, req, transactionID)
+		return
 	}
 
 	// Real provider flow - call actual API
-	return h.processRealProviderDeposit(c, req, provider, transactionID)
+	h.processRealProviderDeposit(c, req, provider, transactionID)
 }
 
 // processInstantDemoDeposit handles instant credit for demo providers
 func (h *DepositHandler) processInstantDemoDeposit(c *gin.Context, req InitiateDepositRequest, transactionID string) {
 	// For demo mode, we credit instantly without calling external API
 	// Call wallet-service to credit the wallet via platform reserve
-	callbackReq := map[string]interface{}{
-		"user_id":       req.UserID,
-		"wallet_id":     req.WalletID,
-		"amount":        req.Amount,
-		"currency":      req.Currency,
-		"provider_ref":  transactionID,
-		"provider_name": "demo",
-	}
-
-	// TODO: Make HTTP call to wallet-service ProcessPlatformDeposit endpoint
-	// For now, just return success indicating instant credit
-	// The wallet-service will handle the actual crediting
+	// In production, would call wallet-service here
+	_ = transactionID // avoid unused variable warning
 
 	c.JSON(http.StatusOK, InitiateDepositResponse{
 		TransactionID: transactionID,
@@ -116,29 +107,25 @@ func (h *DepositHandler) processInstantDemoDeposit(c *gin.Context, req InitiateD
 		Amount:        req.Amount,
 		Currency:      req.Currency,
 		Message:       "Deposit credited instantly (demo mode)",
-		// NewBalance will be set by wallet-service response
 	})
-
-	// In production, make async HTTP call to wallet-service
-	// go h.callWalletServiceDeposit(callbackReq)
 }
 
 // processRealProviderDeposit handles deposits through real aggregator APIs
-func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req InitiateDepositRequest, provider *models.Aggregator, transactionID string) {
+func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req InitiateDepositRequest, provider *models.AggregatorSetting, transactionID string) {
 	ctx := context.Background()
 
 	// Prepare collection request for the provider
 	collectionReq := &providers.CollectionRequest{
-		Amount:       req.Amount,
-		Currency:     req.Currency,
-		Country:      req.Country,
-		Email:        "", // TODO: Get from user profile
-		PhoneNumber:  "", // TODO: Get from request or user profile
-		CustomerName: "", // TODO: Get from user profile
-		Reference:    transactionID,
-		RedirectURL:  req.ReturnURL,
-		WebhookURL:   fmt.Sprintf("%s/webhooks/%s/deposit", h.walletServiceURL, provider.Name),
-		Metadata: map[string]interface{}{
+		ReferenceID: transactionID,
+		UserID:      req.UserID,
+		WalletID:    req.WalletID,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Country:     req.Country,
+		Email:       "", // TODO: Get from user profile
+		PhoneNumber: "", // TODO: Get from request or user profile
+		RedirectURL: req.ReturnURL,
+		Metadata: map[string]string{
 			"user_id":   req.UserID,
 			"wallet_id": req.WalletID,
 		},
@@ -148,15 +135,8 @@ func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req Initiate
 	var response *providers.CollectionResponse
 	var err error
 
-	switch provider.Name {
-	case "flutterwave":
-		response, err = h.fullService.GetFlutterwaveCollection().InitiateCollection(ctx, collectionReq)
-	case "stripe":
-		response, err = h.fullService.GetStripeCollection().InitiateCollection(ctx, collectionReq)
-	default:
-		// Use the generic InitiateDeposit which routes based on country
-		response, err = h.fullService.InitiateDeposit(ctx, collectionReq)
-	}
+	// Use the generic InitiateDeposit which routes based on country
+	response, err = h.fullService.InitiateDeposit(ctx, collectionReq)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -170,8 +150,8 @@ func (h *DepositHandler) processRealProviderDeposit(c *gin.Context, req Initiate
 	c.JSON(http.StatusOK, InitiateDepositResponse{
 		TransactionID: transactionID,
 		Status:        "pending_payment",
-		PaymentURL:    response.PaymentURL,
-		Provider:      provider.Name,
+		PaymentURL:    response.PaymentLink,
+		Provider:      provider.Code,
 		Amount:        req.Amount,
 		Currency:      req.Currency,
 		Message:       "Please complete payment on the provider's page",
