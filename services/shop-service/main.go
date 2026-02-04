@@ -79,12 +79,16 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 	clientRepo := repository.NewClientRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
+	orderRepo := repository.NewOrderRepository(db)
+	clientRepo := repository.NewClientRepository(db)
+	reviewRepo := repository.NewReviewRepository(db)
 	log.Println("Repositories initialized")
 
 	// 6. Initialize External Clients
 	walletClient := services.NewWalletClient()
 	exchangeClient := services.NewExchangeClient()
-	
+
 	// QR Service (using app URL)
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
@@ -113,7 +117,9 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	uploadHandler := handlers.NewUploadHandler(storageService)
+	uploadHandler := handlers.NewUploadHandler(storageService)
 	clientHandler := handlers.NewClientHandler(clientService)
+	reviewHandler := handlers.NewReviewHandler(reviewRepo, productRepo)
 
 	// 10. Setup Router
 	router := gin.New()
@@ -142,7 +148,9 @@ func main() {
 		api.GET("/shops/:id/products", productHandler.ListByShop)
 		api.GET("/shops/:id/products/:productSlug", productHandler.Get)
 		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
+		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
 		api.GET("/shops/:id/categories/tree", categoryHandler.ListWithHierarchy)
+		api.GET("/products/:id/reviews", reviewHandler.ListByProduct)
 
 		// Protected routes
 		protected := api.Group("/")
@@ -157,7 +165,6 @@ func main() {
 			protected.DELETE("/shops/:id/managers/:userId", shopHandler.RemoveManager)
 			// Protected product/category management
 
-
 			// Client Invitations (for private shops)
 			protected.POST("/shops/:id/clients", clientHandler.InviteClient)
 			protected.GET("/shops/:id/clients", clientHandler.ListShopClients)
@@ -171,7 +178,9 @@ func main() {
 			protected.POST("/products", productHandler.Create)
 			protected.GET("/products/:id", productHandler.GetByID)
 			protected.PUT("/products/:id", productHandler.Update)
+			protected.PUT("/products/:id", productHandler.Update)
 			protected.DELETE("/products/:id", productHandler.Delete)
+			protected.POST("/products/:id/reviews", reviewHandler.Create)
 
 			// Categories
 			protected.POST("/categories", categoryHandler.Create)
@@ -197,4 +206,3 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-

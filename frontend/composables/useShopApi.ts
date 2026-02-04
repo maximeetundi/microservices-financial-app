@@ -147,6 +147,22 @@ export interface CartItem {
     product?: Product
 }
 
+export interface Review {
+    id: string
+    product_id: string
+    user_id: string
+    user_name: string
+    rating: number
+    comment: string
+    created_at: string
+}
+
+export interface ReviewListResponse {
+    reviews: Review[]
+    total: number
+    page: number
+}
+
 const baseUrl = '/shop-service/api/v1'
 
 export const shopAPI = {
@@ -225,6 +241,14 @@ export const shopAPI = {
     acceptInvitation: (invitationId: string, pin: string) => api.post(`${baseUrl}/invitations/accept`, { invitation_id: invitationId, pin }),
     declineInvitation: (invitationId: string) => api.delete(`${baseUrl}/invitations/${invitationId}`),
     getMyPrivateShops: () => api.get(`${baseUrl}/my-private-shops`),
+
+    // Reviews
+    listReviews: (productId: string, page = 1, pageSize = 10) => {
+        const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+        return api.get(`${baseUrl}/products/${productId}/reviews?${params}`)
+    },
+    createReview: (productId: string, data: { rating: number, comment: string }) =>
+        api.post(`${baseUrl}/products/${productId}/reviews`, data),
 }
 
 // Composable wrapper for Vue usage
@@ -367,6 +391,15 @@ export function useShopApi() {
         },
         getMyPrivateShops: async () => {
             const response = await shopAPI.getMyPrivateShops()
+            return response.data
+        },
+        // Reviews
+        listReviews: async (productId: string, page = 1, pageSize = 10) => {
+            const response = await shopAPI.listReviews(productId, page, pageSize)
+            return response.data
+        },
+        createReview: async (productId: string, data: { rating: number, comment: string }) => {
+            const response = await shopAPI.createReview(productId, data)
             return response.data
         },
     }

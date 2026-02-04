@@ -19,12 +19,12 @@ type CustomField struct {
 
 // ProductVariant represents a variant of a product (size, color, etc.)
 type ProductVariant struct {
-	ID        string  `json:"id" bson:"id"`
-	Name      string  `json:"name" bson:"name"`
-	SKU       string  `json:"sku" bson:"sku"`
-	Price     float64 `json:"price" bson:"price"`
-	Stock     int     `json:"stock" bson:"stock"`
-	ImageURL  string  `json:"image_url,omitempty" bson:"image_url,omitempty"`
+	ID         string            `json:"id" bson:"id"`
+	Name       string            `json:"name" bson:"name"`
+	SKU        string            `json:"sku" bson:"sku"`
+	Price      float64           `json:"price" bson:"price"`
+	Stock      int               `json:"stock" bson:"stock"`
+	ImageURL   string            `json:"image_url,omitempty" bson:"image_url,omitempty"`
 	Attributes map[string]string `json:"attributes" bson:"attributes"`
 }
 
@@ -54,6 +54,8 @@ type Product struct {
 	IsFeatured     bool               `json:"is_featured" bson:"is_featured"`
 	SoldCount      int                `json:"sold_count" bson:"sold_count"`
 	ViewCount      int                `json:"view_count" bson:"view_count"`
+	AverageRating  float64            `json:"average_rating" bson:"average_rating"`
+	ReviewCount    int                `json:"review_count" bson:"review_count"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt      time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -80,21 +82,21 @@ type CreateProductRequest struct {
 
 // UpdateProductRequest is the request to update a product
 type UpdateProductRequest struct {
-	CategoryID     *string        `json:"category_id"`
-	Name           *string        `json:"name"`
-	Description    *string        `json:"description"`
-	ShortDesc      *string        `json:"short_desc"`
-	Price          *float64       `json:"price"`
-	CompareAtPrice *float64       `json:"compare_at_price"`
-	Images         []string       `json:"images"`
-	Stock          *int           `json:"stock"`
-	SKU            *string        `json:"sku"`
-	Weight         *float64       `json:"weight"`
-	IsCustomizable *bool          `json:"is_customizable"`
-	CustomFields   []CustomField  `json:"custom_fields"`
-	Tags           []string       `json:"tags"`
-	Status         *string        `json:"status"`
-	IsFeatured     *bool          `json:"is_featured"`
+	CategoryID     *string       `json:"category_id"`
+	Name           *string       `json:"name"`
+	Description    *string       `json:"description"`
+	ShortDesc      *string       `json:"short_desc"`
+	Price          *float64      `json:"price"`
+	CompareAtPrice *float64      `json:"compare_at_price"`
+	Images         []string      `json:"images"`
+	Stock          *int          `json:"stock"`
+	SKU            *string       `json:"sku"`
+	Weight         *float64      `json:"weight"`
+	IsCustomizable *bool         `json:"is_customizable"`
+	CustomFields   []CustomField `json:"custom_fields"`
+	Tags           []string      `json:"tags"`
+	Status         *string       `json:"status"`
+	IsFeatured     *bool         `json:"is_featured"`
 }
 
 // ProductListResponse for paginated product listing
