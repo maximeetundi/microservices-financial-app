@@ -9,22 +9,30 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/providers"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// DepositHandler handles deposit collection flows
+// DepositHandler handles deposit collection flows with instance-based providers
 type DepositHandler struct {
-	repo             *repository.AggregatorRepository
-	fullService      *providers.FullTransferService
-	walletServiceURL string // URL to wallet-service for webhook callbacks
+	instanceRepo      *repository.AggregatorInstanceRepository
+	providerLoader    *providers.InstanceBasedProviderLoader
+	fundMovement      *service.DepositFundMovementService
+	walletServiceURL  string
 }
 
 // NewDepositHandler creates a new deposit handler
-func NewDepositHandler(repo *repository.AggregatorRepository, fullService *providers.FullTransferService, walletServiceURL string) *DepositHandler {
+func NewDepositHandler(
+	instanceRepo *repository.AggregatorInstanceRepository,
+	providerLoader *providers.InstanceBasedProviderLoader,
+	fundMovement *service.DepositFundMovementService,
+	walletServiceURL string,
+) *DepositHandler {
 	return &DepositHandler{
-		repo:             repo,
-		fullService:      fullService,
+		instanceRepo:     instanceRepo,
+		providerLoader:   providerLoader,
+		fundMovement:     fundMovement,
 		walletServiceURL: walletServiceURL,
 	}
 }
@@ -32,12 +40,13 @@ func NewDepositHandler(repo *repository.AggregatorRepository, fullService *provi
 // InitiateDepositRequest represents a deposit initiation request
 type InitiateDepositRequest struct {
 	UserID    string  `json:"user_id" binding:"required"`
-	WalletID  string  `json:"wallet_id" binding:"required"`
 	Amount    float64 `json:"amount" binding:"required,gt=0"`
 	Currency  string  `json:"currency" binding:"required"`
 	Provider  string  `json:"provider" binding:"required"` // demo, flutterwave, stripe, etc.
 	Country   string  `json:"country" binding:"required"`  // For routing
-	ReturnURL string  `json:"return_url"`                  // Callback URL for user after payment
+	Email     string  `json:"email"`                       // For payment provider
+	Phone     string  `json:"phone"`                       // For mobile money
+	ReturnURL string  `json:"return_url"`                  // Callback URL
 }
 
 // InitiateDepositResponse represents the response from deposit initiation
@@ -49,11 +58,10 @@ type InitiateDepositResponse struct {
 	Amount        float64 `json:"amount"`
 	Currency      string  `json:"currency"`
 	Message       string  `json:"message,omitempty"`
-	// For demo/instant success
-	NewBalance *float64 `json:"new_balance,omitempty"`
+	NewBalance    *float64 `json:"new_balance,omitempty"`
 }
 
-// InitiateDeposit initiates a deposit from an aggregator
+// InitiateDeposit initiates a deposit using instance-based provider
 // POST /api/v1/deposits/initiate
 func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	var req InitiateDepositRequest
@@ -62,42 +70,147 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		return
 	}
 
-	// Get provider configuration
-	provider, err := h.repo.GetByCode(req.Provider)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Provider not found"})
-		return
-	}
-
-	if !provider.IsEnabled {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Provider is not active"})
-		return
-	}
-
-	if !provider.DepositEnabled {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Deposits are not enabled for this provider"})
-		return
-	}
-
-	// Generate transaction ID
+	ctx := c.Request.Context()
 	transactionID := fmt.Sprintf("dep_%s_%d", uuid.New().String()[:8], time.Now().Unix())
 
-	// Check if this is demo mode
-	if provider.ProviderCode == "demo" {
-		// INSTANT CREDIT for demo mode
+	// Handle demo provider separately
+	if req.Provider == "demo" {
 		h.processInstantDemoDeposit(c, req, transactionID)
 		return
 	}
 
-	// Real provider flow - call actual API
-	h.processRealProviderDeposit(c, req, provider, transactionID)
+	// Get best instance for this provider
+	provider, instance, err := h.providerLoader.GetBestProviderForDeposit(
+		ctx,
+		req.Provider,
+		req.Country,
+		req.Amount,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Provider not available: %v", err)})
+		return
+	}
+
+	// Select best hot wallet for this instance
+	walletID, err := h.fundMovement.SelectBestWalletForDeposit(ctx, instance.ID, req.Currency, req.Amount)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No available wallet: %v", err)})
+		return
+	}
+
+	// Prepare collection request
+	collectionReq := &providers.CollectionRequest{
+		ReferenceID: transactionID,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Country:     req.Country,
+		Email:       req.Email,
+		PhoneNumber: req.Phone,
+		FirstName:   "",
+		LastName:    "",
+		RedirectURL: req.ReturnURL,
+	}
+
+	// Initiate collection with provider
+	response, err := provider.InitiateCollection(ctx, collectionReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to initiate payment: %v", err),
+		})
+		return
+	}
+
+	// Record transaction in instance
+	_ = h.providerLoader.RecordTransactionUsage(
+		ctx,
+		instance.ID,
+		transactionID,
+		req.Amount,
+		req.Currency,
+		"pending",
+		response.ProviderReference,
+	)
+
+	// TODO: Store transaction reference and wallet_id for webhook processing
+
+	c.JSON(http.StatusOK, InitiateDepositResponse{
+		TransactionID: transactionID,
+		Status:        "pending_payment",
+		PaymentURL:    response.PaymentLink,
+		Provider:      req.Provider,
+		Amount:        req.Amount,
+		Currency:      req.Currency,
+		Message:       response.Message,
+	})
 }
 
 // processInstantDemoDeposit handles instant credit for demo providers
 func (h *DepositHandler) processInstantDemoDeposit(c *gin.Context, req InitiateDepositRequest, transactionID string) {
-	// For demo mode, we credit instantly without calling external API
-	// Call wallet-service to credit the wallet via platform reserve
-	// In production, would call wallet-service here
+	// For demo mode: instant success
+	c.JSON(http.StatusOK, InitiateDepositResponse{
+		TransactionID: transactionID,
+		Status:        "instant_success",
+		Provider:      "demo",
+		Amount:        req.Amount,
+		Currency:      req.Currency,
+		Message:       "Demo deposit completed instantly",
+	})
+}
+
+// ProcessDepositWebhook processes webhook from payment provider
+// POST /api/v1/deposits/webhook/:provider
+func (h *DepositHandler) ProcessDepositWebhook(c *gin.Context) {
+	providerCode := c.Param("provider")
+	ctx := c.Request.Context()
+
+	// TODO: Verify webhook signature based on provider
+
+	// Get transaction details from webhook body
+	var webhookData map[string]interface{}
+	if err := c.ShouldBindJSON(&webhookData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Extract transaction reference and status
+	// This depends on each provider's webhook format
+	transactionRef := "" // Extract from webhookData
+	status := ""         // Extract from webhookData
+
+	if status == "successful" || status == "completed" {
+		// Get transaction details from DB
+		// Find which instance and wallet was used
+		// Process fund movement from hot wallet to user account
+		
+		userID := "" // Get from transaction record
+		walletID := "" // Get from transaction record
+		amount := 0.0  // Get from transaction record
+		currency := "" // Get from transaction record
+		
+		err := h.fundMovement.ProcessDepositFromWallet(
+			ctx,
+			userID,
+			walletID,
+			amount,
+			currency,
+			transactionRef,
+			providerCode,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Check if wallet needs recharge
+		// instanceWalletID := "" // Get from transaction record
+		// _ = h.fundMovement.CheckAndTriggerRecharge(ctx, instanceWalletID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "processed"})
+}
+
 	_ = transactionID // avoid unused variable warning
 
 	c.JSON(http.StatusOK, InitiateDepositResponse{
