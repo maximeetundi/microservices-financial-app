@@ -16,10 +16,10 @@ import (
 
 // DepositHandler handles deposit collection flows with instance-based providers
 type DepositHandler struct {
-	instanceRepo      *repository.AggregatorInstanceRepository
-	providerLoader    *providers.InstanceBasedProviderLoader
-	fundMovement      *service.DepositFundMovementService
-	walletServiceURL  string
+	instanceRepo     *repository.AggregatorInstanceRepository
+	providerLoader   *providers.InstanceBasedProviderLoader
+	fundMovement     *service.DepositFundMovementService
+	walletServiceURL string
 }
 
 // NewDepositHandler creates a new deposit handler
@@ -51,13 +51,13 @@ type InitiateDepositRequest struct {
 
 // InitiateDepositResponse represents the response from deposit initiation
 type InitiateDepositResponse struct {
-	TransactionID string  `json:"transaction_id"`
-	Status        string  `json:"status"` // instant_success, pending_payment, failed
-	PaymentURL    string  `json:"payment_url,omitempty"`
-	Provider      string  `json:"provider"`
-	Amount        float64 `json:"amount"`
-	Currency      string  `json:"currency"`
-	Message       string  `json:"message,omitempty"`
+	TransactionID string   `json:"transaction_id"`
+	Status        string   `json:"status"` // instant_success, pending_payment, failed
+	PaymentURL    string   `json:"payment_url,omitempty"`
+	Provider      string   `json:"provider"`
+	Amount        float64  `json:"amount"`
+	Currency      string   `json:"currency"`
+	Message       string   `json:"message,omitempty"`
 	NewBalance    *float64 `json:"new_balance,omitempty"`
 }
 
@@ -182,12 +182,12 @@ func (h *DepositHandler) ProcessDepositWebhook(c *gin.Context) {
 		// Get transaction details from DB
 		// Find which instance and wallet was used
 		// Process fund movement from hot wallet to user account
-		
-		userID := "" // Get from transaction record
+
+		userID := ""   // Get from transaction record
 		walletID := "" // Get from transaction record
 		amount := 0.0  // Get from transaction record
 		currency := "" // Get from transaction record
-		
+
 		err := h.fundMovement.ProcessDepositFromWallet(
 			ctx,
 			userID,
@@ -209,18 +209,6 @@ func (h *DepositHandler) ProcessDepositWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "processed"})
-}
-
-	_ = transactionID // avoid unused variable warning
-
-	c.JSON(http.StatusOK, InitiateDepositResponse{
-		TransactionID: transactionID,
-		Status:        "instant_success",
-		Provider:      "demo",
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Message:       "Deposit credited instantly (demo mode)",
-	})
 }
 
 // processRealProviderDeposit handles deposits through real aggregator APIs
