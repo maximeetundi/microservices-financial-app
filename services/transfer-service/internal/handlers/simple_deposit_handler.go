@@ -13,11 +13,11 @@ import (
 
 // SimpleDepositHandler handles deposit requests using provider configurations
 type SimpleDepositHandler struct {
-	providerConfig *providers.ProviderConfig
+	providerConfig *providers.Config
 }
 
 // NewSimpleDepositHandler creates a new simple deposit handler
-func NewSimpleDepositHandler(providerConfig *providers.ProviderConfig) *SimpleDepositHandler {
+func NewSimpleDepositHandler(providerConfig *providers.Config) *SimpleDepositHandler {
 	return &SimpleDepositHandler{
 		providerConfig: providerConfig,
 	}
@@ -145,7 +145,8 @@ func (h *SimpleDepositHandler) initiateFlutterwaveDeposit(ctx context.Context, r
 		return "", fmt.Errorf("flutterwave not configured")
 	}
 
-	provider := providers.NewFlutterwaveProvider(cfg)
+	// Use the collection provider wrapper
+	collectionProvider := providers.NewFlutterwaveCollectionProvider(cfg)
 
 	collectionReq := &providers.CollectionRequest{
 		ReferenceID: txRef,
@@ -157,7 +158,7 @@ func (h *SimpleDepositHandler) initiateFlutterwaveDeposit(ctx context.Context, r
 		RedirectURL: req.ReturnURL,
 	}
 
-	response, err := provider.InitiateCollection(ctx, collectionReq)
+	response, err := collectionProvider.InitiateCollection(ctx, collectionReq)
 	if err != nil {
 		return "", err
 	}
@@ -172,7 +173,8 @@ func (h *SimpleDepositHandler) initiateCinetPayDeposit(ctx context.Context, req 
 		return "", fmt.Errorf("cinetpay not configured")
 	}
 
-	provider := providers.NewCinetPayProvider(cfg)
+	// Use the collection provider wrapper
+	collectionProvider := providers.NewCinetPayCollectionProvider(cfg)
 
 	collectionReq := &providers.CollectionRequest{
 		ReferenceID: txRef,
@@ -184,7 +186,7 @@ func (h *SimpleDepositHandler) initiateCinetPayDeposit(ctx context.Context, req 
 		RedirectURL: req.ReturnURL,
 	}
 
-	response, err := provider.InitiateCollection(ctx, collectionReq)
+	response, err := collectionProvider.InitiateCollection(ctx, collectionReq)
 	if err != nil {
 		return "", err
 	}
@@ -199,7 +201,8 @@ func (h *SimpleDepositHandler) initiateStripeDeposit(ctx context.Context, req Si
 		return "", fmt.Errorf("stripe not configured")
 	}
 
-	provider := providers.NewStripeProvider(cfg)
+	// Use the collection provider wrapper
+	collectionProvider := providers.NewStripeCollectionProvider(cfg)
 
 	collectionReq := &providers.CollectionRequest{
 		ReferenceID: txRef,
@@ -211,7 +214,7 @@ func (h *SimpleDepositHandler) initiateStripeDeposit(ctx context.Context, req Si
 		RedirectURL: req.ReturnURL,
 	}
 
-	response, err := provider.InitiateCollection(ctx, collectionReq)
+	response, err := collectionProvider.InitiateCollection(ctx, collectionReq)
 	if err != nil {
 		return "", err
 	}
