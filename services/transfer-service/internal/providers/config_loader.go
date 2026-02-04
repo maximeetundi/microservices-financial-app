@@ -115,11 +115,11 @@ func (p *ProviderConfigLoader) LoadFlutterwaveConfig(ctx context.Context) (Flutt
 	}
 
 	return FlutterwaveConfig{
-		PublicKey:     p.getString(data, "public_key"),
-		SecretKey:     p.getString(data, "secret_key"),
-		EncryptionKey: p.getString(data, "encryption_key"),
-		WebhookSecret: p.getString(data, "webhook_secret"),
-		BaseURL:       p.getString(data, "base_url"),
+		PublicKey:   p.getString(data, "public_key"),
+		SecretKey:   p.getString(data, "secret_key"),
+		EncryptKey:  p.getString(data, "encryption_key"),
+		CallbackURL: p.getString(data, "callback_url"),
+		BaseURL:     p.getString(data, "base_url"),
 	}, nil
 }
 
@@ -159,10 +159,10 @@ func (p *ProviderConfigLoader) LoadStripeConfig(ctx context.Context) (StripeConf
 	}
 
 	return StripeConfig{
-		PublicKey:     p.getString(data, "public_key"),
-		SecretKey:     p.getString(data, "secret_key"),
-		WebhookSecret: p.getString(data, "webhook_secret"),
-		BaseURL:       p.getString(data, "base_url"),
+		PublishableKey: p.getString(data, "public_key"),
+		SecretKey:      p.getString(data, "secret_key"),
+		WebhookSecret:  p.getString(data, "webhook_secret"),
+		BaseURL:        p.getString(data, "base_url"),
 	}, nil
 }
 

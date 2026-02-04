@@ -410,3 +410,275 @@ func convertMeta(input map[string]interface{}) map[string]string {
 	}
 	return result
 }
+
+// ========================
+// CinetPay Collection Wrapper
+// ========================
+
+type CinetPayCollectionProvider struct {
+	provider *CinetPayProvider
+}
+
+func NewCinetPayCollectionProvider(config CinetPayConfig) *CinetPayCollectionProvider {
+	return &CinetPayCollectionProvider{
+		provider: NewCinetPayProvider(config),
+	}
+}
+
+func (c *CinetPayCollectionProvider) GetName() string {
+	return c.provider.GetName()
+}
+
+func (c *CinetPayCollectionProvider) GetSupportedCountries() []string {
+	return c.provider.GetSupportedCountries()
+}
+
+func (c *CinetPayCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney, CollectionMethodCard}, nil
+}
+
+func (c *CinetPayCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	// CinetPay collection not fully implemented - placeholder
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "CinetPay collection initiated",
+	}, nil
+}
+
+func (c *CinetPayCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// Wave Collection Wrapper
+// ========================
+
+type WaveCollectionProvider struct {
+	provider *WaveProvider
+}
+
+func NewWaveCollectionProvider(config WaveConfig) *WaveCollectionProvider {
+	return &WaveCollectionProvider{
+		provider: NewWaveProvider(config),
+	}
+}
+
+func (w *WaveCollectionProvider) GetName() string {
+	return w.provider.GetName()
+}
+
+func (w *WaveCollectionProvider) GetSupportedCountries() []string {
+	return w.provider.GetSupportedCountries()
+}
+
+func (w *WaveCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+func (w *WaveCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "Wave collection initiated",
+	}, nil
+}
+
+func (w *WaveCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// PayPal Collection Wrapper
+// ========================
+
+type PayPalCollectionProvider struct {
+	provider *PayPalProvider
+}
+
+func NewPayPalCollectionProvider(config PayPalConfig) *PayPalCollectionProvider {
+	return &PayPalCollectionProvider{
+		provider: NewPayPalProvider(config),
+	}
+}
+
+func (p *PayPalCollectionProvider) GetName() string {
+	return p.provider.GetName()
+}
+
+func (p *PayPalCollectionProvider) GetSupportedCountries() []string {
+	return p.provider.GetSupportedCountries()
+}
+
+func (p *PayPalCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodCard}, nil
+}
+
+func (p *PayPalCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	order, err := p.provider.CreateOrder(ctx, req.Amount, req.Currency, req.WalletID, "Wallet Deposit")
+	if err != nil {
+		return nil, err
+	}
+
+	// Find approval URL
+	var paymentLink string
+	for _, link := range order.Links {
+		if link.Rel == "approve" {
+			paymentLink = link.Href
+			break
+		}
+	}
+
+	return &CollectionResponse{
+		ReferenceID:       req.ReferenceID,
+		ProviderReference: order.ID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       paymentLink,
+		Message:           "Redirecting to PayPal",
+	}, nil
+}
+
+func (p *PayPalCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	order, err := p.provider.GetOrder(ctx, referenceID)
+	if err != nil {
+		return nil, err
+	}
+
+	status := CollectionStatusPending
+	if order.Status == "COMPLETED" {
+		status = CollectionStatusSuccessful
+	} else if order.Status == "VOIDED" || order.Status == "CANCELLED" {
+		status = CollectionStatusFailed
+	}
+
+	return &CollectionResponse{
+		ReferenceID:       referenceID,
+		ProviderReference: order.ID,
+		Status:            status,
+	}, nil
+}
+
+// ========================
+// Orange Money Collection Wrapper
+// ========================
+
+type OrangeMoneyCollectionProvider struct {
+	provider *OrangeMoneyProvider
+}
+
+func NewOrangeMoneyCollectionProvider(config OrangeMoneyConfig) *OrangeMoneyCollectionProvider {
+	return &OrangeMoneyCollectionProvider{
+		provider: NewOrangeMoneyProvider(config),
+	}
+}
+
+func (o *OrangeMoneyCollectionProvider) GetName() string {
+	return o.provider.GetName()
+}
+
+func (o *OrangeMoneyCollectionProvider) GetSupportedCountries() []string {
+	return o.provider.GetSupportedCountries()
+}
+
+func (o *OrangeMoneyCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+func (o *OrangeMoneyCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	resp, err := o.provider.InitiateWebPayment(ctx, req.Amount, req.Currency, req.ReferenceID, req.RedirectURL, req.RedirectURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CollectionResponse{
+		ReferenceID:       req.ReferenceID,
+		ProviderReference: resp.PayToken,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       resp.PaymentURL,
+		Message:           "Redirecting to Orange Money",
+	}, nil
+}
+
+func (o *OrangeMoneyCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// MTN MoMo Collection Wrapper
+// ========================
+
+type MTNMoMoCollectionProvider struct {
+	provider *MTNMomoProvider
+}
+
+func NewMTNMoMoCollectionProvider(config MTNMomoConfig) *MTNMoMoCollectionProvider {
+	return &MTNMoMoCollectionProvider{
+		provider: NewMTNMomoProvider(config),
+	}
+}
+
+func (m *MTNMoMoCollectionProvider) GetName() string {
+	return m.provider.GetName()
+}
+
+func (m *MTNMoMoCollectionProvider) GetSupportedCountries() []string {
+	return m.provider.GetSupportedCountries()
+}
+
+func (m *MTNMoMoCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+func (m *MTNMoMoCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	refID, err := m.provider.RequestToPay(ctx, req.MobileNumber, req.Amount, req.Currency, req.ReferenceID, "Wallet Deposit")
+	if err != nil {
+		return nil, err
+	}
+
+	return &CollectionResponse{
+		ReferenceID:       req.ReferenceID,
+		ProviderReference: refID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		Message:           "MTN MoMo payment request sent",
+	}, nil
+}
+
+func (m *MTNMoMoCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	status, err := m.provider.GetRequestToPayStatus(ctx, referenceID)
+	if err != nil {
+		return nil, err
+	}
+
+	collStatus := CollectionStatusPending
+	switch status.Status {
+	case "SUCCESSFUL":
+		collStatus = CollectionStatusSuccessful
+	case "FAILED":
+		collStatus = CollectionStatusFailed
+	}
+
+	return &CollectionResponse{
+		ReferenceID:       referenceID,
+		ProviderReference: status.FinancialTransactionID,
+		Status:            collStatus,
+	}, nil
+}

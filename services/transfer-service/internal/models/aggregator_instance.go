@@ -49,21 +49,22 @@ type AggregatorInstance struct {
 
 // AggregatorInstanceWithDetails includes aggregator and hot wallet information
 type AggregatorInstanceWithDetails struct {
-	ID                  string     `json:"id"`
-	InstanceName        string     `json:"instance_name"`
-	Enabled             bool       `json:"enabled"`
-	Priority            int        `json:"priority"`
-	IsTestMode          bool       `json:"is_test_mode"`
-	RestrictedCountries []string   `json:"restricted_countries,omitempty"`
-	DailyLimit          *float64   `json:"daily_limit,omitempty"`
-	MonthlyLimit        *float64   `json:"monthly_limit,omitempty"`
-	DailyUsage          float64    `json:"daily_usage"`
-	MonthlyUsage        float64    `json:"monthly_usage"`
-	TotalTransactions   int        `json:"total_transactions"`
-	TotalVolume         float64    `json:"total_volume"`
-	LastUsedAt          *time.Time `json:"last_used_at,omitempty"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	ID                  string            `json:"id"`
+	InstanceName        string            `json:"instance_name"`
+	Enabled             bool              `json:"enabled"`
+	Priority            int               `json:"priority"`
+	IsTestMode          bool              `json:"is_test_mode"`
+	RestrictedCountries []string          `json:"restricted_countries,omitempty"`
+	DailyLimit          *float64          `json:"daily_limit,omitempty"`
+	MonthlyLimit        *float64          `json:"monthly_limit,omitempty"`
+	DailyUsage          float64           `json:"daily_usage"`
+	MonthlyUsage        float64           `json:"monthly_usage"`
+	TotalTransactions   int               `json:"total_transactions"`
+	TotalVolume         float64           `json:"total_volume"`
+	LastUsedAt          *time.Time        `json:"last_used_at,omitempty"`
+	CreatedAt           time.Time         `json:"created_at"`
+	UpdatedAt           time.Time         `json:"updated_at"`
+	APICredentials      map[string]string `json:"api_credentials,omitempty"`
 
 	// Aggregator info
 	AggregatorID      string `json:"aggregator_id"`

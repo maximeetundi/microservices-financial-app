@@ -51,11 +51,11 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 
 func (l *InstanceBasedProviderLoader) loadFlutterwaveFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	config := FlutterwaveConfig{
-		PublicKey:     instance.APICredentials["public_key"],
-		SecretKey:     instance.APICredentials["secret_key"],
-		EncryptionKey: instance.APICredentials["encryption_key"],
-		WebhookSecret: instance.APICredentials["webhook_secret"],
-		BaseURL:       "https://api.flutterwave.com/v3",
+		PublicKey:   instance.APICredentials["public_key"],
+		SecretKey:   instance.APICredentials["secret_key"],
+		EncryptKey:  instance.APICredentials["encryption_key"],
+		CallbackURL: instance.APICredentials["callback_url"],
+		BaseURL:     "https://api.flutterwave.com/v3",
 	}
 
 	if instance.IsTestMode {
@@ -88,10 +88,10 @@ func (l *InstanceBasedProviderLoader) loadPaystackFromInstance(instance *models.
 
 func (l *InstanceBasedProviderLoader) loadStripeFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	config := StripeConfig{
-		PublicKey:     instance.APICredentials["public_key"],
-		SecretKey:     instance.APICredentials["secret_key"],
-		WebhookSecret: instance.APICredentials["webhook_secret"],
-		BaseURL:       "https://api.stripe.com/v1",
+		PublishableKey: instance.APICredentials["public_key"],
+		SecretKey:      instance.APICredentials["secret_key"],
+		WebhookSecret:  instance.APICredentials["webhook_secret"],
+		BaseURL:        "https://api.stripe.com/v1",
 	}
 
 	return NewStripeCollectionProvider(config), nil
