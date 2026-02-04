@@ -792,7 +792,7 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 	// REAL PROVIDER MODE: Call transfer-service to initiate payment
 	transferServiceURL := os.Getenv("TRANSFER_SERVICE_URL")
 	if transferServiceURL == "" {
-		transferServiceURL = "http://transfer-service:8086"
+		transferServiceURL = "http://transfer-service:8084"
 	}
 
 	// Prepare request to transfer-service
