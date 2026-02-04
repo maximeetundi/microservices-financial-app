@@ -234,13 +234,14 @@ func (f *FlutterwaveCollectionProvider) VerifyCollection(ctx context.Context, re
 	var result struct {
 		Status string `json:"status"`
 		Data   struct {
-			ID            int     `json:"id"`
-			TxRef         string  `json:"tx_ref"`
-			Amount        float64 `json:"amount"`
-			Currency      string  `json:"currency"`
-			ChargedAmount float64 `json:"charged_amount"`
-			AppFee        float64 `json:"app_fee"`
-			Status        string  `json:"status"`
+			ID            int         `json:"id"`
+			TxRef         string      `json:"tx_ref"`
+			Amount        float64     `json:"amount"`
+			Currency      string      `json:"currency"`
+			ChargedAmount float64     `json:"charged_amount"`
+			AppFee        float64     `json:"app_fee"`
+			Status        string      `json:"status"`
+			Meta          interface{} `json:"meta"`
 		} `json:"data"`
 	}
 
