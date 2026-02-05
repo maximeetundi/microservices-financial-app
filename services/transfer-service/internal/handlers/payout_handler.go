@@ -56,27 +56,27 @@ func NewPayoutHandler(
 
 // InitiatePayoutRequest represents a payout initiation request
 type InitiatePayoutRequest struct {
-	UserID          string  `json:"user_id" binding:"required"`
-	WalletID        string  `json:"wallet_id" binding:"required"`
-	Amount          float64 `json:"amount" binding:"required,gt=0"`
-	Currency        string  `json:"currency" binding:"required"`
-	Provider        string  `json:"provider" binding:"required"` // flutterwave, stripe, paypal, mtn_momo, orange_money, etc.
-	Country         string  `json:"country" binding:"required"`
-	PayoutMethod    string  `json:"payout_method" binding:"required"` // mobile_money, bank_transfer, paypal, card
-	RecipientName   string  `json:"recipient_name" binding:"required"`
-	RecipientEmail  string  `json:"recipient_email,omitempty"`
-	RecipientPhone  string  `json:"recipient_phone,omitempty"`
-	BankCode        string  `json:"bank_code,omitempty"`
-	BankName        string  `json:"bank_name,omitempty"`
-	AccountNumber   string  `json:"account_number,omitempty"`
-	IBAN            string  `json:"iban,omitempty"`
-	SwiftCode       string  `json:"swift_code,omitempty"`
-	RoutingNumber   string  `json:"routing_number,omitempty"`
-	MobileOperator  string  `json:"mobile_operator,omitempty"`
-	MobileNumber    string  `json:"mobile_number,omitempty"`
-	PayPalEmail     string  `json:"paypal_email,omitempty"`
-	Narration       string  `json:"narration,omitempty"`
-	PIN             string  `json:"pin" binding:"required"` // User PIN for security
+	UserID         string  `json:"user_id" binding:"required"`
+	WalletID       string  `json:"wallet_id" binding:"required"`
+	Amount         float64 `json:"amount" binding:"required,gt=0"`
+	Currency       string  `json:"currency" binding:"required"`
+	Provider       string  `json:"provider" binding:"required"` // flutterwave, stripe, paypal, mtn_momo, orange_money, etc.
+	Country        string  `json:"country" binding:"required"`
+	PayoutMethod   string  `json:"payout_method" binding:"required"` // mobile_money, bank_transfer, paypal, card
+	RecipientName  string  `json:"recipient_name" binding:"required"`
+	RecipientEmail string  `json:"recipient_email,omitempty"`
+	RecipientPhone string  `json:"recipient_phone,omitempty"`
+	BankCode       string  `json:"bank_code,omitempty"`
+	BankName       string  `json:"bank_name,omitempty"`
+	AccountNumber  string  `json:"account_number,omitempty"`
+	IBAN           string  `json:"iban,omitempty"`
+	SwiftCode      string  `json:"swift_code,omitempty"`
+	RoutingNumber  string  `json:"routing_number,omitempty"`
+	MobileOperator string  `json:"mobile_operator,omitempty"`
+	MobileNumber   string  `json:"mobile_number,omitempty"`
+	PayPalEmail    string  `json:"paypal_email,omitempty"`
+	Narration      string  `json:"narration,omitempty"`
+	PIN            string  `json:"pin" binding:"required"` // User PIN for security
 }
 
 // InitiatePayoutResponse represents the response for payout initiation
@@ -109,36 +109,36 @@ type PayoutQuoteRequest struct {
 
 // PayoutQuoteResponse represents a quote response
 type PayoutQuoteResponse struct {
-	Amount             float64 `json:"amount"`
-	Currency           string  `json:"currency"`
-	Fee                float64 `json:"fee"`
-	FeeType            string  `json:"fee_type"` // flat, percentage, hybrid
-	AmountReceived     float64 `json:"amount_received"`
-	ExchangeRate       float64 `json:"exchange_rate,omitempty"`
-	ReceivedCurrency   string  `json:"received_currency,omitempty"`
-	EstimatedMinutes   int     `json:"estimated_minutes"`
-	Provider           string  `json:"provider"`
-	PayoutMethod       string  `json:"payout_method"`
-	MinAmount          float64 `json:"min_amount"`
-	MaxAmount          float64 `json:"max_amount"`
+	Amount           float64 `json:"amount"`
+	Currency         string  `json:"currency"`
+	Fee              float64 `json:"fee"`
+	FeeType          string  `json:"fee_type"` // flat, percentage, hybrid
+	AmountReceived   float64 `json:"amount_received"`
+	ExchangeRate     float64 `json:"exchange_rate,omitempty"`
+	ReceivedCurrency string  `json:"received_currency,omitempty"`
+	EstimatedMinutes int     `json:"estimated_minutes"`
+	Provider         string  `json:"provider"`
+	PayoutMethod     string  `json:"payout_method"`
+	MinAmount        float64 `json:"min_amount"`
+	MaxAmount        float64 `json:"max_amount"`
 }
 
 // PayoutStatusResponse represents payout status
 type PayoutStatusResponse struct {
-	TransactionID     string   `json:"transaction_id"`
-	Status            string   `json:"status"` // pending, processing, completed, failed, cancelled
-	ProviderReference string   `json:"provider_reference,omitempty"`
-	Amount            float64  `json:"amount"`
-	Currency          string   `json:"currency"`
-	Fee               float64  `json:"fee"`
-	AmountReceived    float64  `json:"amount_received"`
-	RecipientName     string   `json:"recipient_name"`
-	RecipientAccount  string   `json:"recipient_account"`
-	PayoutMethod      string   `json:"payout_method"`
-	Provider          string   `json:"provider"`
-	StatusMessage     string   `json:"status_message,omitempty"`
-	CreatedAt         string   `json:"created_at"`
-	CompletedAt       string   `json:"completed_at,omitempty"`
+	TransactionID     string  `json:"transaction_id"`
+	Status            string  `json:"status"` // pending, processing, completed, failed, cancelled
+	ProviderReference string  `json:"provider_reference,omitempty"`
+	Amount            float64 `json:"amount"`
+	Currency          string  `json:"currency"`
+	Fee               float64 `json:"fee"`
+	AmountReceived    float64 `json:"amount_received"`
+	RecipientName     string  `json:"recipient_name"`
+	RecipientAccount  string  `json:"recipient_account"`
+	PayoutMethod      string  `json:"payout_method"`
+	Provider          string  `json:"provider"`
+	StatusMessage     string  `json:"status_message,omitempty"`
+	CreatedAt         string  `json:"created_at"`
+	CompletedAt       string  `json:"completed_at,omitempty"`
 }
 
 const DefaultPayoutTimeout = 24 * time.Hour
@@ -322,7 +322,7 @@ func (h *PayoutHandler) InitiatePayout(c *gin.Context) {
 		UserAgent:            c.Request.UserAgent(),
 	}
 
-	_, err := h.payoutRepo.Create(ctx, payoutReq)
+	_, err = h.payoutRepo.Create(ctx, payoutReq)
 	if err != nil {
 		log.Printf("[PayoutHandler] Failed to create payout record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payout"})
@@ -780,12 +780,12 @@ func (h *PayoutHandler) handlePayPalPayoutWebhook(c *gin.Context, body []byte) {
 
 func (h *PayoutHandler) handleMTNMoMoPayoutWebhook(c *gin.Context, body []byte) {
 	var event struct {
-		ExternalID       string  `json:"externalId"`
-		Amount           float64 `json:"amount"`
-		Currency         string  `json:"currency"`
-		Status           string  `json:"status"`
-		FinancialTxID    string  `json:"financialTransactionId"`
-		Reason           string  `json:"reason"`
+		ExternalID    string  `json:"externalId"`
+		Amount        float64 `json:"amount"`
+		Currency      string  `json:"currency"`
+		Status        string  `json:"status"`
+		FinancialTxID string  `json:"financialTransactionId"`
+		Reason        string  `json:"reason"`
 	}
 
 	if err := json.Unmarshal(body, &event); err != nil {
@@ -808,10 +808,10 @@ func (h *PayoutHandler) handleMTNMoMoPayoutWebhook(c *gin.Context, body []byte) 
 
 func (h *PayoutHandler) handleOrangeMoneyPayoutWebhook(c *gin.Context, body []byte) {
 	var event struct {
-		Status     string `json:"status"`
-		TxnID      string `json:"txnid"`
-		Message    string `json:"message"`
-		OrderID    string `json:"order_id"`
+		Status  string `json:"status"`
+		TxnID   string `json:"txnid"`
+		Message string `json:"message"`
+		OrderID string `json:"order_id"`
 	}
 
 	if err := json.Unmarshal(body, &event); err != nil {

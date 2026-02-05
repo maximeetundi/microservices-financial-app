@@ -171,7 +171,7 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		UserAgent: c.Request.UserAgent(),
 	}
 
-	_, err := h.depositRepo.Create(ctx, depositReq)
+	_, err = h.depositRepo.Create(ctx, depositReq)
 	if err != nil {
 		log.Printf("[DepositHandler] Failed to create deposit record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create deposit"})
