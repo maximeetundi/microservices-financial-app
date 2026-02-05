@@ -12,6 +12,7 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/middleware"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/providers"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/service"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -108,8 +109,22 @@ func main() {
 	}
 	aggregatorHandler := handlers.NewAggregatorHandler(aggregatorRepo, adminClient)
 
-	// Initialize Deposit Handler (for collection/deposits)
-	depositHandler := handlers.NewSimpleDepositHandler(providerCfg)
+	// Initialize Instance-Based Provider System for Deposits
+	instanceRepo := repository.NewAggregatorInstanceRepository(db)
+	providerLoader := providers.NewInstanceBasedProviderLoader(instanceRepo)
+	fundMovementService := service.NewDepositFundMovementService(db)
+	walletServiceURL := cfg.WalletServiceURL
+	if walletServiceURL == "" {
+		walletServiceURL = "http://wallet-service:8082"
+	}
+
+	// Initialize Full Deposit Handler (production-ready)
+	depositHandler := handlers.NewDepositHandler(
+		instanceRepo,
+		providerLoader,
+		fundMovementService,
+		walletServiceURL,
+	)
 
 	// Setup Gin
 	if cfg.Environment == "production" {
