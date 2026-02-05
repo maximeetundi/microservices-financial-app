@@ -281,26 +281,7 @@ FROM payment_providers
 WHERE name IN ('demo', 'flutterwave', 'cinetpay', 'paystack', 'orange_money', 'mtn_momo', 'wave', 'stripe', 'paypal', 'lygos', 'yellowcard', 'fedapay', 'moov_money')
 ON CONFLICT (provider_code) DO UPDATE SET is_enabled = EXCLUDED.is_enabled, is_demo_mode = EXCLUDED.is_demo_mode;
 
--- Seed default instances for each aggregator
-DO $$
-DECLARE v_agg RECORD; v_inst_id UUID; v_wallet RECORD;
-BEGIN
-    FOR v_agg IN SELECT id, provider_code, provider_name FROM aggregator_settings LOOP
-        SELECT id INTO v_inst_id FROM aggregator_instances WHERE aggregator_id = v_agg.id AND instance_name = 'Instance Principale';
-        IF v_inst_id IS NULL THEN
-            INSERT INTO aggregator_instances (aggregator_id, instance_name, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
-            VALUES (v_agg.id, 'Instance Principale', 'secret/aggregators/' || v_agg.provider_code || '/default', true, true, 100, 'active', true)
-            RETURNING id INTO v_inst_id;
-        END IF;
-        IF v_inst_id IS NOT NULL THEN
-            FOR v_wallet IN SELECT id, currency FROM platform_accounts WHERE account_type = 'operations' AND is_active = true LOOP
-                INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
-                VALUES (v_inst_id, v_wallet.id::uuid, v_wallet.currency, v_wallet.currency IN ('XOF', 'NGN', 'USD'), CASE WHEN v_wallet.currency IN ('XOF', 'NGN') THEN 100 ELSE 50 END, true)
-                ON CONFLICT (instance_id, hot_wallet_id, currency) DO NOTHING;
-            END LOOP;
-        END IF;
-    END LOOP;
-END $$;
+
 	`
 
 	if _, err := db.Exec(query); err != nil {
