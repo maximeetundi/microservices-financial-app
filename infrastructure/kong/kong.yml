@@ -119,20 +119,44 @@ plugins:
         - PATCH
         - DELETE
         - OPTIONS
+        - HEAD
       headers:
-        - Origin
-        - Content-Type
         - Accept
+        - Accept-Encoding
+        - Accept-Language
         - Authorization
+        - Content-Type
+        - Origin
         - X-Requested-With
+        - X-Transaction-Pin
+        - X-Forwarded-For
+        - X-Real-IP
+        - Cache-Control
+        - Pragma
       exposed_headers:
         - Authorization
         - Content-Length
+        - X-Request-Id
       credentials: true
-      max_age: 3600
+      max_age: 86400
       preflight_continue: false
+
   - name: request-size-limiting
     config:
       allowed_payload_size: 50
       size_unit: megabytes
       require_content_length: false
+
+  # Ensure headers are passed through to upstream services
+  - name: request-transformer
+    config:
+      add:
+        headers: []
+      remove:
+        headers: []
+      rename:
+        headers: []
+      replace:
+        headers: []
+      append:
+        headers: []

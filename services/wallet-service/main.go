@@ -154,12 +154,20 @@ func main() {
 	router.Use(middleware.RateLimiter())
 
 	// CORS configuration
+	// Note: AllowAllOrigins and AllowCredentials cannot both be true
+	// When credentials are needed, we must specify exact origins
 	router.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		AllowOrigins: []string{
+			"https://app.tech-afm.com",
+			"https://admin.tech-afm.com",
+			"http://localhost:3000",
+			"http://localhost:3001",
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "X-Transaction-Pin", "Cache-Control"},
+		ExposeHeaders:    []string{"Content-Length", "Authorization", "X-Request-Id"},
 		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}))
 
 	// Prometheus metrics endpoint
@@ -168,6 +176,31 @@ func main() {
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "wallet-service"})
+	})
+
+	// Debug endpoint to check incoming headers (temporary - remove in production)
+	router.Any("/debug/headers", func(c *gin.Context) {
+		headers := make(map[string]string)
+		for key, values := range c.Request.Header {
+			if len(values) > 0 {
+				// Truncate Authorization for security
+				if key == "Authorization" && len(values[0]) > 30 {
+					headers[key] = values[0][:20] + "..." + values[0][len(values[0])-10:]
+				} else {
+					headers[key] = values[0]
+				}
+			}
+		}
+		log.Printf("🔍 [DEBUG] Headers received at wallet-service: %+v", headers)
+		c.JSON(200, gin.H{
+			"service":     "wallet-service",
+			"method":      c.Request.Method,
+			"path":        c.Request.URL.Path,
+			"remote_ip":   c.ClientIP(),
+			"headers":     headers,
+			"has_auth":    c.GetHeader("Authorization") != "",
+			"auth_length": len(c.GetHeader("Authorization")),
+		})
 	})
 
 	// Wallet routes
