@@ -445,6 +445,7 @@ func seedDefaultProviders(db *sql.DB) error {
 				{"CI", "Côte d'Ivoire", "XOF"},
 				{"BJ", "Bénin", "XOF"},
 				{"TG", "Togo", "XOF"},
+				{"CM", "Cameroun", "XAF"},
 			},
 		},
 		// --- GLOBAL PROVIDERS (available for all countries) ---
@@ -500,6 +501,7 @@ func seedDefaultProviders(db *sql.DB) error {
 				{"UG", "Uganda", "UGX"},
 				{"TZ", "Tanzania", "TZS"},
 				{"RW", "Rwanda", "RWF"},
+				{"CM", "Cameroun", "XAF"},
 			},
 		},
 		{
@@ -514,19 +516,33 @@ func seedDefaultProviders(db *sql.DB) error {
 				{"TG", "Togo", "XOF"},
 				{"NE", "Niger", "XOF"},
 				{"CI", "Côte d'Ivoire", "XOF"},
+				{"CM", "Cameroun", "XAF"},
 			},
 		},
 		{
-			Name:        "lygos",
-			DisplayName: "Lygos",
-			Type:        "mobile_money",
-			BaseURL:     "https://api.lygosapp.com/v1",
-			LogoURL:     "/icons/aggregators/lygos.svg",
-			Capability:  "mixed",
+			Name: "lygos",
 			Countries: []struct{ Code, Name, Currency string }{
 				{"LR", "Liberia", "LRD"},
 				{"CI", "Côte d'Ivoire", "XOF"},
+				{"CM", "Cameroun", "XAF"},
 				// Supports 13+ countries
+			},
+		},
+		{
+			Name:        "yellowcard",
+			DisplayName: "YellowCard",
+			Type:        "crypto_ramp",
+			BaseURL:     "https://api.yellowcard.io/v1",
+			LogoURL:     "/icons/aggregators/yellowcard.svg",
+			Capability:  "mixed",
+			Countries: []struct{ Code, Name, Currency string }{
+				{"NG", "Nigeria", "NGN"},
+				{"GH", "Ghana", "GHS"},
+				{"CI", "Côte d'Ivoire", "XOF"},
+				{"SN", "Sénégal", "XOF"},
+				{"KE", "Kenya", "KES"},
+				{"ZA", "South Africa", "ZAR"},
+				{"CM", "Cameroun", "XAF"},
 			},
 		},
 	}
