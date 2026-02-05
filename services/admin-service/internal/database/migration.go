@@ -195,7 +195,7 @@ LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id = pa.id;
 
 -- Seed aggregator_settings from payment_providers
 INSERT INTO aggregator_settings (provider_code, provider_name, payment_provider_id, api_base_url, is_enabled, is_demo_mode, supports_deposit, supports_withdrawal, config)
-SELECT name, display_name, id, api_base_url, is_active, is_demo_mode, deposit_enabled, withdraw_enabled, config_json
+SELECT name, display_name, id, api_base_url, is_active, is_demo_mode, is_active, is_active, config_json::jsonb
 FROM payment_providers
 WHERE name IN ('demo', 'flutterwave', 'cinetpay', 'paystack', 'orange_money', 'mtn_momo', 'wave', 'stripe', 'paypal', 'lygos', 'yellowcard', 'fedapay', 'moov_money')
 ON CONFLICT (provider_code) DO UPDATE SET is_enabled = EXCLUDED.is_enabled, is_demo_mode = EXCLUDED.is_demo_mode;
