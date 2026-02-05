@@ -67,6 +67,13 @@ func main() {
 	transferRepo := repository.NewTransferRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
+	depositRepo := repository.NewDepositRepository(db)
+	payoutRepo := repository.NewPayoutRepository(db)
+
+	// Initialize payout schema
+	if err := payoutRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to init payout schema: %v", err)
+	}
 
 	// Load provider configuration (Vault/Env)
 	providerCfg := providers.LoadConfig()
@@ -115,16 +122,43 @@ func main() {
 	fundMovementService := service.NewDepositFundMovementService(db)
 	walletServiceURL := cfg.WalletServiceURL
 	if walletServiceURL == "" {
-		walletServiceURL = "http://wallet-service:8082"
+		walletServiceURL = "http://wallet-service:8083"
+	}
+
+	// Webhook secrets for signature verification (from env/vault)
+	webhookSecrets := map[string]string{
+		"flutterwave": os.Getenv("FLUTTERWAVE_WEBHOOK_SECRET"),
+		"stripe":      os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		"paystack":    os.Getenv("PAYSTACK_WEBHOOK_SECRET"),
+		"cinetpay":    os.Getenv("CINETPAY_WEBHOOK_SECRET"),
+		"paypal":      os.Getenv("PAYPAL_WEBHOOK_SECRET"),
 	}
 
 	// Initialize Full Deposit Handler (production-ready)
 	depositHandler := handlers.NewDepositHandler(
+		depositRepo,
 		instanceRepo,
 		providerLoader,
 		fundMovementService,
 		walletServiceURL,
+		webhookSecrets,
 	)
+
+	// Initialize Withdrawal/Payout Handler
+	withdrawalFundMovement := service.NewWithdrawalFundMovementService(db)
+	payoutHandler := handlers.NewPayoutHandler(
+		payoutRepo,
+		instanceRepo,
+		providerLoader,
+		withdrawalFundMovement,
+		walletServiceURL,
+		webhookSecrets,
+	)
+
+	// Initialize and start deposit expiry service (background job)
+	depositExpiryService := service.NewDepositExpiryService(depositRepo, 5*time.Minute)
+	depositExpiryService.Start()
+	defer depositExpiryService.Stop()
 
 	// Initialize Admin Instance Handler for pause/update functionality
 	adminInstanceHandler := handlers.NewAdminInstanceHandler(instanceRepo, aggregatorRepo)
@@ -219,9 +253,28 @@ func main() {
 		// Deposit/Collection routes
 		deposits := api.Group("/deposits")
 		{
-			deposits.POST("/initiate", depositHandler.InitiateDeposit)
-			deposits.GET("/:id/status", depositHandler.GetDepositStatus)
-			deposits.POST("/webhook/:provider", depositHandler.HandleDepositWebhook)
+			deposits.POST("/initiate", middleware.JWTAuth(cfg.JWTSecret), depositHandler.InitiateDeposit)
+			deposits.GET("/:id/status", middleware.JWTAuth(cfg.JWTSecret), depositHandler.GetDepositStatus)
+			deposits.POST("/:id/cancel", middleware.JWTAuth(cfg.JWTSecret), depositHandler.CancelDeposit)
+			deposits.GET("/user/:user_id", middleware.JWTAuth(cfg.JWTSecret), depositHandler.GetUserDeposits)
+
+			// Webhooks (no auth - verified by signature)
+			deposits.POST("/webhook/:provider", depositHandler.HandleWebhook)
+		}
+
+		// Payout/Withdrawal routes (external transfers: Mobile Money, Bank, PayPal)
+		payouts := api.Group("/payouts")
+		{
+			payouts.POST("/quote", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.GetPayoutQuote)
+			payouts.POST("/initiate", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.InitiatePayout)
+			payouts.GET("/:id/status", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.GetPayoutStatus)
+			payouts.POST("/:id/cancel", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.CancelPayout)
+			payouts.GET("/user/:user_id", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.GetUserPayouts)
+			payouts.GET("/banks", payoutHandler.GetBanks)
+			payouts.GET("/mobile-operators", payoutHandler.GetMobileOperators)
+
+			// Payout webhooks (no auth - verified by signature)
+			payouts.POST("/webhook/:provider", payoutHandler.HandleWebhook)
 		}
 	}
 

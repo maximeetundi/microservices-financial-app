@@ -1,0 +1,766 @@
+<template>
+  <Teleport to="body">
+    <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
+
+      <!-- Modal -->
+      <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            {{ currentStep === 'success' ? '✅ Dépôt Réussi' : 'Recharger Compte' }}
+          </h2>
+          <button @click="closeModal" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+
+          <!-- Step 1: Select Provider -->
+          <div v-if="currentStep === 'provider'" class="space-y-4">
+            <!-- Amount Input -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Montant à déposer
+              </label>
+              <div class="relative">
+                <input
+                  v-model.number="amount"
+                  type="number"
+                  min="100"
+                  :max="maxAmount"
+                  class="w-full px-4 py-3 pr-16 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="5000"
+                />
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">
+                  {{ currency }}
+                </span>
+              </div>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Min: {{ formatAmount(minAmount) }} {{ currency }} - Max: {{ formatAmount(maxAmount) }} {{ currency }}
+              </p>
+            </div>
+
+            <!-- Provider Categories -->
+            <div class="space-y-4">
+              <!-- Mobile Money -->
+              <div v-if="mobileMoneyProviders.length > 0">
+                <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <span>📱</span> MOBILE MONEY
+                </h3>
+                <div class="grid gap-3">
+                  <button
+                    v-for="provider in mobileMoneyProviders"
+                    :key="provider.name"
+                    @click="selectProvider(provider)"
+                    :disabled="!provider.deposit_enabled"
+                    class="flex items-center gap-4 p-4 rounded-xl border-2 transition-all"
+                    :class="selectedProvider?.name === provider.name
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600'"
+                  >
+                    <img
+                      :src="getProviderLogo(provider)"
+                      :alt="provider.display_name"
+                      class="w-12 h-12 rounded-lg object-contain bg-white p-1"
+                    />
+                    <div class="flex-1 text-left">
+                      <p class="font-semibold text-gray-900 dark:text-white">{{ provider.display_name }}</p>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ provider.is_demo_mode ? 'Mode Démo' : 'Paiement instantané' }}
+                      </p>
+                    </div>
+                    <div v-if="selectedProvider?.name === provider.name" class="text-indigo-500">
+                      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Cards & International -->
+              <div v-if="cardProviders.length > 0">
+                <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <span>💳</span> CARTE BANCAIRE
+                </h3>
+                <div class="grid gap-3">
+                  <button
+                    v-for="provider in cardProviders"
+                    :key="provider.name"
+                    @click="selectProvider(provider)"
+                    :disabled="!provider.deposit_enabled"
+                    class="flex items-center gap-4 p-4 rounded-xl border-2 transition-all"
+                    :class="selectedProvider?.name === provider.name
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600'"
+                  >
+                    <img
+                      :src="getProviderLogo(provider)"
+                      :alt="provider.display_name"
+                      class="w-12 h-12 rounded-lg object-contain bg-white p-1"
+                    />
+                    <div class="flex-1 text-left">
+                      <p class="font-semibold text-gray-900 dark:text-white">{{ provider.display_name }}</p>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">Paiement sécurisé</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Crypto Ramp -->
+              <div v-if="cryptoProviders.length > 0">
+                <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <span>🪙</span> CRYPTO
+                </h3>
+                <div class="grid gap-3">
+                  <button
+                    v-for="provider in cryptoProviders"
+                    :key="provider.name"
+                    @click="selectProvider(provider)"
+                    class="flex items-center gap-4 p-4 rounded-xl border-2 transition-all"
+                    :class="selectedProvider?.name === provider.name
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-slate-600 hover:border-indigo-300'"
+                  >
+                    <img
+                      :src="getProviderLogo(provider)"
+                      :alt="provider.display_name"
+                      class="w-12 h-12 rounded-lg object-contain bg-white p-1"
+                    />
+                    <div class="flex-1 text-left">
+                      <p class="font-semibold text-gray-900 dark:text-white">{{ provider.display_name }}</p>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">Acheter crypto → Fiat</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- No Providers Message -->
+              <div v-if="providers.length === 0 && !loadingProviders" class="text-center py-8">
+                <p class="text-gray-500 dark:text-gray-400">
+                  Aucun moyen de paiement disponible pour votre pays.
+                </p>
+              </div>
+
+              <!-- Loading -->
+              <div v-if="loadingProviders" class="flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              </div>
+            </div>
+
+            <!-- Error Message -->
+            <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <p class="text-red-600 dark:text-red-400 text-sm">{{ error }}</p>
+            </div>
+          </div>
+
+          <!-- Step 2: Phone Number for Mobile Money -->
+          <div v-if="currentStep === 'phone'" class="space-y-4">
+            <div class="text-center mb-6">
+              <img
+                :src="getProviderLogo(selectedProvider)"
+                :alt="selectedProvider?.display_name"
+                class="w-16 h-16 mx-auto rounded-xl bg-white p-2 mb-3"
+              />
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ selectedProvider?.display_name }}
+              </h3>
+              <p class="text-gray-500 dark:text-gray-400">
+                Montant: {{ formatAmount(amount) }} {{ currency }}
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Numéro de téléphone
+              </label>
+              <input
+                v-model="phoneNumber"
+                type="tel"
+                class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                placeholder="+225 07 XX XX XX XX"
+              />
+            </div>
+
+            <button
+              @click="currentStep = 'provider'"
+              class="text-indigo-500 hover:text-indigo-600 text-sm font-medium"
+            >
+              ← Changer de méthode
+            </button>
+          </div>
+
+          <!-- Step 3: Processing -->
+          <div v-if="currentStep === 'processing'" class="text-center py-8">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Initialisation du paiement...
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400">
+              Veuillez patienter
+            </p>
+          </div>
+
+          <!-- Step 4: Redirect Info -->
+          <div v-if="currentStep === 'redirect'" class="text-center py-8">
+            <div class="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Redirection vers {{ selectedProvider?.display_name }}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">
+              Vous allez être redirigé vers la page de paiement sécurisée.
+            </p>
+            <p class="text-sm text-gray-400 dark:text-gray-500">
+              Transaction: {{ transactionId }}
+            </p>
+            <a
+              v-if="paymentUrl"
+              :href="paymentUrl"
+              target="_blank"
+              class="inline-block mt-4 px-6 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors"
+            >
+              Ouvrir la page de paiement
+            </a>
+          </div>
+
+          <!-- Step 5: Pending -->
+          <div v-if="currentStep === 'pending'" class="text-center py-8">
+            <div class="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Paiement en attente
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">
+              Veuillez compléter le paiement sur la page de {{ selectedProvider?.display_name }}.
+              <br/>Votre compte sera crédité automatiquement.
+            </p>
+            <p class="text-sm text-gray-400 dark:text-gray-500">
+              Transaction: {{ transactionId }}
+            </p>
+            <button
+              @click="checkStatus"
+              class="mt-4 px-4 py-2 text-indigo-500 hover:text-indigo-600 font-medium"
+            >
+              Vérifier le statut
+            </button>
+          </div>
+
+          <!-- Step 6: Success -->
+          <div v-if="currentStep === 'success'" class="text-center py-8">
+            <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-once">
+              <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Dépôt Réussi! 🎉
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-2">
+              {{ formatAmount(amount) }} {{ currency }} ont été ajoutés à votre compte.
+            </p>
+            <p v-if="newBalance" class="text-lg font-semibold text-indigo-500">
+              Nouveau solde: {{ formatAmount(newBalance) }} {{ currency }}
+            </p>
+          </div>
+
+          <!-- Step: Failed -->
+          <div v-if="currentStep === 'failed'" class="text-center py-8">
+            <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Échec du paiement
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">
+              {{ error || 'Le paiement a échoué. Veuillez réessayer.' }}
+            </p>
+            <button
+              @click="resetForm"
+              class="px-6 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div v-if="['provider', 'phone'].includes(currentStep)" class="p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+          <button
+            @click="initiateDeposit"
+            :disabled="!canProceed || loading"
+            class="w-full py-4 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <span v-if="loading" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+            <span v-else>
+              Déposer {{ formatAmount(amount) }} {{ currency }}
+            </span>
+          </button>
+        </div>
+
+        <div v-if="currentStep === 'success'" class="p-6 border-t border-gray-200 dark:border-slate-700">
+          <button
+            @click="closeModal"
+            class="w-full py-3 px-6 bg-indigo-500 text-white font-semibold rounded-xl hover:bg-indigo-600 transition-colors"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Flutterwave SDK -->
+  <div id="flutterwave-container"></div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { useAuthStore } from '~/stores/auth'
+import { useWalletStore } from '~/stores/wallet'
+
+// Props
+const props = defineProps<{
+  isOpen: boolean
+  walletId?: string
+  currency?: string
+}>()
+
+const emit = defineEmits(['close', 'success'])
+
+// Stores
+const authStore = useAuthStore()
+const walletStore = useWalletStore()
+
+// State
+const currentStep = ref<'provider' | 'phone' | 'processing' | 'redirect' | 'pending' | 'success' | 'failed'>('provider')
+const amount = ref(5000)
+const phoneNumber = ref('')
+const selectedProvider = ref<any>(null)
+const providers = ref<any[]>([])
+const loadingProviders = ref(false)
+const loading = ref(false)
+const error = ref('')
+const transactionId = ref('')
+const paymentUrl = ref('')
+const newBalance = ref<number | null>(null)
+const sdkConfig = ref<any>(null)
+
+// Config
+const minAmount = 100
+const maxAmount = 5000000
+const currency = computed(() => props.currency || 'XOF')
+const userCountry = computed(() => authStore.user?.country || 'CI')
+
+// Computed
+const mobileMoneyProviders = computed(() =>
+  providers.value.filter(p =>
+    ['mobile_money', 'all'].includes(p.provider_type) &&
+    !['stripe', 'paypal'].includes(p.name)
+  )
+)
+
+const cardProviders = computed(() =>
+  providers.value.filter(p =>
+    ['card', 'wallet', 'international'].includes(p.provider_type) ||
+    ['stripe', 'paypal'].includes(p.name)
+  )
+)
+
+const cryptoProviders = computed(() =>
+  providers.value.filter(p => p.provider_type === 'crypto_ramp')
+)
+
+const canProceed = computed(() => {
+  if (!selectedProvider.value) return false
+  if (amount.value < minAmount || amount.value > maxAmount) return false
+  if (currentStep.value === 'phone' && !phoneNumber.value) return false
+  return true
+})
+
+// API Base URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.app.tech-afm.com'
+
+// Methods
+const fetchProviders = async () => {
+  loadingProviders.value = true
+  error.value = ''
+
+  try {
+    const response = await fetch(`${API_URL}/transfer-service/api/v1/aggregators/deposit?country=${userCountry.value}`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) throw new Error('Erreur lors du chargement des méthodes de paiement')
+
+    const data = await response.json()
+    providers.value = data.aggregators || []
+
+    // Auto-select demo if only option
+    if (providers.value.length === 1) {
+      selectedProvider.value = providers.value[0]
+    }
+  } catch (err: any) {
+    error.value = err.message
+    console.error('Failed to fetch providers:', err)
+  } finally {
+    loadingProviders.value = false
+  }
+}
+
+const selectProvider = (provider: any) => {
+  selectedProvider.value = provider
+  error.value = ''
+}
+
+const getProviderLogo = (provider: any) => {
+  if (!provider) return '/icons/aggregators/default.svg'
+  if (provider.logo_url) return provider.logo_url
+  return `/icons/aggregators/${provider.name}.svg`
+}
+
+const formatAmount = (value: number) => {
+  return new Intl.NumberFormat('fr-FR').format(value)
+}
+
+const initiateDeposit = async () => {
+  if (!selectedProvider.value || !amount.value) return
+
+  // For mobile money, check phone number
+  if (mobileMoneyProviders.value.some(p => p.name === selectedProvider.value.name)) {
+    if (currentStep.value === 'provider') {
+      currentStep.value = 'phone'
+      return
+    }
+  }
+
+  loading.value = true
+  error.value = ''
+  currentStep.value = 'processing'
+
+  try {
+    const returnUrl = `${window.location.origin}/wallet?deposit_callback=true`
+    const cancelUrl = `${window.location.origin}/wallet?deposit_cancelled=true`
+
+    const response = await fetch(`${API_URL}/transfer-service/api/v1/deposits/initiate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        user_id: authStore.user?.id,
+        wallet_id: props.walletId,
+        amount: amount.value,
+        currency: currency.value,
+        provider: selectedProvider.value.name,
+        country: userCountry.value,
+        email: authStore.user?.email,
+        phone: phoneNumber.value,
+        return_url: returnUrl,
+        cancel_url: cancelUrl
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Erreur lors de l\'initiation du paiement')
+    }
+
+    transactionId.value = data.transaction_id
+    paymentUrl.value = data.payment_url
+    sdkConfig.value = data.sdk_config
+
+    // Handle based on status
+    if (data.status === 'completed' || data.status === 'instant_success') {
+      // Demo or instant payment
+      newBalance.value = data.new_balance
+      currentStep.value = 'success'
+      emit('success', { transactionId: transactionId.value, amount: amount.value })
+      walletStore.fetchWallets()
+    } else if (data.payment_url) {
+      // Redirect to payment page or use SDK
+      handlePaymentFlow(data)
+    } else {
+      currentStep.value = 'pending'
+    }
+  } catch (err: any) {
+    error.value = err.message
+    currentStep.value = 'failed'
+    console.error('Deposit failed:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handlePaymentFlow = (data: any) => {
+  const provider = selectedProvider.value.name
+
+  // Try SDK first, fallback to redirect
+  switch (provider) {
+    case 'flutterwave':
+      if (window.FlutterwaveCheckout && sdkConfig.value?.public_key) {
+        openFlutterwaveModal(data)
+      } else {
+        redirectToPayment(data.payment_url)
+      }
+      break
+
+    case 'paystack':
+      if (window.PaystackPop && sdkConfig.value?.public_key) {
+        openPaystackModal(data)
+      } else {
+        redirectToPayment(data.payment_url)
+      }
+      break
+
+    case 'stripe':
+      // Stripe Checkout redirect
+      redirectToPayment(data.payment_url)
+      break
+
+    case 'paypal':
+      // PayPal redirect
+      redirectToPayment(data.payment_url)
+      break
+
+    default:
+      // All other providers: redirect
+      redirectToPayment(data.payment_url)
+  }
+}
+
+const redirectToPayment = (url: string) => {
+  currentStep.value = 'redirect'
+  paymentUrl.value = url
+
+  // Open in new tab after a short delay
+  setTimeout(() => {
+    window.open(url, '_blank')
+    currentStep.value = 'pending'
+  }, 1500)
+}
+
+// Flutterwave SDK Integration
+const openFlutterwaveModal = (data: any) => {
+  if (!window.FlutterwaveCheckout) {
+    console.error('Flutterwave SDK not loaded')
+    redirectToPayment(data.payment_url)
+    return
+  }
+
+  window.FlutterwaveCheckout({
+    public_key: sdkConfig.value.public_key,
+    tx_ref: transactionId.value,
+    amount: amount.value,
+    currency: currency.value,
+    payment_options: 'card,mobilemoney,ussd',
+    customer: {
+      email: authStore.user?.email,
+      phone_number: phoneNumber.value,
+      name: `${authStore.user?.first_name} ${authStore.user?.last_name}`
+    },
+    customizations: {
+      title: 'Zekora - Recharge',
+      description: `Recharge de ${formatAmount(amount.value)} ${currency.value}`,
+      logo: '/logo.png'
+    },
+    callback: (response: any) => {
+      if (response.status === 'successful' || response.status === 'completed') {
+        currentStep.value = 'success'
+        emit('success', { transactionId: transactionId.value, amount: amount.value })
+        walletStore.fetchWallets()
+      } else {
+        currentStep.value = 'pending'
+      }
+    },
+    onclose: () => {
+      if (currentStep.value === 'processing') {
+        currentStep.value = 'pending'
+      }
+    }
+  })
+}
+
+// Paystack SDK Integration
+const openPaystackModal = (data: any) => {
+  if (!window.PaystackPop) {
+    console.error('Paystack SDK not loaded')
+    redirectToPayment(data.payment_url)
+    return
+  }
+
+  const handler = window.PaystackPop.setup({
+    key: sdkConfig.value.public_key,
+    email: authStore.user?.email,
+    amount: amount.value * 100, // Paystack uses kobo/pesewas
+    currency: currency.value,
+    ref: transactionId.value,
+    channels: ['card', 'bank', 'ussd', 'mobile_money'],
+    metadata: {
+      user_id: authStore.user?.id,
+      wallet_id: props.walletId
+    },
+    callback: (response: any) => {
+      if (response.status === 'success') {
+        currentStep.value = 'success'
+        emit('success', { transactionId: transactionId.value, amount: amount.value })
+        walletStore.fetchWallets()
+      } else {
+        currentStep.value = 'pending'
+      }
+    },
+    onClose: () => {
+      if (currentStep.value === 'processing') {
+        currentStep.value = 'pending'
+      }
+    }
+  })
+
+  handler.openIframe()
+}
+
+const checkStatus = async () => {
+  if (!transactionId.value) return
+
+  try {
+    const response = await fetch(`${API_URL}/transfer-service/api/v1/deposits/${transactionId.value}/status`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      }
+    })
+
+    const data = await response.json()
+
+    if (data.status === 'completed') {
+      newBalance.value = data.new_balance
+      currentStep.value = 'success'
+      emit('success', { transactionId: transactionId.value, amount: amount.value })
+      walletStore.fetchWallets()
+    } else if (data.status === 'failed' || data.status === 'expired') {
+      error.value = data.status_message || 'Le paiement a échoué'
+      currentStep.value = 'failed'
+    } else if (data.status === 'cancelled') {
+      error.value = 'Paiement annulé'
+      currentStep.value = 'failed'
+    }
+    // If still pending, do nothing
+  } catch (err) {
+    console.error('Failed to check status:', err)
+  }
+}
+
+const resetForm = () => {
+  currentStep.value = 'provider'
+  selectedProvider.value = null
+  phoneNumber.value = ''
+  error.value = ''
+  transactionId.value = ''
+  paymentUrl.value = ''
+  newBalance.value = null
+}
+
+const closeModal = () => {
+  if (currentStep.value === 'success') {
+    walletStore.fetchWallets()
+  }
+  resetForm()
+  emit('close')
+}
+
+// Load SDK scripts
+const loadSDKScripts = () => {
+  // Flutterwave SDK
+  if (!document.getElementById('flutterwave-sdk')) {
+    const flwScript = document.createElement('script')
+    flwScript.id = 'flutterwave-sdk'
+    flwScript.src = 'https://checkout.flutterwave.com/v3.js'
+    flwScript.async = true
+    document.head.appendChild(flwScript)
+  }
+
+  // Paystack SDK
+  if (!document.getElementById('paystack-sdk')) {
+    const psScript = document.createElement('script')
+    psScript.id = 'paystack-sdk'
+    psScript.src = 'https://js.paystack.co/v1/inline.js'
+    psScript.async = true
+    document.head.appendChild(psScript)
+  }
+}
+
+// Watch for modal open
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    fetchProviders()
+    loadSDKScripts()
+  } else {
+    resetForm()
+  }
+})
+
+// Check URL params for callback
+onMounted(() => {
+  loadSDKScripts()
+
+  const urlParams = new URLSearchParams(window.location.search)
+  if (urlParams.get('deposit_callback') === 'true') {
+    // Payment completed, refresh wallet
+    walletStore.fetchWallets()
+  }
+})
+
+// Type declarations for SDK globals
+declare global {
+  interface Window {
+    FlutterwaveCheckout: (config: any) => void
+    PaystackPop: {
+      setup: (config: any) => { openIframe: () => void }
+    }
+  }
+}
+</script>
+
+<style scoped>
+@keyframes bounce-once {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-bounce-once {
+  animation: bounce-once 0.5s ease-in-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>

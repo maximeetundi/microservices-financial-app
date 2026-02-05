@@ -97,6 +97,110 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Deposit Transactions table (for tracking deposit flow with aggregators)
+CREATE TABLE IF NOT EXISTS deposit_transactions (
+    id VARCHAR(100) PRIMARY KEY, -- dep_xxxx_timestamp format
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Amount details
+    amount DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    fee DECIMAL(20,8) DEFAULT 0,
+    net_amount DECIMAL(20,8), -- Amount after fees
+
+    -- Provider/Aggregator info
+    provider_code VARCHAR(50) NOT NULL, -- lygos, flutterwave, stripe, etc.
+    aggregator_instance_id UUID, -- Reference to aggregator_instances
+    hot_wallet_id VARCHAR(36), -- Reference to platform_accounts
+
+    -- Payment details
+    payment_url TEXT, -- URL where user is redirected to pay
+    provider_reference VARCHAR(255), -- Provider's transaction ID
+
+    -- User info for payment
+    user_email VARCHAR(255),
+    user_phone VARCHAR(50),
+    user_country VARCHAR(3),
+
+    -- Status tracking
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, processing, completed, failed, cancelled, expired
+    status_message TEXT,
+
+    -- Webhook data
+    webhook_received_at TIMESTAMP,
+    webhook_data JSONB, -- Raw webhook payload
+    webhook_verified BOOLEAN DEFAULT false,
+
+    -- Retry & timeout handling
+    retry_count INT DEFAULT 0,
+    max_retries INT DEFAULT 3,
+    expires_at TIMESTAMP, -- Transaction expires after this time
+
+    -- Completion
+    completed_at TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    failed_at TIMESTAMP,
+    failure_reason TEXT,
+
+    -- User wallet credited
+    user_wallet_id UUID REFERENCES wallets(id),
+    wallet_credited BOOLEAN DEFAULT false,
+    wallet_credited_at TIMESTAMP,
+
+    -- Return URLs
+    return_url TEXT,
+    cancel_url TEXT,
+
+    -- Metadata
+    metadata JSONB DEFAULT '{}',
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for deposit_transactions
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_user ON deposit_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_status ON deposit_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_provider ON deposit_transactions(provider_code);
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_provider_ref ON deposit_transactions(provider_reference);
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_expires ON deposit_transactions(expires_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_deposit_transactions_created ON deposit_transactions(created_at DESC);
+
+-- Trigger to update updated_at
+CREATE OR REPLACE FUNCTION update_deposit_transaction_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS deposit_transaction_updated_at ON deposit_transactions;
+CREATE TRIGGER deposit_transaction_updated_at
+    BEFORE UPDATE ON deposit_transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_deposit_transaction_timestamp();
+
+-- Function to expire old pending transactions (call this via cron job or scheduled task)
+CREATE OR REPLACE FUNCTION expire_pending_deposits() RETURNS INTEGER AS $$
+DECLARE
+    expired_count INTEGER;
+BEGIN
+    UPDATE deposit_transactions
+    SET status = 'expired',
+        status_message = 'Transaction expired due to timeout',
+        failed_at = CURRENT_TIMESTAMP
+    WHERE status = 'pending'
+      AND expires_at IS NOT NULL
+      AND expires_at < CURRENT_TIMESTAMP;
+
+    GET DIAGNOSTICS expired_count = ROW_COUNT;
+    RETURN expired_count;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -149,42 +253,42 @@ CREATE TABLE IF NOT EXISTS cards (
     is_active BOOLEAN DEFAULT true,
     activated_at TIMESTAMP,
     expires_at TIMESTAMP,
-    
+
     -- Limits
     daily_limit DECIMAL(20,8) DEFAULT 1000,
     monthly_limit DECIMAL(20,8) DEFAULT 10000,
     single_tx_limit DECIMAL(20,8) DEFAULT 500,
     atm_daily_limit DECIMAL(20,8) DEFAULT 300,
     online_tx_limit DECIMAL(20,8) DEFAULT 2000,
-    
+
     -- Current usage
     daily_spent DECIMAL(20,8) DEFAULT 0,
     monthly_spent DECIMAL(20,8) DEFAULT 0,
     atm_daily_spent DECIMAL(20,8) DEFAULT 0,
-    
+
     -- Settings
     allow_atm BOOLEAN DEFAULT true,
     allow_online BOOLEAN DEFAULT true,
     allow_international BOOLEAN DEFAULT false,
     allow_contactless BOOLEAN DEFAULT true,
-    
+
     -- Auto-reload
     auto_reload_enabled BOOLEAN DEFAULT false,
     auto_reload_amount DECIMAL(20,8),
     auto_reload_threshold DECIMAL(20,8),
     reload_wallet_id UUID,
-    
+
     -- Physical card shipping
     shipping_address TEXT,
     shipping_status VARCHAR(20),
     tracking_number VARCHAR(100),
     shipped_at TIMESTAMP,
     delivered_at TIMESTAMP,
-    
+
     -- External processor
     external_card_id VARCHAR(100),
     issuer_id VARCHAR(50) DEFAULT 'internal',
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -555,7 +659,7 @@ CREATE TABLE IF NOT EXISTS aggregator_instances (
 CREATE TABLE IF NOT EXISTS aggregator_instance_wallets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     instance_id UUID NOT NULL REFERENCES aggregator_instances(id) ON DELETE CASCADE,
-    hot_wallet_id UUID NOT NULL,
+    hot_wallet_id VARCHAR(36) NOT NULL,  -- VARCHAR to match platform_accounts.id type
     currency VARCHAR(10) NOT NULL,
     is_primary BOOLEAN DEFAULT false,
     priority INT DEFAULT 50,
@@ -762,34 +866,63 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_logs(action);
 -- =====================================================
 
 -- View for transfer-service to query instances with details
+-- Column order MUST match Go code's scanInstanceWithDetails function exactly!
 CREATE OR REPLACE VIEW aggregator_instances_with_details AS
-SELECT 
-    ai.id, ai.aggregator_id, ai.instance_name, ai.api_credentials, ai.vault_secret_path,
-    ai.enabled, ai.is_paused, ai.is_global, ai.pause_reason, ai.paused_at,
-    ai.priority, ai.health_status, ai.daily_limit, ai.monthly_limit,
-    ai.daily_usage, ai.monthly_usage, ai.restricted_countries, ai.is_test_mode,
-    ai.total_transactions, ai.total_volume, ai.last_used_at, ai.last_error,
-    ai.created_at, ai.updated_at,
-    agg.provider_code, agg.provider_name, agg.is_enabled AS aggregator_enabled,
-    agg.is_demo_mode, agg.supports_deposit, agg.supports_withdrawal,
-    agg.min_amount AS aggregator_min_amount, agg.max_amount AS aggregator_max_amount,
-    agg.config AS aggregator_config,
-    aiw.hot_wallet_id, aiw.currency AS wallet_currency,
-    aiw.min_balance, aiw.max_balance,
+SELECT
+    -- Columns 1-9: Instance base info
+    ai.id,
+    ai.instance_name,
+    ai.enabled,
+    ai.priority,
+    COALESCE(ai.is_test_mode, true) AS is_test_mode,
+    COALESCE(ai.is_paused, false) AS is_paused,
+    COALESCE(ai.is_global, true) AS is_global,
+    ai.pause_reason,
+    ai.paused_at,
+    -- Column 10: restricted_countries (array)
+    ai.restricted_countries,
+    -- Columns 11-17: Limits and usage
+    ai.daily_limit,
+    ai.monthly_limit,
+    COALESCE(ai.daily_usage, 0) AS daily_usage,
+    COALESCE(ai.monthly_usage, 0) AS monthly_usage,
+    COALESCE(ai.total_transactions, 0) AS total_transactions,
+    COALESCE(ai.total_volume, 0) AS total_volume,
+    ai.last_used_at,
+    -- Columns 18-19: Timestamps
+    ai.created_at,
+    ai.updated_at,
+    -- Column 20: aggregator_id
+    ai.aggregator_id,
+    -- Columns 21-24: Aggregator info
+    agg.provider_code,
+    agg.provider_name,
+    COALESCE(pp.logo_url, '/icons/aggregators/' || agg.provider_code || '.svg') AS provider_logo,
+    agg.is_enabled AS aggregator_enabled,
+    -- Columns 25-27: Hot wallet info
+    aiw.hot_wallet_id,
+    'operations'::text AS account_type,
+    COALESCE(aiw.currency, 'XOF') AS hot_wallet_currency,
+    -- Column 28: Hot wallet balance
     COALESCE(pa.balance, 0) AS hot_wallet_balance,
-    CASE 
+    -- Columns 29-30: Wallet limits
+    COALESCE(aiw.min_balance, 0) AS min_balance,
+    aiw.max_balance,
+    -- Column 31: Availability status
+    CASE
         WHEN NOT ai.enabled THEN 'instance_disabled'
-        WHEN ai.is_paused THEN 'paused'
+        WHEN COALESCE(ai.is_paused, false) THEN 'paused'
         WHEN NOT agg.is_enabled THEN 'aggregator_disabled'
         WHEN aiw.id IS NULL THEN 'no_wallet'
-        WHEN pa.balance IS NULL THEN 'wallet_not_found'
+        WHEN pa.id IS NULL THEN 'wallet_not_found'
         WHEN pa.balance < COALESCE(aiw.min_balance, 0) THEN 'insufficient_balance'
         ELSE 'available'
     END AS availability_status
 FROM aggregator_instances ai
 JOIN aggregator_settings agg ON ai.aggregator_id = agg.id
-LEFT JOIN aggregator_instance_wallets aiw ON ai.id = aiw.instance_id AND aiw.is_primary = true
-LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id = pa.id;
+LEFT JOIN payment_providers pp ON agg.payment_provider_id = pp.id
+LEFT JOIN aggregator_instance_wallets aiw ON ai.id = aiw.instance_id AND aiw.is_primary = true AND aiw.enabled = true
+LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id = pa.id AND pa.is_active = true;
 
 
 -- =====================================================
@@ -818,7 +951,7 @@ ON CONFLICT (from_currency, to_currency) DO UPDATE SET
 -- Insert default payment providers
 INSERT INTO payment_providers (name, display_name, provider_type, api_base_url, is_active, is_demo_mode, logo_url, supported_currencies, config_json) VALUES
 -- Demo Mode
-('demo', 'Mode Démo', 'all', NULL, true, true, '/icons/demo.svg', 
+('demo', 'Mode Démo', 'all', NULL, true, true, '/icons/demo.svg',
  '["XOF", "XAF", "NGN", "GHS", "KES", "USD", "EUR"]'::jsonb,
  '{"description": "Mode test - crédite directement le compte sans paiement réel"}'::jsonb),
 -- Flutterwave
@@ -878,15 +1011,15 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- Insert default country mappings (simplified for brevity, ensuring distinct selects)
 -- DEMO
-INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage) 
+INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage)
 SELECT id, 'CI', 'Côte d''Ivoire', 'XOF', 1, 0 FROM payment_providers WHERE name = 'demo' ON CONFLICT DO NOTHING;
-INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage) 
+INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage)
 SELECT id, 'SN', 'Sénégal', 'XOF', 1, 0 FROM payment_providers WHERE name = 'demo' ON CONFLICT DO NOTHING;
 -- (You would include all other mappings here, keeping the long list if needed, or trusting the dynamic seeding if it's external.
 -- For now, I'll include the critical ones for testing).
 
 -- CinetPay
-INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage) 
+INSERT INTO provider_countries (provider_id, country_code, country_name, currency, priority, fee_percentage)
 SELECT id, 'CI', 'Côte d''Ivoire', 'XOF', 2, 1.5 FROM payment_providers WHERE name = 'cinetpay' ON CONFLICT DO NOTHING;
 
 -- Seed Platform Accounts

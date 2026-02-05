@@ -260,6 +260,7 @@ func main() {
 		// Service-to-Service routes (should be protected by internal network or secret)
 		api.POST("/wallets/transaction", walletHandler.ProcessInterServiceTransaction)
 		api.POST("/wallets/deposit-platform", walletHandler.ProcessPlatformDeposit)
+		api.POST("/wallets/credit", walletHandler.CreditWalletFromDeposit) // Called by transfer-service after successful deposit
 
 		// Internal Wallet Management (for other services like transfer-service)
 		internal := api.Group("/internal")

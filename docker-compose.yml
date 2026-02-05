@@ -1,4 +1,3 @@
-
 services:
   # Bases de données
   postgres:
@@ -9,7 +8,9 @@ services:
       POSTGRES_PASSWORD: secure_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./infrastructure/postgres/fix_aggregator_instances.sql:/docker-entrypoint-initdb.d/02_fix_aggregator_instances.sql
+      - ./infrastructure/postgres/seed_provider_countries.sql:/docker-entrypoint-initdb.d/03_seed_provider_countries.sql
     ports:
       - "5432:5432"
     networks:
@@ -35,8 +36,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-
-
   # Message Queue - Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -61,8 +60,8 @@ services:
       - ./infrastructure/vault/config:/vault/config
       - vault_data:/vault/file
     environment:
-      VAULT_ADDR: 'http://127.0.0.1:8200'
-      VAULT_API_ADDR: 'http://127.0.0.1:8200'
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_API_ADDR: "http://127.0.0.1:8200"
     cap_add:
       - IPC_LOCK
     command: vault server -config=/vault/config/vault.hcl
@@ -78,14 +77,14 @@ services:
       - ./infrastructure/vault/scripts/setup.sh:/setup.sh
       - vault_data:/vault/file
     environment:
-      VAULT_ADDR: 'http://vault:8200'
+      VAULT_ADDR: "http://vault:8200"
       TATUM_API_KEY: ${TATUM_API_KEY:-}
       FIXER_API_KEY: ${FIXER_API_KEY:-}
       CURRENCYLAYER_API_KEY: ${CURRENCYLAYER_API_KEY:-}
     entrypoint: /bin/sh /setup.sh
     networks:
       - crypto-bank-network
-      
+
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
@@ -108,7 +107,14 @@ services:
     networks:
       - crypto-bank-network
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test:
+        [
+          "CMD",
+          "kafka-topics",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
+        ]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -244,7 +250,7 @@ services:
 
   #   environment:
   #     - DB_URL=postgres://admin:secure_password@postgres:5432/crypto_bank
-  # 
+  #
   #   networks:
   #     - crypto-bank-network
 

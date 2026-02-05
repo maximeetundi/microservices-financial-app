@@ -690,6 +690,88 @@ func (h *WalletHandler) ProcessInterServiceTransaction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+// CreditWalletFromDeposit handles credit requests from transfer-service after successful deposit
+// POST /api/v1/wallets/credit
+func (h *WalletHandler) CreditWalletFromDeposit(c *gin.Context) {
+	var req struct {
+		UserID         string  `json:"user_id" binding:"required"`
+		WalletID       string  `json:"wallet_id"`
+		Amount         float64 `json:"amount" binding:"required,gt=0"`
+		Currency       string  `json:"currency" binding:"required"`
+		TransactionRef string  `json:"transaction_ref" binding:"required"`
+		Type           string  `json:"type"` // deposit, refund, etc.
+		Description    string  `json:"description"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "success": false})
+		return
+	}
+
+	// If no wallet_id provided, find default wallet for currency
+	walletID := req.WalletID
+	if walletID == "" {
+		wallet, err := h.walletService.GetWalletByCurrency(req.UserID, req.Currency)
+		if err != nil || wallet == nil {
+			// Create wallet if doesn't exist
+			newWallet, err := h.walletService.CreateWallet(req.UserID, req.Currency, "fiat")
+			if err != nil {
+				log.Printf("[CreditWallet] Failed to create wallet for user %s: %v", req.UserID, err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error":   "Failed to find or create wallet",
+					"success": false,
+				})
+				return
+			}
+			walletID = newWallet.ID
+		} else {
+			walletID = wallet.ID
+		}
+	}
+
+	// Process the deposit
+	description := req.Description
+	if description == "" {
+		description = "Dépôt via agrégateur de paiement"
+	}
+
+	err := h.walletService.ProcessDepositFromPlatform(
+		req.UserID,
+		walletID,
+		req.Amount,
+		req.Currency,
+		req.TransactionRef,
+		"aggregator",
+	)
+
+	if err != nil {
+		log.Printf("[CreditWallet] Failed to credit wallet %s: %v", walletID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   err.Error(),
+			"success": false,
+		})
+		return
+	}
+
+	// Get updated balance
+	wallet, _ := h.walletService.GetWallet(walletID, req.UserID)
+	var newBalance float64
+	if wallet != nil {
+		newBalance = wallet.Balance
+	}
+
+	log.Printf("[CreditWallet] ✅ Credited %.2f %s to wallet %s (user: %s, ref: %s)",
+		req.Amount, req.Currency, walletID, req.UserID, req.TransactionRef)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"wallet_id":   walletID,
+		"new_balance": newBalance,
+		"amount":      req.Amount,
+		"currency":    req.Currency,
+	})
+}
+
 // ProcessPlatformDeposit handles deposit requests coming from platform (aggregators)
 // It performs double-entry bookkeeping (Debit Platform Reserve -> Credit User Wallet)
 func (h *WalletHandler) ProcessPlatformDeposit(c *gin.Context) {
