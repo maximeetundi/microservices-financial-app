@@ -210,6 +210,70 @@ JOIN aggregator_settings agg ON ai.aggregator_id = agg.id
 LEFT JOIN aggregator_instance_wallets aiw ON ai.id = aiw.instance_id AND aiw.is_primary = true
 LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id::text = pa.id;
 
+-- SQL Function: select_best_wallet_for_instance
+CREATE OR REPLACE FUNCTION select_best_wallet_for_instance(
+    p_instance_id UUID,
+    p_currency VARCHAR(10),
+    p_amount DECIMAL(20, 8) DEFAULT 0
+)
+RETURNS UUID AS $func$
+DECLARE
+    v_wallet_id UUID;
+BEGIN
+    -- Select the best available wallet:
+    -- 1. Primary wallet first
+    -- 2. Then by priority
+    -- 3. Then by balance (highest first)
+    SELECT hot_wallet_id INTO v_wallet_id
+    FROM aggregator_instance_wallets_available
+    WHERE instance_id = p_instance_id
+      AND wallet_currency = p_currency
+      AND availability_status = 'available'
+      AND wallet_balance >= p_amount
+    ORDER BY 
+        is_primary DESC,
+        priority DESC,
+        wallet_balance DESC
+    LIMIT 1;
+    
+    RETURN v_wallet_id;
+END;
+$func$ LANGUAGE plpgsql;
+
+-- View for intelligent wallet selection  
+CREATE OR REPLACE VIEW aggregator_instance_wallets_available AS
+SELECT 
+    aiw.id,
+    aiw.instance_id,
+    aiw.hot_wallet_id,
+    aiw.is_primary,
+    aiw.priority,
+    aiw.min_balance,
+    aiw.max_balance,
+    aiw.enabled,
+    ai.aggregator_id,
+    ai.instance_name,
+    ai.enabled AS instance_enabled,
+    agg.provider_code,
+    agg.provider_name,
+    agg.is_enabled AS aggregator_enabled,
+    pa.currency AS wallet_currency,
+    COALESCE(pa.balance, 0) AS wallet_balance,
+    pa.account_type,
+    CASE 
+        WHEN NOT aiw.enabled THEN 'wallet_disabled'
+        WHEN NOT ai.enabled THEN 'instance_disabled'
+        WHEN NOT agg.is_enabled THEN 'aggregator_disabled'
+        WHEN COALESCE(pa.balance, 0) < COALESCE(aiw.min_balance, 0) THEN 'insufficient_balance'
+        WHEN aiw.max_balance IS NOT NULL AND COALESCE(pa.balance, 0) > aiw.max_balance THEN 'balance_too_high'
+        ELSE 'available'
+    END AS availability_status
+FROM aggregator_instance_wallets aiw
+JOIN aggregator_instances ai ON aiw.instance_id = ai.id
+JOIN aggregator_settings agg ON ai.aggregator_id = agg.id
+LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id::text = pa.id;
+
+
 -- Seed aggregator_settings from payment_providers
 INSERT INTO aggregator_settings (provider_code, provider_name, payment_provider_id, api_base_url, is_enabled, is_demo_mode, supports_deposit, supports_withdrawal, config)
 SELECT name, display_name, id, api_base_url, is_active, is_demo_mode, is_active, is_active, config_json::jsonb
