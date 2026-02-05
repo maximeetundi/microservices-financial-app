@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -195,13 +194,14 @@ func (h *PayoutHandler) GetPayoutQuote(c *gin.Context) {
 	}
 
 	// Get min/max from instance settings
-	minAmount := instance.MinBalance
-	maxAmount := instance.MaxBalance
-	if minAmount == 0 {
-		minAmount = 100 // Default min
+	minAmount := 100.0
+	if instance.MinBalance != nil {
+		minAmount = *instance.MinBalance
 	}
-	if maxAmount == 0 {
-		maxAmount = 5000000 // Default max
+
+	maxAmount := 5000000.0
+	if instance.MaxBalance != nil {
+		maxAmount = *instance.MaxBalance
 	}
 
 	c.JSON(http.StatusOK, PayoutQuoteResponse{
@@ -322,7 +322,7 @@ func (h *PayoutHandler) InitiatePayout(c *gin.Context) {
 		UserAgent:            c.Request.UserAgent(),
 	}
 
-	payoutTx, err := h.payoutRepo.Create(ctx, payoutReq)
+	_, err := h.payoutRepo.Create(ctx, payoutReq)
 	if err != nil {
 		log.Printf("[PayoutHandler] Failed to create payout record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payout"})

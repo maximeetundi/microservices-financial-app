@@ -93,6 +93,8 @@ type AggregatorInstanceWithDetails struct {
 
 	// Availability
 	AvailabilityStatus string `json:"availability_status"`
+	DepositEnabled     bool   `json:"deposit_enabled"`
+	WithdrawEnabled    bool   `json:"withdraw_enabled"`
 }
 
 // CreateAggregatorInstanceRequest is the request body for creating an aggregator instance
