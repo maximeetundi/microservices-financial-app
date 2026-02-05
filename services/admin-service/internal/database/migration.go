@@ -214,7 +214,7 @@ BEGIN
         IF v_inst_id IS NOT NULL THEN
             FOR v_wallet IN SELECT id, currency FROM platform_accounts WHERE account_type = 'operations' AND is_active = true LOOP
                 INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
-                VALUES (v_inst_id, v_wallet.id, v_wallet.currency, v_wallet.currency IN ('XOF', 'NGN', 'USD'), CASE WHEN v_wallet.currency IN ('XOF', 'NGN') THEN 100 ELSE 50 END, true)
+                VALUES (v_inst_id, v_wallet.id::uuid, v_wallet.currency, v_wallet.currency IN ('XOF', 'NGN', 'USD'), CASE WHEN v_wallet.currency IN ('XOF', 'NGN') THEN 100 ELSE 50 END, true)
                 ON CONFLICT (instance_id, hot_wallet_id, currency) DO NOTHING;
             END LOOP;
         END IF;
