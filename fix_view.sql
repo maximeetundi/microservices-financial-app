@@ -27,4 +27,4 @@ SELECT
 FROM aggregator_instances ai
 JOIN aggregator_settings agg ON ai.aggregator_id = agg.id
 LEFT JOIN aggregator_instance_wallets aiw ON ai.id = aiw.instance_id AND aiw.is_primary = true
-LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id = pa.id;
+LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id::text = pa.id;

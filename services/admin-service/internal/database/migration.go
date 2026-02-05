@@ -191,7 +191,7 @@ SELECT
 FROM aggregator_instances ai
 JOIN aggregator_settings agg ON ai.aggregator_id = agg.id
 LEFT JOIN aggregator_instance_wallets aiw ON ai.id = aiw.instance_id AND aiw.is_primary = true
-LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id = pa.id;
+LEFT JOIN platform_accounts pa ON aiw.hot_wallet_id::text = pa.id;
 
 -- Seed aggregator_settings from payment_providers
 INSERT INTO aggregator_settings (provider_code, provider_name, payment_provider_id, api_base_url, is_enabled, is_demo_mode, supports_deposit, supports_withdrawal, config)
