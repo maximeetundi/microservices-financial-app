@@ -162,7 +162,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	query := `
 		INSERT INTO provider_instances
 		(id, provider_id, name, vault_secret_path, hot_wallet_id, is_active, is_primary, priority, health_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unknown')
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active')
 		RETURNING id`
 
 	var hotWalletID *string
