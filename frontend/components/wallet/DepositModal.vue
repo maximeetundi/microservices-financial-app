@@ -403,7 +403,7 @@ const fetchProviders = async () => {
   try {
     const response = await fetch(`${API_URL}/transfer-service/api/v1/aggregators/deposit?country=${userCountry.value}`, {
       headers: {
-        'Authorization': `Bearer ${authStore.token}`,
+        'Authorization': `Bearer ${authStore.accessToken}`,
         'Content-Type': 'application/json'
       }
     })
@@ -462,7 +462,7 @@ const initiateDeposit = async () => {
     const response = await fetch(`${API_URL}/transfer-service/api/v1/deposits/initiate`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${authStore.token}`,
+        'Authorization': `Bearer ${authStore.accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -644,7 +644,7 @@ const checkStatus = async () => {
   try {
     const response = await fetch(`${API_URL}/transfer-service/api/v1/deposits/${transactionId.value}/status`, {
       headers: {
-        'Authorization': `Bearer ${authStore.token}`
+        'Authorization': `Bearer ${authStore.accessToken}`
       }
     })
 

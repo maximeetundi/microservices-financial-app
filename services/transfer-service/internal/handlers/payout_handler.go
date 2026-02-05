@@ -322,8 +322,7 @@ func (h *PayoutHandler) InitiatePayout(c *gin.Context) {
 		UserAgent:            c.Request.UserAgent(),
 	}
 
-	_, err = h.payoutRepo.Create(ctx, payoutReq)
-	if err != nil {
+	if _, err = h.payoutRepo.Create(ctx, payoutReq); err != nil {
 		log.Printf("[PayoutHandler] Failed to create payout record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payout"})
 		return
