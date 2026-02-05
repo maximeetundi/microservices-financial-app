@@ -682,3 +682,233 @@ func (m *MTNMoMoCollectionProvider) VerifyCollection(ctx context.Context, refere
 		Status:            collStatus,
 	}, nil
 }
+
+// ========================
+// Lygos Collection Wrapper
+// ========================
+
+type LygosCollectionProvider struct {
+	config LygosConfig
+}
+
+func NewLygosCollectionProvider(config LygosConfig) *LygosCollectionProvider {
+	return &LygosCollectionProvider{config: config}
+}
+
+func (l *LygosCollectionProvider) GetName() string {
+	return "lygos"
+}
+
+func (l *LygosCollectionProvider) GetSupportedCountries() []string {
+	return []string{"BJ", "TG", "CI", "BF", "NE", "SN", "ML", "CM"}
+}
+
+func (l *LygosCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney, CollectionMethodCard}, nil
+}
+
+func (l *LygosCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "Lygos collection initiated - placeholder implementation",
+	}, nil
+}
+
+func (l *LygosCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// YellowCard Collection Wrapper
+// ========================
+
+type YellowCardCollectionProvider struct {
+	config YellowCardConfig
+}
+
+func NewYellowCardCollectionProvider(config YellowCardConfig) *YellowCardCollectionProvider {
+	return &YellowCardCollectionProvider{config: config}
+}
+
+func (y *YellowCardCollectionProvider) GetName() string {
+	return "yellowcard"
+}
+
+func (y *YellowCardCollectionProvider) GetSupportedCountries() []string {
+	return []string{"NG", "GH", "KE", "UG", "TZ", "RW", "ZA", "CI", "SN", "CM"}
+}
+
+func (y *YellowCardCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodCard, CollectionMethodBankTransfer}, nil
+}
+
+func (y *YellowCardCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "YellowCard collection initiated - placeholder implementation",
+	}, nil
+}
+
+func (y *YellowCardCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// Moov Money Collection Wrapper
+// ========================
+
+type MoovMoneyCollectionProvider struct {
+	config MoovMoneyConfig
+}
+
+type MoovMoneyConfig struct {
+	APIKey      string
+	MerchantKey string
+	BaseURL     string
+}
+
+func NewMoovMoneyCollectionProvider(config MoovMoneyConfig) *MoovMoneyCollectionProvider {
+	return &MoovMoneyCollectionProvider{config: config}
+}
+
+func (m *MoovMoneyCollectionProvider) GetName() string {
+	return "moov_money"
+}
+
+func (m *MoovMoneyCollectionProvider) GetSupportedCountries() []string {
+	return []string{"BJ", "TG", "CI", "BF", "NE"}
+}
+
+func (m *MoovMoneyCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+func (m *MoovMoneyCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "Moov Money collection initiated - placeholder implementation",
+	}, nil
+}
+
+func (m *MoovMoneyCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// FedaPay Collection Wrapper
+// ========================
+
+type FedaPayCollectionProvider struct {
+	config FedaPayConfig
+}
+
+type FedaPayConfig struct {
+	APIKey    string
+	PublicKey string
+	SecretKey string
+	BaseURL   string
+}
+
+func NewFedaPayCollectionProvider(config FedaPayConfig) *FedaPayCollectionProvider {
+	return &FedaPayCollectionProvider{config: config}
+}
+
+func (f *FedaPayCollectionProvider) GetName() string {
+	return "fedapay"
+}
+
+func (f *FedaPayCollectionProvider) GetSupportedCountries() []string {
+	return []string{"BJ", "TG", "NE", "CI"}
+}
+
+func (f *FedaPayCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney, CollectionMethodCard}, nil
+}
+
+func (f *FedaPayCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: req.ReferenceID,
+		Status:      CollectionStatusPending,
+		Amount:      req.Amount,
+		Currency:    req.Currency,
+		Message:     "FedaPay collection initiated - placeholder implementation",
+	}, nil
+}
+
+func (f *FedaPayCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	return &CollectionResponse{
+		ReferenceID: referenceID,
+		Status:      CollectionStatusPending,
+	}, nil
+}
+
+// ========================
+// Demo Collection Provider
+// ========================
+
+type DemoCollectionProvider struct {
+	config DemoConfig
+}
+
+func NewDemoCollectionProvider(config DemoConfig) *DemoCollectionProvider {
+	return &DemoCollectionProvider{config: config}
+}
+
+func (d *DemoCollectionProvider) GetName() string {
+	return "demo"
+}
+
+func (d *DemoCollectionProvider) GetSupportedCountries() []string {
+	// Demo supports all countries
+	return []string{"NG", "GH", "KE", "UG", "TZ", "RW", "ZA", "ZM", "CI", "SN", "CM", "BJ", "TG", "BF", "ML", "NE"}
+}
+
+func (d *DemoCollectionProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{
+		CollectionMethodCard,
+		CollectionMethodMobileMoney,
+		CollectionMethodBankTransfer,
+		CollectionMethodUSSD,
+	}, nil
+}
+
+func (d *DemoCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	// Demo always succeeds immediately
+	return &CollectionResponse{
+		ReferenceID:       req.ReferenceID,
+		ProviderReference: fmt.Sprintf("DEMO-%s", req.ReferenceID),
+		Status:            CollectionStatusSuccessful,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		Fee:               req.Amount * d.config.DefaultFee / 100,
+		NetAmount:         req.Amount * (1 - d.config.DefaultFee/100),
+		Message:           "Demo collection successful",
+	}, nil
+}
+
+func (d *DemoCollectionProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
+	// Demo always returns successful
+	return &CollectionResponse{
+		ReferenceID:       referenceID,
+		ProviderReference: fmt.Sprintf("DEMO-%s", referenceID),
+		Status:            CollectionStatusSuccessful,
+	}, nil
+}

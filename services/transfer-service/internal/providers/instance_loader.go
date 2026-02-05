@@ -44,6 +44,16 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 		return l.loadOrangeMoneyFromInstance(instance)
 	case "mtn_momo":
 		return l.loadMTNMoMoFromInstance(instance)
+	case "lygos":
+		return l.loadLygosFromInstance(instance)
+	case "yellowcard":
+		return l.loadYellowCardFromInstance(instance)
+	case "moov_money":
+		return l.loadMoovMoneyFromInstance(instance)
+	case "fedapay":
+		return l.loadFedaPayFromInstance(instance)
+	case "demo":
+		return l.loadDemoFromInstance(instance)
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", instance.ProviderCode)
 	}
@@ -155,6 +165,52 @@ func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.A
 	}
 
 	return NewMTNMoMoCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadLygosFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	config := LygosConfig{
+		APIKey:   instance.APICredentials["api_key"],
+		ShopName: instance.APICredentials["shop_name"],
+		BaseURL:  "https://api.lygosapp.com/v1",
+	}
+	return NewLygosCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadYellowCardFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	config := YellowCardConfig{
+		APIKey:     instance.APICredentials["api_key"],
+		SecretKey:  instance.APICredentials["secret_key"],
+		BusinessID: instance.APICredentials["business_id"],
+		BaseURL:    "https://api.yellowcard.io/v1",
+	}
+	return NewYellowCardCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadMoovMoneyFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	config := MoovMoneyConfig{
+		APIKey:      instance.APICredentials["api_key"],
+		MerchantKey: instance.APICredentials["merchant_key"],
+		BaseURL:     "https://api.moov-africa.bj/v1",
+	}
+	return NewMoovMoneyCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadFedaPayFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	config := FedaPayConfig{
+		APIKey:    instance.APICredentials["api_key"],
+		PublicKey: instance.APICredentials["public_key"],
+		SecretKey: instance.APICredentials["secret_key"],
+		BaseURL:   "https://api.fedapay.com/v1",
+	}
+	return NewFedaPayCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadDemoFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	config := DemoConfig{
+		SuccessRate: 0.95,
+		DefaultFee:  1.5,
+	}
+	return NewDemoCollectionProvider(config), nil
 }
 
 // GetBestProviderForDeposit selects the best instance for a deposit
