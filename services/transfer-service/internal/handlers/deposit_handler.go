@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -227,4 +228,60 @@ func (h *DepositHandler) GetDepositStatus(c *gin.Context) {
 		"status":         "pending",
 		"message":        "Payment is being processed",
 	})
+}
+
+// HandleDepositWebhook handles webhooks from payment providers
+// POST /api/v1/deposits/webhook/:provider
+func (h *DepositHandler) HandleDepositWebhook(c *gin.Context) {
+	provider := c.Param("provider")
+	ctx := c.Request.Context()
+
+	// Read raw body for signature verification
+	body, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
+		return
+	}
+
+	// Route to appropriate provider handler
+	switch provider {
+	case "flutterwave":
+		h.handleFlutterwaveWebhook(ctx, c, body)
+	case "stripe":
+		h.handleStripeWebhook(ctx, c, body)
+	case "paystack":
+		h.handlePaystackWebhook(ctx, c, body)
+	case "cinetpay":
+		h.handleCinetPayWebhook(ctx, c, body)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Unknown provider: %s", provider)})
+		return
+	}
+}
+
+// Provider-specific webhook handlers
+func (h *DepositHandler) handleFlutterwaveWebhook(ctx context.Context, c *gin.Context, body []byte) {
+	// TODO: Verify Flutterwave signature
+	// TODO: Parse webhook payload
+	// TODO: Update transaction status
+	// TODO: Credit user wallet if successful
+	c.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+func (h *DepositHandler) handleStripeWebhook(ctx context.Context, c *gin.Context, body []byte) {
+	// TODO: Verify Stripe signature using webhook secret
+	// TODO: Handle different event types (payment_intent.succeeded, etc.)
+	c.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+func (h *DepositHandler) handlePaystackWebhook(ctx context.Context, c *gin.Context, body []byte) {
+	// TODO: Verify Paystack signature
+	// TODO: Handle charge.success event
+	c.JSON(http.StatusOK, gin.H{"status": "received"})
+}
+
+func (h *DepositHandler) handleCinetPayWebhook(ctx context.Context, c *gin.Context, body []byte) {
+	// TODO: Verify CinetPay signature
+	// TODO: Handle payment notification
+	c.JSON(http.StatusOK, gin.H{"status": "received"})
 }
