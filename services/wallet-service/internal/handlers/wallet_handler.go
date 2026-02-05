@@ -714,7 +714,10 @@ func (h *WalletHandler) CreditWalletFromDeposit(c *gin.Context) {
 		wallet, err := h.walletService.GetWalletByCurrency(req.UserID, req.Currency)
 		if err != nil || wallet == nil {
 			// Create wallet if doesn't exist
-			newWallet, err := h.walletService.CreateWallet(req.UserID, req.Currency, "fiat")
+			newWallet, err := h.walletService.CreateWallet(req.UserID, &models.CreateWalletRequest{
+				Currency:   req.Currency,
+				WalletType: "fiat",
+			})
 			if err != nil {
 				log.Printf("[CreditWallet] Failed to create wallet for user %s: %v", req.UserID, err)
 				c.JSON(http.StatusInternalServerError, gin.H{
