@@ -891,11 +891,31 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 	}
 
 	reqBody, _ := json.Marshal(depositReq)
-	resp, err := http.Post(
+
+	// Create HTTP request with Authorization header forwarded
+	httpReq, err := http.NewRequest(
+		"POST",
 		transferServiceURL+"/api/v1/deposits/initiate",
-		"application/json",
 		bytes.NewBuffer(reqBody),
 	)
+	if err != nil {
+		log.Printf("Failed to create request to transfer-service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initiate payment"})
+		return
+	}
+
+	// Set headers - forward Authorization from original request
+	httpReq.Header.Set("Content-Type", "application/json")
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+		httpReq.Header.Set("Authorization", authHeader)
+		log.Printf("🔐 [DEPOSIT] Forwarding Authorization header to transfer-service")
+	} else {
+		log.Printf("⚠️ [DEPOSIT] No Authorization header to forward")
+	}
+
+	// Execute the request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
 
 	if err != nil {
 		log.Printf("Failed to call transfer-service: %v", err)
