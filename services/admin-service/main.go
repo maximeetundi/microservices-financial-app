@@ -310,6 +310,7 @@ func main() {
 		payments.DELETE("/:id/instances/:instanceId", instanceHandler.DeleteProviderInstance)
 		payments.POST("/:id/instances/:instanceId/link-wallet", instanceHandler.LinkHotWallet)
 		payments.POST("/:id/instances/:instanceId/test", instanceHandler.TestInstance)
+		payments.POST("/:id/instances/:instanceId/pause", instanceHandler.ToggleInstancePause)
 		// Instance wallet management (multi-wallet support)
 		payments.GET("/:id/instances/:instanceId/wallets", instanceHandler.GetInstanceWallets)
 		payments.POST("/:id/instances/:instanceId/wallets", instanceHandler.AddInstanceWallet)

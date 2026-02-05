@@ -19,6 +19,8 @@ type ProviderInstance struct {
 	HotWalletID     *string    `json:"hot_wallet_id,omitempty" db:"hot_wallet_id"`
 	IsActive        bool       `json:"is_active" db:"is_active"`
 	IsPrimary       bool       `json:"is_primary" db:"is_primary"`
+	IsGlobal        bool       `json:"is_global" db:"is_global"`
+	IsPaused        bool       `json:"is_paused" db:"is_paused"`
 	Priority        int        `json:"priority" db:"priority"`
 	RequestCount    int64      `json:"request_count" db:"request_count"`
 	LastUsedAt      *time.Time `json:"last_used_at,omitempty" db:"last_used_at"`
@@ -47,7 +49,9 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 
 	query := `
 		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
-		       is_active, is_primary, priority, request_count, last_used_at,
+		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global, 
+		       COALESCE(is_paused, FALSE) as is_paused,
+		       priority, request_count, last_used_at,
 		       last_error, health_status, created_at, updated_at
 		FROM provider_instances
 		WHERE provider_id = $1
@@ -65,7 +69,8 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 		var inst ProviderInstance
 		err := rows.Scan(
 			&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
-			&inst.IsActive, &inst.IsPrimary, &inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
+			&inst.IsActive, &inst.IsPrimary, &inst.IsGlobal, &inst.IsPaused,
+			&inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
 			&inst.LastError, &inst.HealthStatus, &inst.CreatedAt, &inst.UpdatedAt,
 		)
 		if err != nil {
@@ -590,4 +595,50 @@ func (h *InstanceHandler) GetBestWalletForCurrency(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"hot_wallet_id": hotWalletID})
+}
+
+// ToggleInstancePause pauses or resumes an instance
+func (h *InstanceHandler) ToggleInstancePause(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+
+	var req struct {
+		IsPaused bool   `json:"is_paused"`
+		Reason   string `json:"reason"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update the pause status in database
+	result, err := h.db.Exec(`
+		UPDATE provider_instances 
+		SET is_paused = $1, updated_at = NOW()
+		WHERE id = $2
+	`, req.IsPaused, instanceID)
+
+	if err != nil {
+		log.Printf("Error toggling instance pause: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update instance"})
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+		return
+	}
+
+	status := "resumed"
+	if req.IsPaused {
+		status = "paused"
+		log.Printf("Instance %s paused. Reason: %s", instanceID, req.Reason)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Instance " + status + " successfully",
+		"instance_id": instanceID,
+		"is_paused":   req.IsPaused,
+	})
 }
