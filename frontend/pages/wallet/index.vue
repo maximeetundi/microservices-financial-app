@@ -920,16 +920,33 @@ const submitDeposit = async () => {
         ? selectedProvider.value 
         : selectedProvider.value.displayLabel || selectedProvider.value.name
 
-      depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${providerDisplay}!`
-      
-      // Refresh wallets to show new balance
-      await fetchWallets()
-      
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        closeTopUpModal()
-        depositAmount.value = 5000
-      }, 2000)
+      // Check if there's a payment URL to redirect to
+      if (response.data.payment_url) {
+        depositSuccess.value = `Redirection vers ${providerDisplay}...`
+        
+        // Redirect to aggregator payment page
+        setTimeout(() => {
+          window.location.href = response.data.payment_url
+        }, 1000)
+      } else if (response.data.status === 'instant_success') {
+        // Demo mode - instant success
+        depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${providerDisplay}!`
+        
+        // Refresh wallets to show new balance
+        await fetchWallets()
+        
+        // Reset form after 2 seconds
+        setTimeout(() => {
+          closeTopUpModal()
+          depositAmount.value = 5000
+        }, 2000)
+      } else {
+        // Pending payment without URL (shouldn't happen, but handle gracefully)
+        depositSuccess.value = `Dépôt initié. Transaction ID: ${response.data.transaction_id}`
+        setTimeout(() => {
+          closeTopUpModal()
+        }, 3000)
+      }
     }
   } catch (e) {
     console.error('Deposit error:', e)
