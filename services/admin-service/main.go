@@ -63,6 +63,11 @@ func main() {
 	}
 	defer mainDB.Close()
 
+	// Migrate Aggregator Schema (tables & views for transfer-service)
+	if err := database.MigrateAggregatorSchema(mainDB); err != nil {
+		log.Printf("Warning: failed to migrate aggregator schema: %v", err)
+	}
+
 	// Seed provider instances (needs access to both Admin and Main DBs)
 	if err := database.SeedProviderInstances(adminDB, mainDB); err != nil {
 		log.Printf("Warning: failed to seed provider instances: %v", err)
