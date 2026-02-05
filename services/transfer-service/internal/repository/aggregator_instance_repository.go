@@ -110,9 +110,11 @@ func (r *AggregatorInstanceRepository) GetBestInstanceForProvider(
 		SELECT * FROM aggregator_instances_with_details
 		WHERE provider_code = $1
 		  AND aggregator_enabled = true
+		  AND is_paused = false
 		  AND availability_status = 'available'
 		  AND (
-		      restricted_countries IS NULL 
+		      is_global = true
+		      OR restricted_countries IS NULL 
 		      OR array_length(restricted_countries, 1) IS NULL 
 		      OR $2 = ANY(restricted_countries)
 		  )
@@ -352,7 +354,90 @@ func (r *AggregatorInstanceRepository) UpdateWallet(ctx context.Context, instanc
 	return err
 }
 
+// SetPaused sets the pause status of an instance
+func (r *AggregatorInstanceRepository) SetPaused(
+	ctx context.Context,
+	instanceID string,
+	paused bool,
+	reason string,
+	adminID string,
+) error {
+	var query string
+	var args []interface{}
+
+	if paused {
+		query = `
+			UPDATE aggregator_instances
+			SET is_paused = true,
+			    pause_reason = $2,
+			    paused_at = CURRENT_TIMESTAMP,
+			    paused_by = $3,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE id = $1
+		`
+		args = []interface{}{instanceID, reason, adminID}
+	} else {
+		query = `
+			UPDATE aggregator_instances
+			SET is_paused = false,
+			    pause_reason = NULL,
+			    paused_at = NULL,
+			    paused_by = NULL,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE id = $1
+		`
+		args = []interface{}{instanceID}
+	}
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// UpdateInstance updates an instance's basic fields
+func (r *AggregatorInstanceRepository) UpdateInstance(
+	ctx context.Context,
+	instanceID string,
+	name string,
+	priority int,
+	isActive bool,
+	isPrimary bool,
+	isGlobal bool,
+	vaultPath string,
+) error {
+	query := `
+		UPDATE aggregator_instances
+		SET instance_name = $2,
+		    priority = $3,
+		    enabled = $4,
+		    is_global = $5,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, instanceID, name, priority, isActive, isGlobal)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 // Helper function to scan instance with details
+// Note: The view columns must match this order exactly
 func (r *AggregatorInstanceRepository) scanInstanceWithDetails(scanner interface {
 	Scan(dest ...interface{}) error
 }) (*models.AggregatorInstanceWithDetails, error) {
@@ -361,7 +446,8 @@ func (r *AggregatorInstanceRepository) scanInstanceWithDetails(scanner interface
 
 	err := scanner.Scan(
 		&instance.ID, &instance.InstanceName, &instance.Enabled, &instance.Priority,
-		&instance.IsTestMode, &restrictedCountries, &instance.DailyLimit, &instance.MonthlyLimit,
+		&instance.IsTestMode, &instance.IsPaused, &instance.IsGlobal, &instance.PauseReason,
+		&instance.PausedAt, &restrictedCountries, &instance.DailyLimit, &instance.MonthlyLimit,
 		&instance.DailyUsage, &instance.MonthlyUsage, &instance.TotalTransactions,
 		&instance.TotalVolume, &instance.LastUsedAt, &instance.CreatedAt, &instance.UpdatedAt,
 		&instance.AggregatorID, &instance.ProviderCode, &instance.ProviderName,

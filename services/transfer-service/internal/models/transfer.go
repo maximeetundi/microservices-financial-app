@@ -31,6 +31,11 @@ type Transfer struct {
 	InternationalDetails *InternationalTransferDetails `json:"international_details,omitempty" db:"-"`
 	MobileMoneyDetails   *MobileMoneyDetails           `json:"mobile_money_details,omitempty" db:"-"`
 
+	// Aggregator tracking (optional - NULL for crypto/internal transfers)
+	AggregatorInstanceID *string `json:"aggregator_instance_id,omitempty" db:"aggregator_instance_id"`
+	HotWalletID          *string `json:"hot_wallet_id,omitempty" db:"hot_wallet_id"`
+	ProviderCode         *string `json:"provider_code,omitempty" db:"provider_code"`
+
 	// Enriched Data (not stored in DB)
 	SenderDetails    *UserDetails `json:"sender_details,omitempty" db:"-"`
 	RecipientDetails *UserDetails `json:"recipient_details,omitempty" db:"-"`

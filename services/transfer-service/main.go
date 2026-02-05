@@ -126,6 +126,9 @@ func main() {
 		walletServiceURL,
 	)
 
+	// Initialize Admin Instance Handler for pause/update functionality
+	adminInstanceHandler := handlers.NewAdminInstanceHandler(instanceRepo, aggregatorRepo)
+
 	// Setup Gin
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -156,6 +159,20 @@ func main() {
 		adminGroup := api.Group("/admin")
 		adminGroup.Use(middleware.JWTAuth(cfg.JWTSecret)) // Apply Auth to admin routes
 		aggregatorHandler.RegisterRoutes(api, adminGroup)
+
+		// Admin Instance Management Routes
+		instances := adminGroup.Group("/instances")
+		{
+			instances.GET("", adminInstanceHandler.ListInstances)
+			instances.GET("/:id", adminInstanceHandler.GetInstance)
+			instances.POST("", adminInstanceHandler.CreateInstance)
+			instances.PUT("/:id", adminInstanceHandler.UpdateInstance)
+			instances.POST("/:id/pause", adminInstanceHandler.TogglePause)
+			instances.GET("/:id/stats", adminInstanceHandler.GetInstanceStats)
+			instances.POST("/:id/wallets", adminInstanceHandler.LinkWallet)
+			instances.DELETE("/:id/wallets/:wallet_id", adminInstanceHandler.UnlinkWallet)
+			instances.PUT("/:id/wallets/:wallet_id", adminInstanceHandler.UpdateInstanceWallet)
+		}
 
 		// Protected routes - apply JWT auth middleware
 		api.POST("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateTransfer)

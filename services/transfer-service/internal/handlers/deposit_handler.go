@@ -49,14 +49,17 @@ type InitiateDepositRequest struct {
 
 // InitiateDepositResponse represents the response from deposit initiation
 type InitiateDepositResponse struct {
-	TransactionID string   `json:"transaction_id"`
-	Status        string   `json:"status"` // instant_success, pending_payment, failed
-	PaymentURL    string   `json:"payment_url,omitempty"`
-	Provider      string   `json:"provider"`
-	Amount        float64  `json:"amount"`
-	Currency      string   `json:"currency"`
-	Message       string   `json:"message,omitempty"`
-	NewBalance    *float64 `json:"new_balance,omitempty"`
+	TransactionID        string   `json:"transaction_id"`
+	Status               string   `json:"status"` // instant_success, pending_payment, failed
+	PaymentURL           string   `json:"payment_url,omitempty"`
+	Provider             string   `json:"provider"`
+	Amount               float64  `json:"amount"`
+	Currency             string   `json:"currency"`
+	Message              string   `json:"message,omitempty"`
+	NewBalance           *float64 `json:"new_balance,omitempty"`
+	AggregatorInstanceID string   `json:"aggregator_instance_id,omitempty"`
+	HotWalletID          string   `json:"hot_wallet_id,omitempty"`
+	ProviderCode         string   `json:"provider_code,omitempty"`
 }
 
 // InitiateDeposit initiates a deposit using instance-based provider
@@ -132,13 +135,16 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	// TODO: Store transaction reference and wallet_id for webhook processing
 
 	c.JSON(http.StatusOK, InitiateDepositResponse{
-		TransactionID: transactionID,
-		Status:        "pending_payment",
-		PaymentURL:    response.PaymentLink,
-		Provider:      req.Provider,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Message:       response.Message,
+		TransactionID:        transactionID,
+		Status:               "pending_payment",
+		PaymentURL:           response.PaymentLink,
+		Provider:             req.Provider,
+		Amount:               req.Amount,
+		Currency:             req.Currency,
+		Message:              response.Message,
+		AggregatorInstanceID: instance.ID,
+		HotWalletID:          walletID,
+		ProviderCode:         instance.ProviderCode,
 	})
 }
 

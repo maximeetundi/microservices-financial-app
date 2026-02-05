@@ -166,13 +166,22 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 	amount float64,
 ) (CollectionProvider, *models.AggregatorInstanceWithDetails, error) {
 
-	// Get best instance from DB
+	// Get best instance from DB (already excludes paused instances)
 	instance, err := l.instanceRepo.GetBestInstanceForProvider(ctx, providerCode, country, amount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("no available instance for provider %s: %w", providerCode, err)
 	}
 
-	if instance.AvailabilityStatus != "available" && instance.AvailabilityStatus != "" {
+	// Double-check availability status and provide user-friendly messages
+	if instance.AvailabilityStatus == models.WalletInstancePaused || instance.IsPaused {
+		reason := "Service temporairement indisponible"
+		if instance.PauseReason != nil && *instance.PauseReason != "" {
+			reason = *instance.PauseReason
+		}
+		return nil, nil, fmt.Errorf("instance_paused: %s", reason)
+	}
+
+	if instance.AvailabilityStatus != models.WalletAvailable && instance.AvailabilityStatus != "" {
 		return nil, nil, fmt.Errorf("provider %s instance not available: %s", providerCode, instance.AvailabilityStatus)
 	}
 

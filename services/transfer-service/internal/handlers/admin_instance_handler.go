@@ -121,3 +121,86 @@ func (h *AdminInstanceHandler) GetInstanceStats(c *gin.Context) {
 		"total_withdrawals":  0,
 	})
 }
+
+// TogglePauseRequest is the request body for pausing/resuming an instance
+type TogglePauseRequest struct {
+	IsPaused bool   `json:"is_paused"`
+	Reason   string `json:"reason"`
+}
+
+// TogglePause pauses or resumes an instance
+// POST /api/v1/admin/instances/:id/pause
+func (h *AdminInstanceHandler) TogglePause(c *gin.Context) {
+	instanceID := c.Param("id")
+	ctx := c.Request.Context()
+	adminID := c.GetString("admin_id")
+
+	var req TogglePauseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.instanceRepo.SetPaused(ctx, instanceID, req.IsPaused, req.Reason, adminID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	status := "resumed"
+	if req.IsPaused {
+		status = "paused"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Instance " + status + " successfully",
+		"instance_id": instanceID,
+		"is_paused":   req.IsPaused,
+		"reason":      req.Reason,
+	})
+}
+
+// UpdateInstanceRequest is the request body for updating an instance
+type UpdateInstanceRequest struct {
+	InstanceName string `json:"instance_name"`
+	Priority     int    `json:"priority"`
+	Enabled      bool   `json:"enabled"`
+	IsPrimary    bool   `json:"is_primary"`
+	IsGlobal     bool   `json:"is_global"`
+	VaultPath    string `json:"vault_secret_path"`
+}
+
+// UpdateInstance updates an existing instance
+// PUT /api/v1/admin/instances/:id
+func (h *AdminInstanceHandler) UpdateInstance(c *gin.Context) {
+	instanceID := c.Param("id")
+	ctx := c.Request.Context()
+
+	var req UpdateInstanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.instanceRepo.UpdateInstance(
+		ctx, instanceID, req.InstanceName, req.Priority,
+		req.Enabled, req.IsPrimary, req.IsGlobal, req.VaultPath,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Instance updated successfully",
+		"instance_id": instanceID,
+	})
+}

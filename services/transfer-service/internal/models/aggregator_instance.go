@@ -15,6 +15,8 @@ type AggregatorInstance struct {
 
 	// Configuration
 	Enabled    bool     `json:"enabled"`
+	IsPaused   bool     `json:"is_paused"`
+	IsGlobal   bool     `json:"is_global"`
 	Priority   int      `json:"priority"`
 	MinBalance *float64 `json:"min_balance,omitempty"`
 	MaxBalance *float64 `json:"max_balance,omitempty"`
@@ -40,6 +42,11 @@ type AggregatorInstance struct {
 	// Hot wallets linked to this instance
 	Wallets []InstanceWallet `json:"wallets,omitempty"`
 
+	// Pause info
+	PauseReason *string    `json:"pause_reason,omitempty"`
+	PausedAt    *time.Time `json:"paused_at,omitempty"`
+	PausedBy    *string    `json:"paused_by,omitempty"`
+
 	// Metadata
 	Notes     string    `json:"notes,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
@@ -52,8 +59,12 @@ type AggregatorInstanceWithDetails struct {
 	ID                  string            `json:"id"`
 	InstanceName        string            `json:"instance_name"`
 	Enabled             bool              `json:"enabled"`
+	IsPaused            bool              `json:"is_paused"`
+	IsGlobal            bool              `json:"is_global"`
 	Priority            int               `json:"priority"`
 	IsTestMode          bool              `json:"is_test_mode"`
+	PauseReason         *string           `json:"pause_reason,omitempty"`
+	PausedAt            *time.Time        `json:"paused_at,omitempty"`
 	RestrictedCountries []string          `json:"restricted_countries,omitempty"`
 	DailyLimit          *float64          `json:"daily_limit,omitempty"`
 	MonthlyLimit        *float64          `json:"monthly_limit,omitempty"`
@@ -146,6 +157,7 @@ const (
 	WalletAvailable           = "available"
 	WalletDisabled            = "wallet_disabled"
 	WalletInstanceDisabled    = "instance_disabled"
+	WalletInstancePaused      = "instance_paused"
 	WalletAggregatorDisabled  = "aggregator_disabled"
 	WalletInsufficientBalance = "insufficient_balance"
 	WalletBalanceTooHigh      = "balance_too_high"

@@ -22,6 +22,8 @@ interface ProviderInstance {
     hot_wallet_id?: string;
     is_active: boolean;
     is_primary: boolean;
+    is_global: boolean; // Accepts all countries
+    is_paused: boolean; // Transactions paused
     priority: number;
     request_count: number;
     health_status: string;
@@ -56,8 +58,11 @@ export default function AggregatorInstancesPage() {
     const [instances, setInstances] = useState<ProviderInstance[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [showLinkWalletModal, setShowLinkWalletModal] = useState(false);
     const [selectedInstance, setSelectedInstance] = useState<ProviderInstance | null>(null);
+    const [editingInstance, setEditingInstance] = useState<ProviderInstance | null>(null);
+    const [showPauseWarning, setShowPauseWarning] = useState(false);
     const [hotWallets, setHotWallets] = useState<PlatformAccount[]>([]);
     const [countries, setCountries] = useState<any[]>([]);
     const [providerName, setProviderName] = useState('');
@@ -162,6 +167,7 @@ export default function AggregatorInstancesPage() {
         vault_secret_path: '',
         is_active: true,
         is_primary: false,
+        is_global: false, // Accepts all countries
         priority: 50,
     });
 
@@ -406,6 +412,108 @@ export default function AggregatorInstancesPage() {
         }
     };
 
+    // Open edit modal with instance data
+    const openEditModal = (inst: ProviderInstance) => {
+        setEditingInstance(inst);
+        setNewInstance({
+            name: inst.name,
+            vault_secret_path: inst.vault_secret_path,
+            is_active: inst.is_active,
+            is_primary: inst.is_primary,
+            is_global: inst.is_global || false,
+            priority: inst.priority,
+        });
+        setShowEditModal(true);
+    };
+
+    // Pause/Resume instance (warning shown before pause)
+    const toggleInstancePause = async (inst: ProviderInstance, newPausedState: boolean) => {
+        if (newPausedState) {
+            // Show warning before pausing
+            if (!confirm('⚠️ ATTENTION: Mettre en pause cette instance va suspendre toutes les transactions en cours.\n\nLes utilisateurs ne pourront plus effectuer de dépôts/retraits via cette instance tant qu\'elle sera en pause.\n\nÊtes-vous sûr de vouloir continuer?')) {
+                return;
+            }
+        }
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}/pause`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_paused: newPausedState })
+            });
+
+            if (response.ok) {
+                loadInstances();
+                alert(newPausedState ? '⏸️ Instance mise en pause' : '▶️ Instance reprise');
+            } else {
+                alert('Erreur lors de la modification');
+            }
+        } catch (e) {
+            console.error('Error toggling pause:', e);
+        }
+    };
+
+    // Update existing instance
+    const handleUpdateInstance = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingInstance) return;
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+            const token = localStorage.getItem('admin_token');
+
+            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${editingInstance.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newInstance.name,
+                    vault_secret_path: newInstance.vault_secret_path,
+                    is_active: newInstance.is_active,
+                    is_primary: newInstance.is_primary,
+                    is_global: newInstance.is_global,
+                    priority: newInstance.priority,
+                })
+            });
+
+            if (response.ok) {
+                setShowEditModal(false);
+                setEditingInstance(null);
+                loadInstances();
+                setNewInstance({
+                    name: '',
+                    vault_secret_path: '',
+                    is_active: true,
+                    is_primary: false,
+                    is_global: false,
+                    priority: 50,
+                });
+            } else {
+                const errData = await response.json();
+                alert(`Erreur: ${errData.error || 'Unknown error'}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erreur réseau');
+        }
+    };
+
+    // Generate vault path preview
+    const getVaultPathPreview = () => {
+        if (newInstance.vault_secret_path) return newInstance.vault_secret_path;
+        const providerSlug = providerName.toLowerCase().replace(/\s+/g, '_');
+        const instanceSlug = newInstance.name.toLowerCase().replace(/\s+/g, '_') || 'instance_name';
+        return `secret/aggregators/${providerSlug}/${instanceSlug}`;
+    };
+
     const handleAddCountry = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -533,18 +641,24 @@ export default function AggregatorInstancesPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {instances.map(inst => (
-                        <div key={inst.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div key={inst.id} className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow ${inst.is_paused ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200'}`}>
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <h3 className="font-bold text-gray-900">{inst.name}</h3>
                                         {inst.is_primary && (
                                             <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">Principal</span>
                                         )}
+                                        {inst.is_global && (
+                                            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium">🌍 Global</span>
+                                        )}
+                                        {inst.is_paused && (
+                                            <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium animate-pulse">⏸️ En pause</span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-gray-500 font-mono mt-1 break-all">{inst.vault_secret_path}</p>
                                 </div>
-                                <div className={`w-3 h-3 rounded-full ${inst.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                                <div className={`w-3 h-3 rounded-full ${inst.is_active && !inst.is_paused ? 'bg-emerald-500' : inst.is_paused ? 'bg-amber-500' : 'bg-gray-300'}`} />
                             </div>
 
                             <div className="space-y-3 mb-6">
@@ -635,8 +749,29 @@ export default function AggregatorInstancesPage() {
                                 )}
                             </div>
 
+                            {/* Action Buttons */}
                             <div className="flex gap-2 pt-4 border-t border-gray-100">
-                                <button className="flex-1 btn-secondary text-xs">Test</button>
+                                {/* Edit Button */}
+                                <button
+                                    onClick={() => openEditModal(inst)}
+                                    className="flex-1 btn-secondary text-xs flex items-center justify-center gap-1"
+                                >
+                                    <PencilIcon className="w-3.5 h-3.5" />
+                                    Modifier
+                                </button>
+
+                                {/* Pause/Resume Button */}
+                                <button
+                                    onClick={() => toggleInstancePause(inst, !inst.is_paused)}
+                                    className={`flex-1 text-xs p-2 rounded-lg font-medium transition-colors ${inst.is_paused
+                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                        }`}
+                                >
+                                    {inst.is_paused ? '▶️ Reprendre' : '⏸️ Pause'}
+                                </button>
+
+                                {/* Delete Button */}
                                 <button
                                     onClick={() => deleteInstance(inst.id)}
                                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -666,7 +801,7 @@ export default function AggregatorInstancesPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Chemin Vault (Optionnel)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Chemin Vault</label>
                                 <input
                                     type="text"
                                     className="input w-full font-mono text-sm"
@@ -674,6 +809,13 @@ export default function AggregatorInstancesPage() {
                                     value={newInstance.vault_secret_path}
                                     onChange={e => setNewInstance({ ...newInstance, vault_secret_path: e.target.value })}
                                 />
+                                {/* Vault Path Preview */}
+                                <div className="mt-2 p-2 bg-gray-100 rounded-lg border border-gray-200">
+                                    <p className="text-xs text-gray-500 mb-1">Chemin Vault utilisé:</p>
+                                    <code className="text-xs font-mono text-indigo-600 break-all">
+                                        {getVaultPathPreview()}
+                                    </code>
+                                </div>
                             </div>
 
                             {/* Hot Wallet Selection (Multi) */}
@@ -723,7 +865,7 @@ export default function AggregatorInstancesPage() {
                                         onChange={e => setNewInstance({ ...newInstance, priority: parseInt(e.target.value) })}
                                     />
                                 </div>
-                                <div className="flex items-end mb-3">
+                                <div className="flex flex-col gap-2 justify-end pb-1">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
                                             type="checkbox"
@@ -732,6 +874,15 @@ export default function AggregatorInstancesPage() {
                                             onChange={e => setNewInstance({ ...newInstance, is_primary: e.target.checked })}
                                         />
                                         <span className="text-sm">Principal</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="checkbox"
+                                            checked={newInstance.is_global}
+                                            onChange={e => setNewInstance({ ...newInstance, is_global: e.target.checked })}
+                                        />
+                                        <span className="text-sm">🌍 Global (tous pays)</span>
                                     </label>
                                 </div>
                             </div>
@@ -936,6 +1087,130 @@ export default function AggregatorInstancesPage() {
                                 </div>
                             </form>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Instance Modal */}
+            {showEditModal && editingInstance && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
+                        <h2 className="text-xl font-bold mb-2">Modifier l'Instance</h2>
+
+                        {/* Warning Banner */}
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                            <div className="flex items-start gap-2">
+                                <span className="text-lg">⚠️</span>
+                                <div>
+                                    <p className="text-sm font-medium text-amber-800">Attention</p>
+                                    <p className="text-xs text-amber-700">
+                                        La modification de cette instance peut affecter les transactions en cours.
+                                        Les changements seront appliqués immédiatement.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleUpdateInstance} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="input w-full"
+                                    value={newInstance.name}
+                                    onChange={e => setNewInstance({ ...newInstance, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Chemin Vault</label>
+                                <input
+                                    type="text"
+                                    className="input w-full font-mono text-sm"
+                                    value={newInstance.vault_secret_path}
+                                    onChange={e => setNewInstance({ ...newInstance, vault_secret_path: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                                    <input
+                                        type="number"
+                                        className="input w-full"
+                                        value={newInstance.priority}
+                                        onChange={e => setNewInstance({ ...newInstance, priority: parseInt(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Checkboxes */}
+                            <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox"
+                                        checked={newInstance.is_active}
+                                        onChange={e => setNewInstance({ ...newInstance, is_active: e.target.checked })}
+                                    />
+                                    <div>
+                                        <span className="text-sm font-medium">Active</span>
+                                        <p className="text-xs text-gray-500">L'instance accepte les transactions</p>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox"
+                                        checked={newInstance.is_primary}
+                                        onChange={e => setNewInstance({ ...newInstance, is_primary: e.target.checked })}
+                                    />
+                                    <div>
+                                        <span className="text-sm font-medium">Principal</span>
+                                        <p className="text-xs text-gray-500">Instance prioritaire par défaut</p>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox"
+                                        checked={newInstance.is_global}
+                                        onChange={e => setNewInstance({ ...newInstance, is_global: e.target.checked })}
+                                    />
+                                    <div>
+                                        <span className="text-sm font-medium">🌍 Global</span>
+                                        <p className="text-xs text-gray-500">Accepte tous les pays (pas de restriction géographique)</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setEditingInstance(null);
+                                        setNewInstance({
+                                            name: '',
+                                            vault_secret_path: '',
+                                            is_active: true,
+                                            is_primary: false,
+                                            is_global: false,
+                                            priority: 50,
+                                        });
+                                    }}
+                                    className="btn-secondary"
+                                >
+                                    Annuler
+                                </button>
+                                <button type="submit" className="btn-primary">
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
