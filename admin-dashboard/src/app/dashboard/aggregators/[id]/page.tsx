@@ -356,6 +356,7 @@ export default function AggregatorInstancesPage() {
                     vault_secret_path: '',
                     is_active: true,
                     is_primary: false,
+                    is_global: false,
                     priority: 50,
                 });
                 setSelectedWalletIds([]);
