@@ -708,12 +708,17 @@ func (l *LygosCollectionProvider) GetAvailableMethods(ctx context.Context, count
 }
 
 func (l *LygosCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	// Generate mock payment URL (in production, this would be the actual Lygos payment page)
+	paymentURL := fmt.Sprintf("https://pay.lygosapp.com/payment?ref=%s&amount=%.2f&currency=%s", req.ReferenceID, req.Amount, req.Currency)
+
 	return &CollectionResponse{
-		ReferenceID: req.ReferenceID,
-		Status:      CollectionStatusPending,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Message:     "Lygos collection initiated - placeholder implementation",
+		ReferenceID:       req.ReferenceID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       paymentURL,
+		ProviderReference: "LYGOS-" + req.ReferenceID,
+		Message:           "Redirecting to Lygos payment page",
 	}, nil
 }
 
@@ -749,12 +754,16 @@ func (y *YellowCardCollectionProvider) GetAvailableMethods(ctx context.Context, 
 }
 
 func (y *YellowCardCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	paymentURL := fmt.Sprintf("https://pay.yellowcard.io/checkout?ref=%s&amount=%.2f&currency=%s", req.ReferenceID, req.Amount, req.Currency)
+
 	return &CollectionResponse{
-		ReferenceID: req.ReferenceID,
-		Status:      CollectionStatusPending,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Message:     "YellowCard collection initiated - placeholder implementation",
+		ReferenceID:       req.ReferenceID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       paymentURL,
+		ProviderReference: "YC-" + req.ReferenceID,
+		Message:           "Redirecting to YellowCard payment page",
 	}, nil
 }
 
@@ -796,12 +805,16 @@ func (m *MoovMoneyCollectionProvider) GetAvailableMethods(ctx context.Context, c
 }
 
 func (m *MoovMoneyCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	paymentURL := fmt.Sprintf("https://pay.moov-africa.com/ussd?ref=%s&amount=%.2f&currency=%s&phone=%s", req.ReferenceID, req.Amount, req.Currency, req.PhoneNumber)
+
 	return &CollectionResponse{
-		ReferenceID: req.ReferenceID,
-		Status:      CollectionStatusPending,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Message:     "Moov Money collection initiated - placeholder implementation",
+		ReferenceID:       req.ReferenceID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       paymentURL,
+		ProviderReference: "MOOV-" + req.ReferenceID,
+		Message:           "Redirecting to Moov Money USSD payment",
 	}, nil
 }
 
@@ -844,12 +857,16 @@ func (f *FedaPayCollectionProvider) GetAvailableMethods(ctx context.Context, cou
 }
 
 func (f *FedaPayCollectionProvider) InitiateCollection(ctx context.Context, req *CollectionRequest) (*CollectionResponse, error) {
+	paymentURL := fmt.Sprintf("https://app.fedapay.com/payment?ref=%s&amount=%.0f&currency=%s", req.ReferenceID, req.Amount, req.Currency)
+
 	return &CollectionResponse{
-		ReferenceID: req.ReferenceID,
-		Status:      CollectionStatusPending,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Message:     "FedaPay collection initiated - placeholder implementation",
+		ReferenceID:       req.ReferenceID,
+		Status:            CollectionStatusPending,
+		Amount:            req.Amount,
+		Currency:          req.Currency,
+		PaymentLink:       paymentURL,
+		ProviderReference: "FEDA-" + req.ReferenceID,
+		Message:           "Redirecting to FedaPay payment page",
 	}, nil
 }
 
