@@ -23,7 +23,7 @@
       <div class="glass-card mb-8 p-8 dark:bg-slate-900/80 border border-gray-200 dark:border-white/10 relative overflow-hidden group">
         <!-- Background Effects -->
         <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-500"></div>
-        
+
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div>
             <p class="text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider text-sm">Valeur Totale</p>
@@ -74,18 +74,18 @@
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div v-for="wallet in wallets" :key="wallet.id" 
+        <div v-for="wallet in wallets" :key="wallet.id"
             class="glass-card p-6 cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 relative overflow-hidden group dark:bg-slate-900 border border-gray-200 dark:border-white/10"
             :class="{'ring-2 ring-indigo-500 dark:ring-indigo-400': selectedWallet?.id === wallet.id}"
             @click="selectWallet(wallet)">
-            
+
            <!-- Background Glow -->
            <div class="absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-500"
                 :class="getCurrencyBg(wallet.currency)"></div>
 
           <div class="flex items-center justify-between mb-6 relative z-10">
             <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md text-white font-bold overflow-hidden" 
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-md text-white font-bold overflow-hidden"
                    :class="getCurrencyBg(wallet.currency)">
                 <img v-if="getCurrencyLogo(wallet.currency)" :src="getCurrencyLogo(wallet.currency)" class="w-full h-full object-cover" />
                 <span v-else>{{ getCurrencyIcon(wallet.currency) }}</span>
@@ -96,7 +96,7 @@
               </div>
             </div>
             <div class="flex flex-col items-end gap-1">
-             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border" 
+             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border"
                   :class="getStatusClass(wallet.status)">
               {{ getStatusLabel(wallet.status) }}
             </span>
@@ -119,10 +119,10 @@
                  <span class="text-gray-600 dark:text-gray-300 font-mono text-xs bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded">{{ truncateAddress(wallet.wallet_address) }}</span>
             </div>
           </div>
-          
+
           <!-- Action Buttons per Wallet -->
           <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 relative z-10">
-            <button @click.stop="openTopUpForWallet(wallet)" 
+            <button @click.stop="openTopUpForWallet(wallet)"
                     class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Recharger
@@ -163,16 +163,16 @@
             <!-- Crypto Selection Grid -->
             <div v-if="newWallet.type === 'crypto'">
                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Choisir une crypto-monnaie</label>
-               
+
                <div class="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
-                 <button 
-                    v-for="crypto in availableCryptos" 
+                 <button
+                    v-for="crypto in availableCryptos"
                     :key="crypto.code"
                     type="button"
                     @click="newWallet.currency = crypto.code"
                     class="flex items-center gap-3 p-3 rounded-xl border transition-all text-left group hover:scale-[1.02]"
-                    :class="newWallet.currency === crypto.code 
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 ring-1 ring-indigo-500' 
+                    :class="newWallet.currency === crypto.code
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 ring-1 ring-indigo-500'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-slate-800'"
                  >
                     <img :src="crypto.logo" :alt="crypto.name" class="w-8 h-8 rounded-full" />
@@ -201,24 +201,24 @@
 
             <div>
               <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Nom du portefeuille</label>
-              <input 
-                v-model="newWallet.name" 
-                type="text" 
+              <input
+                v-model="newWallet.name"
+                type="text"
                 placeholder="ex: Mon portefeuille principal"
                 class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
             </div>
 
             <div class="flex gap-3 mt-8">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 @click="showCreateWallet = false"
                 class="flex-1 py-3 px-4 rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
               >
                 Annuler
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 :disabled="creatingWallet"
                 class="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30"
               >
@@ -238,7 +238,7 @@
              </h3>
              <button @click="closeTopUpModal" class="text-gray-400 hover:text-gray-900 dark:hover:text-white">✕</button>
            </div>
-           
+
            <div class="p-6 overflow-y-auto custom-scrollbar">
              <!-- Wallet Selection Display -->
              <div class="mb-6 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl flex items-center gap-4">
@@ -254,12 +254,12 @@
 
              <!-- CRYPTO DEPOSIT VIEW -->
              <div v-if="selectedWallet?.wallet_type === 'crypto' || selectedWallet?.type === 'crypto'" class="text-center space-y-6">
-                
+
                 <!-- Network Selector -->
                 <div v-if="availableNetworks.length > 0" class="text-left mb-4">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Réseau de dépôt</label>
-                    <select 
-                        v-model="selectedNetwork" 
+                    <select
+                        v-model="selectedNetwork"
                         class="input-premium w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     >
                         <option value="" disabled>Choisir le réseau</option>
@@ -274,16 +274,16 @@
                     </svg>
                     <p class="text-gray-500">Génération de l'adresse...</p>
                 </div>
-                
+
                 <div v-else-if="targetAddress || selectedWallet?.wallet_address" class="space-y-6 animate-fade-in-up">
                     <div class="p-6 bg-white rounded-xl shadow-inner border border-gray-100 inline-block">
-                        <img 
-                            :src="`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${targetAddress || selectedWallet?.wallet_address}`" 
-                            alt="Wallet QR Code" 
-                            class="w-40 h-40 mix-blend-multiply" 
+                        <img
+                            :src="`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${targetAddress || selectedWallet?.wallet_address}`"
+                            alt="Wallet QR Code"
+                            class="w-40 h-40 mix-blend-multiply"
                         />
                     </div>
-                
+
                     <div class="space-y-2">
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         Votre adresse {{ selectedWallet?.currency }} <span v-if="selectedNetwork">({{ selectedNetwork }})</span>
@@ -313,9 +313,9 @@
                <div class="mb-6">
                  <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Montant à déposer</label>
                  <div class="relative">
-                   <input 
-                     v-model.number="depositAmount" 
-                     type="number" 
+                   <input
+                     v-model.number="depositAmount"
+                     type="number"
                      placeholder="0.00"
                      min="1"
                      class="input-premium w-full p-4 text-2xl font-bold rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -323,7 +323,7 @@
                    <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">{{ selectedWallet?.currency }}</span>
                  </div>
                  <div class="flex gap-2 mt-3">
-                   <button v-for="amt in [1000, 5000, 10000, 50000]" :key="amt" 
+                   <button v-for="amt in [1000, 5000, 10000, 50000]" :key="amt"
                      @click="depositAmount = amt"
                      class="flex-1 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors text-gray-700 dark:text-gray-300">
                      {{ amt.toLocaleString() }}
@@ -335,7 +335,7 @@
                <div class="mb-6">
                  <div class="flex justify-between items-center mb-3">
                     <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Méthode de paiement</label>
-                    
+
                     <!-- Detected Countries Display (auto-detected, no manual selection) -->
                     <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                       <span v-if="userCountry || ipCountry">📍</span>
@@ -344,7 +344,7 @@
                       <span v-if="ipCountry && ipCountry !== userCountry">{{ getCountryFlag(ipCountry) }}</span>
                     </div>
                  </div>
-                 
+
                  <!-- Loading State -->
                  <div v-if="paymentProvidersLoading" class="flex justify-center py-8">
                    <svg class="animate-spin h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24">
@@ -352,19 +352,19 @@
                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                    </svg>
                  </div>
-                 
+
                  <!-- Grouped Payment Methods -->
                  <div v-else class="grid grid-cols-1 gap-3">
                    <template v-for="group in groupedPaymentProviders" :key="group.key">
                      <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-2 mb-1">{{ group.title }}</p>
-                     
-                     <button 
-                       v-for="provider in group.providers" 
+
+                     <button
+                       v-for="provider in group.providers"
                        :key="provider.id"
-                       @click="selectPaymentProvider(provider)" 
+                       @click="selectPaymentProvider(provider)"
                        :class="[
-                         selectedProvider?.id === provider.id 
-                           ? `${getProviderBorderClass(provider.color)} ${getProviderBgClass(provider.color)}` 
+                         selectedProvider?.id === provider.id
+                           ? `${getProviderBorderClass(provider.color)} ${getProviderBgClass(provider.color)}`
                            : 'border-gray-200 dark:border-gray-700',
                          `hover:${getProviderBorderClass(provider.color)}`
                        ]"
@@ -387,7 +387,7 @@
                        </div>
                      </button>
                    </template>
-                   
+
                    <!-- Empty State -->
                    <div v-if="groupedPaymentProviders.length === 0" class="text-center py-6 text-gray-500">
                      <p>Aucune méthode de paiement disponible pour votre région.</p>
@@ -405,7 +405,7 @@
                </div>
 
                <!-- Submit Button -->
-               <button 
+               <button
                  @click="submitDeposit"
                  :disabled="!depositAmount || depositAmount <= 0 || !depositMethod || depositLoading"
                  class="w-full py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/30"
@@ -429,7 +429,7 @@
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in-up">
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800">
          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Supprimer le portefeuille ?</h3>
-         
+
          <div v-if="walletToDelete" class="mb-6">
            <p class="text-gray-600 dark:text-gray-400 mb-4">
              Vous êtes sur le point de supprimer <strong>{{ walletToDelete.name }}</strong>.
@@ -458,8 +458,8 @@
            <button @click="showDeleteModal = false" class="flex-1 py-3 px-4 rounded-xl font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
              Annuler
            </button>
-           <button 
-             @click="confirmDelete" 
+           <button
+             @click="confirmDelete"
              :disabled="deleteLoading"
              class="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex justify-center items-center"
            >
@@ -520,7 +520,7 @@ const requestDelete = (wallet) => {
 
 const confirmDelete = async () => {
   if (!walletToDelete.value) return
-  
+
   await requirePin(async (pin) => {
     try {
       deleteLoading.value = true
@@ -531,18 +531,18 @@ const confirmDelete = async () => {
         if (walletToDelete.value.currency === mainWallet.value.currency) {
            // Same currency transfer
            await transferAPI.create({
-              type: 'internal', 
+              type: 'internal',
               amount: walletToDelete.value.balance,
-              currency: walletToDelete.value.currency, 
+              currency: walletToDelete.value.currency,
               recipient: mainWallet.value.id,
               description: `Clôture du portefeuille ${walletToDelete.value.name}`
            })
         } else {
            // Different currency
            await transferAPI.create({
-              type: 'internal', 
-              amount: walletToDelete.value.balance, 
-              currency: walletToDelete.value.currency, 
+              type: 'internal',
+              amount: walletToDelete.value.balance,
+              currency: walletToDelete.value.currency,
               recipient: mainWallet.value.id,
               description: `Clôture du portefeuille ${walletToDelete.value.name} (Conversion)`
            })
@@ -552,11 +552,11 @@ const confirmDelete = async () => {
       // 2. Delete Wallet with PIN
       // We assume walletAPI.delete will be updated to accept PIN/options
       await walletAPI.delete(walletToDelete.value.id, pin)
-      
+
       // 3. Refresh
       await fetchWallets()
       showDeleteModal.value = false
-      
+
     } catch (e) {
       console.error(e)
       deleteError.value = e.response?.data?.error || e.message || "Erreur lors de la suppression"
@@ -582,8 +582,8 @@ const depositError = ref('')
 const depositSuccess = ref('')
 
 // Payment Providers - Dynamic
-const { 
-  providers: paymentProviders, 
+const {
+  providers: paymentProviders,
   groupedProviders: groupedPaymentProviders,
   loading: paymentProvidersLoading,
   loadProviders: loadPaymentProviders,
@@ -705,11 +705,11 @@ const getCurrencyIcon = (currency) => {
 
 const getCurrencyBg = (currency) => {
   // Enhanced color mapping
-  const bgs = { 
-    BTC: 'bg-amber-500', 
-    ETH: 'bg-indigo-500', 
-    USD: 'bg-emerald-500', 
-    EUR: 'bg-blue-600', 
+  const bgs = {
+    BTC: 'bg-amber-500',
+    ETH: 'bg-indigo-500',
+    USD: 'bg-emerald-500',
+    EUR: 'bg-blue-600',
     SOL: 'bg-purple-500',
     USDT: 'bg-teal-500',
     USDC: 'bg-blue-500',
@@ -755,7 +755,7 @@ const addressLoading = ref(false)
 const availableNetworks = computed(() => {
     if (!selectedWallet.value) return []
     const currency = selectedWallet.value.currency
-    
+
     // Check dynamic config for testnet mode
     const isTestnet = walletStore.testnetEnabled
 
@@ -784,7 +784,7 @@ const availableNetworks = computed(() => {
        if (isTestnet) return ['BEP20', 'BSC-TESTNET (Testnet)']
        return ['BEP20']
     }
-    
+
     // For others (MATIC, AVAX, etc) default to main/test if simple
     if (isTestnet) return ['MAINNET', 'TESTNET']
     return []
@@ -797,27 +797,27 @@ const openTopUpModal = async () => {
     // Reset network state
     selectedNetwork.value = ''
     targetAddress.value = ''
-    
+
     // Reset payment provider selection
     selectedProvider.value = null
     depositMethod.value = ''
-    
+
     // Load payment providers for detected countries (fiat only)
     if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
         // Detect both profile country (origin) and IP country (current location)
         await Promise.all([getUserCountry(), detectIpCountry()])
-        
+
         // Build country list from detected countries only
         const countries = []
         if (userCountry.value) countries.push(userCountry.value)
         if (ipCountry.value && ipCountry.value !== userCountry.value) {
             countries.push(ipCountry.value)
         }
-        
+
         // Load providers for all detected countries
         await loadPaymentProviders(countries.length > 0 ? countries : undefined)
     }
-    
+
     // If only one network (or native), might auto-select or just show default address
     if (availableNetworks.value.length === 0 && selectedWallet.value?.wallet_type === 'crypto') {
          targetAddress.value = selectedWallet.value.wallet_address
@@ -825,7 +825,7 @@ const openTopUpModal = async () => {
         selectedNetwork.value = availableNetworks.value[0]
         fetchDepositAddress()
     }
-    
+
     showTopUpModal.value = true
 }
 
@@ -833,26 +833,26 @@ const openTopUpForWallet = async (wallet) => {
     selectedWallet.value = wallet
     selectedNetwork.value = ''
     targetAddress.value = ''
-    
+
     // Reset payment provider selection
     selectedProvider.value = null
     depositMethod.value = ''
-    
+
     // Load payment providers for user's country (fiat only)
     if (wallet.wallet_type !== 'crypto' && wallet.type !== 'crypto') {
         await loadPaymentProviders()
     }
-    
+
     if (availableNetworks.value.length === 0 && wallet.wallet_type === 'crypto') {
          targetAddress.value = wallet.wallet_address
     }
-    
+
     showTopUpModal.value = true
 }
 
 const fetchDepositAddress = async () => {
     if (!selectedWallet.value || !selectedNetwork.value) return
-    
+
     addressLoading.value = true
     try {
         const res = await walletAPI.getDepositAddress(selectedWallet.value.id, selectedNetwork.value)
@@ -895,35 +895,55 @@ const submitDeposit = async () => {
     depositError.value = 'Veuillez sélectionner une méthode de paiement'
     return
   }
-  
+
+  // Debug: Check if token exists before making request
+  const token = localStorage.getItem('accessToken')
+  console.log('🔐 Token check before deposit:', token ? `Token exists (${token.substring(0, 20)}...)` : 'NO TOKEN!')
+
+  if (!token) {
+    depositError.value = 'Session expirée. Veuillez vous reconnecter.'
+    // Redirect to login after 2 seconds
+    setTimeout(() => {
+      window.location.href = '/auth/login'
+    }, 2000)
+    return
+  }
+
   depositLoading.value = true
   depositError.value = ''
   depositSuccess.value = ''
-  
+
   try {
     // Get the provider name (handle both object and string)
-    const providerName = typeof selectedProvider.value === 'string' 
-      ? selectedProvider.value 
+    const providerName = typeof selectedProvider.value === 'string'
+      ? selectedProvider.value
       : selectedProvider.value.name
+
+    console.log('📤 Making deposit request with:', {
+      walletId: selectedWallet.value.id,
+      amount: depositAmount.value,
+      provider: providerName,
+      country: userCountry.value || ipCountry.value
+    })
 
     // Call API with provider and country
     const response = await walletAPI.deposit(
-      selectedWallet.value.id, 
-      depositAmount.value, 
+      selectedWallet.value.id,
+      depositAmount.value,
       depositMethod.value || providerName,  // method (backward compat)
       providerName,                          // provider (new)
       userCountry.value || ipCountry.value   // country for routing
     )
-    
+
     if (response.data) {
-      const providerDisplay = typeof selectedProvider.value === 'string' 
-        ? selectedProvider.value 
+      const providerDisplay = typeof selectedProvider.value === 'string'
+        ? selectedProvider.value
         : selectedProvider.value.displayLabel || selectedProvider.value.name
 
       // Check if there's a payment URL to redirect to
       if (response.data.payment_url) {
         depositSuccess.value = `Redirection vers ${providerDisplay}...`
-        
+
         // Redirect to aggregator payment page
         setTimeout(() => {
           window.location.href = response.data.payment_url
@@ -931,10 +951,10 @@ const submitDeposit = async () => {
       } else if (response.data.status === 'instant_success') {
         // Demo mode - instant success
         depositSuccess.value = `Dépôt de ${depositAmount.value.toLocaleString()} ${selectedWallet.value.currency} réussi via ${providerDisplay}!`
-        
+
         // Refresh wallets to show new balance
         await fetchWallets()
-        
+
         // Reset form after 2 seconds
         setTimeout(() => {
           closeTopUpModal()
@@ -969,10 +989,10 @@ const createWallet = async () => {
       name: newWallet.value.name || `Mon Portefeuille ${newWallet.value.currency}`,
       wallet_type: newWallet.value.type
     })
-    
+
     // Handle response structure variations
     const rawWallet = response.data?.wallet || response.data || response
-    
+
     if (rawWallet) {
        const wallet = {
           ...rawWallet,
@@ -982,7 +1002,7 @@ const createWallet = async () => {
       wallets.value.push(wallet)
       showCreateWallet.value = false
       newWallet.value = { type: 'fiat', currency: 'USD', name: '' }
-      fetchWallets() 
+      fetchWallets()
     }
   } catch (e) {
     console.error('Error creating wallet:', e)
@@ -994,9 +1014,9 @@ const createWallet = async () => {
 onMounted(async () => {
   // Initialize wallet store if needed (load from cache)
   walletStore.initialize()
-  
+
   await fetchWallets()
-  
+
   if (wallets.value.length > 0 && !selectedWallet.value) {
     selectedWallet.value = wallets.value[0]
   }
