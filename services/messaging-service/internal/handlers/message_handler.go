@@ -63,10 +63,19 @@ type Participant struct {
 	Online bool   `json:"online,omitempty" bson:"-"` // Not stored in DB, computed at runtime
 }
 
+type ConversationContext struct {
+	Type        string `json:"type,omitempty" bson:"type,omitempty"` // e.g. "shop"
+	ShopID      string `json:"shop_id,omitempty" bson:"shop_id,omitempty"`
+	ShopName    string `json:"shop_name,omitempty" bson:"shop_name,omitempty"`
+	ProductID   string `json:"product_id,omitempty" bson:"product_id,omitempty"`
+	ProductName string `json:"product_name,omitempty" bson:"product_name,omitempty"`
+}
+
 type Conversation struct {
 	ID           primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Participants []Participant      `json:"participants" bson:"participants"`
 	LastMessage  *Message           `json:"last_message,omitempty" bson:"last_message,omitempty"`
+	Context      *ConversationContext `json:"context,omitempty" bson:"context,omitempty"`
 	CreatedAt    time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt    time.Time          `json:"updated_at" bson:"updated_at"`
 	// Helper fields for display (not stored in DB)
@@ -323,6 +332,7 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 		ParticipantEmail string `json:"participant_email"`
 		ParticipantPhone string `json:"participant_phone"`
 		MyName           string `json:"my_name"`
+		Context          *ConversationContext `json:"context"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -342,6 +352,16 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 	}).Decode(&existingConv)
 
 	if err == nil {
+		// Backfill context if the conversation already exists but doesn't have it.
+		if existingConv.Context == nil && req.Context != nil {
+			objID := existingConv.ID
+			_, _ = h.db.Collection("conversations").UpdateOne(ctx,
+				bson.M{"_id": objID},
+				bson.M{"$set": bson.M{"context": req.Context, "updated_at": time.Now()}},
+			)
+			existingConv.Context = req.Context
+		}
+
 		// Conversation already exists, return it
 		existingConv.Name = req.ParticipantName
 		c.JSON(http.StatusOK, existingConv)
@@ -363,6 +383,7 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 				Phone:  req.ParticipantPhone,
 			},
 		},
+		Context:   req.Context,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

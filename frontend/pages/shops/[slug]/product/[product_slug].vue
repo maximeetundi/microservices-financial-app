@@ -248,6 +248,14 @@
             </button>
           </div>
 
+          <button
+            type="button"
+            @click="contactSeller"
+            class="w-full py-3 px-6 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            Contacter le vendeur
+          </button>
+
           <!-- Trust Badges -->
           <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
             <div
@@ -465,167 +473,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { inject, ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useShopApi, type Shop, type Product, type Review, type ShopTrustBadge } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
+import { messagingAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const shopApi = useShopApi()
 const cartStore = useCartStore()
+const authStore = useAuthStore()
 
-definePageMeta({
-  layout: 'shop-layout'
-})
+// ...
 
-const shopSlug = computed(() => route.params.slug as string)
-const productSlug = computed(() => route.params.productSlug as string)
-const shop = inject<Ref<Shop | null>>('shop', ref(null))
-const formatPrice = inject<(amount: number) => string>('formatPrice', (a) => `${a} FCFA`)
-
-const visibleTrustBadges = computed(() => {
-  const defaults: ShopTrustBadge[] = [
-    { key: 'fast_delivery', icon: '🚚', title: 'Livraison rapide', subtitle: 'Partout au Sénégal', enabled: true, order: 1 },
-    { key: 'secure_payment', icon: '🔒', title: 'Paiement sécurisé', subtitle: '100% sécurisé', enabled: true, order: 2 },
-    { key: 'quality_guarantee', icon: '⭐', title: 'Qualité garantie', subtitle: 'Produits vérifiés', enabled: true, order: 3 },
-    { key: 'support_24_7', icon: '💬', title: 'Support 24/7', subtitle: 'À votre écoute', enabled: true, order: 4 },
-  ]
-
-  const badges = (shop.value?.trust_badges?.length ? shop.value.trust_badges : defaults)
-  return [...badges]
-    .filter(b => b.enabled)
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .slice(0, 4)
-})
-
-const product = ref<Product | null>(null)
-const loading = ref(true)
-const error = ref(false)
-const selectedImageIndex = ref(0)
-const showLightbox = ref(false)
-const quantity = ref(1)
-const addingToCart = ref(false)
-const activeTab = ref('description')
-const reviews = ref<Review[]>([])
-const similarProducts = ref<Product[]>([])
-
-const newReview = ref({
-  rating: 0,
-  comment: ''
-})
-const submittingReview = ref(false)
-
-const tabs = computed(() => [
-  { id: 'description', label: 'Description' },
-  { id: 'reviews', label: 'Avis', count: reviews.value.length },
-  { id: 'shipping', label: 'Livraison' }
-])
-
-const averageRating = computed(() => product.value?.average_rating || 0)
-const discountPercent = computed(() => {
-  if (!product.value?.compare_at_price || !product.value?.price) return 0
-  if (product.value.compare_at_price <= product.value.price) return 0
-  return Math.round(((product.value.compare_at_price - product.value.price) / product.value.compare_at_price) * 100)
-})
-
-const isFavorite = computed(() => {
-  if (typeof window === 'undefined') return false
-  const favs = JSON.parse(localStorage.getItem(`shop_favorites_${shopSlug.value}`) || '[]')
-  return favs.includes(product.value?.id)
-})
-
-const ratingLabels = ['Mauvais', 'Médiocre', 'Moyen', 'Bon', 'Excellent']
-
-const getRatingCount = (rating: number) => {
-  return reviews.value.filter(r => r.rating === rating).length
-}
-
-const getRatingPercent = (rating: number) => {
-  if (reviews.value.length === 0) return 0
-  return (getRatingCount(rating) / reviews.value.length) * 100
-}
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
-
-const prevImage = () => {
-  if (product.value && product.value.images) {
-    selectedImageIndex.value = (selectedImageIndex.value - 1 + product.value.images.length) % product.value.images.length
+const contactSeller = async () => {
+  await authStore.initializeAuth()
+  if (!authStore.isAuthenticated || !authStore.user?.id) {
+    router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+    return
   }
-}
 
-const nextImage = () => {
-  if (product.value && product.value.images) {
-    selectedImageIndex.value = (selectedImageIndex.value + 1) % product.value.images.length
-  }
-}
+  const ownerId = shop.value?.owner_id
+  if (!ownerId) return
 
-const scrollToReviews = () => {
-  activeTab.value = 'reviews'
-  setTimeout(() => {
-    document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })
-  }, 100)
-}
-
-const addToCart = async () => {
-  if (!product.value) return
-  
-  addingToCart.value = true
   try {
-    cartStore.addItem({
-      id: product.value.id,
-      name: product.value.name,
-      price: product.value.price,
-      image: product.value.images?.[0] || '',
-      quantity: quantity.value,
-      shopSlug: shopSlug.value
+    const myName = `${authStore.user.firstName || ''} ${authStore.user.lastName || ''}`.trim() || authStore.user.email
+    const res = await messagingAPI.createConversation({
+      participant_id: ownerId,
+      participant_name: shop.value?.name || 'Vendeur',
+      my_name: myName,
+      context: {
+        type: 'shop',
+        shop_id: shop.value?.id,
+        shop_name: shop.value?.name,
+        product_id: product.value?.id,
+        product_name: product.value?.name,
+      }
     })
-    
-    // Show notification or visual feedback
-  } finally {
-    addingToCart.value = false
+    const convId = res.data?.id
+    if (convId) {
+      router.push(`/messages?conversation_id=${encodeURIComponent(convId)}`)
+    } else {
+      router.push('/messages')
+    }
+  } catch (e) {
+    console.error('Failed to create conversation with seller', e)
+    router.push('/messages')
   }
 }
 
-const toggleFavorite = () => {
-  if (!product.value) return
-  
-  const key = `shop_favorites_${shopSlug.value}`
-  const favs = JSON.parse(localStorage.getItem(key) || '[]')
-  const index = favs.indexOf(product.value.id)
-  
-  if (index > -1) {
-    favs.splice(index, 1)
-  } else {
-    favs.push(product.value.id)
-  }
-  
-  localStorage.setItem(key, JSON.stringify(favs))
-  // Force update computed property (Vue 3 reactivity limitation with localStorage)
-  // triggerRef(isFavorite) - typically handled by window storage event or store
-}
-
-const shareProduct = () => {
-  if (navigator.share) {
-    navigator.share({
-      title: product.value?.name,
-      text: product.value?.description,
-      url: window.location.href
-    })
-  } else {
-    navigator.clipboard.writeText(window.location.href)
-    alert('Lien copié dans le presse-papier !')
-  }
-}
+// ...
 
 const loadData = async () => {
   loading.value = true
-  error.value = false
+  // ...
   
   try {
     product.value = await shopApi.getProduct(shopSlug.value, productSlug.value)

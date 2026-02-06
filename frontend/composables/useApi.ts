@@ -1125,6 +1125,16 @@ export const messagingAPI = {
   createConversation: (data: {
     participant_id: string;
     participant_name?: string;
+    participant_email?: string;
+    participant_phone?: string;
+    my_name?: string;
+    context?: {
+      type?: string;
+      shop_id?: string;
+      shop_name?: string;
+      product_id?: string;
+      product_name?: string;
+    };
   }) => api.post("/messaging-service/api/v1/conversations", data),
   deleteConversation: (id: string) =>
     api.delete(`/messaging-service/api/v1/conversations/${id}`),

@@ -14,6 +14,93 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func buildSeedInstanceCredentials(providerName, providerType, baseURL string) map[string]interface{} {
+	creds := make(map[string]interface{})
+
+	// Provide minimal-but-non-placeholder values so transfer-service can initialize provider structs.
+	// These are NOT real credentials and must be replaced in admin panel.
+	// Important: avoid placeholder patterns filtered by transfer-service (REPLACE_ME / YOUR_ / etc.).
+	suffix := uuid.New().String()[:8]
+
+	// Common defaults
+	if baseURL != "" {
+		creds["base_url"] = baseURL
+	}
+	creds["environment"] = "sandbox"
+
+	switch providerName {
+	case "orange_money":
+		creds["client_id"] = fmt.Sprintf("client_%s_%s", providerName, suffix)
+		creds["client_secret"] = fmt.Sprintf("secret_%s_%s", providerName, uuid.New().String()[:12])
+		creds["merchant_key"] = fmt.Sprintf("merchant_%s_%s", providerName, uuid.New().String()[:10])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.orange.com/orange-money-webpay/dev/v1"
+		}
+		return creds
+
+	case "wave", "wave_money", "wave_ci", "wave_sn":
+		creds["api_key"] = fmt.Sprintf("api_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.wave.com/v1"
+		}
+		return creds
+
+	case "cinetpay":
+		creds["api_key"] = fmt.Sprintf("api_%s_%s", providerName, uuid.New().String()[:12])
+		creds["site_id"] = fmt.Sprintf("site_%s_%s", providerName, suffix)
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api-checkout.cinetpay.com/v2"
+		}
+		return creds
+
+	case "flutterwave":
+		creds["public_key"] = fmt.Sprintf("pk_%s_%s", providerName, suffix)
+		creds["secret_key"] = fmt.Sprintf("sk_%s_%s", providerName, uuid.New().String()[:12])
+		creds["encryption_key"] = fmt.Sprintf("enc_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.flutterwave.com/v3"
+		}
+		return creds
+
+	case "mtn_momo", "mtn_money":
+		creds["subscription_key"] = fmt.Sprintf("sub_%s_%s", providerName, uuid.New().String()[:12])
+		creds["api_user"] = fmt.Sprintf("user_%s_%s", providerName, suffix)
+		creds["api_key"] = fmt.Sprintf("key_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://sandbox.momodeveloper.mtn.com"
+		}
+		return creds
+	}
+
+	// Fallback by provider type
+	switch providerType {
+	case "card":
+		creds["publishable_key"] = fmt.Sprintf("pk_%s_%s", providerName, suffix)
+		creds["secret_key"] = fmt.Sprintf("sk_%s_%s", providerName, uuid.New().String()[:12])
+		creds["webhook_secret"] = fmt.Sprintf("whsec_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.stripe.com/v1"
+		}
+
+	case "international":
+		creds["client_id"] = fmt.Sprintf("client_%s_%s", providerName, suffix)
+		creds["client_secret"] = fmt.Sprintf("secret_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api-m.sandbox.paypal.com"
+		}
+		creds["mode"] = "sandbox"
+
+	default:
+		creds["api_key"] = fmt.Sprintf("api_%s_%s", providerName, uuid.New().String()[:12])
+		creds["secret_key"] = fmt.Sprintf("sk_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.example.com"
+		}
+	}
+
+	return creds
+}
+
 // InitializeAdminDB initializes the admin database connection
 func InitializeAdminDB(dbURL string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", dbURL)
@@ -712,7 +799,7 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 
 	// 2. Get all providers with their supported currencies from Admin DB
 	providerRows, err := adminDB.Query(`
-		SELECT p.id, p.name, p.display_name, COALESCE(pc.currency, '')
+		SELECT p.id, p.name, p.display_name, p.provider_type, COALESCE(p.api_base_url, ''), COALESCE(pc.currency, '')
 		FROM payment_providers p
 		LEFT JOIN provider_countries pc ON p.id = pc.provider_id
 		ORDER BY p.id
@@ -726,13 +813,15 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		ID          string
 		Name        string
 		DisplayName string
+		ProviderType string
+		BaseURL     string
 		Currencies  map[string]bool
 	}
 
 	providerMap := make(map[string]*providerInfo)
 	for providerRows.Next() {
-		var id, name, displayName, currency string
-		if err := providerRows.Scan(&id, &name, &displayName, &currency); err != nil {
+		var id, name, displayName, providerType, baseURL, currency string
+		if err := providerRows.Scan(&id, &name, &displayName, &providerType, &baseURL, &currency); err != nil {
 			continue
 		}
 		if _, exists := providerMap[id]; !exists {
@@ -740,6 +829,8 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 				ID:          id,
 				Name:        name,
 				DisplayName: displayName,
+				ProviderType: providerType,
+				BaseURL:     baseURL,
 				Currencies:  make(map[string]bool),
 			}
 		}
@@ -785,6 +876,26 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 			`, vaultPath, instanceID)
 			log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
 
+		}
+
+		// 3b. Ensure credentials exist for the instance.
+		// seedDefaultAPIKeys runs BEFORE instances are created (during createAdminTables),
+		// so fresh DB resets would end up with empty credentials unless we seed them here.
+		var currentCreds []byte
+		credErr := adminDB.QueryRow(`SELECT COALESCE(api_credentials, '{}'::jsonb) FROM provider_instances WHERE id = $1`, instanceID).Scan(&currentCreds)
+		if credErr == nil {
+			// If currentCreds is empty JSON, seed minimal values
+			trimmed := strings.TrimSpace(string(currentCreds))
+			if trimmed == "" || trimmed == "{}" {
+				seedCreds := buildSeedInstanceCredentials(p.Name, p.ProviderType, p.BaseURL)
+				if len(seedCreds) > 0 {
+					credJSON, err := json.Marshal(seedCreds)
+					if err == nil {
+						_, _ = adminDB.Exec(`UPDATE provider_instances SET api_credentials = $1, updated_at = NOW() WHERE id = $2`, credJSON, instanceID)
+						log.Printf("[Database] ✅ Seeded credentials for instance: %s (%s)", p.DisplayName, instanceName)
+					}
+				}
+			}
 		}
 
 		// 4. Link instance to ALL matching hot wallets (multi-wallet)

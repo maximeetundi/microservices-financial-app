@@ -23,6 +23,12 @@
               >
                 Voir les produits
               </button>
+              <button
+                @click="contactSeller"
+                class="px-5 py-2.5 bg-white/20 backdrop-blur text-white font-semibold rounded-xl hover:bg-white/30 transition-all border border-white/30 text-sm"
+              >
+                Contacter le vendeur
+              </button>
               <NuxtLink
                 :to="`/shops/${shopSlug}/categories`"
                 class="px-5 py-2.5 bg-white/20 backdrop-blur text-white font-semibold rounded-xl hover:bg-white/30 transition-all border border-white/30 text-sm"
@@ -228,6 +234,9 @@ import { inject, ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopApi, type Shop, type Product, type Category, type ShopTrustBadge } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
+import ProductCard from '~/components/shops/ProductCard.vue'
+import { messagingAPI } from '~/composables/useApi'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   layout: 'shop-layout'
@@ -237,6 +246,7 @@ const route = useRoute()
 const router = useRouter()
 const shopApi = useShopApi()
 const cartStore = useCartStore()
+const authStore = useAuthStore()
 
 const shopSlug = computed(() => route.params.slug as string)
 const shop = inject<Ref<Shop | null>>('shop', ref(null))
@@ -313,6 +323,40 @@ const addToCart = (product: Product) => {
     cartStore.setShopInfo(shop.value.id, shopSlug.value, shop.value.name, shop.value.currency || 'XOF')
   }
   cartStore.addItem(product, 1)
+}
+
+const contactSeller = async () => {
+  await authStore.initializeAuth()
+  if (!authStore.isAuthenticated || !authStore.user?.id) {
+    router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+    return
+  }
+
+  const ownerId = shop.value?.owner_id
+  if (!ownerId) return
+
+  try {
+    const myName = `${authStore.user.firstName || ''} ${authStore.user.lastName || ''}`.trim() || authStore.user.email
+    const res = await messagingAPI.createConversation({
+      participant_id: ownerId,
+      participant_name: shop.value?.name || 'Vendeur',
+      my_name: myName,
+      context: {
+        type: 'shop',
+        shop_id: shop.value?.id,
+        shop_name: shop.value?.name,
+      }
+    })
+    const convId = res.data?.id
+    if (convId) {
+      router.push(`/messages?conversation_id=${encodeURIComponent(convId)}`)
+    } else {
+      router.push('/messages')
+    }
+  } catch (e) {
+    console.error('Failed to create conversation with seller', e)
+    router.push('/messages')
+  }
 }
 
 const loadProducts = async (reset = true) => {
