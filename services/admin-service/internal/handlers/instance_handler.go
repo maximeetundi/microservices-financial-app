@@ -293,15 +293,20 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		}
 	}
 
-	// Write credentials to Vault if provided
-	if req.Credentials != nil && h.vaultClient != nil {
+	// Save credentials to database if provided
+	credentialsSaved := false
+	if req.Credentials != nil {
 		credData := req.Credentials.ToMap()
 		if len(credData) > 0 {
-			if err := h.vaultClient.WriteSecret(req.VaultSecretPath, credData); err != nil {
-				log.Printf("[InstanceHandler] Warning: Failed to write credentials to Vault at %s: %v", req.VaultSecretPath, err)
-				// Don't fail the request, just log the warning
-			} else {
-				log.Printf("[InstanceHandler] Successfully wrote credentials to Vault at %s", req.VaultSecretPath)
+			credJSON, err := json.Marshal(credData)
+			if err == nil {
+				_, err = h.db.Exec(`UPDATE provider_instances SET api_credentials = $1 WHERE id = $2`, credJSON, returnedID)
+				if err != nil {
+					log.Printf("[InstanceHandler] Warning: Failed to save credentials to DB: %v", err)
+				} else {
+					log.Printf("[InstanceHandler] ✅ Credentials saved to database for instance %s", returnedID)
+					credentialsSaved = true
+				}
 			}
 		}
 	}
@@ -309,8 +314,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"id":                returnedID,
 		"message":           "Instance created successfully",
-		"vault_secret_path": req.VaultSecretPath,
-		"credentials_saved": req.Credentials != nil && h.vaultClient != nil,
+		"credentials_saved": credentialsSaved,
 	})
 }
 
@@ -398,22 +402,18 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		return
 	}
 
-	// Update credentials in Vault if provided
+	// Update credentials in database if provided
 	credentialsSaved := false
-	if req.Credentials != nil && h.vaultClient != nil {
-		// Get current vault path from DB if not provided in request
-		vaultPath := req.VaultSecretPath
-		if vaultPath == "" {
-			h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
-		}
-
-		if vaultPath != "" {
-			credData := req.Credentials.ToMap()
-			if len(credData) > 0 {
-				if err := h.vaultClient.WriteSecret(vaultPath, credData); err != nil {
-					log.Printf("[InstanceHandler] Warning: Failed to update credentials in Vault at %s: %v", vaultPath, err)
+	if req.Credentials != nil {
+		credData := req.Credentials.ToMap()
+		if len(credData) > 0 {
+			credJSON, err := json.Marshal(credData)
+			if err == nil {
+				_, err = h.db.Exec(`UPDATE provider_instances SET api_credentials = $1, updated_at = NOW() WHERE id = $2`, credJSON, instanceID)
+				if err != nil {
+					log.Printf("[InstanceHandler] Warning: Failed to update credentials in DB: %v", err)
 				} else {
-					log.Printf("[InstanceHandler] Successfully updated credentials in Vault at %s", vaultPath)
+					log.Printf("[InstanceHandler] ✅ Credentials updated in database for instance %s", instanceID)
 					credentialsSaved = true
 				}
 			}
