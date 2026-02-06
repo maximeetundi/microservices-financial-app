@@ -928,19 +928,19 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		}
 
 		var aggregatorID string
-		aggErr := adminDB.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, p.Name).Scan(&aggregatorID)
+		aggErr := mainDB.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, p.Name).Scan(&aggregatorID)
 		if aggErr == nil {
 			var aggInstanceID string
-			aggInstErr := adminDB.QueryRow(`SELECT id FROM aggregator_instances WHERE aggregator_id = $1 AND instance_name = $2`, aggregatorID, instanceName).Scan(&aggInstanceID)
+			aggInstErr := mainDB.QueryRow(`SELECT id FROM aggregator_instances WHERE aggregator_id = $1 AND instance_name = $2`, aggregatorID, instanceName).Scan(&aggInstanceID)
 			if aggInstErr == sql.ErrNoRows {
-				aggInstErr = adminDB.QueryRow(`
+				aggInstErr = mainDB.QueryRow(`
 					INSERT INTO aggregator_instances (aggregator_id, instance_name, api_credentials, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
 					VALUES ($1, $2, '{}'::jsonb, $3, TRUE, $4, 50, 'active', TRUE)
 					RETURNING id
 				`, aggregatorID, instanceName, vaultPath, isGlobalProvider).Scan(&aggInstanceID)
 			}
 			if aggInstErr == nil {
-				_, _ = adminDB.Exec(`
+				_, _ = mainDB.Exec(`
 					UPDATE aggregator_instances
 					SET enabled = TRUE,
 						is_global = $1,
@@ -952,9 +952,9 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 
 				for _, hw := range hotWallets {
 					if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
-						_, err := adminDB.Exec(`
+						_, err := mainDB.Exec(`
 							INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
-							VALUES ($1, $2::uuid, $3, TRUE, 50, TRUE)
+							VALUES ($1, $2, $3, TRUE, 50, TRUE)
 							ON CONFLICT (instance_id, hot_wallet_id, currency) DO UPDATE SET enabled = TRUE, is_primary = TRUE
 						`, aggInstanceID, hw.ID, hw.Currency)
 						if err != nil {
