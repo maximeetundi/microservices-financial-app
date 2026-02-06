@@ -177,20 +177,6 @@ const ownerInitials = computed(() => 'OP')
 const getRoleLabel = (role: string) => {
   const labels: Record<string, string> = {
     admin: '👑 Admin',
-    editor: '✏️ Éditeur',
-    viewer: '👁️ Observateur'
-  }
-  return labels[role] || role
-}
-
-const fetchShopData = async () => {
-  try {
-    loading.value = true
-    const shop = await shopApi.getShop(slug)
-    shopId.value = shop.id
-    managers.value = shop.managers || []
-  } catch (e) {
-    console.error(e)
   } finally {
     loading.value = false
   }
@@ -233,7 +219,7 @@ onMounted(fetchShopData)
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'dashboard'
+  layout: 'shop-admin'
 })
 </script>
 

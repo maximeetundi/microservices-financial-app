@@ -293,12 +293,11 @@ const toggleFilter = (filterKey) => {
 }
 
 const addToCart = (product) => {
-  cartStore.addToCart(
-    product,
-    1,
-    product.shop_id,
-    product.shop_name
-  )
+  cartStore.addItem({
+    ...product,
+    images: product.image ? [product.image] : [],
+    shop_id: product.shop_id
+  }, 1)
 }
 
 const goBack = () => {
@@ -307,7 +306,7 @@ const goBack = () => {
 
 // Initialize
 onMounted(() => {
-  cartStore.loadCart()
+  cartStore.loadFromStorage()
 })
 </script>
 

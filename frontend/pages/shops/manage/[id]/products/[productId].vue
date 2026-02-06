@@ -264,7 +264,7 @@ onMounted(fetchProduct)
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'dashboard'
+  layout: 'shop-admin'
 })
 </script>
 

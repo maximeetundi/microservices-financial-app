@@ -274,6 +274,6 @@ const shareShop = () => {
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'dashboard'
+  layout: 'shop-admin'
 })
 </script>

@@ -24,7 +24,7 @@
   <Teleport to="body">
     <div
       v-if="showCartModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
     >
       <!-- Backdrop -->
       <div
@@ -33,7 +33,7 @@
       ></div>
       
       <!-- Modal Content -->
-      <div class="relative bg-white dark:bg-surface rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col animate-fade-in-up">
+      <div class="relative bg-white dark:bg-surface rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-fade-in-up">
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-secondary-800">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -61,32 +61,29 @@
           <div v-else class="space-y-4">
             <div
               v-for="item in cartItems"
-              :key="item.id"
+              :key="item.product_id"
               class="flex gap-4 p-4 bg-gray-50 dark:bg-secondary-800/50 rounded-xl"
             >
               <!-- Product Image -->
               <img
-                :src="item.image || '/placeholder-product.png'"
-                :alt="item.name"
+                :src="item.product?.images?.[0] || '/placeholder-product.png'"
+                :alt="item.product?.name || 'Produit'"
                 class="w-16 h-16 rounded-lg object-cover bg-gray-200 dark:bg-secondary-700"
               />
               
               <!-- Product Info -->
               <div class="flex-1 min-w-0">
                 <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-                  {{ item.name }}
+                  {{ item.product?.name || 'Produit' }}
                 </h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ item.shop_name }}
-                </p>
                 <div class="flex items-center justify-between mt-2">
                   <span class="text-lg font-bold text-orange-600">
-                    {{ formatMoney(item.price * item.quantity) }}
+                    {{ formatMoney((item.product?.price || 0) * item.quantity) }}
                   </span>
                   <div class="flex items-center gap-2">
                     <!-- Quantity controls -->
                     <button
-                      @click="updateQuantity(item.id, item.quantity - 1)"
+                      @click="updateQuantity(item.product_id, item.quantity - 1)"
                       class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-secondary-700 hover:bg-gray-300 dark:hover:bg-secondary-600 transition-colors flex items-center justify-center"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +92,7 @@
                     </button>
                     <span class="w-8 text-center font-medium">{{ item.quantity }}</span>
                     <button
-                      @click="updateQuantity(item.id, item.quantity + 1)"
+                      @click="updateQuantity(item.product_id, item.quantity + 1)"
                       class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-secondary-700 hover:bg-gray-300 dark:hover:bg-secondary-600 transition-colors flex items-center justify-center"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +101,7 @@
                     </button>
                     <!-- Remove button -->
                     <button
-                      @click="removeFromCart(item.id)"
+                      @click="removeFromCart(item.product_id)"
                       class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center text-red-600"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,10 +126,10 @@
           <!-- Action Buttons -->
           <div class="flex gap-3">
             <button
-              @click="showCartModal = false"
+              @click="goToCart"
               class="flex-1 px-4 py-3 bg-gray-100 dark:bg-secondary-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-secondary-700 transition-colors"
             >
-              Continuer
+              Voir panier
             </button>
             <button
               @click="goToCheckout"
@@ -158,27 +155,33 @@ const showCartModal = ref(false)
 
 // Computed properties
 const cartItems = computed(() => cartStore.items || [])
-const cartItemCount = computed(() => cartStore.totalItems || 0)
-const cartTotal = computed(() => cartStore.total || 0)
+const cartItemCount = computed(() => cartStore.itemCount || 0)
+const cartTotal = computed(() => cartStore.subtotal || 0)
+const cartCurrency = computed(() => cartStore.shopCurrency || 'XOF')
 
 // Methods
 const formatMoney = (amount) => {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency: 'XOF'
+    currency: cartCurrency.value
   }).format(amount)
 }
 
-const updateQuantity = (itemId, newQuantity) => {
+const updateQuantity = (productId, newQuantity) => {
   if (newQuantity <= 0) {
-    removeFromCart(itemId)
+    removeFromCart(productId)
   } else {
-    cartStore.updateQuantity(itemId, newQuantity)
+    cartStore.updateQuantity(productId, newQuantity)
   }
 }
 
-const removeFromCart = (itemId) => {
-  cartStore.removeItem(itemId)
+const removeFromCart = (productId) => {
+  cartStore.removeItem(productId)
+}
+
+const goToCart = () => {
+  showCartModal.value = false
+  router.push('/cart')
 }
 
 const goToCheckout = () => {
@@ -189,7 +192,7 @@ const goToCheckout = () => {
 
 // Initialize cart on mount
 onMounted(() => {
-  cartStore.loadCart()
+  cartStore.loadFromStorage()
 })
 </script>
 

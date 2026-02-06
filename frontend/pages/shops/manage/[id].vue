@@ -9,6 +9,6 @@ import ShopLayout from '@/components/shops/ShopLayout.vue'
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'dashboard'
+  layout: 'shop-admin'
 })
 </script>

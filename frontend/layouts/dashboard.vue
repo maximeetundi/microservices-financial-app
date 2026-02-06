@@ -319,6 +319,10 @@ const onPinClose = () => {
 // Check PIN status on mount
 onMounted(async () => {
   try {
+    if (window.innerWidth >= 1024) {
+      sidebarOpen.value = true
+    }
+
     // Always check PIN status to ensure state is synced with backend
     const hasPinSet = await checkPinStatus()
     

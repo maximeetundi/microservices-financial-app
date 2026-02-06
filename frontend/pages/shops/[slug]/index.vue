@@ -293,15 +293,10 @@ const toggleFavorite = (productId: string) => {
 }
 
 const addToCart = (product: Product) => {
-  cartStore.addItem({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    image: product.images?.[0] || '',
-    quantity: 1,
-    shopId: shop.value?.id || 'unknown',
-    shopName: shop.value?.name || 'Boutique'
-  })
+  if (shop.value?.id && shop.value?.name) {
+    cartStore.setShopInfo(shop.value.id, shopSlug.value, shop.value.name, shop.value.currency || 'XOF')
+  }
+  cartStore.addItem(product, 1)
 }
 
 const loadProducts = async (reset = true) => {
@@ -362,7 +357,7 @@ watch(categories, () => {
 
 // Initialize on mount
 onMounted(() => {
-  cartStore.loadCart()
+  cartStore.loadFromStorage()
   // Load products if not already loading
   if (!loading.value && products.value.length === 0) {
     loadProducts(true)

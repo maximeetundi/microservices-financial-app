@@ -87,9 +87,9 @@
         </NuxtLink>
 
         <NuxtLink 
-          :to="`/shops/${shopSlug}/cart`"
+          to="/cart"
           class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors group"
-          :class="isActive('cart') ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
+          :class="isCartActive ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
           <span class="mr-3 text-lg">🛒</span>
@@ -144,25 +144,7 @@
         </div>
       </nav>
 
-      <!-- Cart Summary -->
-      <div v-if="cartStore.itemCount > 0" class="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Panier</span>
-            <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400">{{ cartStore.itemCount }} articles</span>
-          </div>
-          <div class="text-xl font-bold text-gray-900 dark:text-white mb-3">
-            {{ formatPrice(cartStore.total) }}
-          </div>
-          <NuxtLink 
-            :to="`/shops/${shopSlug}/cart`"
-            class="flex items-center justify-center w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
-          >
-            🛒 Voir le panier
-          </NuxtLink>
-        </div>
-      </div>
-
+      
       <!-- Bottom Actions -->
       <div class="p-4 border-t border-gray-200 dark:border-gray-700">
         <NuxtLink 
@@ -187,7 +169,7 @@
           </div>
           <span class="font-bold text-gray-900 dark:text-white">{{ shop?.name }}</span>
         </div>
-        <NuxtLink :to="`/shops/${shopSlug}/cart`" class="relative">
+        <NuxtLink to="/cart" class="relative">
           <span class="text-2xl">🛒</span>
           <span v-if="cartStore.itemCount > 0" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
             {{ cartStore.itemCount }}
@@ -238,6 +220,10 @@ const formatPrice = (amount: number) => {
 
 const isExactActive = computed(() => {
   return route.path === `/shops/${shopSlug.value}` && !route.query.category
+})
+
+const isCartActive = computed(() => {
+  return route.path === '/cart'
 })
 
 const isActive = (section: string) => {

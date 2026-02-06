@@ -140,13 +140,45 @@ export const useCartStore = defineStore('cart', {
                 if (saved) {
                     try {
                         const data = JSON.parse(saved)
-                        this.items = data.items || []
-                        this.shopId = data.shopId
-                        this.shopSlug = data.shopSlug
-                        this.shopName = data.shopName
-                        this.shopCurrency = data.shopCurrency
+                        const rawItems = Array.isArray(data.items) ? data.items : []
+
+                        this.items = rawItems
+                            .map((raw: any) => {
+                                const product_id = raw?.product_id || raw?.id
+                                const quantity = typeof raw?.quantity === 'number' ? raw.quantity : 0
+                                if (!product_id || quantity <= 0) return null
+
+                                const product = raw?.product || (raw?.name ? {
+                                    id: product_id,
+                                    shop_id: data.shopId || raw?.shop_id || raw?.shopId || 'unknown',
+                                    name: raw.name,
+                                    price: raw.price || 0,
+                                    images: raw.image ? [raw.image] : [],
+                                } : undefined)
+
+                                return {
+                                    product_id,
+                                    quantity,
+                                    custom_values: raw?.custom_values,
+                                    product,
+                                } as CartItem
+                            })
+                            .filter(Boolean) as CartItem[]
+
+                        this.shopId = data.shopId || null
+                        this.shopSlug = data.shopSlug || null
+                        this.shopName = data.shopName || null
+                        this.shopCurrency = data.shopCurrency || null
+
+                        if (this.items.length === 0) {
+                            this.shopId = null
+                            this.shopSlug = null
+                            this.shopName = null
+                            this.shopCurrency = null
+                        }
                     } catch (e) {
                         console.error('Failed to load cart', e)
+                        this.clearCart()
                     }
                 }
             }

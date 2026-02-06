@@ -262,7 +262,7 @@ onMounted(fetchCategories)
 
 definePageMeta({
   middleware: ['auth'],
-  layout: 'dashboard'
+  layout: 'shop-admin'
 })
 </script>
 
