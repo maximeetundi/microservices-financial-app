@@ -84,102 +84,58 @@
       </nav>
     </aside>
 
-    <!-- Main Header with Navigation -->
-    <header class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-      <div class="px-4 sm:px-6 lg:px-8">
-        <!-- Top Row -->
-        <div class="flex items-center justify-between h-16">
-          <!-- Left: Hamburger + Shop Info -->
-          <div class="flex items-center gap-4">
-            <!-- Hamburger Menu (Mobile) -->
-            <button
-              @click="isMobileMenuOpen = true"
-              class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              <Bars3Icon class="h-6 w-6 text-gray-600 dark:text-gray-300" />
-            </button>
+    <div class="flex flex-1 min-h-0">
+      <ShopSidebar class="hidden lg:flex" />
 
-            <!-- Shop Logo and Name -->
-            <div class="flex items-center gap-3">
-              <div class="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-                {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
+      <div class="flex-1 flex flex-col min-h-0">
+        <!-- Main Header with Navigation -->
+        <header class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+          <div class="px-4 sm:px-6 lg:px-8">
+            <!-- Top Row -->
+            <div class="flex items-center justify-between h-16">
+              <!-- Left: Hamburger + Shop Info -->
+              <div class="flex items-center gap-4">
+                <!-- Hamburger Menu (Mobile) -->
+                <button
+                  @click="isMobileMenuOpen = true"
+                  class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <Bars3Icon class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                </button>
+
+                <!-- Shop Logo and Name -->
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                    {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
+                  </div>
+                  <div>
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white">{{ shopName || 'Boutique' }}</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Gestion de la boutique</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h1 class="text-lg font-bold text-gray-900 dark:text-white">{{ shopName || 'Boutique' }}</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Gestion de la boutique</p>
+
+              <!-- Right: Actions -->
+              <div class="flex items-center gap-3">
+                <NuxtLink 
+                  :to="`/shops/${slug}`"
+                  target="_blank"
+                  class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <EyeIcon class="h-4 w-4 mr-2" />
+                  Voir la boutique
+                </NuxtLink>
               </div>
             </div>
           </div>
+        </header>
 
-          <!-- Right: Actions -->
-          <div class="flex items-center gap-3">
-            <NuxtLink 
-              :to="`/shops/${slug}`"
-              target="_blank"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <EyeIcon class="h-4 w-4 mr-2" />
-              Voir la boutique
-            </NuxtLink>
-          </div>
-        </div>
-
-        <!-- Navigation Menu (Desktop) -->
-        <nav class="hidden lg:flex border-t border-gray-200 dark:border-gray-700">
-          <div class="flex space-x-8">
-            <NuxtLink 
-              :to="`/shops/manage/${slug}`"
-              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
-              :class="isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-            >
-              <HomeIcon class="h-5 w-5 mr-2" />
-              Tableau de bord
-            </NuxtLink>
-
-            <NuxtLink 
-              :to="`/shops/manage/${slug}/products`"
-              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
-              :class="isActive(`/shops/manage/${slug}/products`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-            >
-              <ShoppingBagIcon class="h-5 w-5 mr-2" />
-              Produits
-            </NuxtLink>
-
-            <NuxtLink 
-              :to="`/shops/manage/${slug}/orders`"
-              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
-              :class="isActive(`/shops/manage/${slug}/orders`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-            >
-              <ClipboardDocumentListIcon class="h-5 w-5 mr-2" />
-              Commandes
-            </NuxtLink>
-            
-            <NuxtLink 
-              :to="`/shops/manage/${slug}/categories`"
-              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
-              :class="isActive(`/shops/manage/${slug}/categories`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-            >
-              <TagIcon class="h-5 w-5 mr-2" />
-              Catégories
-            </NuxtLink>
-
-            <NuxtLink 
-              :to="`/shops/manage/${slug}/settings`"
-              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
-              :class="isActive(`/shops/manage/${slug}/settings`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-            >
-              <Cog6ToothIcon class="h-5 w-5 mr-2" />
-              Paramètres
-            </NuxtLink>
-          </div>
-        </nav>
+        <!-- Page Content -->
+        <main class="flex-1 overflow-y-auto min-h-0">
+          <slot />
+        </main>
       </div>
-    </header>
-
-    <!-- Page Content -->
-    <main class="flex-1 overflow-y-auto">
-      <slot />
-    </main>
+    </div>
   </div>
 </template>
 
@@ -187,6 +143,7 @@
 import { ref, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi } from '@/composables/useShopApi'
+import ShopSidebar from '~/components/shops/ShopSidebar.vue'
 import { 
   HomeIcon, 
   ShoppingBagIcon, 

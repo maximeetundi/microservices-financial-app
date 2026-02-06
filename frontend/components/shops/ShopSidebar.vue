@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-64 bg-surface border-r border-secondary-200 dark:border-secondary-800 flex-shrink-0 flex flex-col h-full lg:rounded-l-2xl">
+  <aside class="w-64 bg-surface border-r border-secondary-200 dark:border-secondary-800 flex-shrink-0 flex flex-col lg:rounded-l-2xl sticky top-0 h-screen overflow-hidden">
     <!-- Back to App -->
     <div class="p-4 pb-0">
       <NuxtLink to="/shops/my-shops" class="flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors">
@@ -23,7 +23,7 @@
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+    <nav class="flex-1 min-h-0 p-3 space-y-1 overflow-y-auto">
       <NuxtLink 
         :to="`/shops/manage/${slug}`"
         class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5"
@@ -105,7 +105,7 @@
 
     <!-- Bottom Actions -->
     <!-- Bottom Actions -->
-    <div class="p-4 border-t border-secondary-200 dark:border-secondary-800 bg-surface-hover/50 flex items-center gap-2">
+    <div class="p-4 border-t border-secondary-200 dark:border-secondary-800 bg-surface-hover/50 flex items-center gap-2 flex-shrink-0">
       <ThemeToggle />
       <NuxtLink 
         :to="`/shops/${slug}`"
