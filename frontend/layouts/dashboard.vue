@@ -292,8 +292,8 @@ import { usePin } from '~/composables/usePin'
 import PinModal from '~/components/common/PinModal.vue'
 import SecurePinSetupModal from '~/components/common/SecurePinSetupModal.vue'
 import NotificationCenter from '~/components/NotificationCenter.vue'
-import ThemeToggle from '~/components/common/ThemeToggle.vue'
-import GlobalModal from '~/components/common/GlobalModal.vue'
+import ThemeToggle from '~/components/ThemeToggle.vue'
+import GlobalModal from '~/components/GlobalModal.vue'
 import FloatingCartButton from '~/components/common/FloatingCartButton.vue'
 
 const authStore = useAuthStore()
