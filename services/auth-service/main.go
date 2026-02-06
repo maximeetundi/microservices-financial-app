@@ -88,6 +88,9 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db, redisClient)
 	prefsRepo := repository.NewPreferencesRepository(db)
 
+	// Seed default user
+	database.SeedDefaultUser(userRepo)
+
 	// Initialize Kafka for events and messaging
 	kafkaClient := messaging.NewKafkaClient(cfg.KafkaBrokers, "auth-service-consumer")
 	defer kafkaClient.Close()
