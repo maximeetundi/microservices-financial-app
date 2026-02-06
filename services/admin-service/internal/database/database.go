@@ -295,6 +295,53 @@ func createAdminTables(db *sql.DB) error {
 		log.Printf("Warning: failed to seed payment providers: %v", err)
 	}
 
+	// Fix Vault paths (remove /default suffix to match actual Vault structure)
+	if err := fixVaultPaths(db); err != nil {
+		log.Printf("Warning: failed to fix vault paths: %v", err)
+	}
+
+	return nil
+}
+
+// fixVaultPaths corrects the vault_secret_path in provider_instances
+// to match the actual Vault structure (without /default suffix)
+func fixVaultPaths(db *sql.DB) error {
+	log.Println("[Database] Checking and fixing Vault paths...")
+
+	// Count paths that need fixing
+	var count int
+	err := db.QueryRow(`SELECT COUNT(*) FROM provider_instances WHERE vault_secret_path LIKE '%/default'`).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to count paths: %w", err)
+	}
+
+	if count == 0 {
+		log.Println("[Database] ✅ All Vault paths are correct")
+		return nil
+	}
+
+	log.Printf("[Database] 🔧 Found %d instances with incorrect Vault paths, fixing...", count)
+
+	// Update paths: remove /default suffix
+	result, err := db.Exec(`
+		UPDATE provider_instances
+		SET vault_secret_path = REPLACE(vault_secret_path, '/default', '')
+		WHERE vault_secret_path LIKE '%/default'
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to update paths: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	log.Printf("[Database] ✅ Fixed %d Vault paths (removed /default suffix)", rowsAffected)
+
+	// Also fix any double slashes
+	db.Exec(`
+		UPDATE provider_instances
+		SET vault_secret_path = REPLACE(vault_secret_path, '//', '/')
+		WHERE vault_secret_path LIKE '%//%'
+	`)
+
 	return nil
 }
 
@@ -557,8 +604,8 @@ func seedDefaultProviders(db *sql.DB) error {
 
 		// Use ON CONFLICT to update existing providers if they exist
 		err := db.QueryRow(`
-			INSERT INTO payment_providers 
-			(name, display_name, provider_type, api_base_url, logo_url, 
+			INSERT INTO payment_providers
+			(name, display_name, provider_type, api_base_url, logo_url,
 			 supported_currencies, capability, is_demo_mode, is_active,
 			 api_key_encrypted, api_secret_encrypted)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9, $10)
@@ -690,7 +737,9 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 
 	// 3. Seed Instances and Multi-Wallet Links
 	for _, p := range providerMap {
-		vaultPath := fmt.Sprintf("secret/aggregators/%s/default", p.Name)
+		// Vault path matches actual Vault structure: secret/aggregators/{provider}
+		// Do NOT add /default - that's not how secrets are stored
+		vaultPath := fmt.Sprintf("secret/aggregators/%s", p.Name)
 		instanceName := "Instance Principale"
 
 		// Check if "Instance Principale" exists
@@ -700,7 +749,7 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		if err == sql.ErrNoRows {
 			// Create new instance with RETURNING id
 			err = adminDB.QueryRow(`
-				INSERT INTO provider_instances 
+				INSERT INTO provider_instances
 					(provider_id, name, vault_secret_path, is_active, is_primary, priority, health_status)
 				VALUES ($1, $2, $3, TRUE, TRUE, 50, 'active')
 				RETURNING id
@@ -717,7 +766,7 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		} else {
 			// Update existing instance to be active
 			adminDB.Exec(`
-				UPDATE provider_instances 
+				UPDATE provider_instances
 				SET is_active = TRUE, is_primary = TRUE, vault_secret_path = $1, health_status = 'active'
 				WHERE id = $2
 			`, vaultPath, instanceID)

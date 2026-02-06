@@ -48,7 +48,7 @@ vault secrets enable -path=secret -version=2 kv 2>/dev/null || true
 #  DB Provider Code: cinetpay
 # ============================================================================
 echo "🔧 Configuring CinetPay..."
-vault kv put secret/aggregators/cinetpay/default \
+vault kv put secret/aggregators/cinetpay \
     api_key="${CINETPAY_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     site_id="${CINETPAY_SITE_ID:-REPLACE_WITH_YOUR_SITE_ID}" \
     secret_key="${CINETPAY_SECRET_KEY:-}" \
@@ -61,7 +61,7 @@ vault kv put secret/aggregators/cinetpay/default \
 #  DB Provider Codes: wave_money, wave_ci, wave_sn
 # ============================================================================
 echo "🔧 Configuring Wave (wave_money)..."
-vault kv put secret/aggregators/wave_money/default \
+vault kv put secret/aggregators/wave_money \
     api_key="${WAVE_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     secret_key="${WAVE_SECRET_KEY:-}" \
     webhook_secret="${WAVE_WEBHOOK_SECRET:-}" \
@@ -69,14 +69,14 @@ vault kv put secret/aggregators/wave_money/default \
     environment="${WAVE_ENVIRONMENT:-sandbox}"
 
 # Also create aliases for wave_ci and wave_sn
-vault kv put secret/aggregators/wave_ci/default \
+vault kv put secret/aggregators/wave_ci \
     api_key="${WAVE_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     secret_key="${WAVE_SECRET_KEY:-}" \
     webhook_secret="${WAVE_WEBHOOK_SECRET:-}" \
     base_url="${WAVE_BASE_URL:-https://api.wave.com/v1}" \
     environment="${WAVE_ENVIRONMENT:-sandbox}"
 
-vault kv put secret/aggregators/wave_sn/default \
+vault kv put secret/aggregators/wave_sn \
     api_key="${WAVE_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     secret_key="${WAVE_SECRET_KEY:-}" \
     webhook_secret="${WAVE_WEBHOOK_SECRET:-}" \
@@ -89,7 +89,7 @@ vault kv put secret/aggregators/wave_sn/default \
 #  DB Provider Code: mtn_money
 # ============================================================================
 echo "🔧 Configuring MTN MoMo (mtn_money)..."
-vault kv put secret/aggregators/mtn_money/default \
+vault kv put secret/aggregators/mtn_money \
     api_user="${MTN_MOMO_API_USER:-REPLACE_WITH_YOUR_API_USER}" \
     api_key="${MTN_MOMO_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     subscription_key="${MTN_MOMO_SUBSCRIPTION_KEY:-REPLACE_WITH_YOUR_SUBSCRIPTION_KEY}" \
@@ -102,7 +102,7 @@ vault kv put secret/aggregators/mtn_money/default \
 #  DB Provider Code: orange_money
 # ============================================================================
 echo "🔧 Configuring Orange Money (orange_money)..."
-vault kv put secret/aggregators/orange_money/default \
+vault kv put secret/aggregators/orange_money \
     client_id="${ORANGE_MONEY_CLIENT_ID:-REPLACE_WITH_YOUR_CLIENT_ID}" \
     client_secret="${ORANGE_MONEY_CLIENT_SECRET:-REPLACE_WITH_YOUR_CLIENT_SECRET}" \
     merchant_key="${ORANGE_MONEY_MERCHANT_KEY:-REPLACE_WITH_YOUR_MERCHANT_KEY}" \
@@ -115,7 +115,7 @@ vault kv put secret/aggregators/orange_money/default \
 #  DB Provider Code: moov_money
 # ============================================================================
 echo "🔧 Configuring Moov Money (moov_money)..."
-vault kv put secret/aggregators/moov_money/default \
+vault kv put secret/aggregators/moov_money \
     api_key="${MOOV_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
     secret_key="${MOOV_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
     merchant_key="${MOOV_MERCHANT_ID:-REPLACE_WITH_YOUR_MERCHANT_ID}" \
@@ -127,7 +127,7 @@ vault kv put secret/aggregators/moov_money/default \
 #  DB Provider Code: flutterwave
 # ============================================================================
 echo "🔧 Configuring Flutterwave..."
-vault kv put secret/aggregators/flutterwave/default \
+vault kv put secret/aggregators/flutterwave \
     public_key="${FLUTTERWAVE_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLIC_KEY}" \
     secret_key="${FLUTTERWAVE_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
     encryption_key="${FLUTTERWAVE_ENCRYPTION_KEY:-REPLACE_WITH_YOUR_ENCRYPTION_KEY}" \
@@ -140,7 +140,7 @@ vault kv put secret/aggregators/flutterwave/default \
 #  DB Provider Code: paystack
 # ============================================================================
 echo "🔧 Configuring Paystack..."
-vault kv put secret/aggregators/paystack/default \
+vault kv put secret/aggregators/paystack \
     public_key="${PAYSTACK_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLIC_KEY}" \
     secret_key="${PAYSTACK_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
     webhook_secret="${PAYSTACK_WEBHOOK_SECRET:-}" \
@@ -152,7 +152,7 @@ vault kv put secret/aggregators/paystack/default \
 #  DB Provider Code: pawapay
 # ============================================================================
 echo "🔧 Configuring PawaPay..."
-vault kv put secret/aggregators/pawapay/default \
+vault kv put secret/aggregators/pawapay \
     api_key="${PAWAPAY_API_KEY:-REPLACE_WITH_YOUR_API_TOKEN}" \
     webhook_secret="${PAWAPAY_WEBHOOK_SECRET:-}" \
     base_url="${PAWAPAY_BASE_URL:-https://api.sandbox.pawapay.cloud}"
@@ -163,7 +163,7 @@ vault kv put secret/aggregators/pawapay/default \
 #  DB Provider Code: hubtel
 # ============================================================================
 echo "🔧 Configuring Hubtel..."
-vault kv put secret/aggregators/hubtel/default \
+vault kv put secret/aggregators/hubtel \
     client_id="${HUBTEL_CLIENT_ID:-REPLACE_WITH_YOUR_CLIENT_ID}" \
     client_secret="${HUBTEL_CLIENT_SECRET:-REPLACE_WITH_YOUR_CLIENT_SECRET}" \
     merchant_key="${HUBTEL_MERCHANT_ACCOUNT:-REPLACE_WITH_YOUR_MERCHANT_ACCOUNT}" \
@@ -175,7 +175,7 @@ vault kv put secret/aggregators/hubtel/default \
 #  DB Provider Code: paypal
 # ============================================================================
 echo "🔧 Configuring PayPal..."
-vault kv put secret/aggregators/paypal/default \
+vault kv put secret/aggregators/paypal \
     client_id="${PAYPAL_CLIENT_ID:-REPLACE_WITH_YOUR_CLIENT_ID}" \
     client_secret="${PAYPAL_CLIENT_SECRET:-REPLACE_WITH_YOUR_CLIENT_SECRET}" \
     webhook_id="${PAYPAL_WEBHOOK_ID:-}" \
@@ -188,7 +188,7 @@ vault kv put secret/aggregators/paypal/default \
 #  DB Provider Code: stripe
 # ============================================================================
 echo "🔧 Configuring Stripe..."
-vault kv put secret/aggregators/stripe/default \
+vault kv put secret/aggregators/stripe \
     api_key="${STRIPE_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
     public_key="${STRIPE_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLISHABLE_KEY}" \
     webhook_secret="${STRIPE_WEBHOOK_SECRET:-}" \
@@ -198,7 +198,7 @@ vault kv put secret/aggregators/stripe/default \
 #  DEMO PROVIDER - For testing (always works)
 # ============================================================================
 echo "🔧 Configuring Demo Provider..."
-vault kv put secret/aggregators/demo/default \
+vault kv put secret/aggregators/demo \
     api_key="demo_api_key_always_works" \
     mode="demo"
 
@@ -265,18 +265,18 @@ echo "  📋 Configured Providers:"
 echo "  ─────────────────────────────────────────────────────────────────────"
 echo "  │ Provider      │ Path                                    │ Region  │"
 echo "  ─────────────────────────────────────────────────────────────────────"
-echo "  │ CinetPay      │ secret/aggregators/cinetpay/default     │ UEMOA   │"
-echo "  │ Wave          │ secret/aggregators/wave_money/default   │ W.Africa│"
-echo "  │ MTN MoMo      │ secret/aggregators/mtn_money/default    │ Africa  │"
-echo "  │ Orange Money  │ secret/aggregators/orange_money/default │ Africa  │"
-echo "  │ Moov Money    │ secret/aggregators/moov_money/default   │ Africa  │"
-echo "  │ Flutterwave   │ secret/aggregators/flutterwave/default  │ Africa  │"
-echo "  │ Paystack      │ secret/aggregators/paystack/default     │ Africa  │"
-echo "  │ PawaPay       │ secret/aggregators/pawapay/default      │ Africa  │"
-echo "  │ Hubtel        │ secret/aggregators/hubtel/default       │ Ghana   │"
-echo "  │ PayPal        │ secret/aggregators/paypal/default       │ Global  │"
-echo "  │ Stripe        │ secret/aggregators/stripe/default       │ Global  │"
-echo "  │ Demo          │ secret/aggregators/demo/default         │ Test    │"
+echo "  │ CinetPay      │ secret/aggregators/cinetpay             │ UEMOA   │"
+echo "  │ Wave          │ secret/aggregators/wave_money           │ W.Africa│"
+echo "  │ MTN MoMo      │ secret/aggregators/mtn_money            │ Africa  │"
+echo "  │ Orange Money  │ secret/aggregators/orange_money         │ Africa  │"
+echo "  │ Moov Money    │ secret/aggregators/moov_money           │ Africa  │"
+echo "  │ Flutterwave   │ secret/aggregators/flutterwave          │ Africa  │"
+echo "  │ Paystack      │ secret/aggregators/paystack             │ Africa  │"
+echo "  │ PawaPay       │ secret/aggregators/pawapay              │ Africa  │"
+echo "  │ Hubtel        │ secret/aggregators/hubtel               │ Ghana   │"
+echo "  │ PayPal        │ secret/aggregators/paypal               │ Global  │"
+echo "  │ Stripe        │ secret/aggregators/stripe               │ Global  │"
+echo "  │ Demo          │ secret/aggregators/demo                 │ Test    │"
 echo "  ─────────────────────────────────────────────────────────────────────"
 echo ""
 echo "  ⚠️  IMPORTANT: Most credentials are PLACEHOLDERS!"
