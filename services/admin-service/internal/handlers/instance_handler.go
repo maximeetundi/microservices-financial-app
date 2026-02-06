@@ -413,10 +413,10 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		Name            string              `json:"name"`
 		VaultSecretPath string              `json:"vault_secret_path"`
 		HotWalletID     string              `json:"hot_wallet_id"`
-		IsActive        bool                `json:"is_active"`
-		IsPrimary       bool                `json:"is_primary"`
-		IsGlobal        bool                `json:"is_global"`
-		Priority        int                 `json:"priority"`
+		IsActive        *bool               `json:"is_active,omitempty"`
+		IsPrimary       *bool               `json:"is_primary,omitempty"`
+		IsGlobal        *bool               `json:"is_global,omitempty"`
+		Priority        *int                `json:"priority,omitempty"`
 		HealthStatus    string              `json:"health_status"`
 		Credentials     *CredentialsRequest `json:"credentials,omitempty"`
 	}
