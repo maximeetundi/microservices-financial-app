@@ -1,193 +1,191 @@
 <template>
-  <NuxtLayout name="dashboard">
-    <div class="tx-page">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>📊 Transactions</h1>
-        <p>Historique de vos transactions</p>
-      </div>
-
-      <!-- Filters -->
-      <div class="filters">
-        <select v-model="filterType" class="filter-select">
-          <option value="">Tous types</option>
-          <option value="deposit">Dépôts</option>
-          <option value="withdraw">Retraits</option>
-          <option value="transfer">Transferts</option>
-          <option value="exchange">Échanges</option>
-        </select>
-        <select v-model="filterPeriod" class="filter-select">
-          <option value="all">Toujours</option>
-          <option value="today">Aujourd'hui</option>
-          <option value="week">7 jours</option>
-          <option value="month">30 jours</option>
-        </select>
-      </div>
-
-      <!-- Loading -->
-      <div v-if="loading && transactions.length === 0" class="state-container">
-        <div class="spinner"></div>
-        <p>Chargement...</p>
-      </div>
-
-      <!-- Empty -->
-      <div v-else-if="filteredTransactions.length === 0" class="state-container">
-        <span class="empty-icon">📜</span>
-        <p>Aucune transaction</p>
-      </div>
-
-      <!-- List -->
-      <div v-else class="tx-list">
-        <div v-for="tx in filteredTransactions" :key="tx.id" class="tx-item" @click="openTxDetail(tx)">
-          <div class="tx-icon" :class="getTypeColorClass(tx.type)">
-            {{ getTypeIcon(tx.type) }}
-          </div>
-          <div class="tx-info">
-            <div class="tx-title">{{ tx.title }}</div>
-            <div class="tx-desc">{{ tx.description }}</div>
-          </div>
-          <div class="tx-amount" :class="{ positive: tx.amount >= 0 }">
-            <span>{{ tx.amount >= 0 ? '+' : '' }}{{ formatMoney(tx.amount, tx.currency) }}</span>
-            <small>{{ formatDate(tx.date) }}</small>
-          </div>
-        </div>
-
-        <!-- Load More -->
-        <button v-if="hasMore" @click="loadMore" class="load-more-btn">
-          Charger plus ↓
-        </button>
-      </div>
-
-      <!-- Transaction Detail Modal -->
-      <Teleport to="body">
-        <div v-if="selectedTx" class="modal-overlay" @click.self="closeTxDetail">
-          <div class="modal-content">
-            <button @click="closeTxDetail" class="modal-close">✕</button>
-            <div class="modal-icon-lg" :class="getTypeColorClass(selectedTx.type)">
-              {{ getTypeIcon(selectedTx.type) }}
-            </div>
-            <h3 class="modal-title">{{ selectedTx.title }}</h3>
-            <p class="modal-amount" :class="{ positive: selectedTx.amount >= 0 }">
-              {{ selectedTx.amount >= 0 ? '+' : '' }}{{ formatMoney(selectedTx.amount, selectedTx.currency) }}
-            </p>
-            
-            <div class="tx-details">
-              <div class="detail-row">
-                <span class="detail-label">ID Transaction</span>
-                <span class="detail-value id-value">{{ selectedTx.id }}</span>
-              </div>
-              <div class="detail-row" v-if="selectedTx.reference">
-                <span class="detail-label">Référence</span>
-                <span class="detail-value">{{ selectedTx.reference }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Type</span>
-                <span class="detail-value">{{ getTransactionTitle(selectedTx.type) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Devise</span>
-                <span class="detail-value">{{ selectedTx.currency }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Statut</span>
-                <span class="detail-value status-badge" :class="selectedTx.status">{{ getStatusLabel(selectedTx.status) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Date</span>
-                <span class="detail-value">{{ formatFullDate(selectedTx.date) }}</span>
-              </div>
-              <div class="detail-row" v-if="selectedTx.description">
-                <span class="detail-label">Description</span>
-                <span class="detail-value">{{ selectedTx.description }}</span>
-              </div>
-
-               <!-- Extended Details -->
-               <div v-if="loadingDetails" class="detail-row justify-center py-4">
-                  <div class="spinner-sm"></div>
-               </div>
-               
-               <template v-else>
-                   <!-- Sender -->
-                   <div class="detail-row" v-if="senderInfo">
-                       <span class="detail-label">De (Remetteur)</span>
-                       <div class="text-right flex flex-col items-end">
-                           <span class="detail-value font-bold">{{ senderInfo.name }}</span>
-                           <span v-if="senderInfo.phone" class="text-xs text-gray-400">{{ senderInfo.phone }}</span>
-                           <span v-if="senderInfo.email" class="text-xs text-gray-400">{{ senderInfo.email }}</span>
-                       </div>
-                   </div>
-
-                   <!-- Receiver -->
-                   <div class="detail-row" v-if="receiverInfo">
-                       <span class="detail-label">À (Récepteur)</span>
-                       <div class="text-right flex flex-col items-end">
-                            <span class="detail-value font-bold">{{ receiverInfo.name }}</span>
-                            <span v-if="receiverInfo.phone" class="text-xs text-gray-400">{{ receiverInfo.phone }}</span>
-                            <span v-if="receiverInfo.email" class="text-xs text-gray-400">{{ receiverInfo.email }}</span>
-                       </div>
-                   </div>
-               </template>
-
-               <!-- Transfer Actions (Cancel/Reverse) -->
-               <div v-if="selectedTx.type === 'transfer'" class="mt-6 pt-6 border-t border-gray-700">
-                   <!-- Sender Cancel (< 5 mins) -->
-                   <button v-if="selectedTx.amount < 0 && canCancel(selectedTx)" @click="initiateAction('cancel')" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/20 transition-colors mb-2">
-                       Annuler le transfert ({{ getRemainingCancelTime(selectedTx) }})
-                   </button>
-                   
-                   <!-- Recipient Reverse (< 1 week, completed) -->
-                   <button v-if="selectedTx.amount > 0 && selectedTx.status === 'completed' && canReverse(selectedTx)" @click="initiateAction('reverse')" class="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 transition-colors mb-2">
-                       Renvoyer les fonds
-                   </button>
-               </div>
-
-            </div>
-            
-            <button @click="closeTxDetail" class="modal-btn">Fermer</button>
-          </div>
-        </div>
-      </Teleport>
-
-      <!-- Action Reason Modal -->
-      <Teleport to="body">
-          <div v-if="showActionModal" class="modal-overlay" @click.self="closeActionModal">
-              <div class="modal-content">
-                  <h3 class="modal-title mb-2">
-                      {{ actionType === 'cancel' ? 'Annuler le transfert' : 'Renvoyer les fonds' }}
-                  </h3>
-                  <p class="text-gray-400 text-sm mb-6">
-                      {{ actionType === 'cancel' 
-                          ? 'Les transferts peuvent être annulés uniquement dans les 5 minutes suivant l\'envoi, si le destinataire n\'a pas encore utilisé les fonds.' 
-                          : 'Vous pouvez renvoyer les fonds dans un délai de 7 jours si vous ne les avez pas utilisés.' 
-                      }}
-                  </p>
-
-                  <div class="text-left mb-6">
-                      <label class="block text-sm font-medium text-gray-400 mb-2">Motif (Obligatoire)</label>
-                      <textarea 
-                          v-model="actionReason"
-                          rows="3"
-                          class="w-full bg-black/20 border border-gray-700 rounded-xl p-3 text-white focus:border-indigo-500 outline-none"
-                          :placeholder="actionType === 'cancel' ? 'Erreur de montant, destinataire incorrect...' : 'Erreur de réception...'"
-                      ></textarea>
-                  </div>
-
-                  <div class="flex gap-3">
-                      <button @click="closeActionModal" class="flex-1 py-3 bg-gray-700/50 hover:bg-gray-700 text-white rounded-xl font-medium transition-colors">Retour</button>
-                      <button 
-                          @click="submitAction" 
-                          :disabled="!actionReason.trim() || actionLoading"
-                          class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                      >
-                          <span v-if="actionLoading" class="spinner-sm border-white w-4 h-4"></span>
-                          {{ actionType === 'cancel' ? 'Confirmer Annulation' : 'Confirmer Renvoi' }}
-                      </button>
-                  </div>
-              </div>
-          </div>
-      </Teleport>
+  <div class="tx-page">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>📊 Transactions</h1>
+      <p>Historique de vos transactions</p>
     </div>
-  </NuxtLayout>
+
+    <!-- Filters -->
+    <div class="filters">
+      <select v-model="filterType" class="filter-select">
+        <option value="">Tous types</option>
+        <option value="deposit">Dépôts</option>
+        <option value="withdraw">Retraits</option>
+        <option value="transfer">Transferts</option>
+        <option value="exchange">Échanges</option>
+      </select>
+      <select v-model="filterPeriod" class="filter-select">
+        <option value="all">Toujours</option>
+        <option value="today">Aujourd'hui</option>
+        <option value="week">7 jours</option>
+        <option value="month">30 jours</option>
+      </select>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading && transactions.length === 0" class="state-container">
+      <div class="spinner"></div>
+      <p>Chargement...</p>
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="filteredTransactions.length === 0" class="state-container">
+      <span class="empty-icon">📜</span>
+      <p>Aucune transaction</p>
+    </div>
+
+    <!-- List -->
+    <div v-else class="tx-list">
+      <div v-for="tx in filteredTransactions" :key="tx.id" class="tx-item" @click="openTxDetail(tx)">
+        <div class="tx-icon" :class="getTypeColorClass(tx.type)">
+          {{ getTypeIcon(tx.type) }}
+        </div>
+        <div class="tx-info">
+          <div class="tx-title">{{ tx.title }}</div>
+          <div class="tx-desc">{{ tx.description }}</div>
+        </div>
+        <div class="tx-amount" :class="{ positive: tx.amount >= 0 }">
+          <span>{{ tx.amount >= 0 ? '+' : '' }}{{ formatMoney(tx.amount, tx.currency) }}</span>
+          <small>{{ formatDate(tx.date) }}</small>
+        </div>
+      </div>
+
+      <!-- Load More -->
+      <button v-if="hasMore" @click="loadMore" class="load-more-btn">
+        Charger plus ↓
+      </button>
+    </div>
+
+    <!-- Transaction Detail Modal -->
+    <Teleport to="body">
+      <div v-if="selectedTx" class="modal-overlay" @click.self="closeTxDetail">
+        <div class="modal-content">
+          <button @click="closeTxDetail" class="modal-close">✕</button>
+          <div class="modal-icon-lg" :class="getTypeColorClass(selectedTx.type)">
+            {{ getTypeIcon(selectedTx.type) }}
+          </div>
+          <h3 class="modal-title">{{ selectedTx.title }}</h3>
+          <p class="modal-amount" :class="{ positive: selectedTx.amount >= 0 }">
+            {{ selectedTx.amount >= 0 ? '+' : '' }}{{ formatMoney(selectedTx.amount, selectedTx.currency) }}
+          </p>
+          
+          <div class="tx-details">
+            <div class="detail-row">
+              <span class="detail-label">ID Transaction</span>
+              <span class="detail-value id-value">{{ selectedTx.id }}</span>
+            </div>
+            <div class="detail-row" v-if="selectedTx.reference">
+              <span class="detail-label">Référence</span>
+              <span class="detail-value">{{ selectedTx.reference }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Type</span>
+              <span class="detail-value">{{ getTransactionTitle(selectedTx.type) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Devise</span>
+              <span class="detail-value">{{ selectedTx.currency }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Statut</span>
+              <span class="detail-value status-badge" :class="selectedTx.status">{{ getStatusLabel(selectedTx.status) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Date</span>
+              <span class="detail-value">{{ formatFullDate(selectedTx.date) }}</span>
+            </div>
+            <div class="detail-row" v-if="selectedTx.description">
+              <span class="detail-label">Description</span>
+              <span class="detail-value">{{ selectedTx.description }}</span>
+            </div>
+
+             <!-- Extended Details -->
+             <div v-if="loadingDetails" class="detail-row justify-center py-4">
+                <div class="spinner-sm"></div>
+             </div>
+             
+             <template v-else>
+                 <!-- Sender -->
+                 <div class="detail-row" v-if="senderInfo">
+                     <span class="detail-label">De (Remetteur)</span>
+                     <div class="text-right flex flex-col items-end">
+                         <span class="detail-value font-bold">{{ senderInfo.name }}</span>
+                         <span v-if="senderInfo.phone" class="text-xs text-gray-400">{{ senderInfo.phone }}</span>
+                         <span v-if="senderInfo.email" class="text-xs text-gray-400">{{ senderInfo.email }}</span>
+                     </div>
+                 </div>
+
+                 <!-- Receiver -->
+                 <div class="detail-row" v-if="receiverInfo">
+                     <span class="detail-label">À (Récepteur)</span>
+                     <div class="text-right flex flex-col items-end">
+                          <span class="detail-value font-bold">{{ receiverInfo.name }}</span>
+                          <span v-if="receiverInfo.phone" class="text-xs text-gray-400">{{ receiverInfo.phone }}</span>
+                          <span v-if="receiverInfo.email" class="text-xs text-gray-400">{{ receiverInfo.email }}</span>
+                     </div>
+                 </div>
+             </template>
+
+             <!-- Transfer Actions (Cancel/Reverse) -->
+             <div v-if="selectedTx.type === 'transfer'" class="mt-6 pt-6 border-t border-gray-700">
+                 <!-- Sender Cancel (< 5 mins) -->
+                 <button v-if="selectedTx.amount < 0 && canCancel(selectedTx)" @click="initiateAction('cancel')" class="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-bold border border-red-500/20 transition-colors mb-2">
+                     Annuler le transfert ({{ getRemainingCancelTime(selectedTx) }})
+                 </button>
+                 
+                 <!-- Recipient Reverse (< 1 week, completed) -->
+                 <button v-if="selectedTx.amount > 0 && selectedTx.status === 'completed' && canReverse(selectedTx)" @click="initiateAction('reverse')" class="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 transition-colors mb-2">
+                     Renvoyer les fonds
+                 </button>
+             </div>
+
+          </div>
+          
+          <button @click="closeTxDetail" class="modal-btn">Fermer</button>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Action Reason Modal -->
+    <Teleport to="body">
+        <div v-if="showActionModal" class="modal-overlay" @click.self="closeActionModal">
+            <div class="modal-content">
+                <h3 class="modal-title mb-2">
+                    {{ actionType === 'cancel' ? 'Annuler le transfert' : 'Renvoyer les fonds' }}
+                </h3>
+                <p class="text-gray-400 text-sm mb-6">
+                    {{ actionType === 'cancel' 
+                        ? 'Les transferts peuvent être annulés uniquement dans les 5 minutes suivant l\'envoi, si le destinataire n\'a pas encore utilisé les fonds.' 
+                        : 'Vous pouvez renvoyer les fonds dans un délai de 7 jours si vous ne les avez pas utilisés.' 
+                    }}
+                </p>
+
+                <div class="text-left mb-6">
+                    <label class="block text-sm font-medium text-gray-400 mb-2">Motif (Obligatoire)</label>
+                    <textarea 
+                        v-model="actionReason"
+                        rows="3"
+                        class="w-full bg-black/20 border border-gray-700 rounded-xl p-3 text-white focus:border-indigo-500 outline-none"
+                        :placeholder="actionType === 'cancel' ? 'Erreur de montant, destinataire incorrect...' : 'Erreur de réception...'"
+                    ></textarea>
+                </div>
+
+                <div class="flex gap-3">
+                    <button @click="closeActionModal" class="flex-1 py-3 bg-gray-700/50 hover:bg-gray-700 text-white rounded-xl font-medium transition-colors">Retour</button>
+                    <button 
+                        @click="submitAction" 
+                        :disabled="!actionReason.trim() || actionLoading"
+                        class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                    >
+                        <span v-if="actionLoading" class="spinner-sm border-white w-4 h-4"></span>
+                        {{ actionType === 'cancel' ? 'Confirmer Annulation' : 'Confirmer Renvoi' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+  </div>
 </template>
 
 <script setup>
@@ -554,7 +552,7 @@ onMounted(async () => {
 })
 
 definePageMeta({
-  layout: false,
+  layout: 'dashboard',
   middleware: 'auth'
 })
 </script>

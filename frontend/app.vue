@@ -6,7 +6,9 @@
     </div>
 
     <!-- App Content -->
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
 
     <!-- Global Notifications -->
     <Teleport to="body">

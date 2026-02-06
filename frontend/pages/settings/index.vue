@@ -1,119 +1,117 @@
 <template>
-  <NuxtLayout name="dashboard">
-    <div class="settings-page">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>⚙️ Paramètres</h1>
-        <p>Gérez votre compte et vos préférences</p>
-      </div>
+  <div class="settings-page">
+    <!-- Header -->
+    <div class="page-header">
+      <h1>⚙️ Paramètres</h1>
+      <p>Gérez votre compte et vos préférences</p>
+    </div>
 
-      <!-- Settings Grid -->
-      <div class="settings-grid">
-        <!-- Profile -->
-        <NuxtLink to="/settings/profile" class="settings-card">
-          <div class="card-icon blue">👤</div>
-          <div class="card-content">
-            <h3>Profil</h3>
-            <p>Informations personnelles, coordonnées</p>
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-
-        <!-- Security -->
-        <NuxtLink to="/settings/security" class="settings-card">
-          <div class="card-icon green">🔒</div>
-          <div class="card-content">
-            <h3>Sécurité</h3>
-            <p>Mot de passe, 2FA, sessions</p>
-          </div>
-          <div class="card-status" :class="{ active: securityScore >= 80 }">
-            {{ securityScore }}%
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-
-        <!-- KYC -->
-        <NuxtLink to="/settings/kyc" class="settings-card">
-          <div class="card-icon purple">📋</div>
-          <div class="card-content">
-            <h3>Vérification KYC</h3>
-            <p>Documents d'identité, validation</p>
-          </div>
-          <div class="card-badge" :class="kycStatus.class">
-            {{ kycStatus.label }}
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-
-        <!-- Preferences -->
-        <NuxtLink to="/settings/preferences" class="settings-card">
-          <div class="card-icon orange">🎨</div>
-          <div class="card-content">
-            <h3>Préférences</h3>
-            <p>Thème, langue, notifications</p>
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-
-        <!-- Notifications -->
-        <NuxtLink to="/settings/notifications" class="settings-card">
-          <div class="card-icon pink">🔔</div>
-          <div class="card-content">
-            <h3>Notifications</h3>
-            <p>Alertes email, push, SMS</p>
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-
-        <!-- Payment Methods -->
-        <NuxtLink to="/settings/payment-methods" class="settings-card">
-          <div class="card-icon teal">💳</div>
-          <div class="card-content">
-            <h3>Moyens de paiement</h3>
-            <p>Cartes, comptes bancaires</p>
-          </div>
-          <div class="card-arrow">→</div>
-        </NuxtLink>
-      </div>
-
-      <!-- Quick Actions -->
-      <div class="quick-section">
-        <h2>Actions rapides</h2>
-        <div class="quick-actions">
-          <button @click="exportData" class="quick-btn">
-            📥 Exporter mes données
-          </button>
-          <button @click="showDeleteModal = true" class="quick-btn danger">
-            🗑️ Supprimer mon compte
-          </button>
+    <!-- Settings Grid -->
+    <div class="settings-grid">
+      <!-- Profile -->
+      <NuxtLink to="/settings/profile" class="settings-card">
+        <div class="card-icon blue">👤</div>
+        <div class="card-content">
+          <h3>Profil</h3>
+          <p>Informations personnelles, coordonnées</p>
         </div>
-      </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
 
-      <!-- App Info -->
-      <div class="app-info">
-        <p>Zekora v1.0.0</p>
-        <div class="info-links">
-          <NuxtLink to="/support">Aide</NuxtLink>
-          <span>•</span>
-          <a href="#">Conditions</a>
-          <span>•</span>
-          <a href="#">Confidentialité</a>
+      <!-- Security -->
+      <NuxtLink to="/settings/security" class="settings-card">
+        <div class="card-icon green">🔒</div>
+        <div class="card-content">
+          <h3>Sécurité</h3>
+          <p>Mot de passe, 2FA, sessions</p>
         </div>
-      </div>
+        <div class="card-status" :class="{ active: securityScore >= 80 }">
+          {{ securityScore }}%
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
 
-      <!-- Delete Account Modal -->
-      <div v-if="showDeleteModal" class="modal-overlay" @click="showDeleteModal = false">
-        <div class="modal-content" @click.stop>
-          <h3>⚠️ Supprimer votre compte</h3>
-          <p>Cette action est irréversible. Toutes vos données seront supprimées.</p>
-          <div class="modal-actions">
-            <button @click="showDeleteModal = false" class="btn-cancel">Annuler</button>
-            <button @click="deleteAccount" class="btn-delete">Supprimer</button>
-          </div>
+      <!-- KYC -->
+      <NuxtLink to="/settings/kyc" class="settings-card">
+        <div class="card-icon purple">📋</div>
+        <div class="card-content">
+          <h3>Vérification KYC</h3>
+          <p>Documents d'identité, validation</p>
+        </div>
+        <div class="card-badge" :class="kycStatus.class">
+          {{ kycStatus.label }}
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
+
+      <!-- Preferences -->
+      <NuxtLink to="/settings/preferences" class="settings-card">
+        <div class="card-icon orange">🎨</div>
+        <div class="card-content">
+          <h3>Préférences</h3>
+          <p>Thème, langue, notifications</p>
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
+
+      <!-- Notifications -->
+      <NuxtLink to="/settings/notifications" class="settings-card">
+        <div class="card-icon pink">🔔</div>
+        <div class="card-content">
+          <h3>Notifications</h3>
+          <p>Alertes email, push, SMS</p>
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
+
+      <!-- Payment Methods -->
+      <NuxtLink to="/settings/payment-methods" class="settings-card">
+        <div class="card-icon teal">💳</div>
+        <div class="card-content">
+          <h3>Moyens de paiement</h3>
+          <p>Cartes, comptes bancaires</p>
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-section">
+      <h2>Actions rapides</h2>
+      <div class="quick-actions">
+        <button @click="exportData" class="quick-btn">
+          📥 Exporter mes données
+        </button>
+        <button @click="showDeleteModal = true" class="quick-btn danger">
+          🗑️ Supprimer mon compte
+        </button>
+      </div>
+    </div>
+
+    <!-- App Info -->
+    <div class="app-info">
+      <p>Zekora v1.0.0</p>
+      <div class="info-links">
+        <NuxtLink to="/support">Aide</NuxtLink>
+        <span>•</span>
+        <a href="#">Conditions</a>
+        <span>•</span>
+        <a href="#">Confidentialité</a>
+      </div>
+    </div>
+
+    <!-- Delete Account Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click="showDeleteModal = false">
+      <div class="modal-content" @click.stop>
+        <h3>⚠️ Supprimer votre compte</h3>
+        <p>Cette action est irréversible. Toutes vos données seront supprimées.</p>
+        <div class="modal-actions">
+          <button @click="showDeleteModal = false" class="btn-cancel">Annuler</button>
+          <button @click="deleteAccount" class="btn-delete">Supprimer</button>
         </div>
       </div>
     </div>
-  </NuxtLayout>
+  </div>
 </template>
 
 <script setup>
@@ -168,7 +166,7 @@ onMounted(async () => {
 })
 
 definePageMeta({
-  layout: false,
+  layout: 'dashboard',
   middleware: 'auth'
 })
 </script>
