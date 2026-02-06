@@ -2,96 +2,17 @@ package handlers
 
 import (
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	vault "github.com/hashicorp/vault/api"
 )
 
-// VaultClient wraps the Vault API client
-type VaultClient struct {
-	client *vault.Client
-}
-
-// NewVaultClient creates a new Vault client
-func NewVaultClient() (*VaultClient, error) {
-	config := vault.DefaultConfig()
-
-	if addr := os.Getenv("VAULT_ADDR"); addr != "" {
-		config.Address = addr
-	}
-
-	client, err := vault.NewClient(config)
-	if err != nil {
-		return nil, err
-	}
-
-	if token := os.Getenv("VAULT_TOKEN"); token != "" {
-		client.SetToken(token)
-	}
-
-	return &VaultClient{client: client}, nil
-}
-
-// WriteSecret writes a secret to Vault (supports KV v2)
-func (v *VaultClient) WriteSecret(path string, data map[string]interface{}) error {
-	// Convert path for KV v2: secret/x -> secret/data/x
-	kvV2Path := convertToKVv2Path(path)
-
-	// Wrap data in "data" key for KV v2
-	wrappedData := map[string]interface{}{
-		"data": data,
-	}
-
-	_, err := v.client.Logical().Write(kvV2Path, wrappedData)
-	if err != nil {
-		// Try KV v1 as fallback
-		_, err = v.client.Logical().Write(path, data)
-	}
-	return err
-}
-
-// GetSecret reads a secret from Vault
-func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
-	kvV2Path := convertToKVv2Path(path)
-
-	secret, err := v.client.Logical().Read(kvV2Path)
-	if err != nil || secret == nil {
-		// Try KV v1 as fallback
-		secret, err = v.client.Logical().Read(path)
-		if err != nil || secret == nil {
-			return nil, fmt.Errorf("secret not found at %s", path)
-		}
-		return secret.Data, nil
-	}
-
-	// Extract data from KV v2 response
-	if data, ok := secret.Data["data"].(map[string]interface{}); ok {
-		return data, nil
-	}
-	return secret.Data, nil
-}
-
-// convertToKVv2Path converts a KV v1 style path to KV v2 style
-func convertToKVv2Path(path string) string {
-	// If path already contains /data/, return as is
-	if len(path) > 12 && path[7:11] == "data" {
-		return path
-	}
-
-	// Find the first slash (mount point separator)
-	for i, c := range path {
-		if c == '/' {
-			return path[:i] + "/data" + path[i:]
-		}
-	}
-	return path
-}
+// Note: Vault has been removed - credentials are stored directly in database
+// in the api_credentials JSONB column of provider_instances table
 
 // ProviderInstance represents a single API key instance for a provider
 type ProviderInstance struct {
@@ -118,25 +39,13 @@ type ProviderInstance struct {
 
 // InstanceHandler handles provider instance management
 type InstanceHandler struct {
-	db          *sql.DB
-	vaultClient *VaultClient
+	db *sql.DB
 }
 
 // NewInstanceHandler creates a new InstanceHandler
 func NewInstanceHandler(db *sql.DB) *InstanceHandler {
-	handler := &InstanceHandler{db: db}
-
-	// Initialize Vault client
-	vaultClient, err := NewVaultClient()
-	if err != nil {
-		log.Printf("[InstanceHandler] Warning: Failed to initialize Vault client: %v", err)
-		log.Printf("[InstanceHandler] Credentials will not be synced to Vault")
-	} else {
-		handler.vaultClient = vaultClient
-		log.Printf("[InstanceHandler] Vault client initialized successfully")
-	}
-
-	return handler
+	log.Printf("[InstanceHandler] Initialized - credentials stored in database")
+	return &InstanceHandler{db: db}
 }
 
 // CredentialsRequest represents API credentials for a provider instance
@@ -517,7 +426,7 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 	})
 }
 
-// UpdateInstanceCredentials updates only the credentials in Vault for an instance
+// UpdateInstanceCredentials updates the credentials in database for an instance
 func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 	instanceID := c.Param("instanceId")
 
@@ -530,16 +439,11 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 		return
 	}
 
-	// Get vault path from instance
-	var vaultPath string
-	err := h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
-	if err != nil {
+	// Check instance exists
+	var exists bool
+	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM provider_instances WHERE id = $1)", instanceID).Scan(&exists)
+	if err != nil || !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
-		return
-	}
-
-	if h.vaultClient == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Vault client not available"})
 		return
 	}
 
@@ -549,73 +453,264 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 		return
 	}
 
-	if err := h.vaultClient.WriteSecret(vaultPath, credData); err != nil {
-		log.Printf("[InstanceHandler] Failed to update credentials in Vault: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credentials to Vault"})
+	// Convert to JSON for storage
+	credJSON, err := json.Marshal(credData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to serialize credentials"})
 		return
 	}
 
-	log.Printf("[InstanceHandler] Successfully updated credentials for instance %s at %s", instanceID, vaultPath)
+	// Save to database
+	_, err = h.db.Exec(`
+		UPDATE provider_instances
+		SET api_credentials = $1, updated_at = NOW()
+		WHERE id = $2
+	`, credJSON, instanceID)
+
+	if err != nil {
+		log.Printf("[InstanceHandler] Failed to save credentials to DB: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credentials"})
+		return
+	}
+
+	log.Printf("[InstanceHandler] ✅ Credentials saved to database for instance %s", instanceID)
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "Credentials updated successfully",
-		"vault_path": vaultPath,
+		"message": "Credentials saved successfully",
 	})
 }
 
-// GetInstanceCredentials retrieves credentials from Vault (masked for security)
+// GetInstanceCredentials retrieves credentials from database (masked for security)
 func (h *InstanceHandler) GetInstanceCredentials(c *gin.Context) {
 	instanceID := c.Param("instanceId")
 
-	// Get vault path from instance
-	var vaultPath string
-	err := h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
+	// Get credentials from database
+	var credJSON []byte
+	err := h.db.QueryRow("SELECT COALESCE(api_credentials, '{}') FROM provider_instances WHERE id = $1", instanceID).Scan(&credJSON)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
 		return
 	}
 
-	if h.vaultClient == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Vault client not available"})
+	// Parse credentials
+	var credentials map[string]interface{}
+	if err := json.Unmarshal(credJSON, &credentials); err != nil {
+		credentials = make(map[string]interface{})
+	}
+
+	// Mask sensitive values for display
+	maskedCreds := make(map[string]interface{})
+	secretKeys := map[string]bool{
+		"api_key": true, "secret_key": true, "client_secret": true,
+		"webhook_secret": true, "encryption_key": true, "private_key": true,
+	}
+
+	for key, value := range credentials {
+		if str, ok := value.(string); ok && str != "" {
+			if secretKeys[key] {
+				// Mask secret values
+				if len(str) > 8 {
+					maskedCreds[key] = str[:4] + "****" + str[len(str)-4:]
+				} else {
+					maskedCreds[key] = "****"
+				}
+			} else {
+				maskedCreds[key] = str
+			}
+		}
+	}
+
+	hasCredentials := len(credentials) > 0
+
+	c.JSON(http.StatusOK, gin.H{
+		"credentials":     maskedCreds,
+		"has_credentials": hasCredentials,
+	})
+}
+
+// ================== INTERNAL SERVICE-TO-SERVICE API ==================
+// These endpoints are for internal microservice communication only
+// They should be protected by service mesh / internal network
+
+// InternalGetBestInstance returns the best instance with full credentials for a provider
+// This is called by transfer-service to get credentials for payment processing
+// POST /api/v1/internal/instances/best
+func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
+	var req struct {
+		ProviderCode string  `json:"provider_code" binding:"required"`
+		Country      string  `json:"country" binding:"required"`
+		Amount       float64 `json:"amount"`
+		Currency     string  `json:"currency"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	data, err := h.vaultClient.GetSecret(vaultPath)
+	log.Printf("[InternalAPI] GetBestInstance request: provider=%s, country=%s, amount=%.2f",
+		req.ProviderCode, req.Country, req.Amount)
+
+	// Find the best active instance for this provider and country
+	query := `
+		SELECT
+			pi.id, pi.name, pi.is_active, pi.is_primary, pi.is_global, pi.is_paused,
+			pi.pause_reason, pi.priority, pi.request_count, pi.health_status,
+			COALESCE(pi.api_credentials, '{}') as api_credentials,
+			pp.name as provider_code, pp.display_name as provider_name,
+			pp.is_demo_mode as is_test_mode, pp.logo_url as provider_logo
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		WHERE pp.name = $1
+		  AND pi.is_active = TRUE
+		  AND (pi.is_paused = FALSE OR pi.is_paused IS NULL)
+		  AND (
+			pi.is_global = TRUE
+			OR EXISTS (
+				SELECT 1 FROM provider_countries pc
+				WHERE pc.provider_id = pp.id AND pc.country_code = $2 AND pc.is_active = TRUE
+			)
+		  )
+		ORDER BY pi.is_primary DESC, pi.priority DESC, pi.request_count ASC
+		LIMIT 1
+	`
+
+	var instance struct {
+		ID             string  `db:"id"`
+		Name           string  `db:"name"`
+		IsActive       bool    `db:"is_active"`
+		IsPrimary      bool    `db:"is_primary"`
+		IsGlobal       bool    `db:"is_global"`
+		IsPaused       bool    `db:"is_paused"`
+		PauseReason    *string `db:"pause_reason"`
+		Priority       int     `db:"priority"`
+		RequestCount   int64   `db:"request_count"`
+		HealthStatus   string  `db:"health_status"`
+		APICredentials []byte  `db:"api_credentials"`
+		ProviderCode   string  `db:"provider_code"`
+		ProviderName   string  `db:"provider_name"`
+		IsTestMode     bool    `db:"is_test_mode"`
+		ProviderLogo   string  `db:"provider_logo"`
+	}
+
+	err := h.db.QueryRow(query, req.ProviderCode, req.Country).Scan(
+		&instance.ID, &instance.Name, &instance.IsActive, &instance.IsPrimary,
+		&instance.IsGlobal, &instance.IsPaused, &instance.PauseReason,
+		&instance.Priority, &instance.RequestCount, &instance.HealthStatus,
+		&instance.APICredentials, &instance.ProviderCode, &instance.ProviderName,
+		&instance.IsTestMode, &instance.ProviderLogo,
+	)
+
 	if err != nil {
+		log.Printf("[InternalAPI] No instance found for provider=%s, country=%s: %v",
+			req.ProviderCode, req.Country, err)
 		c.JSON(http.StatusNotFound, gin.H{
-			"error":      "Credentials not found in Vault",
-			"vault_path": vaultPath,
-			"details":    err.Error(),
+			"error":   "No available instance for this provider/country",
+			"details": err.Error(),
 		})
 		return
 	}
 
-	// Mask sensitive values for display
-	maskedData := make(map[string]interface{})
-	for key, value := range data {
-		if str, ok := value.(string); ok && len(str) > 0 {
-			if len(str) > 8 {
-				maskedData[key] = str[:4] + "****" + str[len(str)-4:]
-			} else {
-				maskedData[key] = "****"
-			}
-		} else {
-			maskedData[key] = value
-		}
+	// Parse credentials JSON
+	var credentials map[string]string
+	if err := json.Unmarshal(instance.APICredentials, &credentials); err != nil {
+		credentials = make(map[string]string)
 	}
 
+	// Increment request count
+	h.db.Exec("UPDATE provider_instances SET request_count = request_count + 1, last_used_at = NOW() WHERE id = $1", instance.ID)
+
+	log.Printf("[InternalAPI] ✅ Returning instance %s (%s) with %d credentials",
+		instance.ID, instance.Name, len(credentials))
+
 	c.JSON(http.StatusOK, gin.H{
-		"vault_path":  vaultPath,
-		"credentials": maskedData,
-		"keys":        getMapKeys(data),
+		"instance": gin.H{
+			"id":              instance.ID,
+			"instance_name":   instance.Name,
+			"provider_code":   instance.ProviderCode,
+			"provider_name":   instance.ProviderName,
+			"is_active":       instance.IsActive,
+			"is_primary":      instance.IsPrimary,
+			"is_global":       instance.IsGlobal,
+			"is_paused":       instance.IsPaused,
+			"pause_reason":    instance.PauseReason,
+			"priority":        instance.Priority,
+			"health_status":   instance.HealthStatus,
+			"is_test_mode":    instance.IsTestMode,
+			"api_credentials": credentials,
+		},
 	})
 }
 
-func getMapKeys(m map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+// InternalGetInstanceByID returns a specific instance with full credentials
+// GET /api/v1/internal/instances/:id
+func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
+	instanceID := c.Param("id")
+
+	query := `
+		SELECT
+			pi.id, pi.name, pi.is_active, pi.is_primary, pi.is_global, pi.is_paused,
+			pi.pause_reason, pi.priority, pi.request_count, pi.health_status,
+			COALESCE(pi.api_credentials, '{}') as api_credentials,
+			pp.name as provider_code, pp.display_name as provider_name,
+			pp.is_demo_mode as is_test_mode
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		WHERE pi.id = $1
+	`
+
+	var instance struct {
+		ID             string  `db:"id"`
+		Name           string  `db:"name"`
+		IsActive       bool    `db:"is_active"`
+		IsPrimary      bool    `db:"is_primary"`
+		IsGlobal       bool    `db:"is_global"`
+		IsPaused       bool    `db:"is_paused"`
+		PauseReason    *string `db:"pause_reason"`
+		Priority       int     `db:"priority"`
+		RequestCount   int64   `db:"request_count"`
+		HealthStatus   string  `db:"health_status"`
+		APICredentials []byte  `db:"api_credentials"`
+		ProviderCode   string  `db:"provider_code"`
+		ProviderName   string  `db:"provider_name"`
+		IsTestMode     bool    `db:"is_test_mode"`
 	}
-	return keys
+
+	err := h.db.QueryRow(query, instanceID).Scan(
+		&instance.ID, &instance.Name, &instance.IsActive, &instance.IsPrimary,
+		&instance.IsGlobal, &instance.IsPaused, &instance.PauseReason,
+		&instance.Priority, &instance.RequestCount, &instance.HealthStatus,
+		&instance.APICredentials, &instance.ProviderCode, &instance.ProviderName,
+		&instance.IsTestMode,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+		return
+	}
+
+	// Parse credentials JSON
+	var credentials map[string]string
+	if err := json.Unmarshal(instance.APICredentials, &credentials); err != nil {
+		credentials = make(map[string]string)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"instance": gin.H{
+			"id":              instance.ID,
+			"instance_name":   instance.Name,
+			"provider_code":   instance.ProviderCode,
+			"provider_name":   instance.ProviderName,
+			"is_active":       instance.IsActive,
+			"is_primary":      instance.IsPrimary,
+			"is_global":       instance.IsGlobal,
+			"is_paused":       instance.IsPaused,
+			"pause_reason":    instance.PauseReason,
+			"priority":        instance.Priority,
+			"health_status":   instance.HealthStatus,
+			"is_test_mode":    instance.IsTestMode,
+			"api_credentials": credentials,
+		},
+	})
 }
 
 // DeleteProviderInstance deletes an instance

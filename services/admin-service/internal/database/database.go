@@ -192,7 +192,8 @@ func createAdminTables(db *sql.DB) error {
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			provider_id UUID REFERENCES payment_providers(id) ON DELETE CASCADE,
 			name VARCHAR(100) NOT NULL,
-			vault_secret_path VARCHAR(255) NOT NULL,
+			vault_secret_path VARCHAR(255),
+			api_credentials JSONB DEFAULT '{}',
 			hot_wallet_id VARCHAR(36),
 			is_active BOOLEAN DEFAULT TRUE,
 			is_primary BOOLEAN DEFAULT FALSE,
@@ -208,6 +209,12 @@ func createAdminTables(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		// Add api_credentials column if it doesn't exist (migration for existing tables)
+		`DO $$ BEGIN
+			ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS api_credentials JSONB DEFAULT '{}';
+		EXCEPTION WHEN duplicate_column THEN NULL;
+		END $$`,
 
 		// Provider instance to hot wallet mapping (multi-wallet per instance)
 		`CREATE TABLE IF NOT EXISTS provider_instance_wallets (

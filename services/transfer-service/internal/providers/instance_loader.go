@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
-	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 )
@@ -28,197 +26,51 @@ func max(a, b int) int {
 }
 
 // InstanceBasedProviderLoader loads providers from database instances
-// and retrieves credentials from Vault when not stored in database
+// Credentials are stored directly in the database (api_credentials JSONB column)
 type InstanceBasedProviderLoader struct {
 	instanceRepo *repository.AggregatorInstanceRepository
-	vaultClient  *secrets.VaultClient
 }
 
 // NewInstanceBasedProviderLoader creates a new instance-based loader
 func NewInstanceBasedProviderLoader(instanceRepo *repository.AggregatorInstanceRepository) *InstanceBasedProviderLoader {
-	loader := &InstanceBasedProviderLoader{
+	log.Printf("[InstanceLoader] ✅ Initialized - credentials loaded from database")
+	return &InstanceBasedProviderLoader{
 		instanceRepo: instanceRepo,
 	}
-
-	// Initialize Vault client
-	vaultClient, err := secrets.NewVaultClient()
-	if err != nil {
-		log.Printf("[InstanceLoader] Warning: Failed to initialize Vault client: %v", err)
-		log.Printf("[InstanceLoader] Will fall back to database credentials only")
-	} else {
-		loader.vaultClient = vaultClient
-		log.Printf("[InstanceLoader] Vault client initialized successfully")
-	}
-
-	return loader
 }
 
-// getCredentialsFromVault loads credentials from Vault for a given provider
-func (l *InstanceBasedProviderLoader) getCredentialsFromVault(providerCode string, vaultPath string) (map[string]string, error) {
-	if l.vaultClient == nil {
-		log.Printf("[InstanceLoader] ⚠️ VAULT CLIENT NOT INITIALIZED - Cannot load credentials for %s", providerCode)
-		return nil, fmt.Errorf("vault client not initialized")
+// getCredentials returns credentials from database (api_credentials JSONB column)
+func (l *InstanceBasedProviderLoader) getCredentials(instance *models.AggregatorInstanceWithDetails) (map[string]string, error) {
+	log.Printf("[InstanceLoader] 🔍 Loading credentials for: %s (instance: %s)", instance.ProviderCode, instance.InstanceName)
+
+	// Read credentials from database
+	if len(instance.APICredentials) == 0 {
+		log.Printf("[InstanceLoader] ❌ No credentials found in database for %s", instance.ProviderCode)
+		return nil, fmt.Errorf("no credentials configured for %s - add them in admin panel", instance.ProviderCode)
 	}
 
-	// Use custom vault path if provided, otherwise use default
-	path := vaultPath
-	if path == "" {
-		path = fmt.Sprintf("secret/aggregators/%s", providerCode)
-	}
-
-	// Convert path for KV v2: secret/aggregators/x -> secret/data/aggregators/x
-	kvV2Path := convertToKVv2Path(path)
-	log.Printf("[InstanceLoader] 🔑 Loading credentials from Vault:")
-	log.Printf("[InstanceLoader]    Provider: %s", providerCode)
-	log.Printf("[InstanceLoader]    Path (KV v1): %s", path)
-	log.Printf("[InstanceLoader]    Path (KV v2): %s", kvV2Path)
-
-	// Try KV v2 path first
-	data, err := l.vaultClient.GetSecret(kvV2Path)
-	if err != nil {
-		// Fall back to KV v1 path
-		log.Printf("[InstanceLoader] ⚠️ KV v2 path failed: %v", err)
-		log.Printf("[InstanceLoader] 🔄 Trying KV v1 path: %s", path)
-		data, err = l.vaultClient.GetSecret(path)
-		if err != nil {
-			log.Printf("[InstanceLoader] ❌ VAULT ERROR: Failed to get secret from both KV v1 and v2 paths")
-			log.Printf("[InstanceLoader]    Error: %v", err)
-			log.Printf("[InstanceLoader]    💡 TIP: Configure credentials in admin panel at /dashboard/aggregators")
-			return nil, fmt.Errorf("failed to get secret from vault: %w", err)
+	// Filter out placeholders and empty values
+	validCreds := make(map[string]string)
+	for k, v := range instance.APICredentials {
+		if v != "" && !isPlaceholder(v) {
+			validCreds[k] = v
 		}
 	}
 
-	// Handle KV v2 nested data structure
-	actualData := extractVaultData(data)
-
-	// Convert map[string]interface{} to map[string]string
-	creds := make(map[string]string)
-	for key, value := range actualData {
-		if str, ok := value.(string); ok {
-			creds[key] = str
-		}
+	if len(validCreds) == 0 {
+		log.Printf("[InstanceLoader] ❌ All credentials are placeholders for %s", instance.ProviderCode)
+		log.Printf("[InstanceLoader] 💡 Configure real credentials in Admin Panel -> Agrégateurs -> %s", instance.ProviderCode)
+		return nil, fmt.Errorf("credentials are placeholders for %s - configure real API keys in admin panel", instance.ProviderCode)
 	}
 
-	// Log credential keys (NOT values for security)
-	log.Printf("[InstanceLoader] ✅ Loaded %d credentials from Vault for %s", len(creds), providerCode)
-	if len(creds) > 0 {
-		keys := make([]string, 0, len(creds))
-		for k := range creds {
-			keys = append(keys, k)
-		}
-		log.Printf("[InstanceLoader]    Keys found: %v", keys)
-	} else {
-		log.Printf("[InstanceLoader] ⚠️ WARNING: Vault path exists but contains no credentials!")
+	// Log keys found (not values for security)
+	keys := make([]string, 0, len(validCreds))
+	for k := range validCreds {
+		keys = append(keys, k)
 	}
+	log.Printf("[InstanceLoader] ✅ Loaded %d credentials from DB: %v", len(validCreds), keys)
 
-	return creds, nil
-}
-
-// convertToKVv2Path converts a KV v1 style path to KV v2 style
-// secret/aggregators/paypal -> secret/data/aggregators/paypal
-func convertToKVv2Path(path string) string {
-	// If path already contains /data/, return as is
-	if len(path) > 7 && path[7:11] == "data" {
-		return path
-	}
-
-	// Find the first slash (mount point separator)
-	for i, c := range path {
-		if c == '/' {
-			// Insert /data after the mount point
-			return path[:i] + "/data" + path[i:]
-		}
-	}
-	return path
-}
-
-// extractVaultData handles both KV v1 and KV v2 data structures
-func extractVaultData(data map[string]interface{}) map[string]interface{} {
-	// KV v2 stores actual data under a "data" key
-	if nestedData, ok := data["data"]; ok {
-		if nested, ok := nestedData.(map[string]interface{}); ok {
-			return nested
-		}
-	}
-	// KV v1 or already extracted data
-	return data
-}
-
-// getCredentials returns credentials from Vault using instance's vault path, or falls back to database credentials
-func (l *InstanceBasedProviderLoader) getCredentials(instance *models.AggregatorInstanceWithDetails, vaultPath string) (map[string]string, error) {
-	log.Printf("[InstanceLoader] 🔍 Getting credentials for provider: %s (instance: %s)", instance.ProviderCode, instance.InstanceName)
-	log.Printf("[InstanceLoader]    Vault path: %s", vaultPath)
-	log.Printf("[InstanceLoader]    DB credentials count: %d", len(instance.APICredentials))
-
-	// Always try Vault first if we have a vault path (this is the recommended approach)
-	if vaultPath != "" && l.vaultClient != nil {
-		creds, err := l.getCredentialsFromVault(instance.ProviderCode, vaultPath)
-		if err == nil && len(creds) > 0 {
-			// Validate that credentials are not empty/placeholder
-			validCreds := make(map[string]string)
-			for k, v := range creds {
-				if v != "" && !isPlaceholder(v) {
-					validCreds[k] = v
-				} else {
-					log.Printf("[InstanceLoader] ⚠️ Skipping placeholder/empty credential: %s", k)
-				}
-			}
-			if len(validCreds) > 0 {
-				log.Printf("[InstanceLoader] ✅ Using %d valid credentials from Vault for %s", len(validCreds), instance.ProviderCode)
-				return validCreds, nil
-			}
-			log.Printf("[InstanceLoader] ⚠️ Vault credentials exist but all are placeholders/empty")
-		} else if err != nil {
-			log.Printf("[InstanceLoader] ⚠️ Vault load failed for %s: %v", instance.ProviderCode, err)
-		}
-		log.Printf("[InstanceLoader] 🔄 Checking database fallback...")
-	} else {
-		if vaultPath == "" {
-			log.Printf("[InstanceLoader] ⚠️ No vault path configured for instance %s", instance.InstanceName)
-		}
-		if l.vaultClient == nil {
-			log.Printf("[InstanceLoader] ⚠️ Vault client not available")
-		}
-	}
-
-	// Fall back to database credentials if Vault fails
-	if len(instance.APICredentials) > 0 {
-		log.Printf("[InstanceLoader] 📦 Checking database credentials...")
-		// Verify credentials are not placeholders
-		validCreds := make(map[string]string)
-		for k, v := range instance.APICredentials {
-			if v != "" && !isPlaceholder(v) {
-				validCreds[k] = v
-			} else {
-				log.Printf("[InstanceLoader]    Skipping placeholder/empty DB credential: %s = '%s'", k, maskCredential(v))
-			}
-		}
-		if len(validCreds) > 0 {
-			log.Printf("[InstanceLoader] ✅ Using %d valid credentials from database for %s", len(validCreds), instance.ProviderCode)
-			return validCreds, nil
-		}
-		log.Printf("[InstanceLoader] ❌ Database credentials exist but all are placeholders/empty")
-	}
-
-	log.Printf("[InstanceLoader] ❌ NO VALID CREDENTIALS FOUND for %s", instance.ProviderCode)
-	log.Printf("[InstanceLoader] ═══════════════════════════════════════════════════════")
-	log.Printf("[InstanceLoader] 💡 TO FIX THIS ISSUE:")
-	log.Printf("[InstanceLoader]    1. Go to Admin Dashboard -> Agrégateurs -> %s", instance.ProviderCode)
-	log.Printf("[InstanceLoader]    2. Click on the instance '%s'", instance.InstanceName)
-	log.Printf("[InstanceLoader]    3. Go to 'Credentials API' tab")
-	log.Printf("[InstanceLoader]    4. Enter your real API credentials from %s", instance.ProviderCode)
-	log.Printf("[InstanceLoader]    5. Save and retry the transaction")
-	log.Printf("[InstanceLoader] ═══════════════════════════════════════════════════════")
-
-	return nil, fmt.Errorf("no valid credentials found for %s (vault path: %s) - configure in admin panel", instance.ProviderCode, vaultPath)
-}
-
-// maskCredential masks a credential for safe logging
-func maskCredential(value string) string {
-	if len(value) <= 4 {
-		return "****"
-	}
-	return value[:2] + "***" + value[len(value)-2:]
+	return validCreds, nil
 }
 
 // isPlaceholder checks if a credential value is a placeholder
@@ -256,69 +108,49 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 
 	log.Printf("[InstanceLoader] ════════════════════════════════════════════════════")
 	log.Printf("[InstanceLoader] 🚀 LOADING PROVIDER: %s", instance.ProviderCode)
-	log.Printf("[InstanceLoader]    Instance ID: %s", instance.ID)
-	log.Printf("[InstanceLoader]    Instance Name: %s", instance.InstanceName)
-	log.Printf("[InstanceLoader]    Enabled: %v", instance.Enabled)
-	log.Printf("[InstanceLoader]    Is Test Mode: %v", instance.IsTestMode)
+	log.Printf("[InstanceLoader]    Instance: %s (%s)", instance.InstanceName, instance.ID)
+	log.Printf("[InstanceLoader]    Enabled: %v | Test Mode: %v", instance.Enabled, instance.IsTestMode)
 	log.Printf("[InstanceLoader] ════════════════════════════════════════════════════")
-
-	// Use VaultSecretPath from instance if available, otherwise fall back to default
-	vaultPath := instance.VaultSecretPath
-	if vaultPath == "" {
-		// Check environment variable as fallback
-		envKey := fmt.Sprintf("%s_VAULT_PATH", instance.ProviderCode)
-		vaultPath = os.Getenv(envKey)
-		if vaultPath != "" {
-			log.Printf("[InstanceLoader] 📍 Vault path from env var %s: %s", envKey, vaultPath)
-		}
-	}
-	if vaultPath == "" {
-		// Final fallback to default path
-		vaultPath = fmt.Sprintf("secret/aggregators/%s", instance.ProviderCode)
-		log.Printf("[InstanceLoader] 📍 Using default vault path: %s", vaultPath)
-	} else {
-		log.Printf("[InstanceLoader] 📍 Using configured vault path: %s", vaultPath)
-	}
 
 	switch instance.ProviderCode {
 	case "flutterwave":
-		return l.loadFlutterwaveFromInstance(instance, vaultPath)
+		return l.loadFlutterwaveFromInstance(instance)
 	case "cinetpay":
-		return l.loadCinetPayFromInstance(instance, vaultPath)
+		return l.loadCinetPayFromInstance(instance)
 	case "paystack":
-		return l.loadPaystackFromInstance(instance, vaultPath)
+		return l.loadPaystackFromInstance(instance)
 	case "stripe":
-		return l.loadStripeFromInstance(instance, vaultPath)
+		return l.loadStripeFromInstance(instance)
 	case "wave", "wave_money", "wave_ci", "wave_sn":
-		return l.loadWaveFromInstance(instance, vaultPath)
+		return l.loadWaveFromInstance(instance)
 	case "paypal":
-		return l.loadPayPalFromInstance(instance, vaultPath)
+		return l.loadPayPalFromInstance(instance)
 	case "orange_money":
-		return l.loadOrangeMoneyFromInstance(instance, vaultPath)
+		return l.loadOrangeMoneyFromInstance(instance)
 	case "mtn_momo", "mtn_money":
-		return l.loadMTNMoMoFromInstance(instance, vaultPath)
+		return l.loadMTNMoMoFromInstance(instance)
 	case "lygos":
-		return l.loadLygosFromInstance(instance, vaultPath)
+		return l.loadLygosFromInstance(instance)
 	case "yellowcard":
-		return l.loadYellowCardFromInstance(instance, vaultPath)
+		return l.loadYellowCardFromInstance(instance)
 	case "moov_money", "moov":
-		return l.loadMoovMoneyFromInstance(instance, vaultPath)
+		return l.loadMoovMoneyFromInstance(instance)
 	case "fedapay":
-		return l.loadFedaPayFromInstance(instance, vaultPath)
+		return l.loadFedaPayFromInstance(instance)
 	case "pawapay":
-		return l.loadPawapayFromInstance(instance, vaultPath)
+		return l.loadPawapayFromInstance(instance)
 	case "hubtel":
-		return l.loadHubtelFromInstance(instance, vaultPath)
+		return l.loadHubtelFromInstance(instance)
 	case "demo":
 		return l.loadDemoFromInstance(instance)
 	default:
-		log.Printf("[InstanceLoader] ⚠️ Unknown provider code: %s - attempting generic load", instance.ProviderCode)
+		log.Printf("[InstanceLoader] ⚠️ Unknown provider: %s", instance.ProviderCode)
 		return nil, fmt.Errorf("unknown provider: %s", instance.ProviderCode)
 	}
 }
 
-func (l *InstanceBasedProviderLoader) loadFlutterwaveFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadFlutterwaveFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Flutterwave credentials: %w", err)
 	}
@@ -338,10 +170,10 @@ func (l *InstanceBasedProviderLoader) loadFlutterwaveFromInstance(instance *mode
 	return NewFlutterwaveCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadCinetPayFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+func (l *InstanceBasedProviderLoader) loadCinetPayFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	log.Printf("[InstanceLoader] 🔧 Initializing CinetPay provider...")
 
-	creds, err := l.getCredentials(instance, vaultPath)
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ CinetPay credential error: %v", err)
 		return nil, fmt.Errorf("failed to get CinetPay credentials: %w", err)
@@ -377,8 +209,8 @@ func (l *InstanceBasedProviderLoader) loadCinetPayFromInstance(instance *models.
 	return NewCinetPayCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadPaystackFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadPaystackFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Paystack credentials: %w", err)
 	}
@@ -396,8 +228,8 @@ func (l *InstanceBasedProviderLoader) loadPaystackFromInstance(instance *models.
 	return NewPaystackCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadStripeFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadStripeFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Stripe credentials: %w", err)
 	}
@@ -416,10 +248,10 @@ func (l *InstanceBasedProviderLoader) loadStripeFromInstance(instance *models.Ag
 	return NewStripeCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadWaveFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+func (l *InstanceBasedProviderLoader) loadWaveFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	log.Printf("[InstanceLoader] 🔧 Initializing Wave provider...")
 
-	creds, err := l.getCredentials(instance, vaultPath)
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ Wave credential error: %v", err)
 		return nil, fmt.Errorf("failed to get Wave credentials: %w", err)
@@ -445,10 +277,10 @@ func (l *InstanceBasedProviderLoader) loadWaveFromInstance(instance *models.Aggr
 	return NewWaveCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadPayPalFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+func (l *InstanceBasedProviderLoader) loadPayPalFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	log.Printf("[InstanceLoader] 🔧 Initializing PayPal provider...")
 
-	creds, err := l.getCredentials(instance, vaultPath)
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ PayPal credential error: %v", err)
 		return nil, fmt.Errorf("failed to get PayPal credentials: %w", err)
@@ -501,8 +333,8 @@ func (l *InstanceBasedProviderLoader) loadPayPalFromInstance(instance *models.Ag
 	return NewPayPalCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadOrangeMoneyFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadOrangeMoneyFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Orange Money credentials: %w", err)
 	}
@@ -521,8 +353,8 @@ func (l *InstanceBasedProviderLoader) loadOrangeMoneyFromInstance(instance *mode
 	return NewOrangeMoneyCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MTN MoMo credentials: %w", err)
 	}
@@ -556,8 +388,8 @@ func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.A
 	return NewMTNMoMoCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadLygosFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadLygosFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Lygos credentials: %w", err)
 	}
@@ -575,8 +407,8 @@ func (l *InstanceBasedProviderLoader) loadLygosFromInstance(instance *models.Agg
 	return NewLygosCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadYellowCardFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadYellowCardFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get YellowCard credentials: %w", err)
 	}
@@ -595,8 +427,8 @@ func (l *InstanceBasedProviderLoader) loadYellowCardFromInstance(instance *model
 	return NewYellowCardCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadMoovMoneyFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadMoovMoneyFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Moov Money credentials: %w", err)
 	}
@@ -614,8 +446,8 @@ func (l *InstanceBasedProviderLoader) loadMoovMoneyFromInstance(instance *models
 	return NewMoovMoneyCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadFedaPayFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
-	creds, err := l.getCredentials(instance, vaultPath)
+func (l *InstanceBasedProviderLoader) loadFedaPayFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get FedaPay credentials: %w", err)
 	}
@@ -634,10 +466,10 @@ func (l *InstanceBasedProviderLoader) loadFedaPayFromInstance(instance *models.A
 	return NewFedaPayCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadPawapayFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+func (l *InstanceBasedProviderLoader) loadPawapayFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	log.Printf("[InstanceLoader] 🔧 Initializing Pawapay provider...")
 
-	creds, err := l.getCredentials(instance, vaultPath)
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ Pawapay credential error: %v", err)
 		return nil, fmt.Errorf("failed to get Pawapay credentials: %w", err)
@@ -663,10 +495,10 @@ func (l *InstanceBasedProviderLoader) loadPawapayFromInstance(instance *models.A
 	return NewPawapayCollectionProvider(config), nil
 }
 
-func (l *InstanceBasedProviderLoader) loadHubtelFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+func (l *InstanceBasedProviderLoader) loadHubtelFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
 	log.Printf("[InstanceLoader] 🔧 Initializing Hubtel provider...")
 
-	creds, err := l.getCredentials(instance, vaultPath)
+	creds, err := l.getCredentials(instance)
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ Hubtel credential error: %v", err)
 		return nil, fmt.Errorf("failed to get Hubtel credentials: %w", err)

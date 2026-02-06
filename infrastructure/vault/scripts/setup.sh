@@ -31,11 +31,11 @@ apk add --no-cache jq
 if [ -f "/vault/file/init-keys.json" ]; then
     echo "Found init-keys.json. Content:"
     cat /vault/file/init-keys.json
-    
+
     echo "Attempting to parse keys..."
     UNSEAL_KEY=$(jq -r ".unseal_keys_b64[0]" /vault/file/init-keys.json)
     ROOT_TOKEN=$(jq -r ".root_token" /vault/file/init-keys.json)
-    
+
     # Fallback if jq failed or returned null
     if [ -z "$UNSEAL_KEY" ] || [ "$UNSEAL_KEY" = "null" ]; then
         echo "jq failed. Trying fallback grep/sed..."
@@ -87,7 +87,7 @@ EXISTING_KEY=$(vault kv get -field=wallet_master_key secret/wallet-service 2>/de
 
 if [ -z "$EXISTING_KEY" ]; then
     echo "Generating new WALLET_MASTER_KEY..."
-    
+
     # Method 1: Try openssl (most reliable)
     if command -v openssl > /dev/null 2>&1; then
         NEW_KEY=$(openssl rand -hex 32)
@@ -105,16 +105,16 @@ if [ -z "$EXISTING_KEY" ]; then
         NEW_KEY=$(hexdump -vn32 -e'4/4 "%08X" 1 "\n"' /dev/urandom | tr -d ' \n' | tr '[:upper:]' '[:lower:]')
         echo "Generated key using hexdump fallback"
     fi
-    
+
     # Validate key length
     if [ -z "$NEW_KEY" ] || [ ${#NEW_KEY} -lt 64 ]; then
         echo "ERROR: Failed to generate valid WALLET_MASTER_KEY (got ${#NEW_KEY} chars, need 64)"
         exit 1
     fi
-    
+
     # Truncate to exactly 64 chars if longer
     NEW_KEY=$(echo "$NEW_KEY" | head -c 64)
-    
+
     # Also generate WALLET_SECRET and WALLET_SALT for backward compatibility
     if command -v openssl > /dev/null 2>&1; then
         NEW_SECRET=$(openssl rand -base64 32)
@@ -123,14 +123,14 @@ if [ -z "$EXISTING_KEY" ]; then
         NEW_SECRET=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)
         NEW_SALT=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | base64)
     fi
-    
+
     # Write all secrets to Vault
     vault kv put secret/wallet-service \
         tatum_api_key="${TATUM_API_KEY}" \
         wallet_master_key="${NEW_KEY}" \
         wallet_secret="${NEW_SECRET}" \
         wallet_salt="${NEW_SALT}"
-        
+
     echo "========================================"
     echo "  SECURITY KEYS GENERATED SUCCESSFULLY"
     echo "========================================"
@@ -153,7 +153,109 @@ else
     echo "Dev token created: dev-token-secure-2024"
 fi
 
+# ============================================================================
+# Initialize Payment Provider Secrets
+# ============================================================================
+echo ""
+echo "=========================================="
+echo "  Initializing Payment Provider Secrets"
+echo "=========================================="
+
+# CinetPay - West Africa (UEMOA)
+echo "🔧 Configuring CinetPay..."
+vault kv put secret/aggregators/cinetpay \
+    api_key="${CINETPAY_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
+    site_id="${CINETPAY_SITE_ID:-REPLACE_WITH_YOUR_SITE_ID}" \
+    secret_key="${CINETPAY_SECRET_KEY:-}" \
+    base_url="https://api-checkout.cinetpay.com/v2" \
+    mode="${CINETPAY_MODE:-sandbox}" || echo "CinetPay config failed"
+
+# Wave - Senegal, Côte d'Ivoire
+echo "🔧 Configuring Wave..."
+vault kv put secret/aggregators/wave_money \
+    api_key="${WAVE_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
+    secret_key="${WAVE_SECRET_KEY:-}" \
+    webhook_secret="${WAVE_WEBHOOK_SECRET:-}" \
+    base_url="https://api.wave.com/v1" \
+    environment="${WAVE_ENVIRONMENT:-sandbox}" || echo "Wave config failed"
+
+# MTN MoMo
+echo "🔧 Configuring MTN MoMo..."
+vault kv put secret/aggregators/mtn_money \
+    api_user="${MTN_MOMO_API_USER:-REPLACE_WITH_YOUR_API_USER}" \
+    api_key="${MTN_MOMO_API_KEY:-REPLACE_WITH_YOUR_API_KEY}" \
+    subscription_key="${MTN_MOMO_SUBSCRIPTION_KEY:-REPLACE_WITH_YOUR_SUBSCRIPTION_KEY}" \
+    base_url="https://sandbox.momodeveloper.mtn.com" \
+    environment="${MTN_MOMO_ENVIRONMENT:-sandbox}" || echo "MTN MoMo config failed"
+
+# Orange Money
+echo "🔧 Configuring Orange Money..."
+vault kv put secret/aggregators/orange_money \
+    client_id="${ORANGE_MONEY_CLIENT_ID:-REPLACE_WITH_YOUR_CLIENT_ID}" \
+    client_secret="${ORANGE_MONEY_CLIENT_SECRET:-REPLACE_WITH_YOUR_CLIENT_SECRET}" \
+    merchant_key="${ORANGE_MONEY_MERCHANT_KEY:-REPLACE_WITH_YOUR_MERCHANT_KEY}" \
+    base_url="https://api.orange.com/orange-money-webpay" \
+    environment="${ORANGE_MONEY_ENVIRONMENT:-sandbox}" || echo "Orange Money config failed"
+
+# Flutterwave
+echo "🔧 Configuring Flutterwave..."
+vault kv put secret/aggregators/flutterwave \
+    public_key="${FLUTTERWAVE_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLIC_KEY}" \
+    secret_key="${FLUTTERWAVE_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
+    encryption_key="${FLUTTERWAVE_ENCRYPTION_KEY:-}" \
+    webhook_secret="${FLUTTERWAVE_WEBHOOK_SECRET:-}" \
+    base_url="https://api.flutterwave.com/v3" || echo "Flutterwave config failed"
+
+# Paystack
+echo "🔧 Configuring Paystack..."
+vault kv put secret/aggregators/paystack \
+    public_key="${PAYSTACK_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLIC_KEY}" \
+    secret_key="${PAYSTACK_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
+    webhook_secret="${PAYSTACK_WEBHOOK_SECRET:-}" \
+    base_url="https://api.paystack.co" || echo "Paystack config failed"
+
+# PayPal
+echo "🔧 Configuring PayPal..."
+vault kv put secret/aggregators/paypal \
+    client_id="${PAYPAL_CLIENT_ID:-REPLACE_WITH_YOUR_CLIENT_ID}" \
+    client_secret="${PAYPAL_CLIENT_SECRET:-REPLACE_WITH_YOUR_CLIENT_SECRET}" \
+    webhook_id="${PAYPAL_WEBHOOK_ID:-}" \
+    mode="${PAYPAL_MODE:-sandbox}" \
+    base_url="https://api-m.sandbox.paypal.com" || echo "PayPal config failed"
+
+# Stripe
+echo "🔧 Configuring Stripe..."
+vault kv put secret/aggregators/stripe \
+    api_key="${STRIPE_SECRET_KEY:-REPLACE_WITH_YOUR_SECRET_KEY}" \
+    public_key="${STRIPE_PUBLIC_KEY:-REPLACE_WITH_YOUR_PUBLISHABLE_KEY}" \
+    webhook_secret="${STRIPE_WEBHOOK_SECRET:-}" \
+    base_url="https://api.stripe.com/v1" || echo "Stripe config failed"
+
+# Demo Provider (always works)
+echo "🔧 Configuring Demo Provider..."
+vault kv put secret/aggregators/demo \
+    api_key="demo_api_key_always_works" \
+    mode="demo" || echo "Demo config failed"
+
+echo ""
+echo "✅ Payment provider secrets initialized!"
+echo ""
+echo "=========================================="
+
 echo "Vault setup complete!"
 echo "Root Token: $ROOT_TOKEN"
 echo "Unseal Key: $UNSEAL_KEY"
 echo "Service Token: dev-token-secure-2024"
+echo ""
+echo "📋 Vault paths for aggregators:"
+echo "   secret/aggregators/cinetpay"
+echo "   secret/aggregators/wave_money"
+echo "   secret/aggregators/mtn_money"
+echo "   secret/aggregators/orange_money"
+echo "   secret/aggregators/flutterwave"
+echo "   secret/aggregators/paystack"
+echo "   secret/aggregators/paypal"
+echo "   secret/aggregators/stripe"
+echo "   secret/aggregators/demo"
+echo ""
+echo "⚠️  Replace PLACEHOLDER credentials with real API keys!"
