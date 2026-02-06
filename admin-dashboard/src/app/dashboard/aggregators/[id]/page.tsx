@@ -1,1220 +1,1913 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import {
-    ArrowLeftIcon,
-    PlusIcon,
-    ServerIcon,
-    CheckCircleIcon,
-    XCircleIcon,
-    TrashIcon,
-    PencilIcon,
-    LinkIcon,
-    WalletIcon,
-} from '@heroicons/react/24/outline';
+  ArrowLeftIcon,
+  PlusIcon,
+  ServerIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  TrashIcon,
+  PencilIcon,
+  LinkIcon,
+  WalletIcon,
+  KeyIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
+
+// Credentials field configuration per provider
+const PROVIDER_CREDENTIALS: Record<
+  string,
+  { key: string; label: string; required: boolean; secret: boolean }[]
+> = {
+  cinetpay: [
+    { key: "api_key", label: "API Key", required: true, secret: true },
+    { key: "site_id", label: "Site ID", required: true, secret: false },
+    { key: "secret_key", label: "Secret Key", required: false, secret: true },
+  ],
+  wave: [
+    { key: "api_key", label: "API Key", required: true, secret: true },
+    { key: "secret_key", label: "Secret Key", required: false, secret: true },
+  ],
+  mtn_money: [
+    { key: "api_user", label: "API User", required: true, secret: false },
+    { key: "api_key", label: "API Key", required: true, secret: true },
+    {
+      key: "subscription_key",
+      label: "Subscription Key",
+      required: true,
+      secret: true,
+    },
+  ],
+  orange_money: [
+    { key: "client_id", label: "Client ID", required: true, secret: false },
+    {
+      key: "client_secret",
+      label: "Client Secret",
+      required: true,
+      secret: true,
+    },
+    {
+      key: "merchant_key",
+      label: "Merchant Key",
+      required: true,
+      secret: true,
+    },
+  ],
+  paypal: [
+    { key: "client_id", label: "Client ID", required: true, secret: false },
+    {
+      key: "client_secret",
+      label: "Client Secret",
+      required: true,
+      secret: true,
+    },
+    {
+      key: "mode",
+      label: "Mode (sandbox/live)",
+      required: false,
+      secret: false,
+    },
+  ],
+  stripe: [
+    {
+      key: "api_key",
+      label: "Secret Key (sk_...)",
+      required: true,
+      secret: true,
+    },
+    {
+      key: "public_key",
+      label: "Publishable Key (pk_...)",
+      required: true,
+      secret: false,
+    },
+    {
+      key: "webhook_secret",
+      label: "Webhook Secret",
+      required: false,
+      secret: true,
+    },
+  ],
+  flutterwave: [
+    { key: "public_key", label: "Public Key", required: true, secret: false },
+    { key: "secret_key", label: "Secret Key", required: true, secret: true },
+    {
+      key: "encryption_key",
+      label: "Encryption Key",
+      required: true,
+      secret: true,
+    },
+  ],
+  paystack: [
+    { key: "public_key", label: "Public Key", required: true, secret: false },
+    { key: "secret_key", label: "Secret Key", required: true, secret: true },
+  ],
+  default: [
+    { key: "api_key", label: "API Key", required: true, secret: true },
+    { key: "secret_key", label: "Secret Key", required: false, secret: true },
+    { key: "client_id", label: "Client ID", required: false, secret: false },
+    {
+      key: "client_secret",
+      label: "Client Secret",
+      required: false,
+      secret: true,
+    },
+  ],
+};
 
 interface ProviderInstance {
-    id: string;
-    provider_id: string;
-    name: string;
-    vault_secret_path: string;
-    hot_wallet_id?: string;
-    is_active: boolean;
-    is_primary: boolean;
-    is_global: boolean; // Accepts all countries
-    is_paused: boolean; // Transactions paused
-    priority: number;
-    request_count: number;
-    health_status: string;
-    last_used_at?: string;
-    last_error?: string;
-    created_at: string;
+  id: string;
+  provider_id: string;
+  name: string;
+  vault_secret_path: string;
+  hot_wallet_id?: string;
+  is_active: boolean;
+  is_primary: boolean;
+  is_global: boolean;
+  is_paused: boolean;
+  priority: number;
+  request_count: number;
+  health_status: string;
+  last_used_at?: string;
+  last_error?: string;
+  created_at: string;
+  has_credentials?: boolean;
+}
+
+interface ProviderCredentials {
+  [key: string]: string;
 }
 
 interface PlatformAccount {
-    id: string;
-    currency: string;
-    balance: number;
-    alias: string;
-    name?: string;
-    account_type?: string;
+  id: string;
+  currency: string;
+  balance: number;
+  alias: string;
+  name?: string;
+  account_type?: string;
 }
 
 interface InstanceWallet {
-    id: string;
-    instance_id: string;
-    currency: string;
-    hot_wallet_id: string;
-    is_active: boolean;
-    priority: number;
+  id: string;
+  instance_id: string;
+  currency: string;
+  hot_wallet_id: string;
+  is_active: boolean;
+  priority: number;
 }
 
 export default function AggregatorInstancesPage() {
-    const params = useParams();
-    const router = useRouter();
-    const providerId = params.id as string;
+  const params = useParams();
+  const router = useRouter();
+  const providerId = params.id as string;
 
-    const [instances, setInstances] = useState<ProviderInstance[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [showLinkWalletModal, setShowLinkWalletModal] = useState(false);
-    const [selectedInstance, setSelectedInstance] = useState<ProviderInstance | null>(null);
-    const [editingInstance, setEditingInstance] = useState<ProviderInstance | null>(null);
-    const [showPauseWarning, setShowPauseWarning] = useState(false);
-    const [hotWallets, setHotWallets] = useState<PlatformAccount[]>([]);
-    const [countries, setCountries] = useState<any[]>([]);
-    const [providerName, setProviderName] = useState('');
-    const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
-    const [selectedWalletId, setSelectedWalletId] = useState('');
-    const [selectedCurrency, setSelectedCurrency] = useState('');
-    const [showAddCountryModal, setShowAddCountryModal] = useState(false);
-    const [instanceWallets, setInstanceWallets] = useState<Record<string, InstanceWallet[]>>({});
-    const [expandedInstance, setExpandedInstance] = useState<string | null>(null);
-    const [newCountry, setNewCountry] = useState({
-        country_code: '',
-        country_name: '',
-        currency: 'XOF',
-        priority: 50,
-        fee_percentage: 0
-    });
+  const [instances, setInstances] = useState<ProviderInstance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showLinkWalletModal, setShowLinkWalletModal] = useState(false);
+  const [selectedInstance, setSelectedInstance] =
+    useState<ProviderInstance | null>(null);
+  const [editingInstance, setEditingInstance] =
+    useState<ProviderInstance | null>(null);
+  const [showPauseWarning, setShowPauseWarning] = useState(false);
+  const [hotWallets, setHotWallets] = useState<PlatformAccount[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [providerName, setProviderName] = useState("");
+  const [selectedWalletIds, setSelectedWalletIds] = useState<string[]>([]);
+  const [selectedWalletId, setSelectedWalletId] = useState("");
+  const [selectedCurrency, setSelectedCurrency] = useState("");
+  const [showAddCountryModal, setShowAddCountryModal] = useState(false);
+  const [instanceWallets, setInstanceWallets] = useState<
+    Record<string, InstanceWallet[]>
+  >({});
+  const [expandedInstance, setExpandedInstance] = useState<string | null>(null);
+  const [providerCode, setProviderCode] = useState("");
 
-    // Region presets for quick country addition
-    const REGION_PRESETS: Record<string, { name: string; countries: { code: string; name: string; currency: string }[] }> = {
-        UEMOA: {
-            name: 'UEMOA (Zone XOF)',
-            countries: [
-                { code: 'BJ', name: 'Bénin', currency: 'XOF' },
-                { code: 'BF', name: 'Burkina Faso', currency: 'XOF' },
-                { code: 'CI', name: "Côte d'Ivoire", currency: 'XOF' },
-                { code: 'GW', name: 'Guinée-Bissau', currency: 'XOF' },
-                { code: 'ML', name: 'Mali', currency: 'XOF' },
-                { code: 'NE', name: 'Niger', currency: 'XOF' },
-                { code: 'SN', name: 'Sénégal', currency: 'XOF' },
-                { code: 'TG', name: 'Togo', currency: 'XOF' },
-            ]
-        },
-        CEMAC: {
-            name: 'CEMAC (Zone XAF)',
-            countries: [
-                { code: 'CM', name: 'Cameroun', currency: 'XAF' },
-                { code: 'CF', name: 'Centrafrique', currency: 'XAF' },
-                { code: 'TD', name: 'Tchad', currency: 'XAF' },
-                { code: 'CG', name: 'Congo', currency: 'XAF' },
-                { code: 'GQ', name: 'Guinée Équatoriale', currency: 'XAF' },
-                { code: 'GA', name: 'Gabon', currency: 'XAF' },
-            ]
-        },
-        WEST_AFRICA: {
-            name: 'Afrique de l\'Ouest (Autres)',
-            countries: [
-                { code: 'GH', name: 'Ghana', currency: 'GHS' },
-                { code: 'NG', name: 'Nigeria', currency: 'NGN' },
-                { code: 'GN', name: 'Guinée', currency: 'GNF' },
-                { code: 'SL', name: 'Sierra Leone', currency: 'SLL' },
-                { code: 'LR', name: 'Libéria', currency: 'LRD' },
-                { code: 'GM', name: 'Gambie', currency: 'GMD' },
-            ]
-        },
-        EAST_AFRICA: {
-            name: 'Afrique de l\'Est',
-            countries: [
-                { code: 'KE', name: 'Kenya', currency: 'KES' },
-                { code: 'TZ', name: 'Tanzanie', currency: 'TZS' },
-                { code: 'UG', name: 'Ouganda', currency: 'UGX' },
-                { code: 'RW', name: 'Rwanda', currency: 'RWF' },
-            ]
-        }
-    };
+  // Credentials management
+  const [editTab, setEditTab] = useState<"general" | "credentials">("general");
+  const [credentials, setCredentials] = useState<ProviderCredentials>({});
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [loadingCredentials, setLoadingCredentials] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
 
-    const addRegionCountries = async (regionKey: string) => {
-        const region = REGION_PRESETS[regionKey];
-        if (!region) return;
+  const [newCountry, setNewCountry] = useState({
+    country_code: "",
+    country_name: "",
+    currency: "XOF",
+    priority: 50,
+    fee_percentage: 0,
+  });
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-        const token = localStorage.getItem('admin_token');
+  // Region presets for quick country addition
+  const REGION_PRESETS: Record<
+    string,
+    {
+      name: string;
+      countries: { code: string; name: string; currency: string }[];
+    }
+  > = {
+    UEMOA: {
+      name: "UEMOA (Zone XOF)",
+      countries: [
+        { code: "BJ", name: "Bénin", currency: "XOF" },
+        { code: "BF", name: "Burkina Faso", currency: "XOF" },
+        { code: "CI", name: "Côte d'Ivoire", currency: "XOF" },
+        { code: "GW", name: "Guinée-Bissau", currency: "XOF" },
+        { code: "ML", name: "Mali", currency: "XOF" },
+        { code: "NE", name: "Niger", currency: "XOF" },
+        { code: "SN", name: "Sénégal", currency: "XOF" },
+        { code: "TG", name: "Togo", currency: "XOF" },
+      ],
+    },
+    CEMAC: {
+      name: "CEMAC (Zone XAF)",
+      countries: [
+        { code: "CM", name: "Cameroun", currency: "XAF" },
+        { code: "CF", name: "Centrafrique", currency: "XAF" },
+        { code: "TD", name: "Tchad", currency: "XAF" },
+        { code: "CG", name: "Congo", currency: "XAF" },
+        { code: "GQ", name: "Guinée Équatoriale", currency: "XAF" },
+        { code: "GA", name: "Gabon", currency: "XAF" },
+      ],
+    },
+    WEST_AFRICA: {
+      name: "Afrique de l'Ouest (Autres)",
+      countries: [
+        { code: "GH", name: "Ghana", currency: "GHS" },
+        { code: "NG", name: "Nigeria", currency: "NGN" },
+        { code: "GN", name: "Guinée", currency: "GNF" },
+        { code: "SL", name: "Sierra Leone", currency: "SLL" },
+        { code: "LR", name: "Libéria", currency: "LRD" },
+        { code: "GM", name: "Gambie", currency: "GMD" },
+      ],
+    },
+    EAST_AFRICA: {
+      name: "Afrique de l'Est",
+      countries: [
+        { code: "KE", name: "Kenya", currency: "KES" },
+        { code: "TZ", name: "Tanzanie", currency: "TZS" },
+        { code: "UG", name: "Ouganda", currency: "UGX" },
+        { code: "RW", name: "Rwanda", currency: "RWF" },
+      ],
+    },
+  };
 
-        let addedCount = 0;
-        for (const country of region.countries) {
-            try {
-                const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        country_code: country.code,
-                        country_name: country.name,
-                        currency: country.currency,
-                        priority: 50,
-                        fee_percentage: 0
-                    })
-                });
-                if (response.ok) addedCount++;
-            } catch (e) {
-                console.error(`Failed to add ${country.code}`, e);
-            }
-        }
+  const addRegionCountries = async (regionKey: string) => {
+    const region = REGION_PRESETS[regionKey];
+    if (!region) return;
 
-        loadProviderDetails();
-        alert(`${addedCount} pays ajoutés sur ${region.countries.length}`);
-    };
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+    const token = localStorage.getItem("admin_token");
 
-    const [newInstance, setNewInstance] = useState({
-        name: '',
-        vault_secret_path: '',
-        is_active: true,
-        is_primary: false,
-        is_global: false, // Accepts all countries
-        priority: 50,
-    });
-
-    useEffect(() => {
-        if (providerId) {
-            loadInstances();
-            loadHotWallets();
-            loadProviderDetails();
-        }
-    }, [providerId]);
-
-    const loadProviderDetails = async () => {
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setProviderName(data.provider.display_name || data.provider.name);
-                setCountries(data.provider.countries || []);
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    const toggleCountry = async (countryCode: string, isActive: boolean) => {
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-
-            // Assuming endpoint structure based on standard conventions in this project
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries/${countryCode}/toggle`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ is_active: isActive })
-            });
-
-            if (response.ok) {
-                loadProviderDetails(); // Reload to get updated state
-            } else {
-                alert('Erreur lors de la modification du pays');
-            }
-        } catch (e) {
-            console.error('Error toggling country:', e);
-        }
-    };
-
-    const loadInstances = async () => {
-        setLoading(true);
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setInstances(data.instances || []);
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadHotWallets = async () => {
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const response = await fetch(`${API_URL}/api/v1/admin/platform/accounts?type=operations`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setHotWallets(data.accounts || []);
-            }
-        } catch (e) {
-            console.error('Failed to load wallets', e);
-        }
-    };
-
-    const loadInstanceWallets = async (instanceId: string) => {
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setInstanceWallets(prev => ({ ...prev, [instanceId]: data.wallets || [] }));
-            }
-        } catch (e) {
-            console.error('Failed to load instance wallets', e);
-        }
-    };
-
-    const addWalletToInstance = async (instanceId: string, currency: string, hotWalletId: string) => {
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currency, hot_wallet_id: hotWalletId, priority: 50 })
-            });
-            if (response.ok) {
-                loadInstanceWallets(instanceId);
-                setShowLinkWalletModal(false);
-            }
-        } catch (e) {
-            console.error('Failed to add wallet', e);
-        }
-    };
-
-    const removeWalletFromInstance = async (instanceId: string, walletLinkId: string) => {
-        if (!confirm('Retirer ce wallet de l\'instance ?')) return;
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets/${walletLinkId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            loadInstanceWallets(instanceId);
-        } catch (e) {
-            console.error('Failed to remove wallet', e);
-        }
-    };
-
-    const toggleWalletSelection = (walletId: string) => {
-        setSelectedWalletIds(prev =>
-            prev.includes(walletId)
-                ? prev.filter(id => id !== walletId)
-                : [...prev, walletId]
+    let addedCount = 0;
+    for (const country of region.countries) {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              country_code: country.code,
+              country_name: country.name,
+              currency: country.currency,
+              priority: 50,
+              fee_percentage: 0,
+            }),
+          },
         );
-    };
+        if (response.ok) addedCount++;
+      } catch (e) {
+        console.error(`Failed to add ${country.code}`, e);
+      }
+    }
 
-    const toggleAllWallets = () => {
-        if (selectedWalletIds.length === hotWallets.length) {
-            setSelectedWalletIds([]);
-        } else {
-            setSelectedWalletIds(hotWallets.map(w => w.id));
+    loadProviderDetails();
+    alert(`${addedCount} pays ajoutés sur ${region.countries.length}`);
+  };
+
+  const [newInstance, setNewInstance] = useState({
+    name: "",
+    vault_secret_path: "",
+    is_active: true,
+    is_primary: false,
+    is_global: false,
+    priority: 50,
+  });
+
+  // Get credential fields for current provider
+  const getCredentialFields = () => {
+    const code = providerCode.toLowerCase();
+    return PROVIDER_CREDENTIALS[code] || PROVIDER_CREDENTIALS.default;
+  };
+
+  // Load credentials for an instance
+  const loadCredentials = async (instanceId: string) => {
+    setLoadingCredentials(true);
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/credentials`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setCredentials(data.credentials || {});
+      } else {
+        setCredentials({});
+      }
+    } catch (error) {
+      console.error("Failed to load credentials:", error);
+      setCredentials({});
+    } finally {
+      setLoadingCredentials(false);
+    }
+  };
+
+  // Save credentials for an instance
+  const saveCredentials = async (instanceId: string) => {
+    setSavingCredentials(true);
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      // Filter out empty values
+      const filteredCreds: ProviderCredentials = {};
+      Object.entries(credentials).forEach(([key, value]) => {
+        if (value && value.trim() !== "" && !value.startsWith("****")) {
+          filteredCreds[key] = value;
         }
-    };
+      });
 
-    const handleCreateInstance = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            const path = newInstance.vault_secret_path || `secret/aggregators/${providerName.toLowerCase().replace(/\s+/g, '_')}/${newInstance.name.toLowerCase().replace(/\s+/g, '_')}`;
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/credentials`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(filteredCreds),
+        },
+      );
 
-            // Build wallets array
-            const walletsPayload = selectedWalletIds.map(id => {
-                const w = hotWallets.find(hw => hw.id === id);
-                return {
-                    hot_wallet_id: id,
-                    currency: w?.currency || 'XOF'
-                };
-            });
+      if (response.ok) {
+        alert("✅ Credentials sauvegardés avec succès!");
+        return true;
+      } else {
+        const errData = await response.json();
+        alert("Erreur: " + (errData.error || "Impossible de sauvegarder"));
+        return false;
+      }
+    } catch (error) {
+      console.error("Failed to save credentials:", error);
+      alert("Erreur de connexion");
+      return false;
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
 
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ...newInstance,
-                    vault_secret_path: path,
-                    wallets: walletsPayload
-                })
-            });
+  // Toggle secret visibility
+  const toggleSecretVisibility = (key: string) => {
+    setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
-            if (response.ok) {
-                setShowCreateModal(false);
-                loadInstances();
-                setNewInstance({
-                    name: '',
-                    vault_secret_path: '',
-                    is_active: true,
-                    is_primary: false,
-                    is_global: false,
-                    priority: 50,
-                });
-                setSelectedWalletIds([]);
-            } else {
-                const errData = await response.json();
-                alert(`Failed to create instance: ${errData.error || 'Unknown error'}`);
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Failed to create instance: Network error');
-        }
-    };
+  useEffect(() => {
+    if (providerId) {
+      loadInstances();
+      loadHotWallets();
+      loadProviderDetails();
+    }
+  }, [providerId]);
 
-    const handleLinkWallet = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedInstance) return;
+  const loadProviderDetails = async () => {
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setProviderName(data.provider.display_name || data.provider.name);
+        setCountries(data.provider.countries || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
+  const toggleCountry = async (countryCode: string, isActive: boolean) => {
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
 
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${selectedInstance.id}/link-wallet`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ hot_wallet_id: selectedWalletId })
-            });
+      // Assuming endpoint structure based on standard conventions in this project
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/countries/${countryCode}/toggle`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ is_active: isActive }),
+        },
+      );
 
-            if (response.ok) {
-                setShowLinkWalletModal(false);
-                loadInstances();
-            } else {
-                alert('Failed to link wallet');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+      if (response.ok) {
+        loadProviderDetails(); // Reload to get updated state
+      } else {
+        alert("Erreur lors de la modification du pays");
+      }
+    } catch (e) {
+      console.error("Error toggling country:", e);
+    }
+  };
 
-    const deleteInstance = async (id: string) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette instance ?')) return;
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-            await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            loadInstances();
-        } catch (e) {
-            console.error(e);
-        }
-    };
+  const loadInstances = async () => {
+    setLoading(true);
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setInstances(data.instances || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Open edit modal with instance data
-    const openEditModal = (inst: ProviderInstance) => {
-        setEditingInstance(inst);
-        setNewInstance({
-            name: inst.name,
-            vault_secret_path: inst.vault_secret_path,
-            is_active: inst.is_active,
-            is_primary: inst.is_primary,
-            is_global: inst.is_global || false,
-            priority: inst.priority,
-        });
-        setShowEditModal(true);
-    };
+  const loadHotWallets = async () => {
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/platform/accounts?type=operations`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setHotWallets(data.accounts || []);
+      }
+    } catch (e) {
+      console.error("Failed to load wallets", e);
+    }
+  };
 
-    // Pause/Resume instance (warning shown before pause)
-    const toggleInstancePause = async (inst: ProviderInstance, newPausedState: boolean) => {
-        if (newPausedState) {
-            // Show warning before pausing
-            if (!confirm('⚠️ ATTENTION: Mettre en pause cette instance va suspendre toutes les transactions en cours.\n\nLes utilisateurs ne pourront plus effectuer de dépôts/retraits via cette instance tant qu\'elle sera en pause.\n\nÊtes-vous sûr de vouloir continuer?')) {
-                return;
-            }
-        }
+  const loadInstanceWallets = async (instanceId: string) => {
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setInstanceWallets((prev) => ({
+          ...prev,
+          [instanceId]: data.wallets || [],
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load instance wallets", e);
+    }
+  };
 
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
+  const addWalletToInstance = async (
+    instanceId: string,
+    currency: string,
+    hotWalletId: string,
+  ) => {
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            currency,
+            hot_wallet_id: hotWalletId,
+            priority: 50,
+          }),
+        },
+      );
+      if (response.ok) {
+        loadInstanceWallets(instanceId);
+        setShowLinkWalletModal(false);
+      }
+    } catch (e) {
+      console.error("Failed to add wallet", e);
+    }
+  };
 
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}/pause`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ is_paused: newPausedState })
-            });
+  const removeWalletFromInstance = async (
+    instanceId: string,
+    walletLinkId: string,
+  ) => {
+    if (!confirm("Retirer ce wallet de l'instance ?")) return;
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets/${walletLinkId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      loadInstanceWallets(instanceId);
+    } catch (e) {
+      console.error("Failed to remove wallet", e);
+    }
+  };
 
-            if (response.ok) {
-                loadInstances();
-                alert(newPausedState ? '⏸️ Instance mise en pause' : '▶️ Instance reprise');
-            } else {
-                alert('Erreur lors de la modification');
-            }
-        } catch (e) {
-            console.error('Error toggling pause:', e);
-        }
-    };
-
-    // Update existing instance
-    const handleUpdateInstance = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingInstance) return;
-
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${editingInstance.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: newInstance.name,
-                    vault_secret_path: newInstance.vault_secret_path,
-                    is_active: newInstance.is_active,
-                    is_primary: newInstance.is_primary,
-                    is_global: newInstance.is_global,
-                    priority: newInstance.priority,
-                })
-            });
-
-            if (response.ok) {
-                setShowEditModal(false);
-                setEditingInstance(null);
-                loadInstances();
-                setNewInstance({
-                    name: '',
-                    vault_secret_path: '',
-                    is_active: true,
-                    is_primary: false,
-                    is_global: false,
-                    priority: 50,
-                });
-            } else {
-                const errData = await response.json();
-                alert(`Erreur: ${errData.error || 'Unknown error'}`);
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Erreur réseau');
-        }
-    };
-
-    // Generate vault path preview
-    const getVaultPathPreview = () => {
-        if (newInstance.vault_secret_path) return newInstance.vault_secret_path;
-        const providerSlug = providerName.toLowerCase().replace(/\s+/g, '_');
-        const instanceSlug = newInstance.name.toLowerCase().replace(/\s+/g, '_') || 'instance_name';
-        return `secret/aggregators/${providerSlug}/${instanceSlug}`;
-    };
-
-    const handleAddCountry = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
-            const token = localStorage.getItem('admin_token');
-
-            const response = await fetch(`${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(newCountry)
-            });
-
-            if (response.ok) {
-                setShowAddCountryModal(false);
-                loadProviderDetails();
-                setNewCountry({
-                    country_code: '',
-                    country_name: '',
-                    currency: 'XOF',
-                    priority: 50,
-                    fee_percentage: 0
-                });
-            } else {
-                alert('Erreur lors de l\'ajout du pays');
-            }
-        } catch (e) {
-            console.error('Error adding country:', e);
-        }
-    };
-
-    const getFlagEmoji = (countryCode: string) => {
-        if (!countryCode) return '🏳️';
-        const codePoints = countryCode
-            .toUpperCase()
-            .split('')
-            .map(char => 127397 + char.charCodeAt(0));
-        return String.fromCodePoint(...codePoints);
-    };
-
-    return (
-        <div className="space-y-6 animate-fadeIn">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => router.back()}
-                        className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
-                    >
-                        <ArrowLeftIcon className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{providerName}</h1>
-                        <p className="text-gray-500 text-sm">Gestion des instances et des pays</p>
-                    </div>
-                </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="btn-primary flex items-center gap-2"
-                >
-                    <PlusIcon className="w-5 h-5" />
-                    Nouvelle Instance
-                </button>
-            </div>
-
-            {/* Countries Management Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-gray-900">Pays Supportés</h2>
-                    <button
-                        onClick={() => setShowAddCountryModal(true)}
-                        className="btn-secondary flex items-center gap-2 text-sm"
-                    >
-                        <PlusIcon className="w-4 h-4" />
-                        Ajouter Pays
-                    </button>
-                </div>
-                {countries.length === 0 ? (
-                    <p className="text-gray-500 italic">Aucun pays configuré pour cet agrégateur.</p>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {countries.map((country: any) => (
-                            <div key={country.country_code} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">{getFlagEmoji(country.country_code)}</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">{country.country_name}</p>
-                                        <p className="text-xs text-gray-500">{country.currency}</p>
-                                    </div>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={country.is_active}
-                                        onChange={(e) => toggleCountry(country.country_code, e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                </label>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">Instances Configurées</h2>
-
-            {/* List */}
-            {loading ? (
-
-                <div className="flex justify-center py-12">
-                    <div className="spinner w-8 h-8" />
-                </div>
-            ) : instances.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-                    <ServerIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">Aucune instance configurée</h3>
-                    <p className="text-gray-500 mb-6">Ajoutez une première instance pour activer ce provider</p>
-                    <button onClick={() => setShowCreateModal(true)} className="btn-secondary">
-                        Ajouter une instance
-                    </button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {instances.map(inst => (
-                        <div key={inst.id} className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow ${inst.is_paused ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200'}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <h3 className="font-bold text-gray-900">{inst.name}</h3>
-                                        {inst.is_primary && (
-                                            <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">Principal</span>
-                                        )}
-                                        {inst.is_global && (
-                                            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium">🌍 Global</span>
-                                        )}
-                                        {inst.is_paused && (
-                                            <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium animate-pulse">⏸️ En pause</span>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-gray-500 font-mono mt-1 break-all">{inst.vault_secret_path}</p>
-                                </div>
-                                <div className={`w-3 h-3 rounded-full ${inst.is_active && !inst.is_paused ? 'bg-emerald-500' : inst.is_paused ? 'bg-amber-500' : 'bg-gray-300'}`} />
-                            </div>
-
-                            <div className="space-y-3 mb-6">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Santé</span>
-                                    <span className={`font-medium ${inst.health_status === 'healthy' ? 'text-emerald-600' :
-                                        inst.health_status === 'error' ? 'text-red-600' : 'text-gray-500'
-                                        }`}>
-                                        {inst.health_status}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Requêtes</span>
-                                    <span className="font-medium text-gray-900">{inst.request_count}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Priorité</span>
-                                    <span className="font-medium text-gray-900">{inst.priority}</span>
-                                </div>
-                            </div>
-
-                            {/* Multi-Wallet Section */}
-                            <div className="mb-4">
-                                <button
-                                    onClick={() => {
-                                        if (expandedInstance === inst.id) {
-                                            setExpandedInstance(null);
-                                        } else {
-                                            setExpandedInstance(inst.id);
-                                            loadInstanceWallets(inst.id);
-                                        }
-                                    }}
-                                    className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                                >
-                                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                                        <WalletIcon className="w-4 h-4 text-emerald-600" />
-                                        <span>Hot Wallets</span>
-                                        {instanceWallets[inst.id]?.length > 0 && (
-                                            <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">
-                                                {instanceWallets[inst.id].length} liés
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-gray-400 text-xs">
-                                        {expandedInstance === inst.id ? '▲' : '▼'}
-                                    </span>
-                                </button>
-
-                                {expandedInstance === inst.id && (
-                                    <div className="mt-2 space-y-2 p-3 border border-gray-200 rounded-lg">
-                                        {/* Currency badges for linked wallets */}
-                                        {instanceWallets[inst.id]?.length > 0 ? (
-                                            <div className="flex flex-wrap gap-2 mb-3">
-                                                {instanceWallets[inst.id].map(w => {
-                                                    const walletDetails = hotWallets.find(hw => hw.id === w.hot_wallet_id);
-                                                    return (
-                                                        <div key={w.id} className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
-                                                            <span className="text-xs font-medium text-emerald-700">
-                                                                {w.currency} <span className="opacity-75 text-[10px] hidden sm:inline">- {walletDetails?.name || 'Wallet'}</span>
-                                                            </span>
-                                                            <button
-                                                                onClick={() => removeWalletFromInstance(inst.id, w.id)}
-                                                                className="text-red-400 hover:text-red-600 ml-1"
-                                                                title="Retirer"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-gray-500 italic mb-2">Aucun wallet lié</p>
-                                        )}
-
-                                        {/* Add wallet button */}
-                                        <button
-                                            onClick={() => {
-                                                setSelectedInstance(inst);
-                                                setShowLinkWalletModal(true);
-                                            }}
-                                            className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1"
-                                        >
-                                            <PlusIcon className="w-3 h-3" />
-                                            Ajouter Wallet
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 pt-4 border-t border-gray-100">
-                                {/* Edit Button */}
-                                <button
-                                    onClick={() => openEditModal(inst)}
-                                    className="flex-1 btn-secondary text-xs flex items-center justify-center gap-1"
-                                >
-                                    <PencilIcon className="w-3.5 h-3.5" />
-                                    Modifier
-                                </button>
-
-                                {/* Pause/Resume Button */}
-                                <button
-                                    onClick={() => toggleInstancePause(inst, !inst.is_paused)}
-                                    className={`flex-1 text-xs p-2 rounded-lg font-medium transition-colors ${inst.is_paused
-                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                        }`}
-                                >
-                                    {inst.is_paused ? '▶️ Reprendre' : '⏸️ Pause'}
-                                </button>
-
-                                {/* Delete Button */}
-                                <button
-                                    onClick={() => deleteInstance(inst.id)}
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                    <TrashIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Create Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
-                        <h2 className="text-xl font-bold mb-4">Nouvelle Instance</h2>
-                        <form onSubmit={handleCreateInstance} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nom (ex: Instance 1)</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="input w-full"
-                                    value={newInstance.name}
-                                    onChange={e => setNewInstance({ ...newInstance, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Chemin Vault</label>
-                                <input
-                                    type="text"
-                                    className="input w-full font-mono text-sm"
-                                    placeholder="Généré automatiquement si vide"
-                                    value={newInstance.vault_secret_path}
-                                    onChange={e => setNewInstance({ ...newInstance, vault_secret_path: e.target.value })}
-                                />
-                                {/* Vault Path Preview */}
-                                <div className="mt-2 p-2 bg-gray-100 rounded-lg border border-gray-200">
-                                    <p className="text-xs text-gray-500 mb-1">Chemin Vault utilisé:</p>
-                                    <code className="text-xs font-mono text-indigo-600 break-all">
-                                        {getVaultPathPreview()}
-                                    </code>
-                                </div>
-                            </div>
-
-                            {/* Hot Wallet Selection (Multi) */}
-                            <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="block text-sm font-medium text-gray-700">Hot Wallets Associés</label>
-                                    <button
-                                        type="button"
-                                        onClick={toggleAllWallets}
-                                        className="text-xs text-blue-600 hover:text-blue-800"
-                                    >
-                                        {selectedWalletIds.length === hotWallets.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-                                    </button>
-                                </div>
-                                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-                                    {hotWallets.length === 0 ? (
-                                        <p className="text-gray-500 text-sm">Aucun hot wallet disponible.</p>
-                                    ) : (
-                                        hotWallets.map(wallet => (
-                                            <label key={wallet.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
-                                                <input
-                                                    type="checkbox"
-                                                    className="checkbox checkbox-xs"
-                                                    checked={selectedWalletIds.includes(wallet.id)}
-                                                    onChange={() => toggleWalletSelection(wallet.id)}
-                                                />
-                                                <span className="text-sm">
-                                                    <span className="font-semibold">{wallet.currency}</span> - {wallet.name}
-                                                    <span className="text-gray-500 text-xs ml-1">(Solde: {wallet.balance})</span>
-                                                </span>
-                                            </label>
-                                        ))
-                                    )}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Associer des wallets pour permettre les dépôts/retraits immédiats.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-                                    <input
-                                        type="number"
-                                        className="input w-full"
-                                        value={newInstance.priority}
-                                        onChange={e => setNewInstance({ ...newInstance, priority: parseInt(e.target.value) })}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2 justify-end pb-1">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            checked={newInstance.is_primary}
-                                            onChange={e => setNewInstance({ ...newInstance, is_primary: e.target.checked })}
-                                        />
-                                        <span className="text-sm">Principal</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            checked={newInstance.is_global}
-                                            onChange={e => setNewInstance({ ...newInstance, is_global: e.target.checked })}
-                                        />
-                                        <span className="text-sm">🌍 Global (tous pays)</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">Annuler</button>
-                                <button type="submit" className="btn-primary">Créer</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Link Wallet Modal */}
-            {showLinkWalletModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
-                        <h2 className="text-xl font-bold mb-4">Lier Hot Wallets</h2>
-                        <p className="text-sm text-gray-500 mb-4">Sélectionnez les wallets à lier à cette instance.</p>
-
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="text-sm font-medium text-gray-700">Wallets Disponibles</label>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const linkedIds = instanceWallets[selectedInstance?.id || '']?.map(w => w.id) || [];
-                                    const available = hotWallets.filter(w => !linkedIds.includes(w.id));
-
-                                    // If all available are selected, deselect all. Otherwise select all available.
-                                    const availableIds = available.map(w => w.id);
-                                    const allSelected = availableIds.every(id => selectedWalletIds.includes(id));
-
-                                    if (allSelected) {
-                                        setSelectedWalletIds([]);
-                                    } else {
-                                        setSelectedWalletIds(availableIds);
-                                    }
-                                }}
-                                className="text-xs text-blue-600 hover:text-blue-800"
-                            >
-                                Tout sélectionner / désélectionner
-                            </button>
-                        </div>
-
-                        <div className="space-y-2 max-h-72 overflow-y-auto mb-6 border rounded-lg p-2 bg-gray-50">
-                            {hotWallets.filter(w => !instanceWallets[selectedInstance?.id || '']?.some(linked => linked.id === w.id)).length === 0 && (
-                                <p className="text-center text-gray-500 text-sm py-8 italic">Tous les wallets disponibles sont déjà liés.</p>
-                            )}
-
-                            {hotWallets.map(wallet => {
-                                const isLinked = instanceWallets[selectedInstance?.id || '']?.some(w => w.id === wallet.id);
-                                if (isLinked) return null;
-
-                                return (
-                                    <label
-                                        key={wallet.id}
-                                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${selectedWalletIds.includes(wallet.id)
-                                            ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
-                                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                                            }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox checkbox-sm mr-3"
-                                            checked={selectedWalletIds.includes(wallet.id)}
-                                            onChange={() => {
-                                                if (selectedWalletIds.includes(wallet.id)) {
-                                                    setSelectedWalletIds(prev => prev.filter(id => id !== wallet.id));
-                                                } else {
-                                                    setSelectedWalletIds(prev => [...prev, wallet.id]);
-                                                }
-                                            }}
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-medium text-gray-900">{wallet.name || wallet.alias || 'Wallet'}</span>
-                                                <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">
-                                                    {wallet.currency}
-                                                </div>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-0.5">
-                                                Solde: {wallet.balance?.toLocaleString()} {wallet.currency}
-                                            </p>
-                                        </div>
-                                    </label>
-                                );
-                            })}
-                        </div>
-
-                        <div className="flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowLinkWalletModal(false);
-                                    setSelectedWalletIds([]);
-                                }}
-                                className="btn-secondary"
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (selectedInstance && selectedWalletIds.length > 0) {
-                                        // Loop through to add multiple
-                                        for (const wid of selectedWalletIds) {
-                                            const w = hotWallets.find(hw => hw.id === wid);
-                                            if (w) {
-                                                await addWalletToInstance(selectedInstance.id, w.currency, w.id);
-                                            }
-                                        }
-                                        // Close and refresh happens in addWalletToInstance but we might need to manual refresh if loop
-                                        // Actually addWalletToInstance calls loadInstanceWallets. 
-                                        // To avoid race conditions visually, we just close.
-                                        setShowLinkWalletModal(false);
-                                        setSelectedWalletIds([]);
-                                        // Force reload one last time to be sure
-                                        setTimeout(() => loadInstanceWallets(selectedInstance.id), 500);
-                                    }
-                                }}
-                                className="btn-primary"
-                                disabled={selectedWalletIds.length === 0}
-                            >
-                                Lier ({selectedWalletIds.length})
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Country Modal */}
-            {showAddCountryModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scaleIn">
-                        <h2 className="text-xl font-bold mb-4">Ajouter un Pays</h2>
-
-                        {/* Quick Add Regions */}
-                        <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-                            <p className="text-sm font-medium text-gray-700 mb-3">Ajout rapide par région</p>
-                            <div className="flex flex-wrap gap-2">
-                                {Object.entries(REGION_PRESETS).map(([key, region]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => {
-                                            setShowAddCountryModal(false);
-                                            addRegionCountries(key);
-                                        }}
-                                        className="px-3 py-1.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
-                                    >
-                                        + {region.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-4">
-                            <p className="text-sm font-medium text-gray-700 mb-3">Ou ajouter un pays individuel</p>
-                            <form onSubmit={handleAddCountry} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Code Pays (ex: CI, SN)</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        maxLength={3}
-                                        className="input w-full uppercase"
-                                        placeholder="CI"
-                                        value={newCountry.country_code}
-                                        onChange={e => setNewCountry({ ...newCountry, country_code: e.target.value.toUpperCase() })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Pays</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="input w-full"
-                                        placeholder="Côte d'Ivoire"
-                                        value={newCountry.country_name}
-                                        onChange={e => setNewCountry({ ...newCountry, country_name: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                                    <select
-                                        className="input w-full"
-                                        value={newCountry.currency}
-                                        onChange={e => setNewCountry({ ...newCountry, currency: e.target.value })}
-                                    >
-                                        <option value="XOF">XOF (Franc CFA)</option>
-                                        <option value="XAF">XAF (Franc CFA CEMAC)</option>
-                                        <option value="GNF">GNF (Franc Guinéen)</option>
-                                        <option value="NGN">NGN (Naira)</option>
-                                        <option value="GHS">GHS (Cedi)</option>
-                                        <option value="KES">KES (Shilling Kenyan)</option>
-                                        <option value="USD">USD (Dollar US)</option>
-                                        <option value="EUR">EUR (Euro)</option>
-                                    </select>
-                                </div>
-                                <div className="flex justify-end gap-3 mt-6">
-                                    <button type="button" onClick={() => setShowAddCountryModal(false)} className="btn-secondary">Annuler</button>
-                                    <button type="submit" className="btn-primary">Ajouter</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Instance Modal */}
-            {showEditModal && editingInstance && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
-                        <h2 className="text-xl font-bold mb-2">Modifier l'Instance</h2>
-
-                        {/* Warning Banner */}
-                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                            <div className="flex items-start gap-2">
-                                <span className="text-lg">⚠️</span>
-                                <div>
-                                    <p className="text-sm font-medium text-amber-800">Attention</p>
-                                    <p className="text-xs text-amber-700">
-                                        La modification de cette instance peut affecter les transactions en cours.
-                                        Les changements seront appliqués immédiatement.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleUpdateInstance} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="input w-full"
-                                    value={newInstance.name}
-                                    onChange={e => setNewInstance({ ...newInstance, name: e.target.value })}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Chemin Vault</label>
-                                <input
-                                    type="text"
-                                    className="input w-full font-mono text-sm"
-                                    value={newInstance.vault_secret_path}
-                                    onChange={e => setNewInstance({ ...newInstance, vault_secret_path: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-                                    <input
-                                        type="number"
-                                        className="input w-full"
-                                        value={newInstance.priority}
-                                        onChange={e => setNewInstance({ ...newInstance, priority: parseInt(e.target.value) })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Checkboxes */}
-                            <div className="p-3 bg-gray-50 rounded-xl space-y-3">
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="checkbox"
-                                        checked={newInstance.is_active}
-                                        onChange={e => setNewInstance({ ...newInstance, is_active: e.target.checked })}
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium">Active</span>
-                                        <p className="text-xs text-gray-500">L'instance accepte les transactions</p>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="checkbox"
-                                        checked={newInstance.is_primary}
-                                        onChange={e => setNewInstance({ ...newInstance, is_primary: e.target.checked })}
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium">Principal</span>
-                                        <p className="text-xs text-gray-500">Instance prioritaire par défaut</p>
-                                    </div>
-                                </label>
-
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="checkbox"
-                                        checked={newInstance.is_global}
-                                        onChange={e => setNewInstance({ ...newInstance, is_global: e.target.checked })}
-                                    />
-                                    <div>
-                                        <span className="text-sm font-medium">🌍 Global</span>
-                                        <p className="text-xs text-gray-500">Accepte tous les pays (pas de restriction géographique)</p>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowEditModal(false);
-                                        setEditingInstance(null);
-                                        setNewInstance({
-                                            name: '',
-                                            vault_secret_path: '',
-                                            is_active: true,
-                                            is_primary: false,
-                                            is_global: false,
-                                            priority: 50,
-                                        });
-                                    }}
-                                    className="btn-secondary"
-                                >
-                                    Annuler
-                                </button>
-                                <button type="submit" className="btn-primary">
-                                    Enregistrer
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
+  const toggleWalletSelection = (walletId: string) => {
+    setSelectedWalletIds((prev) =>
+      prev.includes(walletId)
+        ? prev.filter((id) => id !== walletId)
+        : [...prev, walletId],
     );
+  };
+
+  const toggleAllWallets = () => {
+    if (selectedWalletIds.length === hotWallets.length) {
+      setSelectedWalletIds([]);
+    } else {
+      setSelectedWalletIds(hotWallets.map((w) => w.id));
+    }
+  };
+
+  const handleCreateInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      const path =
+        newInstance.vault_secret_path ||
+        `secret/aggregators/${providerName.toLowerCase().replace(/\s+/g, "_")}/${newInstance.name.toLowerCase().replace(/\s+/g, "_")}`;
+
+      // Build wallets array
+      const walletsPayload = selectedWalletIds.map((id) => {
+        const w = hotWallets.find((hw) => hw.id === id);
+        return {
+          hot_wallet_id: id,
+          currency: w?.currency || "XOF",
+        };
+      });
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...newInstance,
+            vault_secret_path: path,
+            wallets: walletsPayload,
+          }),
+        },
+      );
+
+      if (response.ok) {
+        setShowCreateModal(false);
+        loadInstances();
+        setNewInstance({
+          name: "",
+          vault_secret_path: "",
+          is_active: true,
+          is_primary: false,
+          is_global: false,
+          priority: 50,
+        });
+        setSelectedWalletIds([]);
+      } else {
+        const errData = await response.json();
+        alert(`Failed to create instance: ${errData.error || "Unknown error"}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create instance: Network error");
+    }
+  };
+
+  const handleLinkWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInstance) return;
+
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${selectedInstance.id}/link-wallet`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ hot_wallet_id: selectedWalletId }),
+        },
+      );
+
+      if (response.ok) {
+        setShowLinkWalletModal(false);
+        loadInstances();
+      } else {
+        alert("Failed to link wallet");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const deleteInstance = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette instance ?")) return;
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+      await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      loadInstances();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Open edit modal with instance data
+  const openEditModal = async (inst: ProviderInstance) => {
+    setEditingInstance(inst);
+    setNewInstance({
+      name: inst.name,
+      vault_secret_path: inst.vault_secret_path,
+      is_active: inst.is_active,
+      is_primary: inst.is_primary,
+      is_global: inst.is_global || false,
+      priority: inst.priority,
+    });
+    setEditTab("general");
+    setCredentials({});
+    setShowSecrets({});
+    setShowEditModal(true);
+    // Load credentials in background
+    loadCredentials(inst.id);
+  };
+
+  // Pause/Resume instance (warning shown before pause)
+  const toggleInstancePause = async (
+    inst: ProviderInstance,
+    newPausedState: boolean,
+  ) => {
+    if (newPausedState) {
+      // Show warning before pausing
+      if (
+        !confirm(
+          "⚠️ ATTENTION: Mettre en pause cette instance va suspendre toutes les transactions en cours.\n\nLes utilisateurs ne pourront plus effectuer de dépôts/retraits via cette instance tant qu'elle sera en pause.\n\nÊtes-vous sûr de vouloir continuer?",
+        )
+      ) {
+        return;
+      }
+    }
+
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}/pause`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ is_paused: newPausedState }),
+        },
+      );
+
+      if (response.ok) {
+        loadInstances();
+        alert(
+          newPausedState ? "⏸️ Instance mise en pause" : "▶️ Instance reprise",
+        );
+      } else {
+        alert("Erreur lors de la modification");
+      }
+    } catch (e) {
+      console.error("Error toggling pause:", e);
+    }
+  };
+
+  // Update existing instance
+  const handleUpdateInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInstance) return;
+
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      // Build request body
+      const requestBody: any = {
+        name: newInstance.name,
+        vault_secret_path: newInstance.vault_secret_path,
+        is_active: newInstance.is_active,
+        is_primary: newInstance.is_primary,
+        is_global: newInstance.is_global,
+        priority: newInstance.priority,
+      };
+
+      // Include credentials if any were modified (not masked)
+      const hasRealCredentials = Object.entries(credentials).some(
+        ([_, v]) => v && v.trim() !== "" && !v.startsWith("****"),
+      );
+      if (hasRealCredentials) {
+        const filteredCreds: ProviderCredentials = {};
+        Object.entries(credentials).forEach(([key, value]) => {
+          if (value && value.trim() !== "" && !value.startsWith("****")) {
+            filteredCreds[key] = value;
+          }
+        });
+        requestBody.credentials = filteredCreds;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${editingInstance.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        },
+      );
+
+      if (response.ok) {
+        setShowEditModal(false);
+        setEditingInstance(null);
+        setCredentials({});
+        setShowSecrets({});
+        loadInstances();
+        setNewInstance({
+          name: "",
+          vault_secret_path: "",
+          is_active: true,
+          is_primary: false,
+          is_global: false,
+          priority: 50,
+        });
+        alert("✅ Instance mise à jour avec succès!");
+      } else {
+        const errData = await response.json();
+        alert(`Erreur: ${errData.error || "Unknown error"}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erreur réseau");
+    }
+  };
+
+  // Generate vault path preview
+  const getVaultPathPreview = () => {
+    if (newInstance.vault_secret_path) return newInstance.vault_secret_path;
+    const providerSlug = providerName.toLowerCase().replace(/\s+/g, "_");
+    const instanceSlug =
+      newInstance.name.toLowerCase().replace(/\s+/g, "_") || "instance_name";
+    return `secret/aggregators/${providerSlug}/${instanceSlug}`;
+  };
+
+  const handleAddCountry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/countries`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newCountry),
+        },
+      );
+
+      if (response.ok) {
+        setShowAddCountryModal(false);
+        loadProviderDetails();
+        setNewCountry({
+          country_code: "",
+          country_name: "",
+          currency: "XOF",
+          priority: 50,
+          fee_percentage: 0,
+        });
+      } else {
+        alert("Erreur lors de l'ajout du pays");
+      }
+    } catch (e) {
+      console.error("Error adding country:", e);
+    }
+  };
+
+  const getFlagEmoji = (countryCode: string) => {
+    if (!countryCode) return "🏳️";
+    const codePoints = countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{providerName}</h1>
+            <p className="text-gray-500 text-sm">
+              Gestion des instances et des pays
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <PlusIcon className="w-5 h-5" />
+          Nouvelle Instance
+        </button>
+      </div>
+
+      {/* Countries Management Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Pays Supportés</h2>
+          <button
+            onClick={() => setShowAddCountryModal(true)}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Ajouter Pays
+          </button>
+        </div>
+        {countries.length === 0 ? (
+          <p className="text-gray-500 italic">
+            Aucun pays configuré pour cet agrégateur.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {countries.map((country: any) => (
+              <div
+                key={country.country_code}
+                className="flex items-center justify-between p-4 border rounded-xl bg-gray-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">
+                    {getFlagEmoji(country.country_code)}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {country.country_name}
+                    </p>
+                    <p className="text-xs text-gray-500">{country.currency}</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={country.is_active}
+                    onChange={(e) =>
+                      toggleCountry(country.country_code, e.target.checked)
+                    }
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">
+        Instances Configurées
+      </h2>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="spinner w-8 h-8" />
+        </div>
+      ) : instances.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+          <ServerIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900">
+            Aucune instance configurée
+          </h3>
+          <p className="text-gray-500 mb-6">
+            Ajoutez une première instance pour activer ce provider
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-secondary"
+          >
+            Ajouter une instance
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {instances.map((inst) => (
+            <div
+              key={inst.id}
+              className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-shadow ${inst.is_paused ? "border-amber-300 bg-amber-50/30" : "border-gray-200"}`}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-gray-900">{inst.name}</h3>
+                    {inst.is_primary && (
+                      <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                        Principal
+                      </span>
+                    )}
+                    {inst.is_global && (
+                      <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                        🌍 Global
+                      </span>
+                    )}
+                    {inst.is_paused && (
+                      <span className="bg-amber-200 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium animate-pulse">
+                        ⏸️ En pause
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 font-mono mt-1 break-all">
+                    {inst.vault_secret_path}
+                  </p>
+                </div>
+                <div
+                  className={`w-3 h-3 rounded-full ${inst.is_active && !inst.is_paused ? "bg-emerald-500" : inst.is_paused ? "bg-amber-500" : "bg-gray-300"}`}
+                />
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Santé</span>
+                  <span
+                    className={`font-medium ${
+                      inst.health_status === "healthy"
+                        ? "text-emerald-600"
+                        : inst.health_status === "error"
+                          ? "text-red-600"
+                          : "text-gray-500"
+                    }`}
+                  >
+                    {inst.health_status}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Requêtes</span>
+                  <span className="font-medium text-gray-900">
+                    {inst.request_count}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Priorité</span>
+                  <span className="font-medium text-gray-900">
+                    {inst.priority}
+                  </span>
+                </div>
+              </div>
+
+              {/* Multi-Wallet Section */}
+              <div className="mb-4">
+                <button
+                  onClick={() => {
+                    if (expandedInstance === inst.id) {
+                      setExpandedInstance(null);
+                    } else {
+                      setExpandedInstance(inst.id);
+                      loadInstanceWallets(inst.id);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <WalletIcon className="w-4 h-4 text-emerald-600" />
+                    <span>Hot Wallets</span>
+                    {instanceWallets[inst.id]?.length > 0 && (
+                      <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">
+                        {instanceWallets[inst.id].length} liés
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-gray-400 text-xs">
+                    {expandedInstance === inst.id ? "▲" : "▼"}
+                  </span>
+                </button>
+
+                {expandedInstance === inst.id && (
+                  <div className="mt-2 space-y-2 p-3 border border-gray-200 rounded-lg">
+                    {/* Currency badges for linked wallets */}
+                    {instanceWallets[inst.id]?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {instanceWallets[inst.id].map((w) => {
+                          const walletDetails = hotWallets.find(
+                            (hw) => hw.id === w.hot_wallet_id,
+                          );
+                          return (
+                            <div
+                              key={w.id}
+                              className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1"
+                            >
+                              <span className="text-xs font-medium text-emerald-700">
+                                {w.currency}{" "}
+                                <span className="opacity-75 text-[10px] hidden sm:inline">
+                                  - {walletDetails?.name || "Wallet"}
+                                </span>
+                              </span>
+                              <button
+                                onClick={() =>
+                                  removeWalletFromInstance(inst.id, w.id)
+                                }
+                                className="text-red-400 hover:text-red-600 ml-1"
+                                title="Retirer"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic mb-2">
+                        Aucun wallet lié
+                      </p>
+                    )}
+
+                    {/* Add wallet button */}
+                    <button
+                      onClick={() => {
+                        setSelectedInstance(inst);
+                        setShowLinkWalletModal(true);
+                      }}
+                      className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <PlusIcon className="w-3 h-3" />
+                      Ajouter Wallet
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-gray-100">
+                {/* Edit Button */}
+                <button
+                  onClick={() => openEditModal(inst)}
+                  className="flex-1 btn-secondary text-xs flex items-center justify-center gap-1"
+                >
+                  <PencilIcon className="w-3.5 h-3.5" />
+                  Modifier
+                </button>
+
+                {/* Pause/Resume Button */}
+                <button
+                  onClick={() => toggleInstancePause(inst, !inst.is_paused)}
+                  className={`flex-1 text-xs p-2 rounded-lg font-medium transition-colors ${
+                    inst.is_paused
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                  }`}
+                >
+                  {inst.is_paused ? "▶️ Reprendre" : "⏸️ Pause"}
+                </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={() => deleteInstance(inst.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
+            <h2 className="text-xl font-bold mb-4">Nouvelle Instance</h2>
+            <form onSubmit={handleCreateInstance} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nom (ex: Instance 1)
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="input w-full"
+                  value={newInstance.name}
+                  onChange={(e) =>
+                    setNewInstance({ ...newInstance, name: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chemin Vault
+                </label>
+                <input
+                  type="text"
+                  className="input w-full font-mono text-sm"
+                  placeholder="Généré automatiquement si vide"
+                  value={newInstance.vault_secret_path}
+                  onChange={(e) =>
+                    setNewInstance({
+                      ...newInstance,
+                      vault_secret_path: e.target.value,
+                    })
+                  }
+                />
+                {/* Vault Path Preview */}
+                <div className="mt-2 p-2 bg-gray-100 rounded-lg border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">
+                    Chemin Vault utilisé:
+                  </p>
+                  <code className="text-xs font-mono text-indigo-600 break-all">
+                    {getVaultPathPreview()}
+                  </code>
+                </div>
+              </div>
+
+              {/* Hot Wallet Selection (Multi) */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Hot Wallets Associés
+                  </label>
+                  <button
+                    type="button"
+                    onClick={toggleAllWallets}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    {selectedWalletIds.length === hotWallets.length
+                      ? "Tout désélectionner"
+                      : "Tout sélectionner"}
+                  </button>
+                </div>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                  {hotWallets.length === 0 ? (
+                    <p className="text-gray-500 text-sm">
+                      Aucun hot wallet disponible.
+                    </p>
+                  ) : (
+                    hotWallets.map((wallet) => (
+                      <label
+                        key={wallet.id}
+                        className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-xs"
+                          checked={selectedWalletIds.includes(wallet.id)}
+                          onChange={() => toggleWalletSelection(wallet.id)}
+                        />
+                        <span className="text-sm">
+                          <span className="font-semibold">
+                            {wallet.currency}
+                          </span>{" "}
+                          - {wallet.name}
+                          <span className="text-gray-500 text-xs ml-1">
+                            (Solde: {wallet.balance})
+                          </span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Associer des wallets pour permettre les dépôts/retraits
+                  immédiats.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Priorité
+                  </label>
+                  <input
+                    type="number"
+                    className="input w-full"
+                    value={newInstance.priority}
+                    onChange={(e) =>
+                      setNewInstance({
+                        ...newInstance,
+                        priority: parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2 justify-end pb-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={newInstance.is_primary}
+                      onChange={(e) =>
+                        setNewInstance({
+                          ...newInstance,
+                          is_primary: e.target.checked,
+                        })
+                      }
+                    />
+                    <span className="text-sm">Principal</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={newInstance.is_global}
+                      onChange={(e) =>
+                        setNewInstance({
+                          ...newInstance,
+                          is_global: e.target.checked,
+                        })
+                      }
+                    />
+                    <span className="text-sm">🌍 Global (tous pays)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button type="submit" className="btn-primary">
+                  Créer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Link Wallet Modal */}
+      {showLinkWalletModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-scaleIn">
+            <h2 className="text-xl font-bold mb-4">Lier Hot Wallets</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Sélectionnez les wallets à lier à cette instance.
+            </p>
+
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Wallets Disponibles
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const linkedIds =
+                    instanceWallets[selectedInstance?.id || ""]?.map(
+                      (w) => w.id,
+                    ) || [];
+                  const available = hotWallets.filter(
+                    (w) => !linkedIds.includes(w.id),
+                  );
+
+                  // If all available are selected, deselect all. Otherwise select all available.
+                  const availableIds = available.map((w) => w.id);
+                  const allSelected = availableIds.every((id) =>
+                    selectedWalletIds.includes(id),
+                  );
+
+                  if (allSelected) {
+                    setSelectedWalletIds([]);
+                  } else {
+                    setSelectedWalletIds(availableIds);
+                  }
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Tout sélectionner / désélectionner
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-72 overflow-y-auto mb-6 border rounded-lg p-2 bg-gray-50">
+              {hotWallets.filter(
+                (w) =>
+                  !instanceWallets[selectedInstance?.id || ""]?.some(
+                    (linked) => linked.id === w.id,
+                  ),
+              ).length === 0 && (
+                <p className="text-center text-gray-500 text-sm py-8 italic">
+                  Tous les wallets disponibles sont déjà liés.
+                </p>
+              )}
+
+              {hotWallets.map((wallet) => {
+                const isLinked = instanceWallets[
+                  selectedInstance?.id || ""
+                ]?.some((w) => w.id === wallet.id);
+                if (isLinked) return null;
+
+                return (
+                  <label
+                    key={wallet.id}
+                    className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedWalletIds.includes(wallet.id)
+                        ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm mr-3"
+                      checked={selectedWalletIds.includes(wallet.id)}
+                      onChange={() => {
+                        if (selectedWalletIds.includes(wallet.id)) {
+                          setSelectedWalletIds((prev) =>
+                            prev.filter((id) => id !== wallet.id),
+                          );
+                        } else {
+                          setSelectedWalletIds((prev) => [...prev, wallet.id]);
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">
+                          {wallet.name || wallet.alias || "Wallet"}
+                        </span>
+                        <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">
+                          {wallet.currency}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Solde: {wallet.balance?.toLocaleString()}{" "}
+                        {wallet.currency}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkWalletModal(false);
+                  setSelectedWalletIds([]);
+                }}
+                className="btn-secondary"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  if (selectedInstance && selectedWalletIds.length > 0) {
+                    // Loop through to add multiple
+                    for (const wid of selectedWalletIds) {
+                      const w = hotWallets.find((hw) => hw.id === wid);
+                      if (w) {
+                        await addWalletToInstance(
+                          selectedInstance.id,
+                          w.currency,
+                          w.id,
+                        );
+                      }
+                    }
+                    // Close and refresh happens in addWalletToInstance but we might need to manual refresh if loop
+                    // Actually addWalletToInstance calls loadInstanceWallets.
+                    // To avoid race conditions visually, we just close.
+                    setShowLinkWalletModal(false);
+                    setSelectedWalletIds([]);
+                    // Force reload one last time to be sure
+                    setTimeout(
+                      () => loadInstanceWallets(selectedInstance.id),
+                      500,
+                    );
+                  }
+                }}
+                className="btn-primary"
+                disabled={selectedWalletIds.length === 0}
+              >
+                Lier ({selectedWalletIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Country Modal */}
+      {showAddCountryModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-scaleIn">
+            <h2 className="text-xl font-bold mb-4">Ajouter un Pays</h2>
+
+            {/* Quick Add Regions */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                Ajout rapide par région
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(REGION_PRESETS).map(([key, region]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setShowAddCountryModal(false);
+                      addRegionCountries(key);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                  >
+                    + {region.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                Ou ajouter un pays individuel
+              </p>
+              <form onSubmit={handleAddCountry} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Code Pays (ex: CI, SN)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={3}
+                    className="input w-full uppercase"
+                    placeholder="CI"
+                    value={newCountry.country_code}
+                    onChange={(e) =>
+                      setNewCountry({
+                        ...newCountry,
+                        country_code: e.target.value.toUpperCase(),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nom du Pays
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input w-full"
+                    placeholder="Côte d'Ivoire"
+                    value={newCountry.country_name}
+                    onChange={(e) =>
+                      setNewCountry({
+                        ...newCountry,
+                        country_name: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Devise
+                  </label>
+                  <select
+                    className="input w-full"
+                    value={newCountry.currency}
+                    onChange={(e) =>
+                      setNewCountry({ ...newCountry, currency: e.target.value })
+                    }
+                  >
+                    <option value="XOF">XOF (Franc CFA)</option>
+                    <option value="XAF">XAF (Franc CFA CEMAC)</option>
+                    <option value="GNF">GNF (Franc Guinéen)</option>
+                    <option value="NGN">NGN (Naira)</option>
+                    <option value="GHS">GHS (Cedi)</option>
+                    <option value="KES">KES (Shilling Kenyan)</option>
+                    <option value="USD">USD (Dollar US)</option>
+                    <option value="EUR">EUR (Euro)</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCountryModal(false)}
+                    className="btn-secondary"
+                  >
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Ajouter
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Instance Modal - Compact Design */}
+      {showEditModal && editingInstance && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-scaleIn flex flex-col max-h-[480px]">
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                  <ServerIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">
+                    {editingInstance.name}
+                  </h2>
+                  <p className="text-xs text-gray-500">Modifier l'instance</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingInstance(null);
+                  setEditTab("general");
+                  setCredentials({});
+                  setShowSecrets({});
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <XCircleIcon className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Tabs Pills */}
+            <div className="flex gap-2 p-3 bg-gray-50 border-b border-gray-100">
+              <button
+                type="button"
+                onClick={() => setEditTab("general")}
+                className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-all ${
+                  editTab === "general"
+                    ? "bg-white text-emerald-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                ⚙️ Général
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditTab("credentials")}
+                className={`flex-1 py-2 px-3 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  editTab === "credentials"
+                    ? "bg-white text-emerald-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                🔑 Clés API
+                {!editingInstance.has_credentials && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                )}
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {/* General Tab */}
+              {editTab === "general" && (
+                <form onSubmit={handleUpdateInstance} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Nom
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="input w-full text-sm py-2"
+                        value={newInstance.name}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            name: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Priorité
+                      </label>
+                      <input
+                        type="number"
+                        className="input w-full text-sm py-2"
+                        value={newInstance.priority}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            priority: parseInt(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Vault Path
+                      </label>
+                      <input
+                        type="text"
+                        className="input w-full text-sm py-2 font-mono"
+                        placeholder="auto"
+                        value={newInstance.vault_secret_path}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            vault_secret_path: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Compact Toggles */}
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <label
+                      className={`flex flex-col items-center p-3 rounded-xl cursor-pointer transition-all ${newInstance.is_active ? "bg-emerald-50 border-2 border-emerald-200" : "bg-gray-50 border-2 border-transparent"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={newInstance.is_active}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            is_active: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="text-lg mb-1">
+                        {newInstance.is_active ? "✅" : "⭕"}
+                      </span>
+                      <span className="text-xs font-medium text-gray-700">
+                        Active
+                      </span>
+                    </label>
+                    <label
+                      className={`flex flex-col items-center p-3 rounded-xl cursor-pointer transition-all ${newInstance.is_primary ? "bg-blue-50 border-2 border-blue-200" : "bg-gray-50 border-2 border-transparent"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={newInstance.is_primary}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            is_primary: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="text-lg mb-1">
+                        {newInstance.is_primary ? "⭐" : "☆"}
+                      </span>
+                      <span className="text-xs font-medium text-gray-700">
+                        Principal
+                      </span>
+                    </label>
+                    <label
+                      className={`flex flex-col items-center p-3 rounded-xl cursor-pointer transition-all ${newInstance.is_global ? "bg-indigo-50 border-2 border-indigo-200" : "bg-gray-50 border-2 border-transparent"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={newInstance.is_global}
+                        onChange={(e) =>
+                          setNewInstance({
+                            ...newInstance,
+                            is_global: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="text-lg mb-1">
+                        {newInstance.is_global ? "🌍" : "📍"}
+                      </span>
+                      <span className="text-xs font-medium text-gray-700">
+                        Global
+                      </span>
+                    </label>
+                  </div>
+                </form>
+              )}
+
+              {/* Credentials Tab */}
+              {editTab === "credentials" && (
+                <div className="space-y-3">
+                  {loadingCredentials ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent"></div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Compact Status */}
+                      <div
+                        className={`flex items-center gap-2 p-2 rounded-lg text-xs ${editingInstance.has_credentials ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                      >
+                        {editingInstance.has_credentials ? (
+                          <>
+                            <CheckCircleIcon className="w-4 h-4" /> Credentials
+                            configurés
+                          </>
+                        ) : (
+                          <>
+                            <ExclamationTriangleIcon className="w-4 h-4" /> Non
+                            configuré
+                          </>
+                        )}
+                      </div>
+
+                      {/* Credential Fields */}
+                      <div className="space-y-2">
+                        {getCredentialFields().map((field) => (
+                          <div key={field.key} className="relative">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              {field.label}
+                              {field.required && (
+                                <span className="text-red-400 ml-0.5">*</span>
+                              )}
+                              {field.secret && (
+                                <span className="text-gray-400 ml-1">🔒</span>
+                              )}
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={
+                                  field.secret && !showSecrets[field.key]
+                                    ? "password"
+                                    : "text"
+                                }
+                                className="input w-full text-sm py-2 pr-9 font-mono"
+                                placeholder={
+                                  field.secret
+                                    ? "••••••••"
+                                    : `${field.label}...`
+                                }
+                                value={credentials[field.key] || ""}
+                                onChange={(e) =>
+                                  setCredentials({
+                                    ...credentials,
+                                    [field.key]: e.target.value,
+                                  })
+                                }
+                              />
+                              {field.secret && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleSecretVisibility(field.key)
+                                  }
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                                >
+                                  {showSecrets[field.key] ? (
+                                    <EyeSlashIcon className="w-4 h-4" />
+                                  ) : (
+                                    <EyeIcon className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="flex gap-2 p-4 border-t border-gray-100 bg-gray-50/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingInstance(null);
+                  setEditTab("general");
+                  setCredentials({});
+                  setShowSecrets({});
+                }}
+                className="flex-1 py-2.5 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              {editTab === "general" ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleUpdateInstance(e as any);
+                  }}
+                  className="flex-1 py-2.5 px-4 text-sm font-medium text-white bg-emerald-500 rounded-xl hover:bg-emerald-600 transition-colors"
+                >
+                  Enregistrer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const success = await saveCredentials(editingInstance.id);
+                    if (success) loadInstances();
+                  }}
+                  disabled={savingCredentials}
+                  className="flex-1 py-2.5 px-4 text-sm font-medium text-white bg-emerald-500 rounded-xl hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {savingCredentials ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>{" "}
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    <>
+                      <KeyIcon className="w-4 h-4" /> Sauvegarder
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
