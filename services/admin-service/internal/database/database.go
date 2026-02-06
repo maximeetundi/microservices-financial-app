@@ -927,39 +927,51 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 			log.Printf("[Database] ✅ Linked %d hot wallets to instance: %s", linkedCount, p.DisplayName)
 		}
 
+		// IMPORTANT: make aggregator_instances.id stable and equal to provider_instances.id.
+		// This guarantees that even if a caller mistakenly passes a provider_instance UUID
+		// to transfer-service wallet selection, it still matches an aggregator instance.
 		var aggregatorID string
 		aggErr := mainDB.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, p.Name).Scan(&aggregatorID)
 		if aggErr == nil {
 			var aggInstanceID string
-			aggInstErr := mainDB.QueryRow(`SELECT id FROM aggregator_instances WHERE aggregator_id = $1 AND instance_name = $2`, aggregatorID, instanceName).Scan(&aggInstanceID)
-			if aggInstErr == sql.ErrNoRows {
-				aggInstErr = mainDB.QueryRow(`
-					INSERT INTO aggregator_instances (aggregator_id, instance_name, api_credentials, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
-					VALUES ($1, $2, '{}'::jsonb, $3, TRUE, $4, 50, 'active', TRUE)
-					RETURNING id
-				`, aggregatorID, instanceName, vaultPath, isGlobalProvider).Scan(&aggInstanceID)
+			aggInstErr := mainDB.QueryRow(`
+				INSERT INTO aggregator_instances (
+					id,
+					aggregator_id,
+					instance_name,
+					api_credentials,
+					vault_secret_path,
+					enabled,
+					is_global,
+					priority,
+					health_status,
+					is_test_mode
+				)
+				VALUES ($1, $2, $3, '{}'::jsonb, $4, TRUE, $5, 50, 'active', TRUE)
+				ON CONFLICT (id) DO UPDATE SET
+					aggregator_id = EXCLUDED.aggregator_id,
+					instance_name = EXCLUDED.instance_name,
+					vault_secret_path = EXCLUDED.vault_secret_path,
+					enabled = TRUE,
+					is_global = EXCLUDED.is_global,
+					health_status = 'active',
+					updated_at = NOW()
+				RETURNING id
+			`, instanceID, aggregatorID, instanceName, vaultPath, isGlobalProvider).Scan(&aggInstanceID)
+			if aggInstErr != nil {
+				log.Printf("[Database] Failed to upsert aggregator instance for %s: %v", p.Name, aggInstErr)
+				continue
 			}
-			if aggInstErr == nil {
-				_, _ = mainDB.Exec(`
-					UPDATE aggregator_instances
-					SET enabled = TRUE,
-						is_global = $1,
-						vault_secret_path = $2,
-						health_status = 'active',
-						updated_at = NOW()
-					WHERE id = $3
-				`, isGlobalProvider, vaultPath, aggInstanceID)
 
-				for _, hw := range hotWallets {
-					if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
-						_, err := mainDB.Exec(`
-							INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
-							VALUES ($1, $2, $3, TRUE, 50, TRUE)
-							ON CONFLICT (instance_id, hot_wallet_id, currency) DO UPDATE SET enabled = TRUE, is_primary = TRUE
-						`, aggInstanceID, hw.ID, hw.Currency)
-						if err != nil {
-							log.Printf("[Database] Failed to link wallet %s to aggregator instance %s: %v", hw.ID, aggInstanceID, err)
-						}
+			for _, hw := range hotWallets {
+				if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
+					_, err := mainDB.Exec(`
+						INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
+						VALUES ($1, $2, $3, TRUE, 50, TRUE)
+						ON CONFLICT (instance_id, hot_wallet_id, currency) DO UPDATE SET enabled = TRUE, is_primary = TRUE
+					`, aggInstanceID, hw.ID, hw.Currency)
+					if err != nil {
+						log.Printf("[Database] Failed to link wallet %s to aggregator instance %s: %v", hw.ID, aggInstanceID, err)
 					}
 				}
 			}
