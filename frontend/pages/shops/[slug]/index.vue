@@ -237,7 +237,7 @@ import { useShopApi, type Shop, type Product, type Category } from '~/composable
 import { useCartStore } from '~/stores/cart'
 
 definePageMeta({
-  layout: 'shop-storefront'
+  layout: 'shop-layout'
 })
 
 const route = useRoute()

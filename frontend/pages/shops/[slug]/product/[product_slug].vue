@@ -19,6 +19,7 @@
       </span>
     </nav>
 
+
     <!-- Loading State -->
     <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div class="animate-pulse bg-gray-200 dark:bg-slate-800 aspect-square rounded-2xl"></div>
@@ -172,6 +173,17 @@
           <p class="text-gray-600 dark:text-gray-300 leading-relaxed">
             {{ product.description }}
           </p>
+
+          <!-- Tags -->
+          <div v-if="product.tags && product.tags.length > 0" class="flex flex-wrap gap-2 mt-4">
+            <span 
+              v-for="tag in product.tags" 
+              :key="tag"
+              class="px-2.5 py-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 text-xs rounded-md font-medium"
+            >
+              #{{ tag }}
+            </span>
+          </div>
 
           <!-- Quantity Selector -->
           <div class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
@@ -456,3 +468,208 @@
           </NuxtLink>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <ProductCard
+            v-for="product in similarProducts.slice(0, 4)"
+            :key="product.id"
+            :product="product"
+            :shop-slug="shopSlug"
+            @add-to-cart="addToCart"
+          />
+        </div>
+      </section>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, inject, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useShopApi, type Shop, type Product, type Review } from '~/composables/useShopApi'
+import { useCartStore } from '~/stores/cart'
+
+const route = useRoute()
+const shopApi = useShopApi()
+const cartStore = useCartStore()
+
+definePageMeta({
+  layout: 'shop-layout'
+})
+
+const shopSlug = computed(() => route.params.slug as string)
+const productSlug = computed(() => route.params.productSlug as string)
+const shop = inject<Ref<Shop | null>>('shop', ref(null))
+const formatPrice = inject<(amount: number) => string>('formatPrice', (a) => `${a} FCFA`)
+
+const product = ref<Product | null>(null)
+const loading = ref(true)
+const error = ref(false)
+const selectedImageIndex = ref(0)
+const showLightbox = ref(false)
+const quantity = ref(1)
+const addingToCart = ref(false)
+const activeTab = ref('description')
+const reviews = ref<Review[]>([])
+const similarProducts = ref<Product[]>([])
+
+const newReview = ref({
+  rating: 0,
+  comment: ''
+})
+const submittingReview = ref(false)
+
+const tabs = computed(() => [
+  { id: 'description', label: 'Description' },
+  { id: 'reviews', label: 'Avis', count: reviews.value.length },
+  { id: 'shipping', label: 'Livraison' }
+])
+
+const averageRating = computed(() => product.value?.average_rating || 0)
+const discountPercent = computed(() => {
+  if (!product.value?.compare_at_price || !product.value?.price) return 0
+  if (product.value.compare_at_price <= product.value.price) return 0
+  return Math.round(((product.value.compare_at_price - product.value.price) / product.value.compare_at_price) * 100)
+})
+
+const isFavorite = computed(() => {
+  if (typeof window === 'undefined') return false
+  const favs = JSON.parse(localStorage.getItem(`shop_favorites_${shopSlug.value}`) || '[]')
+  return favs.includes(product.value?.id)
+})
+
+const ratingLabels = ['Mauvais', 'Médiocre', 'Moyen', 'Bon', 'Excellent']
+
+const getRatingCount = (rating: number) => {
+  return reviews.value.filter(r => r.rating === rating).length
+}
+
+const getRatingPercent = (rating: number) => {
+  if (reviews.value.length === 0) return 0
+  return (getRatingCount(rating) / reviews.value.length) * 100
+}
+
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+
+const prevImage = () => {
+  if (product.value && product.value.images) {
+    selectedImageIndex.value = (selectedImageIndex.value - 1 + product.value.images.length) % product.value.images.length
+  }
+}
+
+const nextImage = () => {
+  if (product.value && product.value.images) {
+    selectedImageIndex.value = (selectedImageIndex.value + 1) % product.value.images.length
+  }
+}
+
+const scrollToReviews = () => {
+  activeTab.value = 'reviews'
+  setTimeout(() => {
+    document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })
+  }, 100)
+}
+
+const addToCart = async () => {
+  if (!product.value) return
+  
+  addingToCart.value = true
+  try {
+    cartStore.addItem({
+      id: product.value.id,
+      name: product.value.name,
+      price: product.value.price,
+      image: product.value.images?.[0] || '',
+      quantity: quantity.value,
+      shopSlug: shopSlug.value
+    })
+    
+    // Show notification or visual feedback
+  } finally {
+    addingToCart.value = false
+  }
+}
+
+const toggleFavorite = () => {
+  if (!product.value) return
+  
+  const key = `shop_favorites_${shopSlug.value}`
+  const favs = JSON.parse(localStorage.getItem(key) || '[]')
+  const index = favs.indexOf(product.value.id)
+  
+  if (index > -1) {
+    favs.splice(index, 1)
+  } else {
+    favs.push(product.value.id)
+  }
+  
+  localStorage.setItem(key, JSON.stringify(favs))
+  // Force update computed property (Vue 3 reactivity limitation with localStorage)
+  // triggerRef(isFavorite) - typically handled by window storage event or store
+}
+
+const shareProduct = () => {
+  if (navigator.share) {
+    navigator.share({
+      title: product.value?.name,
+      text: product.value?.description,
+      url: window.location.href
+    })
+  } else {
+    navigator.clipboard.writeText(window.location.href)
+    alert('Lien copié dans le presse-papier !')
+  }
+}
+
+const loadData = async () => {
+  loading.value = true
+  error.value = false
+  
+  try {
+    product.value = await shopApi.getProduct(shopSlug.value, productSlug.value)
+    
+    // Load reviews
+    const reviewsData = await shopApi.listReviews(product.value.id)
+    reviews.value = reviewsData.reviews || []
+    
+    // Load similar products
+    const similar = await shopApi.listProducts(shopSlug.value, 1, 4, { category: product.value.category_slug })
+    similarProducts.value = similar.products?.filter((p: Product) => p.id !== product.value?.id).slice(0, 4) || []
+    
+  } catch (e) {
+    console.error('Failed to load product', e)
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+const submitReview = async () => {
+  if (!product.value) return
+  
+  submittingReview.value = true
+  try {
+    const review = await shopApi.createReview(product.value.id, {
+      rating: newReview.value.rating,
+      comment: newReview.value.comment
+    })
+    
+    reviews.value.unshift(review)
+    newReview.value = { rating: 0, comment: '' }
+    
+    // Update local rating
+    // In real app, we might want to reload product to get updated average
+  } catch (e) {
+    console.error('Failed to submit review', e)
+    alert('Erreur lors de l\'envoi de l\'avis')
+  } finally {
+    submittingReview.value = false
+  }
+}
+
+watch([shopSlug, productSlug], loadData, { immediate: true })
+</script>
