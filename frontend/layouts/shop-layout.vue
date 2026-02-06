@@ -34,7 +34,7 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav class="p-4 space-y-1 overflow-y-auto">
         <!-- NAVIGATION Section -->
         <div class="pb-2">
           <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">Navigation</p>

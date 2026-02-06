@@ -18,8 +18,18 @@ export interface Shop {
     status: string
     settings: ShopSettings
     stats: ShopStats
+    trust_badges?: ShopTrustBadge[]
     created_at: string
     updated_at: string
+}
+
+export interface ShopTrustBadge {
+    key: string
+    icon: string
+    title: string
+    subtitle: string
+    enabled: boolean
+    order: number
 }
 
 export interface ShopManager {
@@ -176,6 +186,7 @@ export const shopAPI = {
     getMyShops: () => api.get(`${baseUrl}/my-shops`),
     createShop: (data: Partial<Shop>) => api.post(`${baseUrl}/shops`, data),
     updateShop: (id: string, data: Partial<Shop>) => api.put(`${baseUrl}/shops/${id}`, data),
+    updateTrustBadges: (id: string, badges: ShopTrustBadge[]) => api.put(`${baseUrl}/shops/${id}/trust-badges`, { badges }),
     deleteShop: (id: string) => api.delete(`${baseUrl}/shops/${id}`),
 
     // Products
@@ -273,6 +284,10 @@ export function useShopApi() {
         },
         updateShop: async (id: string, data: Partial<Shop>) => {
             const response = await shopAPI.updateShop(id, data)
+            return response.data
+        },
+        updateTrustBadges: async (id: string, badges: ShopTrustBadge[]) => {
+            const response = await shopAPI.updateTrustBadges(id, badges)
             return response.data
         },
         deleteShop: async (id: string) => {

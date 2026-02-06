@@ -238,7 +238,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useShopApi, type Order } from '@/composables/useShopApi'
-import ShopLayout from '@/components/shops/ShopLayout.vue'
 
 const route = useRoute()
 const shopApi = useShopApi()

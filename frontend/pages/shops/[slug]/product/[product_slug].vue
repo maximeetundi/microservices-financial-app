@@ -250,32 +250,15 @@
 
           <!-- Trust Badges -->
           <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">🔒</span>
+            <div
+              v-for="badge in visibleTrustBadges"
+              :key="badge.key"
+              class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl"
+            >
+              <span class="text-2xl">{{ badge.icon }}</span>
               <div>
-                <p class="text-xs font-semibold text-gray-900 dark:text-white">Paiement sécurisé</p>
-                <p class="text-[10px] text-gray-500">SSL 100% sécurisé</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">🚚</span>
-              <div>
-                <p class="text-xs font-semibold text-gray-900 dark:text-white">Livraison rapide</p>
-                <p class="text-[10px] text-gray-500">Partout au Sénégal</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">↩️</span>
-              <div>
-                <p class="text-xs font-semibold text-gray-900 dark:text-white">Retours faciles</p>
-                <p class="text-[10px] text-gray-500">Sous 7 jours</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">💬</span>
-              <div>
-                <p class="text-xs font-semibold text-gray-900 dark:text-white">Support 24/7</p>
-                <p class="text-[10px] text-gray-500">À votre écoute</p>
+                <p class="text-xs font-semibold text-gray-900 dark:text-white">{{ badge.title }}</p>
+                <p class="text-[10px] text-gray-500">{{ badge.subtitle }}</p>
               </div>
             </div>
           </div>
@@ -484,7 +467,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useShopApi, type Shop, type Product, type Review } from '~/composables/useShopApi'
+import { useShopApi, type Shop, type Product, type Review, type ShopTrustBadge } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
 
 const route = useRoute()
@@ -499,6 +482,21 @@ const shopSlug = computed(() => route.params.slug as string)
 const productSlug = computed(() => route.params.productSlug as string)
 const shop = inject<Ref<Shop | null>>('shop', ref(null))
 const formatPrice = inject<(amount: number) => string>('formatPrice', (a) => `${a} FCFA`)
+
+const visibleTrustBadges = computed(() => {
+  const defaults: ShopTrustBadge[] = [
+    { key: 'fast_delivery', icon: '🚚', title: 'Livraison rapide', subtitle: 'Partout au Sénégal', enabled: true, order: 1 },
+    { key: 'secure_payment', icon: '🔒', title: 'Paiement sécurisé', subtitle: '100% sécurisé', enabled: true, order: 2 },
+    { key: 'quality_guarantee', icon: '⭐', title: 'Qualité garantie', subtitle: 'Produits vérifiés', enabled: true, order: 3 },
+    { key: 'support_24_7', icon: '💬', title: 'Support 24/7', subtitle: 'À votre écoute', enabled: true, order: 4 },
+  ]
+
+  const badges = (shop.value?.trust_badges?.length ? shop.value.trust_badges : defaults)
+  return [...badges]
+    .filter(b => b.enabled)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .slice(0, 4)
+})
 
 const product = ref<Product | null>(null)
 const loading = ref(true)

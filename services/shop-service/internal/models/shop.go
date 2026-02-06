@@ -38,6 +38,17 @@ type ShopManager struct {
 	Status      string    `json:"status" bson:"status"` // pending, active, revoked
 }
 
+// ShopTrustBadge represents a small informational card displayed on shop pages
+// It is configurable per shop from the management panel.
+type ShopTrustBadge struct {
+	Key      string `json:"key" bson:"key"` // stable identifier (used for defaults)
+	Icon     string `json:"icon" bson:"icon"`
+	Title    string `json:"title" bson:"title"`
+	Subtitle string `json:"subtitle" bson:"subtitle"`
+	Enabled  bool   `json:"enabled" bson:"enabled"`
+	Order    int    `json:"order" bson:"order"`
+}
+
 // Shop represents a store in the marketplace
 type Shop struct {
 	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
@@ -57,10 +68,16 @@ type Shop struct {
 	Status      string             `json:"status" bson:"status"` // active, suspended, closed
 	Settings    ShopSettings       `json:"settings" bson:"settings"`
 	Stats       ShopStats          `json:"stats" bson:"stats"`
+	TrustBadges []ShopTrustBadge   `json:"trust_badges" bson:"trust_badges"`
 	Address     Address            `json:"address,omitempty" bson:"address,omitempty"`
 	ContactInfo ContactInfo        `json:"contact_info,omitempty" bson:"contact_info,omitempty"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+}
+
+// UpdateTrustBadgesRequest is the request to update shop trust badges
+type UpdateTrustBadgesRequest struct {
+	Badges []ShopTrustBadge `json:"badges" binding:"required"`
 }
 
 // Address for shop location or shipping

@@ -44,6 +44,51 @@
         </div>
       </div>
 
+      <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
+          <span class="text-indigo-500">🧩</span>
+          Cartes de confiance
+        </h2>
+
+        <div class="space-y-4">
+          <div
+            v-for="(badge, idx) in trustBadges"
+            :key="badge.key + '-' + idx"
+            class="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-900/30"
+          >
+            <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+              <div class="flex items-center gap-3">
+                <input v-model="badge.enabled" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" />
+                <input v-model="badge.icon" type="text" class="w-16 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-slate-700" placeholder="🚚" />
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+                <input v-model="badge.title" type="text" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-slate-700" placeholder="Titre" />
+                <input v-model="badge.subtitle" type="text" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-slate-700" placeholder="Sous-titre" />
+              </div>
+
+              <div class="flex items-center gap-2 justify-end">
+                <button type="button" @click="moveBadge(idx, -1)" :disabled="idx === 0" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-bold disabled:opacity-50">
+                  ↑
+                </button>
+                <button type="button" @click="moveBadge(idx, 1)" :disabled="idx === trustBadges.length - 1" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-bold disabled:opacity-50">
+                  ↓
+                </button>
+                <button type="button" @click="removeBadge(idx)" class="px-3 py-2 rounded-lg border border-red-300 text-red-600 text-sm font-bold hover:bg-red-50 dark:hover:bg-red-900/20">
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" @click="addBadge" class="px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-colors">
+              + Ajouter une carte
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Contact & Address -->
       <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
@@ -166,6 +211,8 @@ const loading = ref(true)
 const saving = ref(false)
 const shopId = ref('')
 
+const trustBadges = ref<any[]>([])
+
 const form = ref({
   name: '',
   description: '',
@@ -207,11 +254,51 @@ const fetchShop = async () => {
     if (shop.address) form.value.address = { ...shop.address }
     if (shop.settings) form.value.settings = { ...shop.settings }
 
+    const defaults = [
+      { key: 'fast_delivery', icon: '🚚', title: 'Livraison rapide', subtitle: 'Partout au Sénégal', enabled: true, order: 1 },
+      { key: 'secure_payment', icon: '🔒', title: 'Paiement sécurisé', subtitle: '100% sécurisé', enabled: true, order: 2 },
+      { key: 'quality_guarantee', icon: '⭐', title: 'Qualité garantie', subtitle: 'Produits vérifiés', enabled: true, order: 3 },
+      { key: 'support_24_7', icon: '💬', title: 'Support 24/7', subtitle: 'À votre écoute', enabled: true, order: 4 },
+    ]
+    trustBadges.value = (shop.trust_badges && shop.trust_badges.length) ? [...shop.trust_badges] : defaults
+    trustBadges.value = trustBadges.value.sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+
   } catch (e) {
     console.error('Failed to load shop', e)
   } finally {
     loading.value = false
   }
+}
+
+const reindexOrders = () => {
+  trustBadges.value = trustBadges.value.map((b: any, i: number) => ({ ...b, order: i + 1 }))
+}
+
+const addBadge = () => {
+  trustBadges.value.push({
+    key: `custom_${Date.now()}`,
+    icon: '✨',
+    title: 'Nouveau',
+    subtitle: 'Description',
+    enabled: true,
+    order: trustBadges.value.length + 1
+  })
+}
+
+const removeBadge = (idx: number) => {
+  trustBadges.value.splice(idx, 1)
+  reindexOrders()
+}
+
+const moveBadge = (idx: number, dir: number) => {
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= trustBadges.value.length) return
+  const copy = [...trustBadges.value]
+  const tmp = copy[idx]
+  copy[idx] = copy[newIdx]
+  copy[newIdx] = tmp
+  trustBadges.value = copy
+  reindexOrders()
 }
 
 const saveSettings = async () => {
@@ -220,6 +307,8 @@ const saveSettings = async () => {
   try {
     saving.value = true
     await shopApi.updateShop(shopId.value, form.value)
+    reindexOrders()
+    await shopApi.updateTrustBadges(shopId.value, trustBadges.value)
     toast.success('Paramètres mis à jour avec succès !')
   } catch (e: any) {
     toast.error('Erreur: ' + (e.response?.data?.error || e.message))

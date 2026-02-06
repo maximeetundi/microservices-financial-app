@@ -265,7 +265,7 @@ import { storeToRefs } from 'pinia'
 
 // Page meta
 definePageMeta({
-  layout: 'default',
+  layout: 'dashboard',
   middleware: 'auth'
 })
 

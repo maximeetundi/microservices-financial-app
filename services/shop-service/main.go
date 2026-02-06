@@ -155,6 +155,7 @@ func main() {
 			protected.POST("/shops", shopHandler.Create)
 			protected.GET("/my-shops", shopHandler.GetMyShops)
 			protected.PUT("/shops/:id", shopHandler.Update)
+			protected.PUT("/shops/:id/trust-badges", shopHandler.UpdateTrustBadges)
 			protected.DELETE("/shops/:id", shopHandler.Delete)
 			protected.POST("/shops/:id/managers", shopHandler.InviteManager)
 			protected.DELETE("/shops/:id/managers/:userId", shopHandler.RemoveManager)

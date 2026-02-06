@@ -181,3 +181,23 @@ func (h *ShopHandler) RemoveManager(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Manager removed"})
 }
+
+// UpdateTrustBadges updates trust badges for a shop (management panel)
+func (h *ShopHandler) UpdateTrustBadges(c *gin.Context) {
+	userID := c.GetString("user_id")
+	shopID := c.Param("id")
+
+	var req models.UpdateTrustBadgesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	shop, err := h.shopService.UpdateTrustBadges(c.Request.Context(), shopID, &req, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, shop)
+}

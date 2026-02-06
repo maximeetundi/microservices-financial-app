@@ -195,6 +195,17 @@ func (r *ShopRepository) SetQRCode(ctx context.Context, shopID primitive.ObjectI
 	return err
 }
 
+func (r *ShopRepository) SetTrustBadges(ctx context.Context, shopID primitive.ObjectID, badges []models.ShopTrustBadge) error {
+	update := bson.M{
+		"$set": bson.M{
+			"trust_badges": badges,
+			"updated_at":   time.Now(),
+		},
+	}
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": shopID}, update)
+	return err
+}
+
 func generateSlug(name string) string {
 	slug := strings.ToLower(name)
 	slug = strings.ReplaceAll(slug, " ", "-")

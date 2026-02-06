@@ -8,6 +8,15 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/shop-service/internal/repository"
 )
 
+func defaultTrustBadges() []models.ShopTrustBadge {
+	return []models.ShopTrustBadge{
+		{Key: "fast_delivery", Icon: "🚚", Title: "Livraison rapide", Subtitle: "Partout au Sénégal", Enabled: true, Order: 1},
+		{Key: "secure_payment", Icon: "🔒", Title: "Paiement sécurisé", Subtitle: "100% sécurisé", Enabled: true, Order: 2},
+		{Key: "quality_guarantee", Icon: "⭐", Title: "Qualité garantie", Subtitle: "Produits vérifiés", Enabled: true, Order: 3},
+		{Key: "support_24_7", Icon: "💬", Title: "Support 24/7", Subtitle: "À votre écoute", Enabled: true, Order: 4},
+	}
+}
+
 type ShopService struct {
 	shopRepo     *repository.ShopRepository
 	productRepo  *repository.ProductRepository
@@ -76,6 +85,7 @@ func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest,
 				Status:      "active",
 			},
 		},
+		TrustBadges: defaultTrustBadges(),
 	}
 	
 	if req.Address != nil {
@@ -105,7 +115,15 @@ func (s *ShopService) Create(ctx context.Context, req *models.CreateShopRequest,
 }
 
 func (s *ShopService) GetBySlug(ctx context.Context, slug string) (*models.Shop, error) {
-	return s.shopRepo.GetBySlug(ctx, slug)
+	shop, err := s.shopRepo.GetBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if len(shop.TrustBadges) == 0 {
+		shop.TrustBadges = defaultTrustBadges()
+		_ = s.shopRepo.SetTrustBadges(ctx, shop.ID, shop.TrustBadges)
+	}
+	return shop, nil
 }
 
 func (s *ShopService) GetByWalletID(ctx context.Context, walletID string) (*models.Shop, error) {
@@ -117,7 +135,37 @@ func (s *ShopService) GetByID(ctx context.Context, id string) (*models.Shop, err
 	if err != nil {
 		return nil, err
 	}
-	return s.shopRepo.GetByID(ctx, oid)
+	shop, err := s.shopRepo.GetByID(ctx, oid)
+	if err != nil {
+		return nil, err
+	}
+	if len(shop.TrustBadges) == 0 {
+		shop.TrustBadges = defaultTrustBadges()
+		_ = s.shopRepo.SetTrustBadges(ctx, shop.ID, shop.TrustBadges)
+	}
+	return shop, nil
+}
+
+func (s *ShopService) UpdateTrustBadges(ctx context.Context, shopID string, req *models.UpdateTrustBadgesRequest, userID string) (*models.Shop, error) {
+	oid, err := parseObjectID(shopID)
+	if err != nil {
+		return nil, err
+	}
+
+	shop, err := s.shopRepo.GetByID(ctx, oid)
+	if err != nil {
+		return nil, fmt.Errorf("shop not found: %w", err)
+	}
+
+	if !s.hasPermission(shop, userID, "settings") {
+		return nil, fmt.Errorf("permission denied")
+	}
+
+	shop.TrustBadges = req.Badges
+	if err := s.shopRepo.SetTrustBadges(ctx, shop.ID, shop.TrustBadges); err != nil {
+		return nil, fmt.Errorf("failed to update trust badges: %w", err)
+	}
+	return shop, nil
 }
 
 func (s *ShopService) ListPublic(ctx context.Context, page, pageSize int, search string) (*models.ShopListResponse, error) {

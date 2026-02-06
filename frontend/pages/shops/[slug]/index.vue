@@ -37,32 +37,15 @@
 
     <!-- Trust Badges -->
     <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
-        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-xl">🚚</div>
+      <div
+        v-for="badge in visibleTrustBadges"
+        :key="badge.key"
+        class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800"
+      >
+        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-xl">{{ badge.icon }}</div>
         <div>
-          <p class="font-semibold text-gray-900 dark:text-white text-sm">Livraison rapide</p>
-          <p class="text-xs text-gray-500">Partout au Sénégal</p>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
-        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-xl">🔒</div>
-        <div>
-          <p class="font-semibold text-gray-900 dark:text-white text-sm">Paiement sécurisé</p>
-          <p class="text-xs text-gray-500">100% sécurisé</p>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
-        <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-xl">⭐</div>
-        <div>
-          <p class="font-semibold text-gray-900 dark:text-white text-sm">Qualité garantie</p>
-          <p class="text-xs text-gray-500">Produits vérifiés</p>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
-        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-xl">💬</div>
-        <div>
-          <p class="font-semibold text-gray-900 dark:text-white text-sm">Support 24/7</p>
-          <p class="text-xs text-gray-500">À votre écoute</p>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ badge.title }}</p>
+          <p class="text-xs text-gray-500">{{ badge.subtitle }}</p>
         </div>
       </div>
     </section>
@@ -125,6 +108,16 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <div class="relative">
+            <input
+              v-model="searchInput"
+              type="text"
+              placeholder="Rechercher..."
+              class="w-56 px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+              @keyup.enter="applySearch"
+            >
+          </div>
+
           <!-- Active Filters -->
           <div v-if="hasFilters" class="flex items-center gap-2 flex-wrap">
             <span
@@ -233,7 +226,7 @@
 <script setup lang="ts">
 import { inject, ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useShopApi, type Shop, type Product, type Category } from '~/composables/useShopApi'
+import { useShopApi, type Shop, type Product, type Category, type ShopTrustBadge } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
 
 definePageMeta({
@@ -257,6 +250,21 @@ const totalProducts = ref(0)
 const currentPage = ref(1)
 const sortBy = ref('newest')
 const newsletterEmail = ref('')
+const searchInput = ref('')
+
+const visibleTrustBadges = computed(() => {
+  const defaults: ShopTrustBadge[] = [
+    { key: 'fast_delivery', icon: '🚚', title: 'Livraison rapide', subtitle: 'Partout au Sénégal', enabled: true, order: 1 },
+    { key: 'secure_payment', icon: '🔒', title: 'Paiement sécurisé', subtitle: '100% sécurisé', enabled: true, order: 2 },
+    { key: 'quality_guarantee', icon: '⭐', title: 'Qualité garantie', subtitle: 'Produits vérifiés', enabled: true, order: 3 },
+    { key: 'support_24_7', icon: '💬', title: 'Support 24/7', subtitle: 'À votre écoute', enabled: true, order: 4 },
+  ]
+
+  const badges = (shop.value?.trust_badges?.length ? shop.value.trust_badges : defaults)
+  return [...badges]
+    .filter(b => b.enabled)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+})
 
 const hasFilters = computed(() => {
   return !!route.query.search || !!route.query.category || !!route.query.tag
@@ -278,6 +286,14 @@ const clearFilter = (key: string) => {
 
 const clearAllFilters = () => {
   router.push({ path: route.path })
+}
+
+const applySearch = () => {
+  const q = (searchInput.value || '').trim()
+  const query = { ...route.query }
+  if (q) query.search = q
+  else delete query.search
+  router.push({ path: route.path, query })
 }
 
 const toggleFavorite = (productId: string) => {
@@ -313,17 +329,21 @@ const loadProducts = async (reset = true) => {
 
     const result = await shopApi.listProducts(shopSlug.value, currentPage.value, 20, options)
 
+
+    const rawProducts = result?.products || result?.data?.products || result?.items || []
+    const rawTotal = result?.total ?? result?.data?.total ?? rawProducts.length
+
     if (reset) {
-      products.value = result.products || []
+      products.value = rawProducts
     } else {
-      products.value = [...products.value, ...(result.products || [])]
+      products.value = [...products.value, ...rawProducts]
     }
 
-    totalProducts.value = result.total || products.value.length
+    totalProducts.value = rawTotal
 
     // Load featured products on first load without filters
     if (reset && !hasFilters.value) {
-      featuredProducts.value = (result.products || []).filter((p: Product) => p.is_featured).slice(0, 4)
+      featuredProducts.value = rawProducts.filter((p: Product) => p.is_featured).slice(0, 4)
     }
   } catch (e) {
     console.error('Failed to load products', e)
@@ -347,6 +367,10 @@ const subscribeNewsletter = () => {
 
 // Watch for URL changes
 watch(() => route.query, () => loadProducts(true), { immediate: true })
+
+watch(() => route.query.search, (v) => {
+  searchInput.value = typeof v === 'string' ? v : ''
+}, { immediate: true })
 
 // Watch for categories to be loaded
 watch(categories, () => {
