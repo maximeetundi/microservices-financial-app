@@ -74,14 +74,45 @@ type PayPalTokenResponse struct {
 
 // GetAccessToken retrieves or refreshes the OAuth access token
 func (p *PayPalProvider) GetAccessToken(ctx context.Context) (string, error) {
+	log.Printf("[PayPal] 🔐 GetAccessToken called")
+
 	// Return cached token if still valid
 	if p.accessToken != "" && time.Now().Before(p.tokenExpiry) {
+		log.Printf("[PayPal] ✅ Using cached token (expires: %v)", p.tokenExpiry)
 		return p.accessToken, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/oauth2/token",
+	log.Printf("[PayPal] 🔄 Requesting new OAuth token...")
+	log.Printf("[PayPal]    Mode: %s", p.config.Mode)
+	log.Printf("[PayPal]    Base URL: %s", p.config.BaseURL)
+
+	// Validate credentials before making request
+	if p.config.ClientID == "" {
+		log.Printf("[PayPal] ❌ ERROR: ClientID is EMPTY!")
+		log.Printf("[PayPal] 💡 Configure 'client_id' in admin panel for PayPal")
+		return "", fmt.Errorf("PayPal ClientID not configured - set in admin panel")
+	}
+	if p.config.ClientSecret == "" {
+		log.Printf("[PayPal] ❌ ERROR: ClientSecret is EMPTY!")
+		log.Printf("[PayPal] 💡 Configure 'client_secret' in admin panel for PayPal")
+		return "", fmt.Errorf("PayPal ClientSecret not configured - set in admin panel")
+	}
+
+	// Log credential info (masked for security)
+	clientIDMasked := p.config.ClientID
+	if len(clientIDMasked) > 12 {
+		clientIDMasked = clientIDMasked[:6] + "****" + clientIDMasked[len(clientIDMasked)-4:]
+	}
+	log.Printf("[PayPal]    Client ID: %s", clientIDMasked)
+	log.Printf("[PayPal]    Client Secret: %d characters", len(p.config.ClientSecret))
+
+	tokenURL := p.config.BaseURL + "/v1/oauth2/token"
+	log.Printf("[PayPal] 📡 Sending token request to: %s", tokenURL)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL,
 		bytes.NewBufferString("grant_type=client_credentials"))
 	if err != nil {
+		log.Printf("[PayPal] ❌ Failed to create request: %v", err)
 		return "", err
 	}
 
@@ -90,24 +121,43 @@ func (p *PayPalProvider) GetAccessToken(ctx context.Context) (string, error) {
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
+		log.Printf("[PayPal] ❌ Token request failed (network error): %v", err)
 		return "", fmt.Errorf("token request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[PayPal] ❌ Token request failed!")
+		log.Printf("[PayPal]    Status: %d", resp.StatusCode)
+		log.Printf("[PayPal]    Response: %s", string(body))
+		log.Printf("[PayPal] ═══════════════════════════════════════════════════════")
+		log.Printf("[PayPal] 💡 POSSIBLE CAUSES:")
+		log.Printf("[PayPal]    - Invalid client_id or client_secret")
+		log.Printf("[PayPal]    - Credentials are for wrong environment (sandbox vs live)")
+		log.Printf("[PayPal]    - App not approved on PayPal Developer Portal")
+		log.Printf("[PayPal] 💡 TO FIX:")
+		log.Printf("[PayPal]    1. Go to https://developer.paypal.com/dashboard/applications/")
+		log.Printf("[PayPal]    2. Check your app credentials for %s mode", p.config.Mode)
+		log.Printf("[PayPal]    3. Update in Admin Panel -> Agrégateurs -> PayPal")
+		log.Printf("[PayPal] ═══════════════════════════════════════════════════════")
 		return "", fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp PayPalTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		log.Printf("[PayPal] ❌ Failed to decode token response: %v", err)
 		return "", fmt.Errorf("failed to decode token response: %w", err)
 	}
 
 	p.accessToken = tokenResp.AccessToken
 	p.tokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second) // Refresh 60s before expiry
 
-	log.Printf("[PayPal] Got access token, expires in %d seconds", tokenResp.ExpiresIn)
+	log.Printf("[PayPal] ✅ Token obtained successfully!")
+	log.Printf("[PayPal]    Token type: %s", tokenResp.TokenType)
+	log.Printf("[PayPal]    App ID: %s", tokenResp.AppID)
+	log.Printf("[PayPal]    Expires in: %d seconds", tokenResp.ExpiresIn)
+
 	return p.accessToken, nil
 }
 

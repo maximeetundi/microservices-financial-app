@@ -405,15 +405,41 @@ type OrangeTokenResponse struct {
 
 // GetAccessToken retrieves OAuth token for Orange Money
 func (o *OrangeMoneyProvider) GetAccessToken(ctx context.Context) (string, error) {
+	log.Printf("[OrangeMoney] 🔐 GetAccessToken called")
+
 	if o.accessToken != "" && time.Now().Before(o.tokenExpiry) {
+		log.Printf("[OrangeMoney] ✅ Using cached token (expires: %v)", o.tokenExpiry)
 		return o.accessToken, nil
 	}
+
+	log.Printf("[OrangeMoney] 🔄 Requesting new OAuth token...")
+
+	// Validate credentials before making request
+	if o.config.ClientID == "" {
+		log.Printf("[OrangeMoney] ❌ ERROR: ClientID is EMPTY!")
+		log.Printf("[OrangeMoney] 💡 Configure 'client_id' in admin panel for Orange Money")
+		return "", fmt.Errorf("Orange Money ClientID not configured - set in admin panel")
+	}
+	if o.config.ClientSecret == "" {
+		log.Printf("[OrangeMoney] ❌ ERROR: ClientSecret is EMPTY!")
+		log.Printf("[OrangeMoney] 💡 Configure 'client_secret' in admin panel for Orange Money")
+		return "", fmt.Errorf("Orange Money ClientSecret not configured - set in admin panel")
+	}
+
+	// Log credential info (masked for security)
+	clientIDMasked := o.config.ClientID
+	if len(clientIDMasked) > 8 {
+		clientIDMasked = clientIDMasked[:4] + "****" + clientIDMasked[len(clientIDMasked)-4:]
+	}
+	log.Printf("[OrangeMoney]    Client ID: %s", clientIDMasked)
+	log.Printf("[OrangeMoney]    Client Secret: %d characters", len(o.config.ClientSecret))
 
 	url := "https://api.orange.com/oauth/v3/token"
 	body := "grant_type=client_credentials"
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBufferString(body))
 	if err != nil {
+		log.Printf("[OrangeMoney] ❌ Failed to create request: %v", err)
 		return "", err
 	}
 
@@ -421,14 +447,30 @@ func (o *OrangeMoneyProvider) GetAccessToken(ctx context.Context) (string, error
 	req.Header.Set("Authorization", "Basic "+auth)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
+	log.Printf("[OrangeMoney] 📡 Sending token request to: %s", url)
+
 	resp, err := o.httpClient.Do(req)
 	if err != nil {
+		log.Printf("[OrangeMoney] ❌ Token request failed (network error): %v", err)
 		return "", fmt.Errorf("token request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("[OrangeMoney] ❌ Token request failed!")
+		log.Printf("[OrangeMoney]    Status: %d", resp.StatusCode)
+		log.Printf("[OrangeMoney]    Response: %s", string(respBody))
+		log.Printf("[OrangeMoney] ═══════════════════════════════════════════════════════")
+		log.Printf("[OrangeMoney] 💡 POSSIBLE CAUSES:")
+		log.Printf("[OrangeMoney]    - Invalid client_id or client_secret")
+		log.Printf("[OrangeMoney]    - Credentials not activated on Orange API Portal")
+		log.Printf("[OrangeMoney]    - Wrong environment (sandbox vs production)")
+		log.Printf("[OrangeMoney] 💡 TO FIX:")
+		log.Printf("[OrangeMoney]    1. Go to https://developer.orange.com/")
+		log.Printf("[OrangeMoney]    2. Check your app credentials")
+		log.Printf("[OrangeMoney]    3. Update in Admin Panel -> Agrégateurs -> Orange Money")
+		log.Printf("[OrangeMoney] ═══════════════════════════════════════════════════════")
 		return "", fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -439,6 +481,10 @@ func (o *OrangeMoneyProvider) GetAccessToken(ctx context.Context) (string, error
 
 	o.accessToken = tokenResp.AccessToken
 	o.tokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second)
+
+	log.Printf("[OrangeMoney] ✅ Token obtained successfully!")
+	log.Printf("[OrangeMoney]    Token type: %s", tokenResp.TokenType)
+	log.Printf("[OrangeMoney]    Expires in: %d seconds", tokenResp.ExpiresIn)
 
 	return o.accessToken, nil
 }

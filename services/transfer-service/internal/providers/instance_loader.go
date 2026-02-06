@@ -11,6 +11,22 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 )
 
+// min returns the smaller of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// max returns the larger of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // InstanceBasedProviderLoader loads providers from database instances
 // and retrieves credentials from Vault when not stored in database
 type InstanceBasedProviderLoader struct {
@@ -40,6 +56,7 @@ func NewInstanceBasedProviderLoader(instanceRepo *repository.AggregatorInstanceR
 // getCredentialsFromVault loads credentials from Vault for a given provider
 func (l *InstanceBasedProviderLoader) getCredentialsFromVault(providerCode string, vaultPath string) (map[string]string, error) {
 	if l.vaultClient == nil {
+		log.Printf("[InstanceLoader] ⚠️ VAULT CLIENT NOT INITIALIZED - Cannot load credentials for %s", providerCode)
 		return nil, fmt.Errorf("vault client not initialized")
 	}
 
@@ -51,15 +68,22 @@ func (l *InstanceBasedProviderLoader) getCredentialsFromVault(providerCode strin
 
 	// Convert path for KV v2: secret/aggregators/x -> secret/data/aggregators/x
 	kvV2Path := convertToKVv2Path(path)
-	log.Printf("[InstanceLoader] Loading credentials from Vault path: %s (KV v2: %s)", path, kvV2Path)
+	log.Printf("[InstanceLoader] 🔑 Loading credentials from Vault:")
+	log.Printf("[InstanceLoader]    Provider: %s", providerCode)
+	log.Printf("[InstanceLoader]    Path (KV v1): %s", path)
+	log.Printf("[InstanceLoader]    Path (KV v2): %s", kvV2Path)
 
 	// Try KV v2 path first
 	data, err := l.vaultClient.GetSecret(kvV2Path)
 	if err != nil {
 		// Fall back to KV v1 path
-		log.Printf("[InstanceLoader] KV v2 path failed, trying KV v1 path: %s", path)
+		log.Printf("[InstanceLoader] ⚠️ KV v2 path failed: %v", err)
+		log.Printf("[InstanceLoader] 🔄 Trying KV v1 path: %s", path)
 		data, err = l.vaultClient.GetSecret(path)
 		if err != nil {
+			log.Printf("[InstanceLoader] ❌ VAULT ERROR: Failed to get secret from both KV v1 and v2 paths")
+			log.Printf("[InstanceLoader]    Error: %v", err)
+			log.Printf("[InstanceLoader]    💡 TIP: Configure credentials in admin panel at /dashboard/aggregators")
 			return nil, fmt.Errorf("failed to get secret from vault: %w", err)
 		}
 	}
@@ -75,7 +99,18 @@ func (l *InstanceBasedProviderLoader) getCredentialsFromVault(providerCode strin
 		}
 	}
 
-	log.Printf("[InstanceLoader] Loaded %d credentials from Vault for %s", len(creds), providerCode)
+	// Log credential keys (NOT values for security)
+	log.Printf("[InstanceLoader] ✅ Loaded %d credentials from Vault for %s", len(creds), providerCode)
+	if len(creds) > 0 {
+		keys := make([]string, 0, len(creds))
+		for k := range creds {
+			keys = append(keys, k)
+		}
+		log.Printf("[InstanceLoader]    Keys found: %v", keys)
+	} else {
+		log.Printf("[InstanceLoader] ⚠️ WARNING: Vault path exists but contains no credentials!")
+	}
+
 	return creds, nil
 }
 
@@ -111,33 +146,79 @@ func extractVaultData(data map[string]interface{}) map[string]interface{} {
 
 // getCredentials returns credentials from Vault using instance's vault path, or falls back to database credentials
 func (l *InstanceBasedProviderLoader) getCredentials(instance *models.AggregatorInstanceWithDetails, vaultPath string) (map[string]string, error) {
+	log.Printf("[InstanceLoader] 🔍 Getting credentials for provider: %s (instance: %s)", instance.ProviderCode, instance.InstanceName)
+	log.Printf("[InstanceLoader]    Vault path: %s", vaultPath)
+	log.Printf("[InstanceLoader]    DB credentials count: %d", len(instance.APICredentials))
+
 	// Always try Vault first if we have a vault path (this is the recommended approach)
 	if vaultPath != "" && l.vaultClient != nil {
 		creds, err := l.getCredentialsFromVault(instance.ProviderCode, vaultPath)
 		if err == nil && len(creds) > 0 {
-			log.Printf("[InstanceLoader] Loaded credentials from Vault for %s (path: %s)", instance.ProviderCode, vaultPath)
-			return creds, nil
+			// Validate that credentials are not empty/placeholder
+			validCreds := make(map[string]string)
+			for k, v := range creds {
+				if v != "" && !isPlaceholder(v) {
+					validCreds[k] = v
+				} else {
+					log.Printf("[InstanceLoader] ⚠️ Skipping placeholder/empty credential: %s", k)
+				}
+			}
+			if len(validCreds) > 0 {
+				log.Printf("[InstanceLoader] ✅ Using %d valid credentials from Vault for %s", len(validCreds), instance.ProviderCode)
+				return validCreds, nil
+			}
+			log.Printf("[InstanceLoader] ⚠️ Vault credentials exist but all are placeholders/empty")
+		} else if err != nil {
+			log.Printf("[InstanceLoader] ⚠️ Vault load failed for %s: %v", instance.ProviderCode, err)
 		}
-		log.Printf("[InstanceLoader] Failed to load from Vault for %s: %v, checking database fallback", instance.ProviderCode, err)
+		log.Printf("[InstanceLoader] 🔄 Checking database fallback...")
+	} else {
+		if vaultPath == "" {
+			log.Printf("[InstanceLoader] ⚠️ No vault path configured for instance %s", instance.InstanceName)
+		}
+		if l.vaultClient == nil {
+			log.Printf("[InstanceLoader] ⚠️ Vault client not available")
+		}
 	}
 
 	// Fall back to database credentials if Vault fails
 	if len(instance.APICredentials) > 0 {
+		log.Printf("[InstanceLoader] 📦 Checking database credentials...")
 		// Verify credentials are not placeholders
-		hasRealCreds := false
-		for _, v := range instance.APICredentials {
+		validCreds := make(map[string]string)
+		for k, v := range instance.APICredentials {
 			if v != "" && !isPlaceholder(v) {
-				hasRealCreds = true
-				break
+				validCreds[k] = v
+			} else {
+				log.Printf("[InstanceLoader]    Skipping placeholder/empty DB credential: %s = '%s'", k, maskCredential(v))
 			}
 		}
-		if hasRealCreds {
-			log.Printf("[InstanceLoader] Using credentials from database for %s", instance.ProviderCode)
-			return instance.APICredentials, nil
+		if len(validCreds) > 0 {
+			log.Printf("[InstanceLoader] ✅ Using %d valid credentials from database for %s", len(validCreds), instance.ProviderCode)
+			return validCreds, nil
 		}
+		log.Printf("[InstanceLoader] ❌ Database credentials exist but all are placeholders/empty")
 	}
 
-	return nil, fmt.Errorf("no valid credentials found for %s (vault path: %s)", instance.ProviderCode, vaultPath)
+	log.Printf("[InstanceLoader] ❌ NO VALID CREDENTIALS FOUND for %s", instance.ProviderCode)
+	log.Printf("[InstanceLoader] ═══════════════════════════════════════════════════════")
+	log.Printf("[InstanceLoader] 💡 TO FIX THIS ISSUE:")
+	log.Printf("[InstanceLoader]    1. Go to Admin Dashboard -> Agrégateurs -> %s", instance.ProviderCode)
+	log.Printf("[InstanceLoader]    2. Click on the instance '%s'", instance.InstanceName)
+	log.Printf("[InstanceLoader]    3. Go to 'Credentials API' tab")
+	log.Printf("[InstanceLoader]    4. Enter your real API credentials from %s", instance.ProviderCode)
+	log.Printf("[InstanceLoader]    5. Save and retry the transaction")
+	log.Printf("[InstanceLoader] ═══════════════════════════════════════════════════════")
+
+	return nil, fmt.Errorf("no valid credentials found for %s (vault path: %s) - configure in admin panel", instance.ProviderCode, vaultPath)
+}
+
+// maskCredential masks a credential for safe logging
+func maskCredential(value string) string {
+	if len(value) <= 4 {
+		return "****"
+	}
+	return value[:2] + "***" + value[len(value)-2:]
 }
 
 // isPlaceholder checks if a credential value is a placeholder
@@ -173,18 +254,31 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 	instance *models.AggregatorInstanceWithDetails,
 ) (CollectionProvider, error) {
 
+	log.Printf("[InstanceLoader] ════════════════════════════════════════════════════")
+	log.Printf("[InstanceLoader] 🚀 LOADING PROVIDER: %s", instance.ProviderCode)
+	log.Printf("[InstanceLoader]    Instance ID: %s", instance.ID)
+	log.Printf("[InstanceLoader]    Instance Name: %s", instance.InstanceName)
+	log.Printf("[InstanceLoader]    Is Active: %v", instance.IsActive)
+	log.Printf("[InstanceLoader]    Is Test Mode: %v", instance.IsTestMode)
+	log.Printf("[InstanceLoader] ════════════════════════════════════════════════════")
+
 	// Use VaultSecretPath from instance if available, otherwise fall back to default
 	vaultPath := instance.VaultSecretPath
 	if vaultPath == "" {
 		// Check environment variable as fallback
-		vaultPath = os.Getenv(fmt.Sprintf("%s_VAULT_PATH", instance.ProviderCode))
+		envKey := fmt.Sprintf("%s_VAULT_PATH", instance.ProviderCode)
+		vaultPath = os.Getenv(envKey)
+		if vaultPath != "" {
+			log.Printf("[InstanceLoader] 📍 Vault path from env var %s: %s", envKey, vaultPath)
+		}
 	}
 	if vaultPath == "" {
 		// Final fallback to default path
 		vaultPath = fmt.Sprintf("secret/aggregators/%s", instance.ProviderCode)
+		log.Printf("[InstanceLoader] 📍 Using default vault path: %s", vaultPath)
+	} else {
+		log.Printf("[InstanceLoader] 📍 Using configured vault path: %s", vaultPath)
 	}
-
-	log.Printf("[InstanceLoader] Instance %s (%s): using vault path: %s", instance.ID, instance.ProviderCode, vaultPath)
 
 	switch instance.ProviderCode {
 	case "flutterwave":
@@ -240,14 +334,34 @@ func (l *InstanceBasedProviderLoader) loadFlutterwaveFromInstance(instance *mode
 }
 
 func (l *InstanceBasedProviderLoader) loadCinetPayFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+	log.Printf("[InstanceLoader] 🔧 Initializing CinetPay provider...")
+
 	creds, err := l.getCredentials(instance, vaultPath)
 	if err != nil {
+		log.Printf("[InstanceLoader] ❌ CinetPay credential error: %v", err)
 		return nil, fmt.Errorf("failed to get CinetPay credentials: %w", err)
 	}
 
+	// Validate required credentials
+	apiKey := creds["api_key"]
+	siteID := creds["site_id"]
+
+	if apiKey == "" {
+		log.Printf("[InstanceLoader] ❌ CinetPay: Missing 'api_key' credential")
+		return nil, fmt.Errorf("CinetPay requires 'api_key' credential")
+	}
+	if siteID == "" {
+		log.Printf("[InstanceLoader] ❌ CinetPay: Missing 'site_id' credential")
+		return nil, fmt.Errorf("CinetPay requires 'site_id' credential")
+	}
+
+	log.Printf("[InstanceLoader] ✅ CinetPay credentials validated:")
+	log.Printf("[InstanceLoader]    API Key: %s...%s", apiKey[:4], apiKey[len(apiKey)-4:])
+	log.Printf("[InstanceLoader]    Site ID: %s", siteID)
+
 	config := CinetPayConfig{
-		APIKey:  creds["api_key"],
-		SiteID:  creds["site_id"],
+		APIKey:  apiKey,
+		SiteID:  siteID,
 		BaseURL: "https://api-checkout.cinetpay.com/v2",
 	}
 
@@ -298,13 +412,24 @@ func (l *InstanceBasedProviderLoader) loadStripeFromInstance(instance *models.Ag
 }
 
 func (l *InstanceBasedProviderLoader) loadWaveFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+	log.Printf("[InstanceLoader] 🔧 Initializing Wave provider...")
+
 	creds, err := l.getCredentials(instance, vaultPath)
 	if err != nil {
+		log.Printf("[InstanceLoader] ❌ Wave credential error: %v", err)
 		return nil, fmt.Errorf("failed to get Wave credentials: %w", err)
 	}
 
+	apiKey := creds["api_key"]
+	if apiKey == "" {
+		log.Printf("[InstanceLoader] ❌ Wave: Missing 'api_key' credential")
+		return nil, fmt.Errorf("Wave requires 'api_key' credential")
+	}
+
+	log.Printf("[InstanceLoader] ✅ Wave credentials validated (API Key: %s...)", apiKey[:min(8, len(apiKey))])
+
 	config := WaveConfig{
-		APIKey:  creds["api_key"],
+		APIKey:  apiKey,
 		BaseURL: "https://api.wave.com/v1",
 	}
 
@@ -316,10 +441,28 @@ func (l *InstanceBasedProviderLoader) loadWaveFromInstance(instance *models.Aggr
 }
 
 func (l *InstanceBasedProviderLoader) loadPayPalFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+	log.Printf("[InstanceLoader] 🔧 Initializing PayPal provider...")
+
 	creds, err := l.getCredentials(instance, vaultPath)
 	if err != nil {
+		log.Printf("[InstanceLoader] ❌ PayPal credential error: %v", err)
 		return nil, fmt.Errorf("failed to get PayPal credentials: %w", err)
 	}
+
+	clientID := creds["client_id"]
+	clientSecret := creds["client_secret"]
+
+	if clientID == "" {
+		log.Printf("[InstanceLoader] ❌ PayPal: Missing 'client_id' credential")
+		return nil, fmt.Errorf("PayPal requires 'client_id' credential")
+	}
+	if clientSecret == "" {
+		log.Printf("[InstanceLoader] ❌ PayPal: Missing 'client_secret' credential")
+		return nil, fmt.Errorf("PayPal requires 'client_secret' credential")
+	}
+
+	log.Printf("[InstanceLoader] ✅ PayPal credentials found:")
+	log.Printf("[InstanceLoader]    Client ID: %s...%s", clientID[:min(8, len(clientID))], clientID[max(0, len(clientID)-4):])
 
 	// Determine mode and base URL
 	mode := creds["mode"]
