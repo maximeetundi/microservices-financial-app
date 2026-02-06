@@ -6,8 +6,14 @@ import (
 	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 )
+
+// InstanceCredentialsClient interface for fetching instance credentials
+// This interface is implemented by services.AdminClient to avoid import cycles
+type InstanceCredentialsClient interface {
+	GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string) (*models.AggregatorInstanceWithDetails, error)
+	GetInstanceByID(instanceID string) (*models.AggregatorInstanceWithDetails, error)
+}
 
 // min returns the smaller of two integers
 func min(a, b int) int {
@@ -28,14 +34,15 @@ func max(a, b int) int {
 // InstanceBasedProviderLoader loads providers from admin-service API
 // Credentials are fetched via secure service-to-service communication
 type InstanceBasedProviderLoader struct {
-	adminClient *services.AdminClient
+	credentialsClient InstanceCredentialsClient
 }
 
 // NewInstanceBasedProviderLoader creates a new instance-based loader
-func NewInstanceBasedProviderLoader(adminClient *services.AdminClient) *InstanceBasedProviderLoader {
+// The client parameter must implement InstanceCredentialsClient (e.g., services.AdminClient)
+func NewInstanceBasedProviderLoader(client InstanceCredentialsClient) *InstanceBasedProviderLoader {
 	log.Printf("[InstanceLoader] ✅ Initialized - credentials fetched from admin-service API")
 	return &InstanceBasedProviderLoader{
-		adminClient: adminClient,
+		credentialsClient: client,
 	}
 }
 
@@ -554,7 +561,7 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 		providerCode, country, amount)
 
 	// Get best instance with credentials from admin-service API
-	instance, err := l.adminClient.GetBestInstanceWithCredentials(providerCode, country, amount, "XOF")
+	instance, err := l.credentialsClient.GetBestInstanceWithCredentials(providerCode, country, amount, "XOF")
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ Failed to get instance from admin-service: %v", err)
 		return nil, nil, fmt.Errorf("no available instance for provider %s: %w", providerCode, err)
