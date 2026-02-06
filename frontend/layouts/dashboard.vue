@@ -11,7 +11,8 @@
     <aside 
       :class="[
         'fixed h-full bg-slate-100 dark:bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        'lg:translate-x-0 lg:relative lg:z-auto',
         'w-72'
       ]"
     >
@@ -163,7 +164,23 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 lg:ml-72 transition-all duration-300">
+    <main class="flex-1 lg:ml-0 transition-all duration-300">
+      <!-- Desktop Header (hidden on mobile) -->
+      <header class="hidden lg:flex sticky top-0 z-30 bg-slate-100/95 dark:bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-6 py-4 items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img src="/logo.png" alt="Zekora Logo" class="w-8 h-8 rounded-lg object-cover" />
+          <div>
+            <h1 class="text-lg font-bold text-base">Zekora</h1>
+            <p class="text-xs text-muted">Bonjour, {{ userName }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <NotificationCenter />
+          <ThemeToggle />
+        </div>
+      </header>
+
       <!-- Mobile Header with Hamburger -->
       <header class="lg:hidden sticky top-0 z-30 bg-slate-100/95 dark:bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-4 py-3 flex items-center justify-between">
         <button 
@@ -261,6 +278,9 @@
       @success="onPinSuccess"
       @close="onPinClose"
     />
+
+    <!-- Floating Cart Button (only show when cart has items) -->
+    <FloatingCartButton />
   </div>
 </template>
 
@@ -271,6 +291,10 @@ import { computed } from 'vue'
 import { usePin } from '~/composables/usePin'
 import PinModal from '~/components/common/PinModal.vue'
 import SecurePinSetupModal from '~/components/common/SecurePinSetupModal.vue'
+import NotificationCenter from '~/components/common/NotificationCenter.vue'
+import ThemeToggle from '~/components/common/ThemeToggle.vue'
+import GlobalModal from '~/components/common/GlobalModal.vue'
+import FloatingCartButton from '~/components/common/FloatingCartButton.vue'
 
 const authStore = useAuthStore()
 const sidebarOpen = ref(false)

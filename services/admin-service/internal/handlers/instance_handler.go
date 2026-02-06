@@ -580,8 +580,12 @@ func (h *InstanceHandler) GetInstanceCredentials(c *gin.Context) {
 					maskedCreds[key] = "****"
 				}
 			} else {
+				// Include non-secret values as-is (client_id, base_url, environment, etc.)
 				maskedCreds[key] = str
 			}
+		} else if value != nil {
+			// Include non-string values as-is
+			maskedCreds[key] = value
 		}
 	}
 
@@ -677,9 +681,9 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 	}
 
 	// Parse credentials JSON
-	var credentials map[string]string
+	var credentials map[string]interface{}
 	if err := json.Unmarshal(instance.APICredentials, &credentials); err != nil {
-		credentials = make(map[string]string)
+		credentials = make(map[string]interface{})
 	}
 
 	// Increment request count
@@ -755,9 +759,9 @@ func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
 	}
 
 	// Parse credentials JSON
-	var credentials map[string]string
+	var credentials map[string]interface{}
 	if err := json.Unmarshal(instance.APICredentials, &credentials); err != nil {
-		credentials = make(map[string]string)
+		credentials = make(map[string]interface{})
 	}
 
 	c.JSON(http.StatusOK, gin.H{

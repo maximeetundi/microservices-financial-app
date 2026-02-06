@@ -202,6 +202,9 @@
         </div>
       </main>
     </div>
+
+    <!-- Floating Cart Button -->
+    <FloatingCartButton />
   </div>
 </template>
 
@@ -210,6 +213,7 @@ import { ref, computed, provide, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useShopApi, type Shop, type Category } from '~/composables/useShopApi'
 import { useCartStore } from '~/stores/cart'
+import FloatingCartButton from '~/components/common/FloatingCartButton.vue'
 
 const route = useRoute()
 const router = useRouter()

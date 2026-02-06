@@ -1,38 +1,44 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
     <!-- Mobile Sidebar Backdrop -->
     <div 
       v-if="isMobileMenuOpen" 
-      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      class="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
       @click="isMobileMenuOpen = false"
     ></div>
 
-    <!-- Sidebar -->
+    <!-- Mobile Sidebar (Hidden by default) -->
     <aside 
-      class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out lg:transform-none"
-      :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
+      v-if="isMobileMenuOpen"
+      class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out flex flex-col"
     >
-      <!-- Logo / Shop Name -->
-      <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700">
-        <div class="flex items-center gap-2">
-           <div class="h-8 w-8 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-             {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
-           </div>
-           <span class="font-bold text-gray-900 dark:text-white truncate max-w-[150px]">
-             {{ shopName || 'Chargement...' }}
-           </span>
+      <!-- Close Button -->
+      <div class="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded bg-indigo-600 flex items-center justify-center text-white font-bold">
+            {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
+          </div>
+          <span class="font-bold text-gray-900 dark:text-white text-sm">{{ shopName || 'Boutique' }}</span>
         </div>
+        <button
+          @click="isMobileMenuOpen = false"
+          class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+        >
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
 
-      <!-- Navigation -->
-      <nav class="p-4 space-y-1">
+      <!-- Mobile Navigation -->
+      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
         <NuxtLink 
           :to="`/shops/manage/${slug}`"
           class="flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors group"
           :class="isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
-          <HomeIcon class="h-5 w-5 mr-3 transition-colors" :class="isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'" />
+          <HomeIcon class="h-5 w-5 mr-3" />
           Tableau de bord
         </NuxtLink>
 
@@ -42,7 +48,7 @@
           :class="isActive(`/shops/manage/${slug}/products`) ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
-          <ShoppingBagIcon class="h-5 w-5 mr-3 transition-colors" :class="isActive(`/shops/manage/${slug}/products`) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'" />
+          <ShoppingBagIcon class="h-5 w-5 mr-3" />
           Produits
         </NuxtLink>
 
@@ -52,7 +58,7 @@
           :class="isActive(`/shops/manage/${slug}/orders`) ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
-          <ClipboardDocumentListIcon class="h-5 w-5 mr-3 transition-colors" :class="isActive(`/shops/manage/${slug}/orders`) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'" />
+          <ClipboardDocumentListIcon class="h-5 w-5 mr-3" />
           Commandes
         </NuxtLink>
         
@@ -62,7 +68,7 @@
           :class="isActive(`/shops/manage/${slug}/categories`) ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
-          <TagIcon class="h-5 w-5 mr-3 transition-colors" :class="isActive(`/shops/manage/${slug}/categories`) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'" />
+          <TagIcon class="h-5 w-5 mr-3" />
           Catégories
         </NuxtLink>
 
@@ -72,42 +78,108 @@
           :class="isActive(`/shops/manage/${slug}/settings`) ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'"
           @click="isMobileMenuOpen = false"
         >
-          <Cog6ToothIcon class="h-5 w-5 mr-3 transition-colors" :class="isActive(`/shops/manage/${slug}/settings`) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'" />
+          <Cog6ToothIcon class="h-5 w-5 mr-3" />
           Paramètres
         </NuxtLink>
       </nav>
-
-      <!-- Bottom Actions -->
-      <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
-         <NuxtLink 
-           :to="`/shops/${slug}`"
-           target="_blank"
-           class="flex items-center justify-center w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600"
-         >
-           <EyeIcon class="h-4 w-4 mr-2" />
-           Voir la boutique
-         </NuxtLink>
-      </div>
     </aside>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-      <!-- Mobile Header -->
-      <header class="bg-white dark:bg-slate-800 shadow-sm lg:hidden h-16 flex items-center justify-between px-4 z-30">
-        <button @click="isMobileMenuOpen = true" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-          <Bars3Icon class="h-6 w-6" />
-        </button>
-        <span class="font-bold text-gray-900 dark:text-white">{{ shopName }}</span>
-        <div class="w-6"></div> <!-- Spacer for centering -->
-      </header>
+    <!-- Main Header with Navigation -->
+    <header class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+      <div class="px-4 sm:px-6 lg:px-8">
+        <!-- Top Row -->
+        <div class="flex items-center justify-between h-16">
+          <!-- Left: Hamburger + Shop Info -->
+          <div class="flex items-center gap-4">
+            <!-- Hamburger Menu (Mobile) -->
+            <button
+              @click="isMobileMenuOpen = true"
+              class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Bars3Icon class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+            </button>
 
-      <!-- Page Content -->
-      <main class="flex-1 overflow-y-auto p-4 lg:p-8">
-        <div class="max-w-7xl mx-auto">
-          <slot />
+            <!-- Shop Logo and Name -->
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                {{ shopName ? shopName.charAt(0).toUpperCase() : 'S' }}
+              </div>
+              <div>
+                <h1 class="text-lg font-bold text-gray-900 dark:text-white">{{ shopName || 'Boutique' }}</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Gestion de la boutique</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Actions -->
+          <div class="flex items-center gap-3">
+            <NuxtLink 
+              :to="`/shops/${slug}`"
+              target="_blank"
+              class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <EyeIcon class="h-4 w-4 mr-2" />
+              Voir la boutique
+            </NuxtLink>
+          </div>
         </div>
-      </main>
-    </div>
+
+        <!-- Navigation Menu (Desktop) -->
+        <nav class="hidden lg:flex border-t border-gray-200 dark:border-gray-700">
+          <div class="flex space-x-8">
+            <NuxtLink 
+              :to="`/shops/manage/${slug}`"
+              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
+              :class="isActive(`/shops/manage/${slug}`) && !isActive(`/shops/manage/${slug}/`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+            >
+              <HomeIcon class="h-5 w-5 mr-2" />
+              Tableau de bord
+            </NuxtLink>
+
+            <NuxtLink 
+              :to="`/shops/manage/${slug}/products`"
+              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
+              :class="isActive(`/shops/manage/${slug}/products`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+            >
+              <ShoppingBagIcon class="h-5 w-5 mr-2" />
+              Produits
+            </NuxtLink>
+
+            <NuxtLink 
+              :to="`/shops/manage/${slug}/orders`"
+              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
+              :class="isActive(`/shops/manage/${slug}/orders`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+            >
+              <ClipboardDocumentListIcon class="h-5 w-5 mr-2" />
+              Commandes
+            </NuxtLink>
+            
+            <NuxtLink 
+              :to="`/shops/manage/${slug}/categories`"
+              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
+              :class="isActive(`/shops/manage/${slug}/categories`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+            >
+              <TagIcon class="h-5 w-5 mr-2" />
+              Catégories
+            </NuxtLink>
+
+            <NuxtLink 
+              :to="`/shops/manage/${slug}/settings`"
+              class="flex items-center px-1 py-4 text-sm font-medium transition-colors border-b-2"
+              :class="isActive(`/shops/manage/${slug}/settings`) ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+            >
+              <Cog6ToothIcon class="h-5 w-5 mr-2" />
+              Paramètres
+            </NuxtLink>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="flex-1 overflow-y-auto">
+      <slot />
+    </main>
   </div>
 </template>
 

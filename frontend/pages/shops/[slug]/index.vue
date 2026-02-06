@@ -299,7 +299,8 @@ const addToCart = (product: Product) => {
     price: product.price,
     image: product.images?.[0] || '',
     quantity: 1,
-    shopSlug: shopSlug.value
+    shopId: shop.value?.id || 'unknown',
+    shopName: shop.value?.name || 'Boutique'
   })
 }
 
@@ -355,6 +356,15 @@ watch(() => route.query, () => loadProducts(true), { immediate: true })
 // Watch for categories to be loaded
 watch(categories, () => {
   if (categories.value.length > 0 && products.value.length === 0 && !loading.value) {
+    loadProducts(true)
+  }
+})
+
+// Initialize on mount
+onMounted(() => {
+  cartStore.loadCart()
+  // Load products if not already loading
+  if (!loading.value && products.value.length === 0) {
     loadProducts(true)
   }
 })
