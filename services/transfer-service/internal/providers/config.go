@@ -425,11 +425,6 @@ func InitializeRouter(cfg *Config) *ZoneRouter {
 	return router
 }
 
-// isPlaceholder checks if a value is a placeholder that should not be used
-func isPlaceholder(value string) bool {
-	return len(value) > 8 && value[0:8] == "REPLACE_"
-}
-
 // InitializeCryptoRails creates the crypto rails provider
 func InitializeCryptoRails(cfg *Config) *CryptoRailsProvider {
 	return NewCryptoRailsProvider(cfg.CryptoRails)
