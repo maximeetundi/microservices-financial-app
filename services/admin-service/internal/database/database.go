@@ -998,27 +998,37 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["webhook_secret"] = fmt.Sprintf("wh_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			credentials["base_url"] = "https://api.example.com"
+			credentials["environment"] = "sandbox"
 			
 		case "card":
 			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["webhook_secret"] = fmt.Sprintf("whsec_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			credentials["base_url"] = "https://api.stripe.com/v1"
+			credentials["environment"] = "sandbox"
 			
 		case "international":
 			credentials["client_id"] = fmt.Sprintf("client_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			credentials["client_secret"] = fmt.Sprintf("secret_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["api_key"] = fmt.Sprintf("api_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["base_url"] = "https://api.paypal.com/v1"
+			credentials["environment"] = "sandbox"
 			
 		case "crypto_ramp":
 			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["public_key"] = fmt.Sprintf("pub_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			credentials["base_url"] = "https://api.yellowcard.io/v1"
+			credentials["environment"] = "sandbox"
 			
 		case "demo":
 			credentials["api_key"] = "demo_api_key_12345"
 			credentials["secret_key"] = "demo_secret_key_12345"
 			credentials["client_id"] = "demo_client_12345"
 			credentials["client_secret"] = "demo_client_secret_12345"
+			credentials["base_url"] = "https://demo.api.com"
+			credentials["environment"] = "demo"
 		}
 
 		// Convert to JSON and update database

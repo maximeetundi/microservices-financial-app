@@ -229,7 +229,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		IsPrimary   bool                `json:"is_primary"`
 		IsGlobal    bool                `json:"is_global"`
 		Priority    int                 `json:"priority"`
-		Credentials *CredentialsRequest `json:"credentials,omitempty"`
+		Credentials map[string]interface{} `json:"credentials,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -309,10 +309,18 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 
 	// Save credentials to database if provided
 	credentialsSaved := false
-	if req.Credentials != nil {
-		credData := req.Credentials.ToMap()
-		if len(credData) > 0 {
-			credJSON, err := json.Marshal(credData)
+	if req.Credentials != nil && len(req.Credentials) > 0 {
+		// Filter out empty values
+		filteredCreds := make(map[string]interface{})
+		for k, v := range req.Credentials {
+			if str, ok := v.(string); ok && str == "" {
+				continue // Skip empty strings
+			}
+			filteredCreds[k] = v
+		}
+
+		if len(filteredCreds) > 0 {
+			credJSON, err := json.Marshal(filteredCreds)
 			if err == nil {
 				_, err = h.db.Exec(`UPDATE provider_instances SET api_credentials = $1 WHERE id = $2`, credJSON, returnedID)
 				if err != nil {
@@ -454,7 +462,7 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 
 	// Use map to accept flexible input (camelCase or snake_case)
 	var req struct {
-		Credentials map[string]interface{} `json:"credentials" binding:"required"`
+		Credentials map[string]interface{} `json:"credentials"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
