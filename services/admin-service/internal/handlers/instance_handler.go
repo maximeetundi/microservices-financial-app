@@ -478,13 +478,13 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 		return
 	}
 
-	if len(req.Credentials) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No credentials provided"})
-		return
-	}
-
 	// Helper to normalize and filter credentials
 	normalizedCreds := make(map[string]interface{})
+	
+	// Allow empty credentials map - this means we're just updating with empty values
+	if req.Credentials == nil {
+		req.Credentials = make(map[string]interface{})
+	}
 	
 	// Define comprehensive key mapping for both snake_case and camelCase inputs
 	keyMapping := map[string]string{
@@ -519,12 +519,7 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 		}
 	}
 
-	if len(normalizedCreds) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No credentials provided"})
-		return
-	}
-
-	// Convert to JSON for storage
+	// Convert to JSON for storage (even if empty - this allows clearing credentials)
 	credJSON, err := json.Marshal(normalizedCreds)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to serialize credentials"})
