@@ -2,13 +2,96 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	vault "github.com/hashicorp/vault/api"
 )
+
+// VaultClient wraps the Vault API client
+type VaultClient struct {
+	client *vault.Client
+}
+
+// NewVaultClient creates a new Vault client
+func NewVaultClient() (*VaultClient, error) {
+	config := vault.DefaultConfig()
+
+	if addr := os.Getenv("VAULT_ADDR"); addr != "" {
+		config.Address = addr
+	}
+
+	client, err := vault.NewClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	if token := os.Getenv("VAULT_TOKEN"); token != "" {
+		client.SetToken(token)
+	}
+
+	return &VaultClient{client: client}, nil
+}
+
+// WriteSecret writes a secret to Vault (supports KV v2)
+func (v *VaultClient) WriteSecret(path string, data map[string]interface{}) error {
+	// Convert path for KV v2: secret/x -> secret/data/x
+	kvV2Path := convertToKVv2Path(path)
+
+	// Wrap data in "data" key for KV v2
+	wrappedData := map[string]interface{}{
+		"data": data,
+	}
+
+	_, err := v.client.Logical().Write(kvV2Path, wrappedData)
+	if err != nil {
+		// Try KV v1 as fallback
+		_, err = v.client.Logical().Write(path, data)
+	}
+	return err
+}
+
+// GetSecret reads a secret from Vault
+func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
+	kvV2Path := convertToKVv2Path(path)
+
+	secret, err := v.client.Logical().Read(kvV2Path)
+	if err != nil || secret == nil {
+		// Try KV v1 as fallback
+		secret, err = v.client.Logical().Read(path)
+		if err != nil || secret == nil {
+			return nil, fmt.Errorf("secret not found at %s", path)
+		}
+		return secret.Data, nil
+	}
+
+	// Extract data from KV v2 response
+	if data, ok := secret.Data["data"].(map[string]interface{}); ok {
+		return data, nil
+	}
+	return secret.Data, nil
+}
+
+// convertToKVv2Path converts a KV v1 style path to KV v2 style
+func convertToKVv2Path(path string) string {
+	// If path already contains /data/, return as is
+	if len(path) > 12 && path[7:11] == "data" {
+		return path
+	}
+
+	// Find the first slash (mount point separator)
+	for i, c := range path {
+		if c == '/' {
+			return path[:i] + "/data" + path[i:]
+		}
+	}
+	return path
+}
 
 // ProviderInstance represents a single API key instance for a provider
 type ProviderInstance struct {
@@ -35,12 +118,107 @@ type ProviderInstance struct {
 
 // InstanceHandler handles provider instance management
 type InstanceHandler struct {
-	db *sql.DB
+	db          *sql.DB
+	vaultClient *VaultClient
 }
 
 // NewInstanceHandler creates a new InstanceHandler
 func NewInstanceHandler(db *sql.DB) *InstanceHandler {
-	return &InstanceHandler{db: db}
+	handler := &InstanceHandler{db: db}
+
+	// Initialize Vault client
+	vaultClient, err := NewVaultClient()
+	if err != nil {
+		log.Printf("[InstanceHandler] Warning: Failed to initialize Vault client: %v", err)
+		log.Printf("[InstanceHandler] Credentials will not be synced to Vault")
+	} else {
+		handler.vaultClient = vaultClient
+		log.Printf("[InstanceHandler] Vault client initialized successfully")
+	}
+
+	return handler
+}
+
+// CredentialsRequest represents API credentials for a provider instance
+type CredentialsRequest struct {
+	// Common fields
+	ClientID      string `json:"client_id,omitempty"`
+	ClientSecret  string `json:"client_secret,omitempty"`
+	APIKey        string `json:"api_key,omitempty"`
+	SecretKey     string `json:"secret_key,omitempty"`
+	PublicKey     string `json:"public_key,omitempty"`
+	WebhookID     string `json:"webhook_id,omitempty"`
+	WebhookSecret string `json:"webhook_secret,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	Mode          string `json:"mode,omitempty"` // sandbox or live
+	// Provider-specific
+	EncryptionKey   string `json:"encryption_key,omitempty"`
+	SiteID          string `json:"site_id,omitempty"`
+	MerchantKey     string `json:"merchant_key,omitempty"`
+	SubscriptionKey string `json:"subscription_key,omitempty"`
+	APIUser         string `json:"api_user,omitempty"`
+	ShopName        string `json:"shop_name,omitempty"`
+	BusinessID      string `json:"business_id,omitempty"`
+	Environment     string `json:"environment,omitempty"`
+}
+
+// ToMap converts credentials to a map for Vault storage
+func (c *CredentialsRequest) ToMap() map[string]interface{} {
+	data := make(map[string]interface{})
+
+	if c.ClientID != "" {
+		data["client_id"] = c.ClientID
+	}
+	if c.ClientSecret != "" {
+		data["client_secret"] = c.ClientSecret
+	}
+	if c.APIKey != "" {
+		data["api_key"] = c.APIKey
+	}
+	if c.SecretKey != "" {
+		data["secret_key"] = c.SecretKey
+	}
+	if c.PublicKey != "" {
+		data["public_key"] = c.PublicKey
+	}
+	if c.WebhookID != "" {
+		data["webhook_id"] = c.WebhookID
+	}
+	if c.WebhookSecret != "" {
+		data["webhook_secret"] = c.WebhookSecret
+	}
+	if c.BaseURL != "" {
+		data["base_url"] = c.BaseURL
+	}
+	if c.Mode != "" {
+		data["mode"] = c.Mode
+	}
+	if c.EncryptionKey != "" {
+		data["encryption_key"] = c.EncryptionKey
+	}
+	if c.SiteID != "" {
+		data["site_id"] = c.SiteID
+	}
+	if c.MerchantKey != "" {
+		data["merchant_key"] = c.MerchantKey
+	}
+	if c.SubscriptionKey != "" {
+		data["subscription_key"] = c.SubscriptionKey
+	}
+	if c.APIUser != "" {
+		data["api_user"] = c.APIUser
+	}
+	if c.ShopName != "" {
+		data["shop_name"] = c.ShopName
+	}
+	if c.BusinessID != "" {
+		data["business_id"] = c.BusinessID
+	}
+	if c.Environment != "" {
+		data["environment"] = c.Environment
+	}
+
+	return data
 }
 
 // GetProviderInstances returns all instances for a provider
@@ -49,7 +227,7 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 
 	query := `
 		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
-		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global, 
+		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global,
 		       COALESCE(is_paused, FALSE) as is_paused,
 		       priority, request_count, last_used_at,
 		       last_error, health_status, created_at, updated_at
@@ -138,9 +316,11 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 			HotWalletID string `json:"hot_wallet_id"`
 			Currency    string `json:"currency"`
 		} `json:"wallets"`
-		IsActive  bool `json:"is_active"`
-		IsPrimary bool `json:"is_primary"`
-		Priority  int  `json:"priority"`
+		IsActive    bool                `json:"is_active"`
+		IsPrimary   bool                `json:"is_primary"`
+		IsGlobal    bool                `json:"is_global"`
+		Priority    int                 `json:"priority"`
+		Credentials *CredentialsRequest `json:"credentials,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -204,7 +384,25 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": returnedID, "message": "Instance created successfully"})
+	// Write credentials to Vault if provided
+	if req.Credentials != nil && h.vaultClient != nil {
+		credData := req.Credentials.ToMap()
+		if len(credData) > 0 {
+			if err := h.vaultClient.WriteSecret(req.VaultSecretPath, credData); err != nil {
+				log.Printf("[InstanceHandler] Warning: Failed to write credentials to Vault at %s: %v", req.VaultSecretPath, err)
+				// Don't fail the request, just log the warning
+			} else {
+				log.Printf("[InstanceHandler] Successfully wrote credentials to Vault at %s", req.VaultSecretPath)
+			}
+		}
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":                returnedID,
+		"message":           "Instance created successfully",
+		"vault_secret_path": req.VaultSecretPath,
+		"credentials_saved": req.Credentials != nil && h.vaultClient != nil,
+	})
 }
 
 // UpdateProviderInstance updates an existing instance
@@ -212,13 +410,15 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 	instanceID := c.Param("instanceId")
 
 	var req struct {
-		Name            string `json:"name"`
-		VaultSecretPath string `json:"vault_secret_path"`
-		HotWalletID     string `json:"hot_wallet_id"`
-		IsActive        *bool  `json:"is_active"`
-		IsPrimary       *bool  `json:"is_primary"`
-		Priority        *int   `json:"priority"`
-		HealthStatus    string `json:"health_status"`
+		Name            string              `json:"name"`
+		VaultSecretPath string              `json:"vault_secret_path"`
+		HotWalletID     string              `json:"hot_wallet_id"`
+		IsActive        bool                `json:"is_active"`
+		IsPrimary       bool                `json:"is_primary"`
+		IsGlobal        bool                `json:"is_global"`
+		Priority        int                 `json:"priority"`
+		HealthStatus    string              `json:"health_status"`
+		Credentials     *CredentialsRequest `json:"credentials,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -289,7 +489,133 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Instance updated successfully"})
+	// Update credentials in Vault if provided
+	credentialsSaved := false
+	if req.Credentials != nil && h.vaultClient != nil {
+		// Get current vault path from DB if not provided in request
+		vaultPath := req.VaultSecretPath
+		if vaultPath == "" {
+			h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
+		}
+
+		if vaultPath != "" {
+			credData := req.Credentials.ToMap()
+			if len(credData) > 0 {
+				if err := h.vaultClient.WriteSecret(vaultPath, credData); err != nil {
+					log.Printf("[InstanceHandler] Warning: Failed to update credentials in Vault at %s: %v", vaultPath, err)
+				} else {
+					log.Printf("[InstanceHandler] Successfully updated credentials in Vault at %s", vaultPath)
+					credentialsSaved = true
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":           "Instance updated successfully",
+		"credentials_saved": credentialsSaved,
+	})
+}
+
+// UpdateInstanceCredentials updates only the credentials in Vault for an instance
+func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+
+	var req struct {
+		Credentials CredentialsRequest `json:"credentials" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get vault path from instance
+	var vaultPath string
+	err := h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+		return
+	}
+
+	if h.vaultClient == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Vault client not available"})
+		return
+	}
+
+	credData := req.Credentials.ToMap()
+	if len(credData) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No credentials provided"})
+		return
+	}
+
+	if err := h.vaultClient.WriteSecret(vaultPath, credData); err != nil {
+		log.Printf("[InstanceHandler] Failed to update credentials in Vault: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credentials to Vault"})
+		return
+	}
+
+	log.Printf("[InstanceHandler] Successfully updated credentials for instance %s at %s", instanceID, vaultPath)
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Credentials updated successfully",
+		"vault_path": vaultPath,
+	})
+}
+
+// GetInstanceCredentials retrieves credentials from Vault (masked for security)
+func (h *InstanceHandler) GetInstanceCredentials(c *gin.Context) {
+	instanceID := c.Param("instanceId")
+
+	// Get vault path from instance
+	var vaultPath string
+	err := h.db.QueryRow("SELECT vault_secret_path FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+		return
+	}
+
+	if h.vaultClient == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Vault client not available"})
+		return
+	}
+
+	data, err := h.vaultClient.GetSecret(vaultPath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":      "Credentials not found in Vault",
+			"vault_path": vaultPath,
+			"details":    err.Error(),
+		})
+		return
+	}
+
+	// Mask sensitive values for display
+	maskedData := make(map[string]interface{})
+	for key, value := range data {
+		if str, ok := value.(string); ok && len(str) > 0 {
+			if len(str) > 8 {
+				maskedData[key] = str[:4] + "****" + str[len(str)-4:]
+			} else {
+				maskedData[key] = "****"
+			}
+		} else {
+			maskedData[key] = value
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"vault_path":  vaultPath,
+		"credentials": maskedData,
+		"keys":        getMapKeys(data),
+	})
+}
+
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // DeleteProviderInstance deletes an instance
@@ -376,9 +702,9 @@ func (h *InstanceHandler) TestInstance(c *gin.Context) {
 func (h *InstanceHandler) RecordInstanceUsage(instanceID string, success bool, errorMsg string) error {
 	if success {
 		_, err := h.db.Exec(`
-			UPDATE provider_instances 
-			SET request_count = request_count + 1, 
-			    last_used_at = NOW(), 
+			UPDATE provider_instances
+			SET request_count = request_count + 1,
+			    last_used_at = NOW(),
 			    health_status = 'healthy',
 			    last_error = NULL,
 			    updated_at = NOW()
@@ -387,7 +713,7 @@ func (h *InstanceHandler) RecordInstanceUsage(instanceID string, success bool, e
 		return err
 	} else {
 		_, err := h.db.Exec(`
-			UPDATE provider_instances 
+			UPDATE provider_instances
 			SET request_count = request_count + 1,
 			    last_used_at = NOW(),
 			    health_status = 'error',
@@ -414,10 +740,10 @@ func (h *InstanceHandler) SelectBestInstance(c *gin.Context) {
 		SELECT i.id, i.provider_id, i.name, i.vault_secret_path, i.hot_wallet_id,
 		       i.is_active, i.is_primary, i.priority, i.request_count, i.health_status
 		FROM provider_instances i
-		WHERE i.provider_id = $1 
+		WHERE i.provider_id = $1
 		  AND i.is_active = TRUE
 		  AND i.health_status != 'revoked'
-		ORDER BY 
+		ORDER BY
 			CASE WHEN i.health_status = 'healthy' THEN 0 ELSE 1 END,
 			i.is_primary DESC,
 			i.priority DESC,
@@ -520,7 +846,7 @@ func (h *InstanceHandler) AddInstanceWallet(c *gin.Context) {
 	query := `
 		INSERT INTO provider_instance_wallets (id, instance_id, currency, hot_wallet_id, is_active, priority)
 		VALUES ($1, $2, $3, $4, TRUE, $5)
-		ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE 
+		ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE
 		SET is_active = TRUE, priority = EXCLUDED.priority`
 
 	_, err := h.db.Exec(query, id, instanceID, req.Currency, req.HotWalletID, req.Priority)
@@ -613,7 +939,7 @@ func (h *InstanceHandler) ToggleInstancePause(c *gin.Context) {
 
 	// Update the pause status in database
 	result, err := h.db.Exec(`
-		UPDATE provider_instances 
+		UPDATE provider_instances
 		SET is_paused = $1, updated_at = NOW()
 		WHERE id = $2
 	`, req.IsPaused, instanceID)

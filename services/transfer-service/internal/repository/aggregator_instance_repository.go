@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
 	"github.com/lib/pq"
@@ -18,8 +19,49 @@ func NewAggregatorInstanceRepository(db *sql.DB) *AggregatorInstanceRepository {
 	return &AggregatorInstanceRepository{db: db}
 }
 
-// GetByID retrieves an instance by ID
+// GetByID retrieves an instance by ID - tries provider_instances first, then aggregator_instances
 func (r *AggregatorInstanceRepository) GetByID(ctx context.Context, id string) (*models.AggregatorInstance, error) {
+	// First try provider_instances (admin-service table with vault_secret_path)
+	providerQuery := `
+		SELECT pi.id, pp.id as aggregator_id, pi.name, pi.hot_wallet_id, pi.vault_secret_path,
+		       pi.is_active, pi.priority, pi.is_global, pi.is_paused, pi.pause_reason,
+		       pi.request_count, pi.last_used_at, pi.created_at, pi.updated_at,
+		       pp.name as provider_code
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		WHERE pi.id = $1
+	`
+
+	var instance models.AggregatorInstance
+	var vaultPath sql.NullString
+	var pauseReason sql.NullString
+	var lastUsedAt sql.NullTime
+	var providerCode string
+
+	err := r.db.QueryRowContext(ctx, providerQuery, id).Scan(
+		&instance.ID, &instance.AggregatorID, &instance.InstanceName, &instance.HotWalletID,
+		&vaultPath, &instance.Enabled, &instance.Priority, &instance.IsGlobal, &instance.IsPaused,
+		&pauseReason, &instance.TotalTransactions, &lastUsedAt,
+		&instance.CreatedAt, &instance.UpdatedAt, &providerCode,
+	)
+
+	if err == nil {
+		// Found in provider_instances
+		if vaultPath.Valid {
+			instance.VaultSecretPath = vaultPath.String
+		}
+		if pauseReason.Valid {
+			instance.PauseReason = &pauseReason.String
+		}
+		if lastUsedAt.Valid {
+			instance.LastUsedAt = &lastUsedAt.Time
+		}
+		instance.APICredentials = make(map[string]string)
+		log.Printf("[AggregatorInstanceRepo] Found instance %s in provider_instances, vault_path: %s", id, instance.VaultSecretPath)
+		return &instance, nil
+	}
+
+	// Fallback to aggregator_instances table
 	query := `
 		SELECT id, aggregator_id, instance_name, hot_wallet_id, api_credentials,
 		       enabled, priority, min_balance, max_balance, daily_limit, monthly_limit,
@@ -30,11 +72,10 @@ func (r *AggregatorInstanceRepository) GetByID(ctx context.Context, id string) (
 		WHERE id = $1
 	`
 
-	var instance models.AggregatorInstance
 	var apiCredsBytes []byte
 	var restrictedCountries pq.StringArray
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err = r.db.QueryRowContext(ctx, query, id).Scan(
 		&instance.ID, &instance.AggregatorID, &instance.InstanceName, &instance.HotWalletID,
 		&apiCredsBytes, &instance.Enabled, &instance.Priority, &instance.MinBalance,
 		&instance.MaxBalance, &instance.DailyLimit, &instance.MonthlyLimit,
@@ -49,8 +90,12 @@ func (r *AggregatorInstanceRepository) GetByID(ctx context.Context, id string) (
 	}
 
 	// Parse JSON credentials
-	if err := json.Unmarshal(apiCredsBytes, &instance.APICredentials); err != nil {
-		return nil, fmt.Errorf("parse api credentials: %w", err)
+	if len(apiCredsBytes) > 0 {
+		if err := json.Unmarshal(apiCredsBytes, &instance.APICredentials); err != nil {
+			return nil, fmt.Errorf("parse api credentials: %w", err)
+		}
+	} else {
+		instance.APICredentials = make(map[string]string)
 	}
 
 	instance.RestrictedCountries = restrictedCountries
@@ -72,8 +117,8 @@ func (r *AggregatorInstanceRepository) GetAvailableInstancesForAggregator(
 		  AND aggregator_enabled = true
 		  AND availability_status = 'available'
 		  AND (
-		      restricted_countries IS NULL 
-		      OR array_length(restricted_countries, 1) IS NULL 
+		      restricted_countries IS NULL
+		      OR array_length(restricted_countries, 1) IS NULL
 		      OR $2 = ANY(restricted_countries)
 		  )
 		  AND (daily_limit IS NULL OR (daily_limit - daily_usage) >= $3)
@@ -100,12 +145,74 @@ func (r *AggregatorInstanceRepository) GetAvailableInstancesForAggregator(
 }
 
 // GetBestInstanceForProvider returns the best instance for a given provider code and country
+// First tries provider_instances (admin-service), then aggregator_instances
 func (r *AggregatorInstanceRepository) GetBestInstanceForProvider(
 	ctx context.Context,
 	providerCode string,
 	country string,
 	amount float64,
 ) (*models.AggregatorInstanceWithDetails, error) {
+	// First, try to get from provider_instances (admin-service table)
+	providerQuery := `
+		SELECT pi.id, pi.name, pi.is_active, pi.priority, pi.is_paused, pi.is_global,
+		       pi.pause_reason, pi.paused_at, pi.vault_secret_path,
+		       pi.request_count, pi.last_used_at, pi.created_at, pi.updated_at,
+		       pp.id as aggregator_id, pp.name as provider_code, pp.display_name as provider_name,
+		       pp.logo_url as provider_logo, pp.is_active as aggregator_enabled,
+		       COALESCE(pi.hot_wallet_id, '') as hot_wallet_id,
+		       COALESCE(pa.currency, 'XOF') as hot_wallet_currency,
+		       COALESCE(pa.balance, 0) as hot_wallet_balance
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		LEFT JOIN platform_accounts pa ON pi.hot_wallet_id = pa.id
+		WHERE pp.name = $1
+		  AND pp.is_active = true
+		  AND pi.is_active = true
+		  AND pi.is_paused = false
+		ORDER BY pi.is_primary DESC, pi.priority DESC
+		LIMIT 1
+	`
+
+	var instance models.AggregatorInstanceWithDetails
+	var vaultPath sql.NullString
+	var pauseReason sql.NullString
+	var pausedAt sql.NullTime
+	var lastUsedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, providerQuery, providerCode).Scan(
+		&instance.ID, &instance.InstanceName, &instance.Enabled, &instance.Priority,
+		&instance.IsPaused, &instance.IsGlobal, &pauseReason, &pausedAt, &vaultPath,
+		&instance.TotalTransactions, &lastUsedAt, &instance.CreatedAt, &instance.UpdatedAt,
+		&instance.AggregatorID, &instance.ProviderCode, &instance.ProviderName,
+		&instance.ProviderLogo, &instance.AggregatorEnabled, &instance.HotWalletID,
+		&instance.HotWalletCurrency, &instance.HotWalletBalance,
+	)
+
+	if err == nil {
+		// Found in provider_instances
+		if vaultPath.Valid {
+			instance.VaultSecretPath = vaultPath.String
+		}
+		if pauseReason.Valid {
+			instance.PauseReason = &pauseReason.String
+		}
+		if pausedAt.Valid {
+			instance.PausedAt = &pausedAt.Time
+		}
+		if lastUsedAt.Valid {
+			instance.LastUsedAt = &lastUsedAt.Time
+		}
+		instance.AvailabilityStatus = models.WalletAvailable
+		instance.APICredentials = make(map[string]string)
+
+		log.Printf("[AggregatorInstanceRepo] Found instance for %s in provider_instances: %s (vault: %s)",
+			providerCode, instance.ID, instance.VaultSecretPath)
+		return &instance, nil
+	}
+
+	log.Printf("[AggregatorInstanceRepo] provider_instances query failed for %s: %v, trying aggregator_instances", providerCode, err)
+
+	// Fallback to aggregator_instances_with_details view
 	query := `
 		SELECT * FROM aggregator_instances_with_details
 		WHERE provider_code = $1
@@ -114,8 +221,8 @@ func (r *AggregatorInstanceRepository) GetBestInstanceForProvider(
 		  AND availability_status = 'available'
 		  AND (
 		      is_global = true
-		      OR restricted_countries IS NULL 
-		      OR array_length(restricted_countries, 1) IS NULL 
+		      OR restricted_countries IS NULL
+		      OR array_length(restricted_countries, 1) IS NULL
 		      OR $2 = ANY(restricted_countries)
 		  )
 		  AND (daily_limit IS NULL OR (daily_limit - daily_usage) >= $3)
@@ -255,7 +362,7 @@ func (r *AggregatorInstanceRepository) GetInstanceWithWallets(ctx context.Contex
 // GetInstanceWallets gets all wallets linked to an instance
 func (r *AggregatorInstanceRepository) GetInstanceWallets(ctx context.Context, instanceID string) ([]models.InstanceWallet, error) {
 	query := `
-		SELECT 
+		SELECT
 			aiw.id, aiw.instance_id, aiw.hot_wallet_id, aiw.is_primary,
 			aiw.priority, aiw.min_balance, aiw.max_balance,
 			aiw.auto_recharge_enabled, aiw.recharge_threshold, aiw.recharge_target,

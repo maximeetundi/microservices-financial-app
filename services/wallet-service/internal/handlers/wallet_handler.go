@@ -908,9 +908,6 @@ func (h *WalletHandler) Deposit(c *gin.Context) {
 	httpReq.Header.Set("Content-Type", "application/json")
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 		httpReq.Header.Set("Authorization", authHeader)
-		log.Printf("🔐 [DEPOSIT] Forwarding Authorization header to transfer-service")
-	} else {
-		log.Printf("⚠️ [DEPOSIT] No Authorization header to forward")
 	}
 
 	// Execute the request

@@ -10,7 +10,10 @@ type AggregatorInstance struct {
 	InstanceName string `json:"instance_name"`
 	HotWalletID  string `json:"hot_wallet_id"`
 
-	// API Credentials (encrypted in DB)
+	// Vault path for credentials (from admin-service provider_instances)
+	VaultSecretPath string `json:"vault_secret_path,omitempty"`
+
+	// API Credentials (encrypted in DB or loaded from Vault)
 	APICredentials map[string]string `json:"api_credentials"`
 
 	// Configuration
@@ -76,6 +79,7 @@ type AggregatorInstanceWithDetails struct {
 	CreatedAt           time.Time         `json:"created_at"`
 	UpdatedAt           time.Time         `json:"updated_at"`
 	APICredentials      map[string]string `json:"api_credentials,omitempty"`
+	VaultSecretPath     string            `json:"vault_secret_path,omitempty"`
 
 	// Aggregator info
 	AggregatorID      string `json:"aggregator_id"`

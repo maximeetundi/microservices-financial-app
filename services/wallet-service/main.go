@@ -178,31 +178,6 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "service": "wallet-service"})
 	})
 
-	// Debug endpoint to check incoming headers (temporary - remove in production)
-	router.Any("/debug/headers", func(c *gin.Context) {
-		headers := make(map[string]string)
-		for key, values := range c.Request.Header {
-			if len(values) > 0 {
-				// Truncate Authorization for security
-				if key == "Authorization" && len(values[0]) > 30 {
-					headers[key] = values[0][:20] + "..." + values[0][len(values[0])-10:]
-				} else {
-					headers[key] = values[0]
-				}
-			}
-		}
-		log.Printf("🔍 [DEBUG] Headers received at wallet-service: %+v", headers)
-		c.JSON(200, gin.H{
-			"service":     "wallet-service",
-			"method":      c.Request.Method,
-			"path":        c.Request.URL.Path,
-			"remote_ip":   c.ClientIP(),
-			"headers":     headers,
-			"has_auth":    c.GetHeader("Authorization") != "",
-			"auth_length": len(c.GetHeader("Authorization")),
-		})
-	})
-
 	// Wallet routes
 	api := router.Group("/api/v1")
 	{

@@ -38,29 +38,9 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("accessToken");
-
-    // Debug logging for Authorization issues
-    console.log(
-      `🔐 [API Request] ${config.method?.toUpperCase()} ${config.url}`,
-    );
-    console.log(`🔐 [API Request] Token exists: ${!!token}`);
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log(
-        `🔐 [API Request] Authorization header set: Bearer ${token.substring(0, 20)}...`,
-      );
-    } else {
-      console.warn(
-        `⚠️ [API Request] No token found in localStorage for request to ${config.url}`,
-      );
     }
-
-    // Log all headers being sent
-    console.log(
-      `🔐 [API Request] Headers:`,
-      JSON.stringify(config.headers, null, 2),
-    );
   }
   return config;
 });

@@ -896,19 +896,6 @@ const submitDeposit = async () => {
     return
   }
 
-  // Debug: Check if token exists before making request
-  const token = localStorage.getItem('accessToken')
-  console.log('🔐 Token check before deposit:', token ? `Token exists (${token.substring(0, 20)}...)` : 'NO TOKEN!')
-
-  if (!token) {
-    depositError.value = 'Session expirée. Veuillez vous reconnecter.'
-    // Redirect to login after 2 seconds
-    setTimeout(() => {
-      window.location.href = '/auth/login'
-    }, 2000)
-    return
-  }
-
   depositLoading.value = true
   depositError.value = ''
   depositSuccess.value = ''
@@ -918,13 +905,6 @@ const submitDeposit = async () => {
     const providerName = typeof selectedProvider.value === 'string'
       ? selectedProvider.value
       : selectedProvider.value.name
-
-    console.log('📤 Making deposit request with:', {
-      walletId: selectedWallet.value.id,
-      amount: depositAmount.value,
-      provider: providerName,
-      country: userCountry.value || ipCountry.value
-    })
 
     // Call API with provider and country
     const response = await walletAPI.deposit(
