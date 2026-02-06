@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -300,6 +301,11 @@ func createAdminTables(db *sql.DB) error {
 	// Seed default payment providers
 	if err := seedDefaultProviders(db); err != nil {
 		log.Printf("Warning: failed to seed payment providers: %v", err)
+	}
+
+	// Seed default API keys for provider instances
+	if err := seedDefaultAPIKeys(db); err != nil {
+		log.Printf("Warning: failed to seed default API keys: %v", err)
 	}
 
 	// Fix Vault paths (remove /default suffix to match actual Vault structure)
@@ -944,6 +950,98 @@ func seedDefaultData(db *sql.DB) error {
 		return err
 	}
 
+	return nil
+}
+
+// seedDefaultAPIKeys seeds default API keys for all provider instances
+func seedDefaultAPIKeys(db *sql.DB) error {
+	log.Println("[Database] Seeding default API keys for provider instances...")
+
+	// Get all provider instances that don't have API credentials yet
+	rows, err := db.Query(`
+		SELECT pi.id, pi.name, p.name as provider_name, p.provider_type
+		FROM provider_instances pi
+		JOIN payment_providers p ON pi.provider_id = p.id
+		WHERE (pi.api_credentials IS NULL OR pi.api_credentials = '{}'::jsonb)
+		AND pi.is_active = true
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to get provider instances: %w", err)
+	}
+	defer rows.Close()
+
+	type InstanceInfo struct {
+		ID           string
+		Name         string
+		ProviderName string
+		ProviderType string
+	}
+
+	var instances []InstanceInfo
+	for rows.Next() {
+		var inst InstanceInfo
+		if err := rows.Scan(&inst.ID, &inst.Name, &inst.ProviderName, &inst.ProviderType); err != nil {
+			continue
+		}
+		instances = append(instances, inst)
+	}
+
+	// Generate mock API keys for each instance
+	for _, inst := range instances {
+		credentials := make(map[string]interface{})
+		
+		// Generate different keys based on provider type
+		switch inst.ProviderType {
+		case "mobile_money":
+			credentials["client_id"] = fmt.Sprintf("client_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["client_secret"] = fmt.Sprintf("secret_%s_%s", inst.ProviderName, uuid.New().String()[:12])
+			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
+			credentials["webhook_secret"] = fmt.Sprintf("wh_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			
+		case "card":
+			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
+			credentials["webhook_secret"] = fmt.Sprintf("whsec_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			
+		case "international":
+			credentials["client_id"] = fmt.Sprintf("client_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["client_secret"] = fmt.Sprintf("secret_%s_%s", inst.ProviderName, uuid.New().String()[:12])
+			credentials["api_key"] = fmt.Sprintf("api_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			
+		case "crypto_ramp":
+			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])
+			credentials["secret_key"] = fmt.Sprintf("sk_%s_%s", inst.ProviderName, uuid.New().String()[:12])
+			credentials["public_key"] = fmt.Sprintf("pub_%s_%s", inst.ProviderName, uuid.New().String()[:16])
+			
+		case "demo":
+			credentials["api_key"] = "demo_api_key_12345"
+			credentials["secret_key"] = "demo_secret_key_12345"
+			credentials["client_id"] = "demo_client_12345"
+			credentials["client_secret"] = "demo_client_secret_12345"
+		}
+
+		// Convert to JSON and update database
+		credJSON, err := json.Marshal(credentials)
+		if err != nil {
+			log.Printf("Failed to marshal credentials for %s: %v", inst.ProviderName, err)
+			continue
+		}
+
+		_, err = db.Exec(`
+			UPDATE provider_instances 
+			SET api_credentials = $1, updated_at = NOW() 
+			WHERE id = $2
+		`, credJSON, inst.ID)
+
+		if err != nil {
+			log.Printf("Failed to update credentials for %s: %v", inst.ProviderName, err)
+		} else {
+			log.Printf("[Database] ✅ Seeded API keys for %s - %s", inst.ProviderName, inst.Name)
+		}
+	}
+
+	log.Println("[Database] ✅ Default API keys seeding complete")
 	return nil
 }
 

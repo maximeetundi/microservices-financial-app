@@ -337,15 +337,15 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 	instanceID := c.Param("instanceId")
 
 	var req struct {
-		Name            string              `json:"name"`
-		VaultSecretPath string              `json:"vault_secret_path"`
-		HotWalletID     string              `json:"hot_wallet_id"`
-		IsActive        *bool               `json:"is_active,omitempty"`
-		IsPrimary       *bool               `json:"is_primary,omitempty"`
-		IsGlobal        *bool               `json:"is_global,omitempty"`
-		Priority        *int                `json:"priority,omitempty"`
-		HealthStatus    string              `json:"health_status"`
-		Credentials     *CredentialsRequest `json:"credentials,omitempty"`
+		Name            string                 `json:"name"`
+		VaultSecretPath string                 `json:"vault_secret_path"`
+		HotWalletID     string                 `json:"hot_wallet_id"`
+		IsActive        *bool                  `json:"is_active,omitempty"`
+		IsPrimary       *bool                  `json:"is_primary,omitempty"`
+		IsGlobal        *bool                  `json:"is_global,omitempty"`
+		Priority        *int                   `json:"priority,omitempty"`
+		HealthStatus    string                 `json:"health_status"`
+		Credentials     map[string]interface{} `json:"credentials,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -418,10 +418,18 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 
 	// Update credentials in database if provided
 	credentialsSaved := false
-	if req.Credentials != nil {
-		credData := req.Credentials.ToMap()
-		if len(credData) > 0 {
-			credJSON, err := json.Marshal(credData)
+	if req.Credentials != nil && len(req.Credentials) > 0 {
+		// Filter out empty values
+		filteredCreds := make(map[string]interface{})
+		for k, v := range req.Credentials {
+			if str, ok := v.(string); ok && str == "" {
+				continue // Skip empty strings
+			}
+			filteredCreds[k] = v
+		}
+
+		if len(filteredCreds) > 0 {
+			credJSON, err := json.Marshal(filteredCreds)
 			if err == nil {
 				_, err = h.db.Exec(`UPDATE provider_instances SET api_credentials = $1, updated_at = NOW() WHERE id = $2`, credJSON, instanceID)
 				if err != nil {
