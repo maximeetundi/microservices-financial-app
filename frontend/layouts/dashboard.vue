@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex bg-base transition-colors duration-300">
+  <div class="h-screen overflow-hidden flex bg-base transition-colors duration-300">
     <!-- Mobile Overlay -->
     <div 
       v-if="sidebarOpen" 
@@ -10,9 +10,9 @@
     <!-- Sidebar -->
     <aside 
       :class="[
-        'fixed h-full bg-slate-100 dark:bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
+        'fixed lg:sticky lg:top-0 h-screen overflow-hidden bg-slate-100 dark:bg-surface border-r border-secondary-200 dark:border-secondary-800 flex flex-col transition-all duration-300 z-50',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-        'lg:translate-x-0 lg:relative lg:z-auto',
+        'lg:translate-x-0 lg:z-auto',
         'w-72'
       ]"
     >
@@ -37,7 +37,7 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
+      <nav class="flex-1 min-h-0 py-6 px-4 space-y-1 overflow-y-auto">
         <NuxtLink to="/dashboard" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">📊</span>
           <span>Tableau de bord</span>
@@ -141,7 +141,7 @@
       </nav>
 
       <!-- User Section -->
-      <div class="p-4 border-t border-secondary-100 dark:border-secondary-800 bg-surface-hover/30">
+      <div class="p-4 border-t border-secondary-100 dark:border-secondary-800 bg-surface-hover/30 flex-shrink-0">
         <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/50 dark:hover:bg-black/20 transition-colors">
           <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-400 to-secondary-400 flex items-center justify-center text-white font-bold shadow-md">
             {{ userInitials }}
@@ -164,7 +164,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 lg:ml-0 transition-all duration-300">
+    <main class="flex-1 lg:ml-0 transition-all duration-300 flex flex-col min-h-0 overflow-hidden">
       <!-- Desktop Header (hidden on mobile) -->
       <header class="hidden lg:flex sticky top-0 z-30 bg-slate-100/95 dark:bg-surface/95 backdrop-blur-md border-b border-secondary-200 dark:border-secondary-800 px-6 py-4 items-center justify-between">
         <div class="flex items-center gap-3">
@@ -204,7 +204,7 @@
       </header>
 
       <!-- Page Content -->
-      <div class="p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
+      <div class="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 w-full max-w-full overflow-x-hidden">
         <div class="w-full mx-auto animate-fade-in-up">
           <slot />
         </div>

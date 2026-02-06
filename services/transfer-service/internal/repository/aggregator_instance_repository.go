@@ -205,6 +205,28 @@ func (r *AggregatorInstanceRepository) GetBestInstanceForProvider(
 		instance.AvailabilityStatus = models.WalletAvailable
 		instance.APICredentials = make(map[string]string)
 
+		// IMPORTANT:
+		// provider_instances (admin UI table) and aggregator_instances (transfer routing table)
+		// are different schemas.
+		// Wallet selection for deposits/withdrawals uses select_best_wallet_for_instance(),
+		// which reads aggregator_instance_wallets (linked to aggregator_instances).
+		// If we return a provider_instances ID here, wallet selection will fail.
+		// So we map to the corresponding aggregator_instances ID.
+		var aggSettingsID string
+		if err := r.db.QueryRowContext(ctx, `SELECT id FROM aggregator_settings WHERE provider_code = $1`, providerCode).Scan(&aggSettingsID); err == nil {
+			var aggInstanceID string
+			if err := r.db.QueryRowContext(ctx, `
+				SELECT id
+				FROM aggregator_instances
+				WHERE aggregator_id = $1 AND instance_name = $2
+				ORDER BY priority DESC
+				LIMIT 1
+			`, aggSettingsID, instance.InstanceName).Scan(&aggInstanceID); err == nil {
+				instance.ID = aggInstanceID
+				instance.AggregatorID = aggSettingsID
+			}
+		}
+
 		log.Printf("[AggregatorInstanceRepo] Found instance for %s in provider_instances: %s (vault: %s)",
 			providerCode, instance.ID, instance.VaultSecretPath)
 		return &instance, nil
