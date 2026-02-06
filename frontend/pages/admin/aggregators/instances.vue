@@ -15,7 +15,7 @@
       <div class="mb-6 flex justify-between items-center">
         <div class="flex gap-3">
           <button
-            @click="showCreateModal = true"
+            @click="openCreateModal"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
             <icon name="heroicons:plus" class="w-5 h-5" />
@@ -215,27 +215,62 @@
       </div>
     </div>
 
-    <!-- Modals would go here -->
-    <!-- CreateInstanceModal -->
-    <!-- LinkWalletModal -->
-    <!-- WalletConfigModal -->
+    <!-- Modals -->
+    <CreateInstanceModal
+      :is-open="showCreateModal"
+      :instance="selectedInstance"
+      :aggregators="aggregators"
+      @close="showCreateModal = false"
+      @submit="handleInstanceSubmit"
+    />
+
+    <LinkWalletModal
+      :is-open="showLinkWalletModal"
+      :instance="selectedInstance"
+      @close="showLinkWalletModal = false"
+      @submit="handleLinkWallet"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAggregatorInstances } from '@/composables/useAggregatorInstances'
+import { usePaymentProviders } from '@/composables/usePaymentProviders'
+import CreateInstanceModal from '@/components/admin/CreateInstanceModal.vue'
+import LinkWalletModal from '@/components/admin/LinkWalletModal.vue'
 
-// Data
-const instances = ref([])
-const aggregators = ref([])
+// Composables
+const { 
+  instances, 
+  loading: instancesLoading, 
+  fetchInstances, 
+  createInstance, 
+  updateInstance,
+  linkWallet,
+  unlinkWallet,
+  updateWallet
+} = useAggregatorInstances()
+
+const { 
+  providers: aggregators, 
+  loading: providersLoading, 
+  fetchPaymentProviders 
+} = usePaymentProviders()
+
+// State
 const filterAggregator = ref('')
 const showCreateModal = ref(false)
+const showLinkWalletModal = ref(false)
+const selectedInstance = ref<any>(null)
 
 // Computed
 const filteredInstances = computed(() => {
   if (!filterAggregator.value) return instances.value
   return instances.value.filter(i => i.provider_code === filterAggregator.value)
 })
+
+const loading = computed(() => instancesLoading.value || providersLoading.value)
 
 // Methods
 const formatCurrency = (amount: number) => {
@@ -257,8 +292,10 @@ const formatDate = (date: string) => {
 
 const getWalletStatus = (wallet: any) => {
   if (!wallet.enabled) return 'Désactivé'
-  if (wallet.wallet_balance < (wallet.min_balance || 0)) return 'Insuffisant'
-  if (wallet.max_balance && wallet.wallet_balance > wallet.max_balance) return 'Trop élevé'
+  // Fix: wallet_balance might be undefined if not populated instantly
+  const balance = wallet.wallet_balance || 0
+  if (wallet.min_balance && balance < wallet.min_balance) return 'Insuffisant'
+  if (wallet.max_balance && balance > wallet.max_balance) return 'Trop élevé'
   return 'Disponible'
 }
 
@@ -269,20 +306,63 @@ const getWalletStatusClass = (wallet: any) => {
   return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
 }
 
+// Actions
+const openCreateModal = () => {
+  selectedInstance.value = null
+  showCreateModal.value = true
+}
+
 const openInstanceEdit = (instance: any) => {
-  // TODO: Open edit modal
+  selectedInstance.value = instance
+  showCreateModal.value = true
 }
 
 const openLinkWallet = (instance: any) => {
-  // TODO: Open link wallet modal
+  selectedInstance.value = instance
+  showLinkWalletModal.value = true
 }
 
 const openWalletConfig = (instance: any, wallet: any) => {
-  // TODO: Open wallet config modal
+  // TODO: Implement wallet config modal
+  console.log('Configure wallet', wallet.id)
+}
+
+const handleInstanceSubmit = async (data: any) => {
+  try {
+    if (selectedInstance.value) {
+      await updateInstance(selectedInstance.value.id, {
+        ...data,
+        aggregator_id: selectedInstance.value.provider_id
+      })
+    } else {
+      await createInstance(data)
+    }
+    showCreateModal.value = false
+    // Refresh to get latest state
+    await fetchInstances()
+  } catch (err) {
+    console.error('Failed to save instance:', err)
+    // You might want to show a toast here
+  }
+}
+
+const handleLinkWallet = async (data: any) => {
+  if (!selectedInstance.value) return
+  
+  try {
+    await linkWallet(selectedInstance.value.id, data)
+    showLinkWalletModal.value = false
+    await fetchInstances()
+  } catch (err) {
+    console.error('Failed to link wallet:', err)
+  }
 }
 
 // Load data on mount
 onMounted(async () => {
-  // TODO: Fetch instances and aggregators
+  await Promise.all([
+    fetchInstances(),
+    fetchPaymentProviders()
+  ])
 })
 </script>

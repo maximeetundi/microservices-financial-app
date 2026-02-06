@@ -219,7 +219,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 
 	var req struct {
 		Name            string `json:"name" binding:"required"`
-		VaultSecretPath string `json:"vault_secret_path" binding:"required"`
+		VaultSecretPath string `json:"vault_secret_path"`
 		HotWalletID     string `json:"hot_wallet_id"`
 		Wallets         []struct {
 			HotWalletID string `json:"hot_wallet_id"`
@@ -235,6 +235,20 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Auto-generate vault_secret_path if not provided
+	if req.VaultSecretPath == "" {
+		// Fetch provider name for path generation
+		var providerName string
+		err := h.db.QueryRow("SELECT name FROM payment_providers WHERE id = $1", providerID).Scan(&providerName)
+		if err == nil {
+			// Sanitize instance name for path (simple replacements)
+			safeName := req.Name
+			req.VaultSecretPath = "secret/aggregators/" + providerName + "/" + safeName
+		} else {
+			req.VaultSecretPath = "secret/aggregators/unknown/" + req.Name
+		}
 	}
 
 	// If this is primary, unset other primaries

@@ -46,7 +46,7 @@ export interface InstanceWallet {
 export interface CreateInstanceRequest {
     aggregator_id: string
     instance_name: string
-    api_credentials: Record<string, string>
+    credentials: Record<string, string>
     priority?: number
     daily_limit?: number
     monthly_limit?: number
@@ -77,10 +77,12 @@ export const useAggregatorInstances = () => {
         error.value = null
 
         try {
-            const params = aggregatorId ? `?aggregator_id=${aggregatorId}` : ''
-            const response = await $fetch<{ instances: AggregatorInstance[] }>(
-                `/api/admin/instances${params}`
-            )
+            // Use the correct backend endpoint
+            const url = aggregatorId
+                ? `/api/v1/admin/payment-providers/${aggregatorId}/instances`
+                : '/api/v1/admin/provider-instances'
+
+            const response = await $fetch<{ instances: AggregatorInstance[] }>(url)
             instances.value = response.instances
         } catch (err: any) {
             error.value = err.message || 'Failed to fetch instances'
@@ -95,10 +97,20 @@ export const useAggregatorInstances = () => {
         error.value = null
 
         try {
-            const response = await $fetch<AggregatorInstance>('/api/admin/instances', {
-                method: 'POST',
-                body: data
-            })
+            // POST /api/v1/admin/payment-providers/:id/instances
+            const response = await $fetch<AggregatorInstance>(
+                `/api/v1/admin/payment-providers/${data.aggregator_id}/instances`,
+                {
+                    method: 'POST',
+                    body: {
+                        name: data.instance_name,
+                        priority: data.priority,
+                        is_test_mode: data.is_test_mode,
+                        // Should map other fields if needed, backend expects 'name', 'priority', 'credentials'
+                        credentials: data.credentials
+                    }
+                }
+            )
             instances.value.push(response)
             return response
         } catch (err: any) {
@@ -109,16 +121,30 @@ export const useAggregatorInstances = () => {
         }
     }
 
-    const updateInstance = async (instanceId: string, data: Partial<CreateInstanceRequest>) => {
+    const updateInstance = async (instanceId: string, data: Partial<CreateInstanceRequest> & { aggregator_id?: string }) => {
         loading.value = true
         error.value = null
 
         try {
+            // We need the provider ID (aggregator_id) to construct the URL
+            // If not in data, we might need to find it in existing instances or require it
+            const instance = instances.value.find(i => i.id === instanceId)
+            const aggregatorId = data.aggregator_id || instance?.aggregator_id || instance?.provider_code // fallback?
+
+            if (!aggregatorId) {
+                throw new Error("Aggregator ID required for update")
+            }
+
             const response = await $fetch<AggregatorInstance>(
-                `/api/admin/instances/${instanceId}`,
+                `/api/v1/admin/payment-providers/${aggregatorId}/instances/${instanceId}`,
                 {
                     method: 'PUT',
-                    body: data
+                    body: {
+                        name: data.instance_name,
+                        priority: data.priority,
+                        is_active: true, // assume active on update? or passed
+                        credentials: data.credentials
+                    }
                 }
             )
 
@@ -136,12 +162,12 @@ export const useAggregatorInstances = () => {
         }
     }
 
-    const deleteInstance = async (instanceId: string) => {
+    const deleteInstance = async (instanceId: string, aggregatorId: string) => {
         loading.value = true
         error.value = null
 
         try {
-            await $fetch(`/api/admin/instances/${instanceId}`, {
+            await $fetch(`/api/v1/admin/payment-providers/${aggregatorId}/instances/${instanceId}`, {
                 method: 'DELETE'
             })
 

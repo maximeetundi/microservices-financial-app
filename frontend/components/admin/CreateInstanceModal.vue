@@ -63,37 +63,69 @@
                 </div>
 
                 <!-- API Credentials -->
-                <div class="space-y-3">
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Clés API *
-                  </label>
-                  <div class="grid grid-cols-2 gap-3">
-                    <input
-                      v-model="form.api_credentials.public_key"
-                      type="text"
-                      placeholder="Public Key"
-                      class="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      v-model="form.api_credentials.secret_key"
-                      type="password"
-                      placeholder="Secret Key"
-                      class="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <input
-                      v-model="form.api_credentials.encryption_key"
-                      type="password"
-                      placeholder="Encryption Key (optionnel)"
-                      class="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      v-model="form.api_credentials.webhook_secret"
-                      type="password"
-                      placeholder="Webhook Secret (optionnel)"
-                      class="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                    />
+                <div class="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                    Identifiants API
+                  </h4>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Common Keys -->
+                    <div v-if="shouldShowField('api_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">API Key</label>
+                       <input v-model="form.credentials.api_key" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    <div v-if="shouldShowField('public_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Public Key</label>
+                       <input v-model="form.credentials.public_key" type="text" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    <div v-if="shouldShowField('secret_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Secret Key</label>
+                       <input v-model="form.credentials.secret_key" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    
+                    <!-- Lygos / Shop Specific -->
+                    <div v-if="shouldShowField('shop_name')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Shop Name</label>
+                       <input v-model="form.credentials.shop_name" type="text" placeholder="Ex: Ma Boutique" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+
+                    <!-- Client ID / Secret -->
+                    <div v-if="shouldShowField('client_id')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Client ID</label>
+                       <input v-model="form.credentials.client_id" type="text" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    <div v-if="shouldShowField('client_secret')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Client Secret</label>
+                       <input v-model="form.credentials.client_secret" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+
+                    <!-- Other Provider Specifics -->
+                     <div v-if="shouldShowField('site_id')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Site ID</label>
+                       <input v-model="form.credentials.site_id" type="text" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    <div v-if="shouldShowField('merchant_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Merchant Key</label>
+                       <input v-model="form.credentials.merchant_key" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                     <div v-if="shouldShowField('subscription_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Subscription Key</label>
+                       <input v-model="form.credentials.subscription_key" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                     <div v-if="shouldShowField('api_user')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">API User</label>
+                       <input v-model="form.credentials.api_user" type="text" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                    
+                    <!-- Advanced -->
+                     <div v-if="shouldShowField('encryption_key')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Encryption Key</label>
+                       <input v-model="form.credentials.encryption_key" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
+                     <div v-if="shouldShowField('webhook_secret')">
+                       <label class="block text-xs font-medium text-gray-500 mb-1">Webhook Secret</label>
+                       <input v-model="form.credentials.webhook_secret" type="password" class="w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+                    </div>
                   </div>
                 </div>
 
@@ -206,9 +238,17 @@ const loading = ref(false)
 const form = reactive({
   aggregator_id: '',
   instance_name: '',
-  api_credentials: {
+  credentials: {
     public_key: '',
     secret_key: '',
+    api_key: '',
+    shop_name: '',
+    client_id: '',
+    client_secret: '',
+    site_id: '',
+    merchant_key: '',
+    subscription_key: '',
+    api_user: '',
     encryption_key: '',
     webhook_secret: ''
   },
@@ -219,12 +259,33 @@ const form = reactive({
   notes: ''
 })
 
+const shouldShowField = (field: string) => {
+  // Show all fields for now to be safe, or logic based on selected aggregator
+  // For Lygos we need api_key and shop_name
+  return true 
+}
+
 watch(() => props.instance, (newVal) => {
   if (newVal) {
     Object.assign(form, {
       aggregator_id: newVal.aggregator_id,
       instance_name: newVal.instance_name,
-      api_credentials: { ...newVal.api_credentials },
+      // Note: Credentials are not returned in the list for security
+      // We start with empty credentials when editing
+      credentials: { 
+        public_key: '',
+        secret_key: '', 
+        api_key: '',
+        shop_name: '',
+        client_id: '',
+        client_secret: '',
+        site_id: '',
+        merchant_key: '',
+        subscription_key: '',
+        api_user: '',
+        encryption_key: '',
+        webhook_secret: ''
+      },
       priority: newVal.priority,
       is_test_mode: newVal.is_test_mode,
       daily_limit: newVal.daily_limit,

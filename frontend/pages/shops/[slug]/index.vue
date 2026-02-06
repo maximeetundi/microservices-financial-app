@@ -1,191 +1,171 @@
 <template>
-  <div class="space-y-12">
-    <!-- Hero Banner (Customizable from Shop Settings) -->
-    <section 
-      class="relative rounded-3xl overflow-hidden h-[300px] lg:h-[400px]"
+  <div class="space-y-10">
+    <!-- Hero Banner -->
+    <section
+      class="relative rounded-2xl overflow-hidden h-[280px] md:h-[360px]"
       :style="shop?.banner_url ? `background-image: url('${shop.banner_url}'); background-size: cover; background-position: center;` : ''"
-      :class="!shop?.banner_url ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500' : ''"
+      :class="!shop?.banner_url ? 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500' : ''"
     >
-      <div class="absolute inset-0 bg-black/40"></div>
-      <div class="absolute inset-0 flex items-center">
-        <div class="max-w-2xl mx-auto text-center px-6">
-          <span class="inline-block px-4 py-1.5 bg-white/20 backdrop-blur rounded-full text-white text-sm font-medium mb-4">
-            🎉 Bienvenue
-          </span>
-          <h1 class="text-3xl lg:text-5xl font-bold text-white mb-4 leading-tight drop-shadow-lg">
-            {{ shop?.name || 'Notre Boutique' }}
-          </h1>
-          <p class="text-lg text-white/90 mb-6 drop-shadow">
-            {{ shop?.description || 'Découvrez nos produits de qualité' }}
-          </p>
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <button 
-              @click="scrollToProducts"
-              class="px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-xl"
-            >
-              Voir les produits
-            </button>
-            <NuxtLink 
-              :to="`/shops/${shopSlug}/categories`"
-              class="px-6 py-3 bg-white/20 backdrop-blur text-white font-bold rounded-xl hover:bg-white/30 transition-colors border border-white/30"
-            >
-              Nos catégories
-            </NuxtLink>
+      <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      <div class="absolute inset-0 flex items-end">
+        <div class="w-full p-6 md:p-10">
+          <div class="max-w-2xl">
+            <h1 class="text-2xl md:text-4xl font-bold text-white mb-3 drop-shadow-lg">
+              {{ shop?.name || 'Bienvenue' }}
+            </h1>
+            <p class="text-white/90 text-sm md:text-base mb-5 line-clamp-2 drop-shadow">
+              {{ shop?.description || 'Découvrez nos produits de qualité' }}
+            </p>
+            <div class="flex flex-wrap gap-3">
+              <button
+                @click="scrollToProducts"
+                class="px-5 py-2.5 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-lg text-sm"
+              >
+                Voir les produits
+              </button>
+              <NuxtLink
+                :to="`/shops/${shopSlug}/categories`"
+                class="px-5 py-2.5 bg-white/20 backdrop-blur text-white font-semibold rounded-xl hover:bg-white/30 transition-all border border-white/30 text-sm"
+              >
+                Explorer les catégories
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Features Bar -->
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 -mt-16 relative z-10">
-      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl flex items-center gap-4">
-        <div class="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-2xl">🚚</div>
+    <!-- Trust Badges -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
+        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-xl">🚚</div>
         <div>
-          <h3 class="font-bold text-gray-900 dark:text-white">Livraison rapide</h3>
-          <p class="text-sm text-gray-500">Partout au Sénégal</p>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Livraison rapide</p>
+          <p class="text-xs text-gray-500">Partout au Sénégal</p>
         </div>
       </div>
-      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl flex items-center gap-4">
-        <div class="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-2xl">🔒</div>
+      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
+        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-xl">🔒</div>
         <div>
-          <h3 class="font-bold text-gray-900 dark:text-white">Paiement sécurisé</h3>
-          <p class="text-sm text-gray-500">100% sécurisé</p>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Paiement sécurisé</p>
+          <p class="text-xs text-gray-500">100% sécurisé</p>
         </div>
       </div>
-      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl flex items-center gap-4">
-        <div class="w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-2xl">⭐</div>
+      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
+        <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-xl">⭐</div>
         <div>
-          <h3 class="font-bold text-gray-900 dark:text-white">Qualité garantie</h3>
-          <p class="text-sm text-gray-500">Produits vérifiés</p>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Qualité garantie</p>
+          <p class="text-xs text-gray-500">Produits vérifiés</p>
         </div>
       </div>
-      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl flex items-center gap-4">
-        <div class="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center text-2xl">💬</div>
+      <div class="bg-white dark:bg-slate-900 rounded-xl p-4 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
+        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-xl">💬</div>
         <div>
-          <h3 class="font-bold text-gray-900 dark:text-white">Support 24/7</h3>
-          <p class="text-sm text-gray-500">À votre écoute</p>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Support 24/7</p>
+          <p class="text-xs text-gray-500">À votre écoute</p>
         </div>
       </div>
     </section>
 
-    <!-- Categories Section -->
+    <!-- Categories Preview -->
     <section v-if="categories.length > 0">
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Nos Catégories</h2>
-          <p class="text-gray-500 mt-1">Explorez notre sélection</p>
-        </div>
-        <NuxtLink 
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Nos Catégories</h2>
+        <NuxtLink
           :to="`/shops/${shopSlug}/categories`"
-          class="hidden sm:flex items-center gap-2 px-4 py-2 text-indigo-600 dark:text-indigo-400 font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
+          class="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
         >
           Voir tout <span>→</span>
         </NuxtLink>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <NuxtLink 
-          v-for="cat in categories.slice(0, 6)" 
+      <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+        <NuxtLink
+          v-for="cat in categories.slice(0, 8)"
           :key="cat.id"
           :to="`/shops/${shopSlug}?category=${cat.slug}`"
-          class="group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 hover:shadow-2xl hover:border-indigo-500/50 hover:-translate-y-2 transition-all duration-300 text-center"
+          class="flex-shrink-0 group"
         >
-          <div class="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-800 dark:to-slate-700 rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
+          <div class="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-800 dark:to-slate-700 rounded-2xl flex items-center justify-center text-3xl md:text-4xl mb-2 group-hover:scale-105 transition-transform border-2 border-transparent group-hover:border-indigo-500">
             {{ cat.icon || '📦' }}
           </div>
-          <h3 class="font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">{{ cat.name }}</h3>
-          <p class="text-sm text-gray-500">{{ cat.product_count || 0 }} produits</p>
+          <p class="text-xs font-medium text-gray-700 dark:text-gray-300 text-center truncate w-20 md:w-24">{{ cat.name }}</p>
         </NuxtLink>
       </div>
     </section>
 
     <!-- Featured Products -->
-    <section v-if="featuredProducts.length > 0" class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-800 rounded-3xl p-8">
-      <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-2xl animate-pulse">⭐</div>
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Produits Vedettes</h2>
-            <p class="text-gray-500">Nos meilleures ventes</p>
-          </div>
+    <section v-if="featuredProducts.length > 0" class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-800 rounded-2xl p-5 md:p-6">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-xl">⭐</div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Produits Vedettes</h2>
+          <p class="text-sm text-gray-500">Nos meilleures ventes</p>
         </div>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <ShopProductCard 
-          v-for="product in featuredProducts.slice(0, 4)" 
-          :key="product.id" 
-          :product="product" 
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <ProductCard
+          v-for="product in featuredProducts.slice(0, 4)"
+          :key="product.id"
+          :product="product"
           :shop-slug="shopSlug"
+          @add-to-cart="addToCart"
           @toggle-favorite="toggleFavorite"
         />
       </div>
     </section>
 
-    <!-- All Products -->
+    <!-- All Products Section -->
     <section id="products-section">
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
         <div>
-          <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
-            {{ activeFilters ? 'Résultats de recherche' : 'Tous les produits' }}
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            {{ hasFilters ? 'Résultats' : 'Tous les produits' }}
           </h2>
-          <p class="text-gray-500 mt-1">{{ totalProducts }} produits disponibles</p>
+          <p class="text-sm text-gray-500">{{ totalProducts }} produit{{ totalProducts > 1 ? 's' : '' }}</p>
         </div>
-        
-        <div class="flex flex-wrap items-center gap-3">
+
+        <div class="flex items-center gap-3">
           <!-- Active Filters -->
-          <template v-if="activeFilters">
-            <span 
+          <div v-if="hasFilters" class="flex items-center gap-2 flex-wrap">
+            <span
               v-if="route.query.search"
-              class="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-sm flex items-center gap-2"
+              class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-medium flex items-center gap-1"
             >
               "{{ route.query.search }}"
-              <button @click="clearFilter('search')" class="hover:text-red-500 font-bold">×</button>
+              <button @click="clearFilter('search')" class="hover:text-red-500 ml-1">×</button>
             </span>
-            <span 
+            <span
               v-if="route.query.category"
-              class="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-sm flex items-center gap-2"
+              class="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full text-xs font-medium flex items-center gap-1"
             >
-              {{ findCategoryName(route.query.category as string) }}
-              <button @click="clearFilter('category')" class="hover:text-red-500 font-bold">×</button>
+              {{ getCategoryName(route.query.category as string) }}
+              <button @click="clearFilter('category')" class="hover:text-red-500 ml-1">×</button>
             </span>
-            <button @click="clearAllFilters" class="text-sm text-gray-500 hover:text-red-500 underline">
-              Effacer
+            <button @click="clearAllFilters" class="text-xs text-gray-500 hover:text-red-500 underline">
+              Effacer tout
             </button>
-          </template>
+          </div>
 
           <!-- Sort -->
-          <select 
+          <select
             v-model="sortBy"
             @change="loadProducts"
-            class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            class="px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
           >
             <option value="newest">Plus récents</option>
-            <option value="price_asc">Prix croissant</option>
-            <option value="price_desc">Prix décroissant</option>
+            <option value="price_asc">Prix ↑</option>
+            <option value="price_desc">Prix ↓</option>
             <option value="popular">Populaires</option>
           </select>
-
-          <!-- View Mode -->
-          <div class="hidden lg:flex bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <button 
-              @click="viewMode = 'grid'"
-              :class="viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-gray-500'"
-              class="p-2.5 transition-colors"
-            >⊞</button>
-            <button 
-              @click="viewMode = 'list'"
-              :class="viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-gray-500'"
-              class="p-2.5 transition-colors"
-            >☰</button>
-          </div>
         </div>
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <div v-for="i in 8" :key="i" class="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
+      <div v-if="loading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div v-for="i in 8" :key="i" class="bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800">
           <div class="animate-pulse">
             <div class="bg-gray-200 dark:bg-slate-800 aspect-square"></div>
-            <div class="p-4 space-y-3">
+            <div class="p-3 space-y-2">
               <div class="h-4 bg-gray-200 dark:bg-slate-800 rounded w-3/4"></div>
               <div class="h-4 bg-gray-200 dark:bg-slate-800 rounded w-1/2"></div>
             </div>
@@ -194,42 +174,55 @@
       </div>
 
       <!-- Products Grid -->
-      <div v-else-if="products.length > 0" :class="viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6' : 'space-y-4'">
-        <ShopProductCard 
-          v-for="product in products" 
-          :key="product.id" 
-          :product="product" 
+      <div v-else-if="products.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <ProductCard
+          v-for="product in products"
+          :key="product.id"
+          :product="product"
           :shop-slug="shopSlug"
-          :list-mode="viewMode === 'list'"
+          @add-to-cart="addToCart"
           @toggle-favorite="toggleFavorite"
         />
       </div>
 
       <!-- Empty State -->
-      <div v-else class="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl">
-        <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-5xl">🔍</div>
-        <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">Aucun produit trouvé</h3>
-        <p class="text-gray-500 mb-8 max-w-md mx-auto">Nous n'avons trouvé aucun produit correspondant à vos critères. Essayez d'autres filtres.</p>
-        <button 
+      <div v-else class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+        <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-4xl">🔍</div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Aucun produit trouvé</h3>
+        <p class="text-gray-500 mb-6 text-sm max-w-sm mx-auto">Nous n'avons trouvé aucun produit correspondant à vos critères.</p>
+        <button
           @click="clearAllFilters"
-          class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-500/30"
+          class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors text-sm"
         >
           Voir tous les produits
+        </button>
+      </div>
+
+      <!-- Load More -->
+      <div v-if="products.length > 0 && products.length < totalProducts" class="text-center mt-8">
+        <button
+          @click="loadMore"
+          :disabled="loadingMore"
+          class="px-6 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+        >
+          {{ loadingMore ? 'Chargement...' : 'Charger plus de produits' }}
         </button>
       </div>
     </section>
 
     <!-- Newsletter -->
-    <section class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 lg:p-12 text-center">
-      <h2 class="text-3xl font-bold text-white mb-4">Restez informé</h2>
-      <p class="text-white/80 mb-8 max-w-lg mx-auto">Inscrivez-vous à notre newsletter pour recevoir nos offres exclusives et nouveautés.</p>
-      <form @submit.prevent class="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-        <input 
-          type="email" 
-          placeholder="Votre email" 
-          class="flex-1 px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/50"
+    <section class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 md:p-8 text-center">
+      <h2 class="text-2xl font-bold text-white mb-2">Restez informé</h2>
+      <p class="text-white/80 mb-6 text-sm max-w-md mx-auto">Inscrivez-vous pour recevoir nos offres exclusives et nouveautés.</p>
+      <form @submit.prevent="subscribeNewsletter" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+        <input
+          v-model="newsletterEmail"
+          type="email"
+          placeholder="Votre email"
+          class="flex-1 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+          required
         >
-        <button type="submit" class="px-8 py-4 bg-white text-indigo-600 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-lg">
+        <button type="submit" class="px-6 py-3 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-gray-100 transition-colors text-sm">
           S'inscrire
         </button>
       </form>
@@ -238,33 +231,38 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { inject, ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useShopApi, type Shop, type Product, type Category } from '~/composables/useShopApi'
+import { useCartStore } from '~/stores/cart'
 
 definePageMeta({
-  layout: 'shop-layout'
+  layout: 'shop-storefront'
 })
 
 const route = useRoute()
 const router = useRouter()
 const shopApi = useShopApi()
+const cartStore = useCartStore()
 
 const shopSlug = computed(() => route.params.slug as string)
 const shop = inject<Ref<Shop | null>>('shop', ref(null))
 const categories = inject<Ref<Category[]>>('categories', ref([]))
 
 const loading = ref(true)
+const loadingMore = ref(false)
 const products = ref<Product[]>([])
 const featuredProducts = ref<Product[]>([])
 const totalProducts = ref(0)
+const currentPage = ref(1)
 const sortBy = ref('newest')
-const viewMode = ref('grid')
+const newsletterEmail = ref('')
 
-const activeFilters = computed(() => {
-  return route.query.search || route.query.category || route.query.tag
+const hasFilters = computed(() => {
+  return !!route.query.search || !!route.query.category || !!route.query.tag
 })
 
-const findCategoryName = (slug: string) => {
+const getCategoryName = (slug: string) => {
   return categories.value.find(c => c.slug === slug)?.name || slug
 }
 
@@ -294,36 +292,80 @@ const toggleFavorite = (productId: string) => {
   localStorage.setItem(key, JSON.stringify(favs))
 }
 
-const loadProducts = async () => {
-  loading.value = true
+const addToCart = (product: Product) => {
+  cartStore.addItem({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    image: product.images?.[0] || '',
+    quantity: 1,
+    shopSlug: shopSlug.value
+  })
+}
+
+const loadProducts = async (reset = true) => {
+  if (reset) {
+    loading.value = true
+    currentPage.value = 1
+  }
+
   try {
-    const options: Record<string, any> = {}
+    const options: Record<string, any> = { sort: sortBy.value }
     if (route.query.search) options.search = route.query.search
     if (route.query.category) options.category = route.query.category
     if (route.query.tag) options.tag = route.query.tag
-    options.sort = sortBy.value
-    
-    const result = await shopApi.listProducts(shopSlug.value, 1, 100, options)
-    products.value = result.products || []
-    totalProducts.value = result.total || products.value.length
-    
-    // Featured = products with is_featured flag
-    if (!activeFilters.value) {
-      featuredProducts.value = products.value.filter(p => p.is_featured).slice(0, 4)
+
+    const result = await shopApi.listProducts(shopSlug.value, currentPage.value, 20, options)
+
+    if (reset) {
+      products.value = result.products || []
+    } else {
+      products.value = [...products.value, ...(result.products || [])]
     }
-    
+
+    totalProducts.value = result.total || products.value.length
+
+    // Load featured products on first load without filters
+    if (reset && !hasFilters.value) {
+      featuredProducts.value = (result.products || []).filter((p: Product) => p.is_featured).slice(0, 4)
+    }
   } catch (e) {
     console.error('Failed to load products', e)
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
-// Watch for URL and categories changes
-watch(() => route.query, loadProducts, { immediate: true })
+const loadMore = async () => {
+  loadingMore.value = true
+  currentPage.value++
+  await loadProducts(false)
+}
+
+const subscribeNewsletter = () => {
+  // TODO: Implement newsletter subscription
+  alert(`Merci ! Vous serez notifié à ${newsletterEmail.value}`)
+  newsletterEmail.value = ''
+}
+
+// Watch for URL changes
+watch(() => route.query, () => loadProducts(true), { immediate: true })
+
+// Watch for categories to be loaded
 watch(categories, () => {
-  if (categories.value.length > 0 && products.value.length === 0) {
-    loadProducts()
+  if (categories.value.length > 0 && products.value.length === 0 && !loading.value) {
+    loadProducts(true)
   }
 })
 </script>
+
+<style scoped>
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

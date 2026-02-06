@@ -762,6 +762,13 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 				RETURNING id
 			`, p.ID, instanceName, vaultPath).Scan(&instanceID)
 
+			if err == nil && p.Name == "lygos" {
+				// Seed default fake credentials for Lygos
+				defaultCreds := `{"api_key": "lygos_test_key_12345", "shop_name": "Lygos Store"}`
+				adminDB.Exec(`UPDATE provider_instances SET api_credentials = $1 WHERE id = $2`, defaultCreds, instanceID)
+				log.Printf("SEED: Added default credentials for Lygos instance %s", instanceID)
+			}
+
 			if err != nil {
 				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
 				continue
@@ -778,6 +785,17 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 				WHERE id = $2
 			`, vaultPath, instanceID)
 			log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
+
+			if p.Name == "lygos" {
+				// Ensure credentials exist even on update
+				var currentCreds string
+				err := adminDB.QueryRow("SELECT COALESCE(api_credentials::text, '{}') FROM provider_instances WHERE id = $1", instanceID).Scan(&currentCreds)
+				if err == nil && (currentCreds == "{}" || currentCreds == "") {
+					defaultCreds := `{"api_key": "lygos_test_key_12345", "shop_name": "Lygos Store"}`
+					adminDB.Exec(`UPDATE provider_instances SET api_credentials = $1 WHERE id = $2`, defaultCreds, instanceID)
+					log.Printf("SEED: Updated default credentials for existing Lygos instance %s", instanceID)
+				}
+			}
 		}
 
 		// 4. Link instance to ALL matching hot wallets (multi-wallet)
