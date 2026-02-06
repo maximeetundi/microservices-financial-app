@@ -6,6 +6,7 @@ import (
 
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/models"
 	"github.com/crypto-bank/microservices-financial-app/services/auth-service/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // SeedDefaultUser checks if the default test user exists and creates it if not.
@@ -45,5 +46,19 @@ func SeedDefaultUser(userRepo *repository.UserRepository) {
 		return
 	}
 
-	log.Printf("[Seeder] Successfully created default user: %s (ID: %s)", user.Email, user.ID)
+	// Set default PIN 55647 for the user
+	defaultPin := "55647"
+	pinHash, err := bcrypt.GenerateFromPassword([]byte(defaultPin), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("[Seeder] Failed to hash default PIN: %v", err)
+		return
+	}
+
+	err = userRepo.SetPin(user.ID, string(pinHash))
+	if err != nil {
+		log.Printf("[Seeder] Failed to set default PIN: %v", err)
+		return
+	}
+
+	log.Printf("[Seeder] Successfully created default user: %s (ID: %s) with PIN: %s", user.Email, user.ID, defaultPin)
 }
