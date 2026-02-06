@@ -258,7 +258,7 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 	log.Printf("[InstanceLoader] 🚀 LOADING PROVIDER: %s", instance.ProviderCode)
 	log.Printf("[InstanceLoader]    Instance ID: %s", instance.ID)
 	log.Printf("[InstanceLoader]    Instance Name: %s", instance.InstanceName)
-	log.Printf("[InstanceLoader]    Is Active: %v", instance.IsActive)
+	log.Printf("[InstanceLoader]    Enabled: %v", instance.Enabled)
 	log.Printf("[InstanceLoader]    Is Test Mode: %v", instance.IsTestMode)
 	log.Printf("[InstanceLoader] ════════════════════════════════════════════════════")
 
@@ -289,25 +289,30 @@ func (l *InstanceBasedProviderLoader) LoadProviderFromInstance(
 		return l.loadPaystackFromInstance(instance, vaultPath)
 	case "stripe":
 		return l.loadStripeFromInstance(instance, vaultPath)
-	case "wave":
+	case "wave", "wave_money", "wave_ci", "wave_sn":
 		return l.loadWaveFromInstance(instance, vaultPath)
 	case "paypal":
 		return l.loadPayPalFromInstance(instance, vaultPath)
 	case "orange_money":
 		return l.loadOrangeMoneyFromInstance(instance, vaultPath)
-	case "mtn_momo":
+	case "mtn_momo", "mtn_money":
 		return l.loadMTNMoMoFromInstance(instance, vaultPath)
 	case "lygos":
 		return l.loadLygosFromInstance(instance, vaultPath)
 	case "yellowcard":
 		return l.loadYellowCardFromInstance(instance, vaultPath)
-	case "moov_money":
+	case "moov_money", "moov":
 		return l.loadMoovMoneyFromInstance(instance, vaultPath)
 	case "fedapay":
 		return l.loadFedaPayFromInstance(instance, vaultPath)
+	case "pawapay":
+		return l.loadPawapayFromInstance(instance, vaultPath)
+	case "hubtel":
+		return l.loadHubtelFromInstance(instance, vaultPath)
 	case "demo":
 		return l.loadDemoFromInstance(instance)
 	default:
+		log.Printf("[InstanceLoader] ⚠️ Unknown provider code: %s - attempting generic load", instance.ProviderCode)
 		return nil, fmt.Errorf("unknown provider: %s", instance.ProviderCode)
 	}
 }
@@ -627,6 +632,72 @@ func (l *InstanceBasedProviderLoader) loadFedaPayFromInstance(instance *models.A
 	}
 
 	return NewFedaPayCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadPawapayFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+	log.Printf("[InstanceLoader] 🔧 Initializing Pawapay provider...")
+
+	creds, err := l.getCredentials(instance, vaultPath)
+	if err != nil {
+		log.Printf("[InstanceLoader] ❌ Pawapay credential error: %v", err)
+		return nil, fmt.Errorf("failed to get Pawapay credentials: %w", err)
+	}
+
+	apiKey := creds["api_key"]
+	if apiKey == "" {
+		log.Printf("[InstanceLoader] ❌ Pawapay: Missing 'api_key' credential")
+		return nil, fmt.Errorf("Pawapay requires 'api_key' credential")
+	}
+
+	log.Printf("[InstanceLoader] ✅ Pawapay credentials validated")
+
+	config := PawapayConfig{
+		APIKey:  apiKey,
+		BaseURL: "https://api.sandbox.pawapay.cloud",
+	}
+
+	if baseURL := creds["base_url"]; baseURL != "" {
+		config.BaseURL = baseURL
+	}
+
+	return NewPawapayCollectionProvider(config), nil
+}
+
+func (l *InstanceBasedProviderLoader) loadHubtelFromInstance(instance *models.AggregatorInstanceWithDetails, vaultPath string) (CollectionProvider, error) {
+	log.Printf("[InstanceLoader] 🔧 Initializing Hubtel provider...")
+
+	creds, err := l.getCredentials(instance, vaultPath)
+	if err != nil {
+		log.Printf("[InstanceLoader] ❌ Hubtel credential error: %v", err)
+		return nil, fmt.Errorf("failed to get Hubtel credentials: %w", err)
+	}
+
+	clientID := creds["client_id"]
+	clientSecret := creds["client_secret"]
+
+	if clientID == "" {
+		log.Printf("[InstanceLoader] ❌ Hubtel: Missing 'client_id' credential")
+		return nil, fmt.Errorf("Hubtel requires 'client_id' credential")
+	}
+	if clientSecret == "" {
+		log.Printf("[InstanceLoader] ❌ Hubtel: Missing 'client_secret' credential")
+		return nil, fmt.Errorf("Hubtel requires 'client_secret' credential")
+	}
+
+	log.Printf("[InstanceLoader] ✅ Hubtel credentials validated")
+
+	config := HubtelConfig{
+		ClientID:        clientID,
+		ClientSecret:    clientSecret,
+		MerchantAccount: creds["merchant_key"],
+		BaseURL:         "https://api.hubtel.com",
+	}
+
+	if baseURL := creds["base_url"]; baseURL != "" {
+		config.BaseURL = baseURL
+	}
+
+	return NewHubtelCollectionProvider(config), nil
 }
 
 func (l *InstanceBasedProviderLoader) loadDemoFromInstance(instance *models.AggregatorInstanceWithDetails) (CollectionProvider, error) {
