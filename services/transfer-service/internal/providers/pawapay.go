@@ -71,20 +71,20 @@ func (p *PawapayProvider) GetSupportedCountries() []string {
 
 // PawapayDepositRequest represents a deposit initiation request
 type PawapayDepositRequest struct {
-	DepositID     string                 `json:"depositId"`
-	Amount        string                 `json:"amount"`
-	Currency      string                 `json:"currency"`
-	Correspondent string                 `json:"correspondent"` // MNO code (e.g., MTN_MOMO_BEN)
-	Payer         PawapayPayer           `json:"payer"`
-	CustomerTimestamp string             `json:"customerTimestamp"`
-	StatementDescription string          `json:"statementDescription,omitempty"`
-	Metadata      []PawapayMetadataItem  `json:"metadata,omitempty"`
+	DepositID            string                `json:"depositId"`
+	Amount               string                `json:"amount"`
+	Currency             string                `json:"currency"`
+	Correspondent        string                `json:"correspondent"` // MNO code (e.g., MTN_MOMO_BEN)
+	Payer                PawapayPayer          `json:"payer"`
+	CustomerTimestamp    string                `json:"customerTimestamp"`
+	StatementDescription string                `json:"statementDescription,omitempty"`
+	Metadata             []PawapayMetadataItem `json:"metadata,omitempty"`
 }
 
 // PawapayPayer represents the payer information
 type PawapayPayer struct {
-	Type    string                 `json:"type"` // MSISDN
-	Address PawapayPayerAddress    `json:"address"`
+	Type    string              `json:"type"` // MSISDN
+	Address PawapayPayerAddress `json:"address"`
 }
 
 // PawapayPayerAddress represents the payer's phone number
@@ -101,14 +101,14 @@ type PawapayMetadataItem struct {
 
 // PawapayDepositResponse represents the API response for a deposit
 type PawapayDepositResponse struct {
-	DepositID        string    `json:"depositId"`
-	Status           string    `json:"status"` // ACCEPTED, SUBMITTED, COMPLETED, FAILED
-	Created          time.Time `json:"created"`
-	CorrespondentIDs []string  `json:"correspondentIds,omitempty"`
-	Amount           string    `json:"amount,omitempty"`
-	Currency         string    `json:"currency,omitempty"`
-	Country          string    `json:"country,omitempty"`
-	Correspondent    string    `json:"correspondent,omitempty"`
+	DepositID        string        `json:"depositId"`
+	Status           string        `json:"status"` // ACCEPTED, SUBMITTED, COMPLETED, FAILED
+	Created          time.Time     `json:"created"`
+	CorrespondentIDs []string      `json:"correspondentIds,omitempty"`
+	Amount           string        `json:"amount,omitempty"`
+	Currency         string        `json:"currency,omitempty"`
+	Country          string        `json:"country,omitempty"`
+	Correspondent    string        `json:"correspondent,omitempty"`
 	Payer            *PawapayPayer `json:"payer,omitempty"`
 	// Error fields
 	RejectionReason *PawapayRejectionReason `json:"rejectionReason,omitempty"`
@@ -122,20 +122,20 @@ type PawapayRejectionReason struct {
 
 // PawapayStatusResponse represents the status check response
 type PawapayStatusResponse struct {
-	DepositID            string                   `json:"depositId"`
-	Status               string                   `json:"status"`
-	Amount               string                   `json:"amount"`
-	Currency             string                   `json:"currency"`
-	Country              string                   `json:"country"`
-	Correspondent        string                   `json:"correspondent"`
-	Payer                *PawapayPayer            `json:"payer"`
-	CustomerTimestamp    string                   `json:"customerTimestamp"`
-	StatementDescription string                   `json:"statementDescription"`
-	Created              time.Time                `json:"created"`
-	ReceivedByRecipient  time.Time                `json:"receivedByRecipient,omitempty"`
-	CorrespondentIds     []string                 `json:"correspondentIds"`
-	Metadata             []PawapayMetadataItem    `json:"metadata"`
-	FailureReason        *PawapayRejectionReason  `json:"failureReason,omitempty"`
+	DepositID            string                  `json:"depositId"`
+	Status               string                  `json:"status"`
+	Amount               string                  `json:"amount"`
+	Currency             string                  `json:"currency"`
+	Country              string                  `json:"country"`
+	Correspondent        string                  `json:"correspondent"`
+	Payer                *PawapayPayer           `json:"payer"`
+	CustomerTimestamp    string                  `json:"customerTimestamp"`
+	StatementDescription string                  `json:"statementDescription"`
+	Created              time.Time               `json:"created"`
+	ReceivedByRecipient  time.Time               `json:"receivedByRecipient,omitempty"`
+	CorrespondentIds     []string                `json:"correspondentIds"`
+	Metadata             []PawapayMetadataItem   `json:"metadata"`
+	FailureReason        *PawapayRejectionReason `json:"failureReason,omitempty"`
 }
 
 // ======================= CORRESPONDENT MAPPING =======================
@@ -144,24 +144,24 @@ type PawapayStatusResponse struct {
 func (p *PawapayProvider) GetCorrespondentForCountry(country, currency string) string {
 	// Map country to primary correspondent
 	correspondents := map[string]string{
-		"BJ": "MTN_MOMO_BEN",       // Benin - MTN
-		"BF": "ORANGE_BFA",         // Burkina Faso - Orange
-		"CM": "MTN_MOMO_CMR",       // Cameroon - MTN
-		"CI": "MTN_MOMO_CIV",       // Côte d'Ivoire - MTN
-		"CD": "VODACOM_MPESA_COD",  // DRC - Vodacom M-Pesa
-		"GH": "MTN_MOMO_GHA",       // Ghana - MTN
-		"KE": "MPESA_KEN",          // Kenya - M-Pesa
-		"MW": "AIRTEL_MWI",         // Malawi - Airtel
-		"ML": "ORANGE_MLI",         // Mali - Orange
-		"MZ": "VODACOM_MOZ",        // Mozambique - Vodacom
-		"NE": "AIRTEL_NER",         // Niger - Airtel
-		"NG": "MTN_MOMO_NGA",       // Nigeria - MTN
-		"RW": "MTN_MOMO_RWA",       // Rwanda - MTN
-		"SN": "ORANGE_SEN",         // Senegal - Orange
-		"TZ": "VODACOM_TZA",        // Tanzania - Vodacom
-		"TG": "MOOV_TGO",           // Togo - Moov
-		"UG": "MTN_MOMO_UGA",       // Uganda - MTN
-		"ZM": "MTN_MOMO_ZMB",       // Zambia - MTN
+		"BJ": "MTN_MOMO_BEN",      // Benin - MTN
+		"BF": "ORANGE_BFA",        // Burkina Faso - Orange
+		"CM": "MTN_MOMO_CMR",      // Cameroon - MTN
+		"CI": "MTN_MOMO_CIV",      // Côte d'Ivoire - MTN
+		"CD": "VODACOM_MPESA_COD", // DRC - Vodacom M-Pesa
+		"GH": "MTN_MOMO_GHA",      // Ghana - MTN
+		"KE": "MPESA_KEN",         // Kenya - M-Pesa
+		"MW": "AIRTEL_MWI",        // Malawi - Airtel
+		"ML": "ORANGE_MLI",        // Mali - Orange
+		"MZ": "VODACOM_MOZ",       // Mozambique - Vodacom
+		"NE": "AIRTEL_NER",        // Niger - Airtel
+		"NG": "MTN_MOMO_NGA",      // Nigeria - MTN
+		"RW": "MTN_MOMO_RWA",      // Rwanda - MTN
+		"SN": "ORANGE_SEN",        // Senegal - Orange
+		"TZ": "VODACOM_TZA",       // Tanzania - Vodacom
+		"TG": "MOOV_TGO",          // Togo - Moov
+		"UG": "MTN_MOMO_UGA",      // Uganda - MTN
+		"ZM": "MTN_MOMO_ZMB",      // Zambia - MTN
 	}
 
 	if correspondent, ok := correspondents[country]; ok {
@@ -275,7 +275,7 @@ func (p *PawapayProvider) InitiateCollection(ctx context.Context, req *Collectio
 	case "ACCEPTED", "SUBMITTED":
 		status = CollectionStatusPending
 	case "COMPLETED":
-		status = CollectionStatusSuccess
+		status = CollectionStatusSuccessful
 	case "FAILED":
 		status = CollectionStatusFailed
 	}
@@ -290,8 +290,13 @@ func (p *PawapayProvider) InitiateCollection(ctx context.Context, req *Collectio
 	}, nil
 }
 
-// GetCollectionStatus checks the status of a collection
-func (p *PawapayProvider) GetCollectionStatus(ctx context.Context, referenceID string) (*CollectionStatusResponse, error) {
+// GetAvailableMethods returns available payment methods for a country
+func (p *PawapayProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+// VerifyCollection checks the status of a collection
+func (p *PawapayProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
 	log.Printf("[Pawapay] 🔍 Checking status for: %s", referenceID)
 
 	// Create request
@@ -341,7 +346,7 @@ func (p *PawapayProvider) GetCollectionStatus(ctx context.Context, referenceID s
 	case "ACCEPTED", "SUBMITTED":
 		status = CollectionStatusPending
 	case "COMPLETED":
-		status = CollectionStatusSuccess
+		status = CollectionStatusSuccessful
 	case "FAILED":
 		status = CollectionStatusFailed
 		if deposit.FailureReason != nil {
@@ -351,11 +356,11 @@ func (p *PawapayProvider) GetCollectionStatus(ctx context.Context, referenceID s
 
 	log.Printf("[Pawapay] ✅ Status for %s: %s", referenceID, deposit.Status)
 
-	return &CollectionStatusResponse{
+	return &CollectionResponse{
 		ReferenceID:       referenceID,
 		ProviderReference: deposit.DepositID,
 		Status:            status,
-		FailureReason:     failureReason,
+		Message:           failureReason,
 	}, nil
 }
 
@@ -375,17 +380,17 @@ func (p *PawapayProvider) VerifyWebhook(signature string, payload []byte) bool {
 
 // PawapayWebhookPayload represents the webhook callback payload
 type PawapayWebhookPayload struct {
-	DepositID        string                  `json:"depositId"`
-	Status           string                  `json:"status"`
-	Amount           string                  `json:"amount"`
-	Currency         string                  `json:"currency"`
-	Country          string                  `json:"country"`
-	Correspondent    string                  `json:"correspondent"`
-	Payer            *PawapayPayer           `json:"payer"`
-	Created          time.Time               `json:"created"`
-	ReceivedByRecipient time.Time            `json:"receivedByRecipient,omitempty"`
-	Metadata         []PawapayMetadataItem   `json:"metadata"`
-	FailureReason    *PawapayRejectionReason `json:"failureReason,omitempty"`
+	DepositID           string                  `json:"depositId"`
+	Status              string                  `json:"status"`
+	Amount              string                  `json:"amount"`
+	Currency            string                  `json:"currency"`
+	Country             string                  `json:"country"`
+	Correspondent       string                  `json:"correspondent"`
+	Payer               *PawapayPayer           `json:"payer"`
+	Created             time.Time               `json:"created"`
+	ReceivedByRecipient time.Time               `json:"receivedByRecipient,omitempty"`
+	Metadata            []PawapayMetadataItem   `json:"metadata"`
+	FailureReason       *PawapayRejectionReason `json:"failureReason,omitempty"`
 }
 
 // ParseWebhook parses a Pawapay webhook payload

@@ -54,92 +54,92 @@ func (h *HubtelProvider) GetSupportedCountries() []string {
 
 // HubtelReceiveMoneyRequest represents a receive money request
 type HubtelReceiveMoneyRequest struct {
-	Amount      float64 `json:"amount"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	ClientReference string `json:"clientReference"`
-	CallbackURL string  `json:"callbackUrl"`
-	ReturnURL   string  `json:"returnUrl,omitempty"`
-	CancellationURL string `json:"cancellationUrl,omitempty"`
+	Amount          float64 `json:"amount"`
+	Title           string  `json:"title"`
+	Description     string  `json:"description"`
+	ClientReference string  `json:"clientReference"`
+	CallbackURL     string  `json:"callbackUrl"`
+	ReturnURL       string  `json:"returnUrl,omitempty"`
+	CancellationURL string  `json:"cancellationUrl,omitempty"`
 	// Mobile Money specific
-	Channel     string `json:"channel,omitempty"`      // mtn-gh, vodafone-gh, tigo-gh, airtel-gh
+	Channel        string `json:"channel,omitempty"` // mtn-gh, vodafone-gh, tigo-gh, airtel-gh
 	CustomerMsisdn string `json:"customerMsisdn,omitempty"`
 }
 
 // HubtelPaymentResponse represents the API response
 type HubtelPaymentResponse struct {
-	ResponseCode string `json:"responseCode"`
-	Status       string `json:"status"`
+	ResponseCode string             `json:"responseCode"`
+	Status       string             `json:"status"`
 	Data         *HubtelPaymentData `json:"data"`
-	Message      string `json:"message,omitempty"`
+	Message      string             `json:"message,omitempty"`
 }
 
 // HubtelPaymentData contains the payment details
 type HubtelPaymentData struct {
-	CheckoutURL         string  `json:"checkoutUrl"`
-	CheckoutID          string  `json:"checkoutId"`
-	CheckoutDirectURL   string  `json:"checkoutDirectUrl,omitempty"`
-	ClientReference     string  `json:"clientReference"`
-	Amount              float64 `json:"amount"`
-	Currency            string  `json:"currency,omitempty"`
-	TransactionID       string  `json:"transactionId,omitempty"`
-	ExternalTransactionID string `json:"externalTransactionId,omitempty"`
-	Description         string  `json:"description,omitempty"`
+	CheckoutURL           string  `json:"checkoutUrl"`
+	CheckoutID            string  `json:"checkoutId"`
+	CheckoutDirectURL     string  `json:"checkoutDirectUrl,omitempty"`
+	ClientReference       string  `json:"clientReference"`
+	Amount                float64 `json:"amount"`
+	Currency              string  `json:"currency,omitempty"`
+	TransactionID         string  `json:"transactionId,omitempty"`
+	ExternalTransactionID string  `json:"externalTransactionId,omitempty"`
+	Description           string  `json:"description,omitempty"`
 }
 
 // HubtelStatusResponse represents the status check response
 type HubtelStatusResponse struct {
-	ResponseCode string `json:"responseCode"`
-	Status       string `json:"status"`
+	ResponseCode string            `json:"responseCode"`
+	Status       string            `json:"status"`
 	Data         *HubtelStatusData `json:"data"`
-	Message      string `json:"message,omitempty"`
+	Message      string            `json:"message,omitempty"`
 }
 
 // HubtelStatusData contains transaction status details
 type HubtelStatusData struct {
-	TransactionID       string  `json:"transactionId"`
-	ExternalTransactionID string `json:"externalTransactionId,omitempty"`
-	ClientReference     string  `json:"clientReference"`
-	Amount              float64 `json:"amount"`
-	Charges             float64 `json:"charges"`
-	AmountAfterCharges  float64 `json:"amountAfterCharges"`
-	Currency            string  `json:"currency"`
-	Description         string  `json:"description"`
-	TransactionStatus   string  `json:"transactionStatus"` // Pending, Success, Failed
-	PaymentMethod       string  `json:"paymentMethod"`
-	CustomerPhoneNumber string  `json:"customerPhoneNumber,omitempty"`
-	CustomerName        string  `json:"customerName,omitempty"`
+	TransactionID         string  `json:"transactionId"`
+	ExternalTransactionID string  `json:"externalTransactionId,omitempty"`
+	ClientReference       string  `json:"clientReference"`
+	Amount                float64 `json:"amount"`
+	Charges               float64 `json:"charges"`
+	AmountAfterCharges    float64 `json:"amountAfterCharges"`
+	Currency              string  `json:"currency"`
+	Description           string  `json:"description"`
+	TransactionStatus     string  `json:"transactionStatus"` // Pending, Success, Failed
+	PaymentMethod         string  `json:"paymentMethod"`
+	CustomerPhoneNumber   string  `json:"customerPhoneNumber,omitempty"`
+	CustomerName          string  `json:"customerName,omitempty"`
 }
 
 // HubtelMoMoRequest represents a direct mobile money request
 type HubtelMoMoRequest struct {
-	CustomerName  string  `json:"CustomerName"`
-	CustomerMsisdn string `json:"CustomerMsisdn"`
-	CustomerEmail string  `json:"CustomerEmail,omitempty"`
-	Channel       string  `json:"Channel"` // mtn-gh, vodafone-gh, tigo-gh
-	Amount        float64 `json:"Amount"`
-	PrimaryCallbackUrl string `json:"PrimaryCallbackUrl"`
-	SecondaryCallbackUrl string `json:"SecondaryCallbackUrl,omitempty"`
-	ClientReference string `json:"ClientReference"`
-	Description   string  `json:"Description,omitempty"`
+	CustomerName         string  `json:"CustomerName"`
+	CustomerMsisdn       string  `json:"CustomerMsisdn"`
+	CustomerEmail        string  `json:"CustomerEmail,omitempty"`
+	Channel              string  `json:"Channel"` // mtn-gh, vodafone-gh, tigo-gh
+	Amount               float64 `json:"Amount"`
+	PrimaryCallbackUrl   string  `json:"PrimaryCallbackUrl"`
+	SecondaryCallbackUrl string  `json:"SecondaryCallbackUrl,omitempty"`
+	ClientReference      string  `json:"ClientReference"`
+	Description          string  `json:"Description,omitempty"`
 }
 
 // HubtelMoMoResponse represents direct MoMo API response
 type HubtelMoMoResponse struct {
-	ResponseCode string `json:"ResponseCode"`
+	ResponseCode string          `json:"ResponseCode"`
 	Data         *HubtelMoMoData `json:"Data"`
-	Message      string `json:"Message,omitempty"`
+	Message      string          `json:"Message,omitempty"`
 }
 
 // HubtelMoMoData contains MoMo transaction data
 type HubtelMoMoData struct {
-	TransactionId   string  `json:"TransactionId"`
-	ClientReference string  `json:"ClientReference"`
-	Description     string  `json:"Description"`
-	Amount          float64 `json:"Amount"`
-	Charges         float64 `json:"Charges"`
-	AmountAfterCharges float64 `json:"AmountAfterCharges"`
-	ExternalTransactionId string `json:"ExternalTransactionId,omitempty"`
+	TransactionId         string  `json:"TransactionId"`
+	ClientReference       string  `json:"ClientReference"`
+	Description           string  `json:"Description"`
+	Amount                float64 `json:"Amount"`
+	Charges               float64 `json:"Charges"`
+	AmountAfterCharges    float64 `json:"AmountAfterCharges"`
+	ExternalTransactionId string  `json:"ExternalTransactionId,omitempty"`
 }
 
 // ======================= CHANNEL MAPPING =======================
@@ -147,10 +147,10 @@ type HubtelMoMoData struct {
 // GetChannelForNetwork returns the Hubtel channel code for a network
 func (h *HubtelProvider) GetChannelForNetwork(network string) string {
 	channels := map[string]string{
-		"MTN":       "mtn-gh",
-		"VODAFONE":  "vodafone-gh",
-		"TIGO":      "tigo-gh",
-		"AIRTEL":    "airtel-gh",
+		"MTN":        "mtn-gh",
+		"VODAFONE":   "vodafone-gh",
+		"TIGO":       "tigo-gh",
+		"AIRTEL":     "airtel-gh",
 		"AIRTELTIGO": "tigo-gh",
 	}
 
@@ -228,14 +228,14 @@ func (h *HubtelProvider) initiateDirectMoMo(ctx context.Context, req *Collection
 	log.Printf("[Hubtel]    Channel: %s", channel)
 
 	momoReq := HubtelMoMoRequest{
-		CustomerName:    req.Email, // Use email as name if available
-		CustomerMsisdn:  req.PhoneNumber,
-		CustomerEmail:   req.Email,
-		Channel:         channel,
-		Amount:          req.Amount,
+		CustomerName:       req.Email, // Use email as name if available
+		CustomerMsisdn:     req.PhoneNumber,
+		CustomerEmail:      req.Email,
+		Channel:            channel,
+		Amount:             req.Amount,
 		PrimaryCallbackUrl: callbackURL,
-		ClientReference: clientRef,
-		Description:     fmt.Sprintf("Deposit %s", clientRef),
+		ClientReference:    clientRef,
+		Description:        fmt.Sprintf("Deposit %s", clientRef),
 	}
 
 	if momoReq.CustomerName == "" {
@@ -409,8 +409,13 @@ func (h *HubtelProvider) initiateCheckout(ctx context.Context, req *CollectionRe
 	}, nil
 }
 
-// GetCollectionStatus checks the status of a collection
-func (h *HubtelProvider) GetCollectionStatus(ctx context.Context, referenceID string) (*CollectionStatusResponse, error) {
+// GetAvailableMethods returns available payment methods for a country
+func (h *HubtelProvider) GetAvailableMethods(ctx context.Context, country string) ([]CollectionMethod, error) {
+	return []CollectionMethod{CollectionMethodMobileMoney}, nil
+}
+
+// VerifyCollection checks the status of a collection
+func (h *HubtelProvider) VerifyCollection(ctx context.Context, referenceID string) (*CollectionResponse, error) {
 	log.Printf("[Hubtel] 🔍 Checking status for: %s", referenceID)
 
 	// Build URL
@@ -451,7 +456,7 @@ func (h *HubtelProvider) GetCollectionStatus(ctx context.Context, referenceID st
 	if statusResp.Data != nil {
 		switch statusResp.Data.TransactionStatus {
 		case "Success", "Successful":
-			status = CollectionStatusSuccess
+			status = CollectionStatusSuccessful
 		case "Failed", "Declined", "Cancelled":
 			status = CollectionStatusFailed
 			failureReason = statusResp.Message
@@ -467,28 +472,28 @@ func (h *HubtelProvider) GetCollectionStatus(ctx context.Context, referenceID st
 
 	log.Printf("[Hubtel] ✅ Status for %s: %s", referenceID, status)
 
-	return &CollectionStatusResponse{
+	return &CollectionResponse{
 		ReferenceID:       referenceID,
 		ProviderReference: providerRef,
 		Status:            status,
-		FailureReason:     failureReason,
+		Message:           failureReason,
 	}, nil
 }
 
 // HubtelWebhookPayload represents the webhook callback payload from Hubtel
 type HubtelWebhookPayload struct {
-	ResponseCode      string  `json:"ResponseCode"`
-	Status            string  `json:"Status"`
-	TransactionId     string  `json:"TransactionId"`
-	ClientReference   string  `json:"ClientReference"`
-	Amount            float64 `json:"Amount"`
-	Charges           float64 `json:"Charges"`
-	AmountAfterCharges float64 `json:"AmountAfterCharges"`
-	Currency          string  `json:"Currency"`
-	Description       string  `json:"Description"`
-	ExternalTransactionId string `json:"ExternalTransactionId"`
-	CustomerPhoneNumber string `json:"CustomerPhoneNumber"`
-	PaymentMethod     string  `json:"PaymentMethod"`
+	ResponseCode          string  `json:"ResponseCode"`
+	Status                string  `json:"Status"`
+	TransactionId         string  `json:"TransactionId"`
+	ClientReference       string  `json:"ClientReference"`
+	Amount                float64 `json:"Amount"`
+	Charges               float64 `json:"Charges"`
+	AmountAfterCharges    float64 `json:"AmountAfterCharges"`
+	Currency              string  `json:"Currency"`
+	Description           string  `json:"Description"`
+	ExternalTransactionId string  `json:"ExternalTransactionId"`
+	CustomerPhoneNumber   string  `json:"CustomerPhoneNumber"`
+	PaymentMethod         string  `json:"PaymentMethod"`
 }
 
 // ParseWebhook parses a Hubtel webhook payload
