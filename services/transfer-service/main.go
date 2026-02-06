@@ -117,8 +117,10 @@ func main() {
 	aggregatorHandler := handlers.NewAggregatorHandler(aggregatorRepo, adminClient)
 
 	// Initialize Instance-Based Provider System for Deposits
+	// providerLoader uses adminClient API for credentials (service-to-service communication)
+	// instanceRepo is kept for local operations like usage tracking
 	instanceRepo := repository.NewAggregatorInstanceRepository(db)
-	providerLoader := providers.NewInstanceBasedProviderLoader(instanceRepo)
+	providerLoader := providers.NewInstanceBasedProviderLoader(adminClient)
 	fundMovementService := service.NewDepositFundMovementService(db)
 	walletServiceURL := cfg.WalletServiceURL
 	if walletServiceURL == "" {

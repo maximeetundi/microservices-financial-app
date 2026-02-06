@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/models"
-	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 )
 
 // min returns the smaller of two integers
@@ -25,17 +25,17 @@ func max(a, b int) int {
 	return b
 }
 
-// InstanceBasedProviderLoader loads providers from database instances
-// Credentials are stored directly in the database (api_credentials JSONB column)
+// InstanceBasedProviderLoader loads providers from admin-service API
+// Credentials are fetched via secure service-to-service communication
 type InstanceBasedProviderLoader struct {
-	instanceRepo *repository.AggregatorInstanceRepository
+	adminClient *services.AdminClient
 }
 
 // NewInstanceBasedProviderLoader creates a new instance-based loader
-func NewInstanceBasedProviderLoader(instanceRepo *repository.AggregatorInstanceRepository) *InstanceBasedProviderLoader {
-	log.Printf("[InstanceLoader] ✅ Initialized - credentials loaded from database")
+func NewInstanceBasedProviderLoader(adminClient *services.AdminClient) *InstanceBasedProviderLoader {
+	log.Printf("[InstanceLoader] ✅ Initialized - credentials fetched from admin-service API")
 	return &InstanceBasedProviderLoader{
-		instanceRepo: instanceRepo,
+		adminClient: adminClient,
 	}
 }
 
@@ -542,6 +542,7 @@ func (l *InstanceBasedProviderLoader) loadDemoFromInstance(instance *models.Aggr
 
 // GetBestProviderForDeposit selects the best instance for a deposit
 // based on provider code, country, amount, and instance availability
+// Fetches instance with credentials from admin-service via internal API
 func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 	ctx context.Context,
 	providerCode string,
@@ -549,24 +550,34 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 	amount float64,
 ) (CollectionProvider, *models.AggregatorInstanceWithDetails, error) {
 
-	// Get best instance from DB (already excludes paused instances)
-	instance, err := l.instanceRepo.GetBestInstanceForProvider(ctx, providerCode, country, amount)
+	log.Printf("[InstanceLoader] 🔍 Getting best instance for provider=%s, country=%s, amount=%.2f",
+		providerCode, country, amount)
+
+	// Get best instance with credentials from admin-service API
+	instance, err := l.adminClient.GetBestInstanceWithCredentials(providerCode, country, amount, "XOF")
 	if err != nil {
+		log.Printf("[InstanceLoader] ❌ Failed to get instance from admin-service: %v", err)
 		return nil, nil, fmt.Errorf("no available instance for provider %s: %w", providerCode, err)
 	}
 
-	// Double-check availability status and provide user-friendly messages
-	if instance.AvailabilityStatus == models.WalletInstancePaused || instance.IsPaused {
+	// Check if instance is paused
+	if instance.IsPaused {
 		reason := "Service temporairement indisponible"
 		if instance.PauseReason != nil && *instance.PauseReason != "" {
 			reason = *instance.PauseReason
 		}
+		log.Printf("[InstanceLoader] ⚠️ Instance %s is paused: %s", instance.ID, reason)
 		return nil, nil, fmt.Errorf("instance_paused: %s", reason)
 	}
 
-	if instance.AvailabilityStatus != models.WalletAvailable && instance.AvailabilityStatus != "" {
-		return nil, nil, fmt.Errorf("provider %s instance not available: %s", providerCode, instance.AvailabilityStatus)
+	// Check if instance is enabled
+	if !instance.Enabled {
+		log.Printf("[InstanceLoader] ⚠️ Instance %s is not enabled", instance.ID)
+		return nil, nil, fmt.Errorf("provider %s instance not enabled", providerCode)
 	}
+
+	log.Printf("[InstanceLoader] ✅ Got instance %s (%s) with %d credentials",
+		instance.ID, instance.InstanceName, len(instance.APICredentials))
 
 	// Load provider from this instance
 	provider, err := l.LoadProviderFromInstance(ctx, instance)
@@ -577,7 +588,8 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 	return provider, instance, nil
 }
 
-// RecordTransactionUsage records usage for an instance after a transaction
+// RecordTransactionUsage is now handled by admin-service via API
+// This is a no-op placeholder for backward compatibility
 func (l *InstanceBasedProviderLoader) RecordTransactionUsage(
 	ctx context.Context,
 	instanceID string,
@@ -587,16 +599,10 @@ func (l *InstanceBasedProviderLoader) RecordTransactionUsage(
 	status string,
 	providerRef string,
 ) error {
-	// Increment usage statistics
-	if err := l.instanceRepo.IncrementUsage(ctx, instanceID, amount); err != nil {
-		return fmt.Errorf("increment usage: %w", err)
-	}
-
-	// Log the transaction
-	if err := l.instanceRepo.LogTransaction(ctx, instanceID, transactionID, "deposit", amount, currency, status, providerRef); err != nil {
-		return fmt.Errorf("log transaction: %w", err)
-	}
-
+	// Usage tracking is handled by admin-service when it serves the instance
+	// The admin-service increments request_count and last_used_at automatically
+	log.Printf("[InstanceLoader] Transaction recorded: instance=%s, tx=%s, amount=%.2f %s, status=%s",
+		instanceID, transactionID, amount, currency, status)
 	return nil
 }
 

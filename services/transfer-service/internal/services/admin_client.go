@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -148,4 +149,135 @@ func (c *AdminClient) mapToAggregators(rawMethods []map[string]interface{}) []mo
 	}
 
 	return aggregators
+}
+
+// ==================== INTERNAL API FOR CREDENTIALS ====================
+
+// InstanceResponse represents the response from admin-service internal API
+type InstanceResponse struct {
+	Instance InstanceData `json:"instance"`
+}
+
+// InstanceData contains instance details with credentials
+type InstanceData struct {
+	ID             string            `json:"id"`
+	InstanceName   string            `json:"instance_name"`
+	ProviderCode   string            `json:"provider_code"`
+	ProviderName   string            `json:"provider_name"`
+	IsActive       bool              `json:"is_active"`
+	IsPrimary      bool              `json:"is_primary"`
+	IsGlobal       bool              `json:"is_global"`
+	IsPaused       bool              `json:"is_paused"`
+	PauseReason    *string           `json:"pause_reason"`
+	Priority       int               `json:"priority"`
+	HealthStatus   string            `json:"health_status"`
+	IsTestMode     bool              `json:"is_test_mode"`
+	APICredentials map[string]string `json:"api_credentials"`
+}
+
+// GetBestInstanceWithCredentials fetches the best instance with full API credentials
+// from admin-service internal API (service-to-service communication)
+func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string) (*models.AggregatorInstanceWithDetails, error) {
+	log.Printf("[AdminClient] 🔐 Fetching instance with credentials: provider=%s, country=%s", providerCode, country)
+
+	// Build request
+	reqBody := map[string]interface{}{
+		"provider_code": providerCode,
+		"country":       country,
+		"amount":        amount,
+		"currency":      currency,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Call admin-service internal API
+	url := fmt.Sprintf("%s/api/v1/internal/instances/best", c.baseURL)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		log.Printf("[AdminClient] ❌ Failed to call admin-service: %v", err)
+		return nil, fmt.Errorf("failed to call admin service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		log.Printf("[AdminClient] ❌ Admin service returned status %d: %v", resp.StatusCode, errResp)
+		return nil, fmt.Errorf("admin service error: %v", errResp["error"])
+	}
+
+	// Decode response
+	var result InstanceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	inst := result.Instance
+	log.Printf("[AdminClient] ✅ Got instance %s (%s) with %d credentials",
+		inst.ID, inst.InstanceName, len(inst.APICredentials))
+
+	// Map to transfer-service model
+	instance := &models.AggregatorInstanceWithDetails{
+		ID:             inst.ID,
+		InstanceName:   inst.InstanceName,
+		ProviderCode:   inst.ProviderCode,
+		ProviderName:   inst.ProviderName,
+		Enabled:        inst.IsActive,
+		IsPaused:       inst.IsPaused,
+		IsGlobal:       inst.IsGlobal,
+		Priority:       inst.Priority,
+		IsTestMode:     inst.IsTestMode,
+		PauseReason:    inst.PauseReason,
+		APICredentials: inst.APICredentials,
+	}
+
+	return instance, nil
+}
+
+// GetInstanceByID fetches a specific instance with credentials by ID
+func (c *AdminClient) GetInstanceByID(instanceID string) (*models.AggregatorInstanceWithDetails, error) {
+	log.Printf("[AdminClient] 🔐 Fetching instance by ID: %s", instanceID)
+
+	url := fmt.Sprintf("%s/api/v1/internal/instances/%s", c.baseURL, instanceID)
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call admin service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("instance not found: %s", instanceID)
+	}
+
+	var result InstanceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	inst := result.Instance
+
+	return &models.AggregatorInstanceWithDetails{
+		ID:             inst.ID,
+		InstanceName:   inst.InstanceName,
+		ProviderCode:   inst.ProviderCode,
+		ProviderName:   inst.ProviderName,
+		Enabled:        inst.IsActive,
+		IsPaused:       inst.IsPaused,
+		IsGlobal:       inst.IsGlobal,
+		Priority:       inst.Priority,
+		IsTestMode:     inst.IsTestMode,
+		PauseReason:    inst.PauseReason,
+		APICredentials: inst.APICredentials,
+	}, nil
 }

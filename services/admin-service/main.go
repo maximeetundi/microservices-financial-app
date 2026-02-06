@@ -154,6 +154,19 @@ func main() {
 		public.GET("/payment-methods", publicPaymentHandler.GetPaymentMethodsForCountry)
 	}
 
+	// ==================== INTERNAL SERVICE-TO-SERVICE API ====================
+	// These routes are for internal microservice communication only
+	// They should be protected by service mesh / internal network (not exposed to public)
+	// No authentication required - trust is based on network isolation
+	internalInstanceHandler := handlers.NewInstanceHandler(adminDB)
+	internal := router.Group("/api/v1/internal")
+	{
+		// Get best instance with credentials for a provider/country
+		internal.POST("/instances/best", internalInstanceHandler.InternalGetBestInstance)
+		// Get specific instance with credentials by ID
+		internal.GET("/instances/:id", internalInstanceHandler.InternalGetInstanceByID)
+	}
+
 	// Platform Proxy Handler
 	proxyHandler := handlers.NewPlatformProxyHandler(cfg)
 
