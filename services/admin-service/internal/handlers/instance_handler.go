@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -333,6 +334,14 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		}
 	}
 
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(returnedID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", returnedID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(returnedID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", returnedID, err)
+		}
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"id":                returnedID,
 		"message":           "Instance created successfully",
@@ -424,6 +433,14 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		return
 	}
 
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
+		}
+	}
+
 	// Update credentials in database if provided
 	credentialsSaved := false
 	if req.Credentials != nil && len(req.Credentials) > 0 {
@@ -447,6 +464,14 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 					credentialsSaved = true
 				}
 			}
+		}
+	}
+
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
 		}
 	}
 
@@ -787,6 +812,20 @@ func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
 func (h *InstanceHandler) DeleteProviderInstance(c *gin.Context) {
 	instanceID := c.Param("instanceId")
 
+	var providerCode, instanceName string
+	_ = h.db.QueryRow(`
+		SELECT pp.name, pi.name
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		WHERE pi.id = $1
+	`, instanceID).Scan(&providerCode, &instanceName)
+	if providerCode != "" && instanceName != "" {
+		var aggID string
+		if err := h.db.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, providerCode).Scan(&aggID); err == nil {
+			_, _ = h.db.Exec(`DELETE FROM aggregator_instances WHERE aggregator_id = $1 AND instance_name = $2`, aggID, instanceName)
+		}
+	}
+
 	result, err := h.db.Exec("DELETE FROM provider_instances WHERE id = $1", instanceID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete instance"})
@@ -828,6 +867,14 @@ func (h *InstanceHandler) LinkHotWallet(c *gin.Context) {
 	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
 		return
+	}
+
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Hot wallet linked successfully"})
@@ -944,6 +991,126 @@ func joinStrings(strs []string, sep string) string {
 	return result
 }
 
+func (h *InstanceHandler) syncAggregatorInstanceFromProviderInstance(providerInstanceID string) (string, error) {
+	var providerCode, instanceName, vaultSecretPath string
+	var isActive, isGlobal bool
+	var priority int
+	if err := h.db.QueryRow(`
+		SELECT pp.name, pi.name, COALESCE(pi.vault_secret_path, ''), COALESCE(pi.is_active, TRUE), COALESCE(pi.is_global, FALSE), COALESCE(pi.priority, 50)
+		FROM provider_instances pi
+		JOIN payment_providers pp ON pi.provider_id = pp.id
+		WHERE pi.id = $1
+	`, providerInstanceID).Scan(&providerCode, &instanceName, &vaultSecretPath, &isActive, &isGlobal, &priority); err != nil {
+		return "", err
+	}
+
+	var aggregatorID string
+	if err := h.db.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, providerCode).Scan(&aggregatorID); err != nil {
+		return "", nil
+	}
+
+	var aggInstanceID string
+	err := h.db.QueryRow(`
+		SELECT id FROM aggregator_instances WHERE aggregator_id = $1 AND instance_name = $2
+	`, aggregatorID, instanceName).Scan(&aggInstanceID)
+	if err == sql.ErrNoRows {
+		err = h.db.QueryRow(`
+			INSERT INTO aggregator_instances (aggregator_id, instance_name, api_credentials, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
+			VALUES ($1, $2, '{}'::jsonb, $3, $4, $5, $6, 'active', TRUE)
+			RETURNING id
+		`, aggregatorID, instanceName, vaultSecretPath, isActive, isGlobal, priority).Scan(&aggInstanceID)
+		if err != nil {
+			return "", err
+		}
+		return aggInstanceID, nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	_, _ = h.db.Exec(`
+		UPDATE aggregator_instances
+		SET enabled = $1,
+			is_global = $2,
+			priority = $3,
+			vault_secret_path = $4,
+			health_status = 'active',
+			updated_at = NOW()
+		WHERE id = $5
+	`, isActive, isGlobal, priority, vaultSecretPath, aggInstanceID)
+
+	return aggInstanceID, nil
+}
+
+func (h *InstanceHandler) syncAggregatorWalletLinksFromProviderInstance(providerInstanceID string, aggregatorInstanceID string) error {
+	rows, err := h.db.Query(`
+		SELECT currency, hot_wallet_id, is_active, priority
+		FROM provider_instance_wallets
+		WHERE instance_id = $1
+	`, providerInstanceID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	type wRow struct {
+		Currency    string
+		HotWalletID string
+		IsActive    bool
+		Priority    int
+	}
+	var wallets []wRow
+	for rows.Next() {
+		var w wRow
+		if err := rows.Scan(&w.Currency, &w.HotWalletID, &w.IsActive, &w.Priority); err != nil {
+			continue
+		}
+		if w.Currency == "" || w.HotWalletID == "" {
+			continue
+		}
+		wallets = append(wallets, w)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	seenCurrency := make(map[string]bool)
+	for _, w := range wallets {
+		seenCurrency[w.Currency] = true
+		_, err := h.db.Exec(`
+			INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
+			VALUES ($1, $2::uuid, $3, FALSE, $4, $5)
+			ON CONFLICT (instance_id, hot_wallet_id, currency)
+			DO UPDATE SET enabled = EXCLUDED.enabled, priority = EXCLUDED.priority
+		`, aggregatorInstanceID, w.HotWalletID, w.Currency, w.Priority, w.IsActive)
+		if err != nil {
+			return fmt.Errorf("upsert aggregator_instance_wallets: %w", err)
+		}
+	}
+
+	for currency := range seenCurrency {
+		_, _ = h.db.Exec(`
+			UPDATE aggregator_instance_wallets
+			SET is_primary = FALSE, updated_at = NOW()
+			WHERE instance_id = $1 AND currency = $2
+		`, aggregatorInstanceID, currency)
+
+		_, _ = h.db.Exec(`
+			UPDATE aggregator_instance_wallets
+			SET is_primary = TRUE, updated_at = NOW()
+			WHERE id = (
+				SELECT id
+				FROM aggregator_instance_wallets
+				WHERE instance_id = $1 AND currency = $2 AND enabled = TRUE
+				ORDER BY priority DESC
+				LIMIT 1
+			)
+		`, aggregatorInstanceID, currency)
+	}
+
+	return nil
+}
+
 // InstanceWallet represents a hot wallet linked to a provider instance
 type InstanceWallet struct {
 	ID          string    `json:"id"`
@@ -1016,8 +1183,16 @@ func (h *InstanceHandler) AddInstanceWallet(c *gin.Context) {
 
 	_, err := h.db.Exec(query, id, instanceID, req.Currency, req.HotWalletID, req.Priority)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add wallet to instance"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link wallet"})
 		return
+	}
+
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Wallet linked successfully", "id": id})
@@ -1032,6 +1207,14 @@ func (h *InstanceHandler) RemoveInstanceWallet(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove wallet link"})
 		return
+	}
+
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Wallet link removed"})
@@ -1058,7 +1241,15 @@ func (h *InstanceHandler) ToggleInstanceWallet(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Wallet status updated"})
+	if aggInstanceID, err := h.syncAggregatorInstanceFromProviderInstance(instanceID); err != nil {
+		log.Printf("[InstanceHandler] Warning: sync aggregator instance failed for %s: %v", instanceID, err)
+	} else if aggInstanceID != "" {
+		if err := h.syncAggregatorWalletLinksFromProviderInstance(instanceID, aggInstanceID); err != nil {
+			log.Printf("[InstanceHandler] Warning: sync aggregator wallets failed for %s: %v", instanceID, err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Wallet toggled successfully"})
 }
 
 // GetBestWalletForCurrency returns the best hot wallet for a specific currency and instance
