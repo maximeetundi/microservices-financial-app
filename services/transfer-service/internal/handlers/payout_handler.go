@@ -167,7 +167,7 @@ func (h *PayoutHandler) GetPayoutQuote(c *gin.Context) {
 	}
 
 	// Load provider from this instance (withdraw uses same provider type)
-	provider, err := h.providerLoader.LoadProviderFromInstance(ctx, instance)
+	_, err = h.providerLoader.LoadProviderFromInstance(ctx, instance)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Failed to load provider",
