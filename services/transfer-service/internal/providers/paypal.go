@@ -592,6 +592,18 @@ func (p *PayPalProvider) CancelPayout(ctx context.Context, referenceID string) e
 	return fmt.Errorf("PayPal does not support payout cancellation")
 }
 
+func (p *PayPalProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
+	header, err := p.getPayoutStatusInternal(ctx, referenceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayoutStatusResponse{
+		ProviderReference: referenceID,
+		Status:            PayoutStatusAccordingTo(header.BatchStatus),
+	}, nil
+}
+
 // ==================== AVAILABLE METHODS ====================
 
 func (p *PayPalProvider) GetAvailableMethods(ctx context.Context, country string) ([]AvailableMethod, error) {
