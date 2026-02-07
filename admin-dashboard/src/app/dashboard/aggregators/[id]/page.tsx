@@ -18,9 +18,11 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
+declare const process: { env: { NEXT_PUBLIC_API_URL?: string } };
+
 const getApiUrl = () =>
-  (globalThis as any)?.process?.env?.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8088";
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "");
 
 // Credentials field configuration per provider
 const PROVIDER_CREDENTIALS: Record<
@@ -206,6 +208,13 @@ export default function AggregatorInstancesPage() {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [loadingCredentials, setLoadingCredentials] = useState(false);
   const [savingCredentials, setSavingCredentials] = useState(false);
+
+  const [createCredentials, setCreateCredentials] = useState<ProviderCredentials>(
+    {},
+  );
+  const [showCreateSecrets, setShowCreateSecrets] = useState<
+    Record<string, boolean>
+  >({});
 
   const [newCountry, setNewCountry] = useState({
     country_code: "",
@@ -753,6 +762,27 @@ export default function AggregatorInstancesPage() {
         };
       });
 
+      const hasRealCreateCredentials = Object.values(createCredentials).some(
+        (v) => v && v.trim() !== "" && !v.startsWith("****"),
+      );
+
+      const requestBody: any = {
+        ...newInstance,
+        vault_secret_path: path,
+        wallets: walletsPayload,
+      };
+
+      if (hasRealCreateCredentials) {
+        const filteredCreds: ProviderCredentials = {};
+        Object.entries(createCredentials).forEach(([key, value]) => {
+          const v = String(value || "");
+          if (v && v.trim() !== "" && !v.startsWith("****")) {
+            filteredCreds[key] = v;
+          }
+        });
+        requestBody.credentials = filteredCreds;
+      }
+
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`,
         {
@@ -761,11 +791,7 @@ export default function AggregatorInstancesPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ...newInstance,
-            vault_secret_path: path,
-            wallets: walletsPayload,
-          }),
+          body: JSON.stringify(requestBody),
         },
       );
 
@@ -784,6 +810,8 @@ export default function AggregatorInstancesPage() {
           priority: 50,
         });
         setSelectedWalletIds([]);
+        setCreateCredentials({});
+        setShowCreateSecrets({});
       } else {
         const errData = await response.json();
         alert(`Failed to create instance: ${errData.error || "Unknown error"}`);
@@ -1410,6 +1438,83 @@ export default function AggregatorInstancesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    Mode
+                  </div>
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="instance_mode"
+                        checked={newInstance.is_test_mode === true}
+                        onChange={() =>
+                          setNewInstance({ ...newInstance, is_test_mode: true })
+                        }
+                      />
+                      <span className="text-sm">Sandbox</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="instance_mode"
+                        checked={newInstance.is_test_mode === false}
+                        onChange={() =>
+                          setNewInstance({ ...newInstance, is_test_mode: false })
+                        }
+                      />
+                      <span className="text-sm">Live</span>
+                    </label>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={newInstance.is_active}
+                    onChange={(e) =>
+                      setNewInstance({
+                        ...newInstance,
+                        is_active: e.target.checked,
+                      })
+                    }
+                  />
+                  <span className="text-sm">Active</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={newInstance.deposit_enabled}
+                    onChange={(e) =>
+                      setNewInstance({
+                        ...newInstance,
+                        deposit_enabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span className="text-sm">Dépôts</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={newInstance.withdraw_enabled}
+                    onChange={(e) =>
+                      setNewInstance({
+                        ...newInstance,
+                        withdraw_enabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span className="text-sm">Retraits</span>
+                </label>
+              </div>
+
               {/* Hot Wallet Selection (Multi) */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -1508,6 +1613,60 @@ export default function AggregatorInstancesPage() {
                     />
                     <span className="text-sm">🌍 Global (tous pays)</span>
                   </label>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <KeyIcon className="w-4 h-4 text-gray-400" />
+                  <div className="text-sm font-medium text-gray-700">
+                    Credentials (optionnel)
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {getCredentialFields().map((field) => (
+                    <div key={field.key}>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        {field.label}
+                        {field.required ? " *" : ""}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={
+                            field.secret && !showCreateSecrets[field.key]
+                              ? "password"
+                              : "text"
+                          }
+                          className="input w-full pr-10"
+                          value={createCredentials[field.key] || ""}
+                          onChange={(e) =>
+                            setCreateCredentials({
+                              ...createCredentials,
+                              [field.key]: e.target.value,
+                            })
+                          }
+                        />
+                        {field.secret && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowCreateSecrets({
+                                ...showCreateSecrets,
+                                [field.key]: !showCreateSecrets[field.key],
+                              })
+                            }
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showCreateSecrets[field.key] ? (
+                              <EyeSlashIcon className="w-4 h-4" />
+                            ) : (
+                              <EyeIcon className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
