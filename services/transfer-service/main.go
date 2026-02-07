@@ -68,11 +68,17 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 	feeRepo := repository.NewFeeRepository(db)
 	depositRepo := repository.NewDepositRepository(db)
+	depositNumberRepo := repository.NewDepositNumberRepository(db)
 	payoutRepo := repository.NewPayoutRepository(db)
 
 	// Initialize payout schema
 	if err := payoutRepo.InitSchema(); err != nil {
 		log.Printf("Warning: Failed to init payout schema: %v", err)
+	}
+
+	// Initialize deposit numbers schema
+	if err := depositNumberRepo.InitSchema(); err != nil {
+		log.Printf("Warning: Failed to init deposit numbers schema: %v", err)
 	}
 
 	// Load provider configuration (Vault/Env)
@@ -139,12 +145,15 @@ func main() {
 	// Initialize Full Deposit Handler (production-ready)
 	depositHandler := handlers.NewDepositHandler(
 		depositRepo,
+		depositNumberRepo,
 		instanceRepo,
 		providerLoader,
 		fundMovementService,
 		walletServiceURL,
 		webhookSecrets,
 	)
+
+	depositNumberHandler := handlers.NewDepositNumberHandler(depositNumberRepo)
 
 	// Initialize Withdrawal/Payout Handler
 	withdrawalFundMovement := service.NewWithdrawalFundMovementService(db)
@@ -213,6 +222,15 @@ func main() {
 		// Protected routes - apply JWT auth middleware
 		api.POST("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.CreateTransfer)
 		api.GET("/transfers", middleware.JWTAuth(cfg.JWTSecret), transferHandler.GetTransferHistory)
+
+		// Deposit numbers (phonebook) for mobile deposits
+		depositNumbers := api.Group("/users/me/deposit-numbers")
+		depositNumbers.Use(middleware.JWTAuth(cfg.JWTSecret))
+		{
+			depositNumbers.GET("", depositNumberHandler.List)
+			depositNumbers.POST("", depositNumberHandler.Create)
+			depositNumbers.DELETE("/:id", depositNumberHandler.Delete)
+		}
 
 		// Additional lookup routes (consistent with frontend useApi.ts)
 		api.GET("/transfers/banks", transferHandler.GetBanks)

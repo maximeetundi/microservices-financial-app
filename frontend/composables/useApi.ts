@@ -374,6 +374,15 @@ export const transferAPI = {
     api.post(`/transfer-service/api/v1/transfers/${id}/reverse`, { reason }),
 };
 
+// ========== Deposit Numbers (Phonebook) ==========
+export const depositNumbersAPI = {
+  list: () => api.get("/transfer-service/api/v1/users/me/deposit-numbers"),
+  create: (data: { country: string; phone: string; label?: string; is_default?: boolean }) =>
+    api.post("/transfer-service/api/v1/users/me/deposit-numbers", data),
+  remove: (id: string) =>
+    api.delete(`/transfer-service/api/v1/users/me/deposit-numbers/${id}`),
+};
+
 // ========== Cards ==========
 export const cardAPI = {
   getAll: () => api.get("/card-service/api/v1/cards"),

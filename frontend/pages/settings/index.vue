@@ -73,6 +73,16 @@
         </div>
         <div class="card-arrow">→</div>
       </NuxtLink>
+
+      <!-- Deposit Numbers -->
+      <NuxtLink to="/settings/deposit-numbers" class="settings-card">
+        <div class="card-icon blue">📱</div>
+        <div class="card-content">
+          <h3>Numéros de recharge</h3>
+          <p>Répertoire pour dépôts Mobile Money</p>
+        </div>
+        <div class="card-arrow">→</div>
+      </NuxtLink>
     </div>
 
     <!-- Quick Actions -->

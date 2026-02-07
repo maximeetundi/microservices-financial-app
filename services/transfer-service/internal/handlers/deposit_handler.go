@@ -26,6 +26,7 @@ import (
 // DepositHandler handles deposit collection flows with instance-based providers
 type DepositHandler struct {
 	depositRepo      *repository.DepositRepository
+	depositNumberRepo *repository.DepositNumberRepository
 	instanceRepo     *repository.AggregatorInstanceRepository
 	providerLoader   *providers.InstanceBasedProviderLoader
 	fundMovement     *service.DepositFundMovementService
@@ -36,6 +37,7 @@ type DepositHandler struct {
 // NewDepositHandler creates a new deposit handler
 func NewDepositHandler(
 	depositRepo *repository.DepositRepository,
+	depositNumberRepo *repository.DepositNumberRepository,
 	instanceRepo *repository.AggregatorInstanceRepository,
 	providerLoader *providers.InstanceBasedProviderLoader,
 	fundMovement *service.DepositFundMovementService,
@@ -47,6 +49,7 @@ func NewDepositHandler(
 	}
 	return &DepositHandler{
 		depositRepo:      depositRepo,
+		depositNumberRepo: depositNumberRepo,
 		instanceRepo:     instanceRepo,
 		providerLoader:   providerLoader,
 		fundMovement:     fundMovement,
@@ -65,6 +68,7 @@ type InitiateDepositRequest struct {
 	Country   string  `json:"country" binding:"required"`
 	Email     string  `json:"email"`
 	Phone     string  `json:"phone"`
+	DepositNumberID string `json:"deposit_number_id"`
 	ReturnURL string  `json:"return_url"`
 	CancelURL string  `json:"cancel_url"`
 }
@@ -105,6 +109,34 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Enforce that caller can only initiate deposits for themselves
+	authUserID, _ := c.Get("user_id")
+	if authUserIDStr := fmt.Sprintf("%v", authUserID); authUserIDStr == "" || authUserIDStr != req.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	// If a deposit number is selected, load it and override phone
+	if strings.TrimSpace(req.DepositNumberID) != "" {
+		n, err := h.depositNumberRepo.GetByID(c.Request.Context(), req.DepositNumberID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid deposit number"})
+			return
+		}
+		if n == nil || n.UserID != req.UserID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid deposit number"})
+			return
+		}
+		if !n.IsVerified {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Deposit number not verified"})
+			return
+		}
+		req.Phone = n.Phone
+		if req.Country == "" {
+			req.Country = n.Country
+		}
 	}
 
 	ctx := c.Request.Context()

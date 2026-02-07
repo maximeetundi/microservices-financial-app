@@ -216,14 +216,60 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Numéro de téléphone
+                Numéro de recharge
               </label>
-              <input
-                v-model="phoneNumber"
-                type="tel"
-                class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                placeholder="+225 07 XX XX XX XX"
-              />
+
+              <div v-if="depositNumbersLoading" class="flex justify-center py-4">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
+              </div>
+
+              <div v-else-if="depositNumbers.length > 0" class="space-y-3">
+                <select
+                  v-model="selectedDepositNumberId"
+                  @change="onSelectDepositNumber"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option v-for="n in depositNumbers" :key="n.id" :value="n.id">
+                    {{ n.label ? `${n.label} - ${n.phone}` : n.phone }}
+                  </option>
+                </select>
+
+                <div class="p-4 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-900/30">
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Ajouter un nouveau numéro</p>
+                  <div class="space-y-2">
+                    <input
+                      v-model="newDepositNumberPhone"
+                      type="tel"
+                      class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                      placeholder="+225 07 XX XX XX XX"
+                    />
+                    <input
+                      v-model="newDepositNumberLabel"
+                      type="text"
+                      class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Label (optionnel)"
+                    />
+                    <button
+                      @click="addDepositNumber"
+                      class="w-full px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors"
+                    >
+                      Ajouter ce numéro
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="space-y-2">
+                <input
+                  v-model="phoneNumber"
+                  type="tel"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  placeholder="+225 07 XX XX XX XX"
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  Astuce: ajoute ce numéro dans tes paramètres pour le retrouver plus vite.
+                </p>
+              </div>
             </div>
 
             <button
@@ -370,6 +416,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useWalletStore } from '~/stores/wallet'
+import { depositNumbersAPI } from '~/composables/useApi'
 
 // Props
 const props = defineProps<{
@@ -388,6 +435,11 @@ const walletStore = useWalletStore()
 const currentStep = ref<'provider' | 'phone' | 'processing' | 'redirect' | 'paypal' | 'pending' | 'success' | 'failed'>('provider')
 const amount = ref(5000)
 const phoneNumber = ref('')
+const depositNumbers = ref<any[]>([])
+const selectedDepositNumberId = ref<string>('')
+const depositNumbersLoading = ref(false)
+const newDepositNumberPhone = ref('')
+const newDepositNumberLabel = ref('')
 const selectedProvider = ref<any>(null)
 const providers = ref<any[]>([])
 const loadingProviders = ref(false)
@@ -428,7 +480,7 @@ const cryptoProviders = computed(() =>
 const canProceed = computed(() => {
   if (!selectedProvider.value) return false
   if (amount.value < minAmount || amount.value > maxAmount) return false
-  if (currentStep.value === 'phone' && !phoneNumber.value) return false
+  if (currentStep.value === 'phone' && !selectedDepositNumberId.value && !phoneNumber.value) return false
   return true
 })
 
@@ -462,6 +514,70 @@ const fetchProviders = async () => {
     console.error('Failed to fetch providers:', err)
   } finally {
     loadingProviders.value = false
+  }
+}
+
+const fetchDepositNumbers = async () => {
+  if (!authStore.accessToken) return
+  depositNumbersLoading.value = true
+  try {
+    const res = await depositNumbersAPI.list()
+    depositNumbers.value = res.data?.numbers || []
+
+    // Auto-seed with main phone if list is empty
+    if (depositNumbers.value.length === 0 && authStore.user?.phone) {
+      await depositNumbersAPI.create({
+        country: userCountry.value,
+        phone: authStore.user.phone,
+        label: 'Numéro principal',
+        is_default: true,
+      })
+      const seeded = await depositNumbersAPI.list()
+      depositNumbers.value = seeded.data?.numbers || []
+    }
+
+    const def = depositNumbers.value.find((n: any) => n.is_default)
+    if (def?.id) {
+      selectedDepositNumberId.value = def.id
+      phoneNumber.value = def.phone
+    } else if (depositNumbers.value.length > 0 && depositNumbers.value[0]?.id) {
+      selectedDepositNumberId.value = depositNumbers.value[0].id
+      phoneNumber.value = depositNumbers.value[0].phone
+    } else {
+      selectedDepositNumberId.value = ''
+    }
+  } catch (_e) {
+    depositNumbers.value = []
+    selectedDepositNumberId.value = ''
+  } finally {
+    depositNumbersLoading.value = false
+  }
+}
+
+const onSelectDepositNumber = () => {
+  const n = depositNumbers.value.find((x: any) => x.id === selectedDepositNumberId.value)
+  phoneNumber.value = n?.phone || ''
+}
+
+const addDepositNumber = async () => {
+  if (!newDepositNumberPhone.value) return
+  try {
+    const res = await depositNumbersAPI.create({
+      country: userCountry.value,
+      phone: newDepositNumberPhone.value,
+      label: newDepositNumberLabel.value,
+    })
+    const created = res.data?.number
+    await fetchDepositNumbers()
+    if (created?.id) {
+      selectedDepositNumberId.value = created.id
+      onSelectDepositNumber()
+    }
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || e?.message || "Erreur lors de l'ajout du numéro"
+  } finally {
+    newDepositNumberPhone.value = ''
+    newDepositNumberLabel.value = ''
   }
 }
 
@@ -514,6 +630,7 @@ const initiateDeposit = async () => {
         country: userCountry.value,
         email: authStore.user?.email,
         phone: phoneNumber.value,
+        deposit_number_id: selectedDepositNumberId.value,
         return_url: returnUrl,
         cancel_url: cancelUrl
       })
@@ -863,7 +980,7 @@ const loadSDKScripts = () => {
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     fetchProviders()
-    loadSDKScripts()
+    fetchDepositNumbers()
   } else {
     resetForm()
   }
