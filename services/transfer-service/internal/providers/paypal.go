@@ -429,6 +429,8 @@ func (p *PayPalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (
 		Status:            PayoutStatusAccordingTo(resp.BatchHeader.BatchStatus),
 		AmountReceived:    req.Amount,
 		ReceivedCurrency:  req.Currency,
+	}, nil
+}
 
 // createPayoutInternal sends money to a PayPal account (for withdrawals)
 func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmail string, amount float64, currency, reference, note string) (*PayPalPayoutResponse, error) {
