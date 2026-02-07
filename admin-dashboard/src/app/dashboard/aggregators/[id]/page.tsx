@@ -129,6 +129,9 @@ interface ProviderInstance {
   is_primary: boolean;
   is_global: boolean;
   is_paused: boolean;
+  is_test_mode?: boolean;
+  deposit_enabled?: boolean;
+  withdraw_enabled?: boolean;
   priority: number;
   request_count: number;
   health_status: string;
@@ -255,6 +258,61 @@ export default function AggregatorInstancesPage() {
         { code: "RW", name: "Rwanda", currency: "RWF" },
       ],
     },
+  };
+
+  const setSandboxInstancesEnabled = async (enabled: boolean) => {
+    const sandboxInstances = (instances || []).filter(
+      (i) => (i as any)?.is_test_mode === true,
+    );
+
+    if (sandboxInstances.length === 0) {
+      alert("Aucune instance Sandbox détectée pour ce provider");
+      return;
+    }
+
+    const label = enabled ? "réactiver" : "désactiver";
+    if (
+      !confirm(
+        `Êtes-vous sûr de vouloir ${label} ${sandboxInstances.length} instance(s) Sandbox ?`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const token = localStorage.getItem("admin_token");
+
+      await Promise.all(
+        sandboxInstances.map((inst) =>
+          fetch(
+            `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                deposit_enabled: enabled,
+                withdraw_enabled: enabled,
+              }),
+            },
+          ),
+        ),
+      );
+
+      await loadInstances();
+      alert(
+        enabled
+          ? "✅ Instances Sandbox réactivées"
+          : "✅ Instances Sandbox désactivées",
+      );
+    } catch (e) {
+      console.error("Failed to toggle sandbox instances", e);
+      alert("Erreur lors de la modification des instances Sandbox");
+    }
   };
 
   const addRegionCountries = async (regionKey: string) => {
@@ -917,6 +975,34 @@ export default function AggregatorInstancesPage() {
         </button>
       </div>
 
+      {/* Sandbox bulk actions */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div className="font-semibold text-gray-900">Instances Sandbox</div>
+            <div className="text-sm text-gray-500">
+              Active/Désactive en masse les instances de test (Sandbox)
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSandboxInstancesEnabled(false)}
+              className="btn-secondary"
+              type="button"
+            >
+              Désactiver Sandbox
+            </button>
+            <button
+              onClick={() => setSandboxInstancesEnabled(true)}
+              className="btn-primary"
+              type="button"
+            >
+              Réactiver Sandbox
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Countries Management Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -1004,6 +1090,11 @@ export default function AggregatorInstancesPage() {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-gray-900">{inst.name}</h3>
+                    {(inst as any)?.is_test_mode && (
+                      <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full font-medium">
+                        Sandbox
+                      </span>
+                    )}
                     {inst.is_primary && (
                       <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">
                         Principal

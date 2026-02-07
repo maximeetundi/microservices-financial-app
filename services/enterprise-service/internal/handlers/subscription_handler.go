@@ -78,3 +78,21 @@ func (h *SubscriptionHandler) ListSubscriptions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, subs)
 }
+
+// ListMySubscriptions GET /api/v1/enterprises/:id/subscriptions/me
+func (h *SubscriptionHandler) ListMySubscriptions(c *gin.Context) {
+	enterpriseID := c.Param("id")
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	subs, err := h.repo.FindByEnterpriseAndClientID(c.Request.Context(), enterpriseID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subscriptions", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, subs)
+}

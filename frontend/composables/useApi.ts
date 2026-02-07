@@ -1000,9 +1000,7 @@ export const enterpriseAPI = {
 
   // Logo Upload
   uploadLogo: (formData: FormData) =>
-    api.post("/enterprise-service/api/v1/enterprises/logo", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }),
+    api.post("/enterprise-service/api/v1/enterprises/logo", formData),
 
   // Notifications
   getNotifications: (entId: string, limit = 20, offset = 0) =>
@@ -1048,10 +1046,13 @@ export const enterpriseAPI = {
     api.post(
       `/enterprise-service/api/v1/enterprises/${entId}/invoices/import`,
       formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      },
     ),
+
+  // My data
+  getMyInvoices: (entId: string) =>
+    api.get(`/enterprise-service/api/v1/enterprises/${entId}/invoices/me`),
+  getMySubscriptionsInEnterprise: (entId: string) =>
+    api.get(`/enterprise-service/api/v1/enterprises/${entId}/subscriptions/me`),
   validateBatch: (entId: string, batchId: string) =>
     api.post(
       `/enterprise-service/api/v1/enterprises/${entId}/invoices/batches/${batchId}/validate`,

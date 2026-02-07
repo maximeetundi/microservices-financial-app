@@ -32,6 +32,25 @@ func (h *BillingHandler) CreateInvoice(c *gin.Context) {
 	c.JSON(http.StatusCreated, req)
 }
 
+// ListMyInvoices returns invoices for the current authenticated user
+// GET /api/v1/enterprises/:id/invoices/me
+func (h *BillingHandler) ListMyInvoices(c *gin.Context) {
+	enterpriseID := c.Param("id")
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	invs, err := h.service.ListInvoicesForClient(c.Request.Context(), enterpriseID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch invoices", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, invs)
+}
+
 // ImportInvoices (Point 8, 9)
 func (h *BillingHandler) ImportInvoices(c *gin.Context) {
 	enterpriseID := c.Param("id")

@@ -121,7 +121,7 @@ const enterpriseId = computed(() => route.params.id as string)
 const loading = ref(true)
 const allInvoices = ref<any[]>([])
 
-const pendingInvoices = computed(() => allInvoices.value.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE'))
+const pendingInvoices = computed(() => allInvoices.value.filter(i => i.status === 'SENT' || i.status === 'OVERDUE'))
 const totalPending = computed(() => pendingInvoices.value.reduce((sum, i) => sum + (i.amount || 0), 0))
 const paidThisMonth = computed(() => {
   const now = new Date()
@@ -135,11 +135,8 @@ const paidThisMonth = computed(() => {
 const fetchInvoices = async () => {
   loading.value = true
   try {
-    // This would be a new endpoint to get invoices for the current user
-    // For now we'll mock or use existing endpoint
-    const { data } = await enterpriseAPI.getMySubscriptions(enterpriseId.value)
-    // Extract invoices from subscriptions or use dedicated endpoint
-    allInvoices.value = data?.invoices || []
+    const { data } = await enterpriseAPI.getMyInvoices(enterpriseId.value)
+    allInvoices.value = data || []
   } catch (e) {
     console.error('Failed to load invoices', e)
   } finally {
@@ -162,8 +159,10 @@ const formatAmount = (amount: number) => {
 const statusClass = (status: string) => {
   const classes: Record<string, string> = {
     'PAID': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    'PENDING': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    'SENT': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
     'OVERDUE': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    'DRAFT': 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+    'CANCELLED': 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
   }
   return classes[status] || 'bg-gray-100 text-gray-800'
 }
@@ -171,8 +170,10 @@ const statusClass = (status: string) => {
 const statusLabel = (status: string) => {
   const labels: Record<string, string> = {
     'PAID': 'Payée',
-    'PENDING': 'En attente',
+    'SENT': 'Envoyée',
     'OVERDUE': 'En retard',
+    'DRAFT': 'Brouillon',
+    'CANCELLED': 'Annulée',
   }
   return labels[status] || status
 }

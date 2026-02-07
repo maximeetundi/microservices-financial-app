@@ -61,6 +61,22 @@ func (r *SubscriptionRepository) FindByEnterprise(ctx context.Context, enterpris
 	return subs, nil
 }
 
+func (r *SubscriptionRepository) FindByEnterpriseAndClientID(ctx context.Context, enterpriseID, clientID string) ([]models.Subscription, error) {
+	oid, err := primitive.ObjectIDFromHex(enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := r.collection.Find(ctx, bson.M{"enterprise_id": oid, "client_id": clientID})
+	if err != nil {
+		return nil, err
+	}
+	var subs []models.Subscription
+	if err = cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
 func (r *SubscriptionRepository) FindByID(ctx context.Context, id string) (*models.Subscription, error) {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {

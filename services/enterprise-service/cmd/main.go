@@ -104,6 +104,7 @@ func main() {
 	empHandler := handlers.NewEmployeeHandler(empService)
 	payHandler := handlers.NewPayrollHandler(payService)
 	billHandler := handlers.NewBillingHandler(billService)
+	salaryHandler := handlers.NewSalaryHandler(payService, empService)
 
 	api := router.Group("/api/v1")
 
@@ -133,6 +134,7 @@ func main() {
 		api.POST("/employees/accept", empHandler.AcceptInvitation)
 		api.PUT("/employees/:id/promote", empHandler.PromoteEmployee)
 		api.GET("/employees/me", empHandler.GetMyEmployee) // Get current user's employee record for RBAC
+		api.GET("/employees/me/salary", salaryHandler.GetMySalary)
 
 		// Payroll Routes
 		api.POST("/enterprises/:id/payroll/preview", payHandler.PreviewPayroll)
@@ -141,6 +143,7 @@ func main() {
 
 		// Billing Routes
 		api.POST("/invoices", billHandler.CreateInvoice)
+		api.GET("/enterprises/:id/invoices/me", billHandler.ListMyInvoices)
 		api.POST("/enterprises/:id/invoices/import", billHandler.ImportInvoices)
 		api.POST("/enterprises/:id/invoices/batches", billHandler.CreateBatchInvoices)
 		api.POST("/enterprises/:id/invoices/batches/:batch_id/validate", billHandler.ValidateBatch)
@@ -155,6 +158,7 @@ func main() {
 		// Subscription Routes
 		subHandler := handlers.NewSubscriptionHandler(subRepo)
 		api.GET("/enterprises/:id/subscriptions", subHandler.ListSubscriptions)
+		api.GET("/enterprises/:id/subscriptions/me", subHandler.ListMySubscriptions)
 		api.POST("/enterprises/:id/subscriptions", subHandler.CreateSubscription)
 
 		// Multi-Approval System Routes

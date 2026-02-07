@@ -231,7 +231,7 @@ export const shopAPI = {
     uploadMedia: (file: File) => {
         const formData = new FormData()
         formData.append('file', file)
-        return api.post(`${baseUrl}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+        return api.post(`${baseUrl}/upload`, formData)
     },
 
     // Manager management

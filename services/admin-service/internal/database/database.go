@@ -66,6 +66,7 @@ func buildSeedInstanceCredentials(providerName, providerType, baseURL string) ma
 		creds["subscription_key"] = fmt.Sprintf("sub_%s_%s", providerName, uuid.New().String()[:12])
 		creds["api_user"] = fmt.Sprintf("user_%s_%s", providerName, suffix)
 		creds["api_key"] = fmt.Sprintf("key_%s_%s", providerName, uuid.New().String()[:12])
+		creds["target_environment"] = "sandbox"
 		if creds["base_url"] == "" {
 			creds["base_url"] = "https://sandbox.momodeveloper.mtn.com"
 		}
@@ -365,6 +366,29 @@ func createAdminTables(db *sql.DB) error {
 		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT FALSE`,
 		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS pause_reason TEXT`,
 		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP`,
+		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS is_test_mode BOOLEAN DEFAULT TRUE`,
+		`UPDATE provider_instances
+		 SET is_test_mode =
+		   CASE
+		     WHEN LOWER(COALESCE(api_credentials->>'mode','')) IN ('sandbox','test') THEN TRUE
+		     WHEN LOWER(COALESCE(api_credentials->>'mode','')) IN ('live','production','prod') THEN FALSE
+		
+		     WHEN LOWER(COALESCE(api_credentials->>'target_environment','')) = 'sandbox' THEN TRUE
+		     WHEN LOWER(COALESCE(api_credentials->>'target_environment','')) IN ('live','production') THEN FALSE
+		
+		     WHEN COALESCE(api_credentials->>'base_url','') ILIKE '%sandbox%' THEN TRUE
+		     WHEN COALESCE(api_credentials->>'base_url','') ILIKE '%test%' THEN TRUE
+		
+		     WHEN COALESCE(api_credentials->>'api_key','') LIKE 'sk_test%' THEN TRUE
+		     WHEN COALESCE(api_credentials->>'api_key','') LIKE 'sk_live%' THEN FALSE
+		
+		     WHEN COALESCE(api_credentials->>'secret_key','') LIKE 'sk_test_%' THEN TRUE
+		
+		     WHEN COALESCE(api_credentials->>'secret_key','') LIKE 'FLWSECK_TEST%' THEN TRUE
+		     WHEN COALESCE(api_credentials->>'secret_key','') LIKE 'FLWSECK_LIVE%' THEN FALSE
+		
+		     ELSE COALESCE(is_test_mode, TRUE)
+		   END`,
 		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS deposit_enabled BOOLEAN DEFAULT TRUE`,
 		`ALTER TABLE provider_instances ADD COLUMN IF NOT EXISTS withdraw_enabled BOOLEAN DEFAULT TRUE`,
 		`CREATE INDEX IF NOT EXISTS idx_provider_instances_paused ON provider_instances(is_paused) WHERE is_paused = TRUE`,
@@ -858,77 +882,149 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		// Vault path matches actual Vault structure: secret/aggregators/{provider}
 		// Do NOT add /default - that's not how secrets are stored
 		vaultPath := fmt.Sprintf("secret/aggregators/%s", p.Name)
-		instanceName := "Instance Principale"
 
-		// Check if "Instance Principale" exists
-		var instanceID string
-		err := adminDB.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, instanceName).Scan(&instanceID)
-
-		if err == sql.ErrNoRows {
-			// Create new instance with RETURNING id
-			err = adminDB.QueryRow(`
-				INSERT INTO provider_instances
-					(provider_id, name, vault_secret_path, is_active, is_primary, is_global, priority, health_status)
-				VALUES ($1, $2, $3, TRUE, TRUE, $4, 50, 'active')
-				RETURNING id
-			`, p.ID, instanceName, vaultPath, isGlobalProvider).Scan(&instanceID)
-
-			if err != nil {
-				log.Printf("[Database] Failed to seed instance for %s: %v", p.Name, err)
-				continue
+		createOrUpdate := func(instanceName string, isPrimary bool, depositEnabled bool, withdrawEnabled bool) (string, bool) {
+			var instanceID string
+			err := adminDB.QueryRow(`SELECT id FROM provider_instances WHERE provider_id = $1 AND name = $2`, p.ID, instanceName).Scan(&instanceID)
+			created := false
+			isTestMode := strings.Contains(strings.ToLower(instanceName), "(sandbox)") || strings.Contains(strings.ToLower(instanceName), "sandbox")
+			if err == sql.ErrNoRows {
+				if isPrimary {
+					adminDB.Exec("UPDATE provider_instances SET is_primary = FALSE WHERE provider_id = $1", p.ID)
+				}
+				err = adminDB.QueryRow(`
+					INSERT INTO provider_instances
+						(provider_id, name, vault_secret_path, is_active, is_primary, is_global, is_test_mode, priority, health_status, deposit_enabled, withdraw_enabled)
+					VALUES ($1, $2, $3, TRUE, $4, $5, $6, 50, 'active', $7, $8)
+					RETURNING id
+				`, p.ID, instanceName, vaultPath, isPrimary, isGlobalProvider, isTestMode, depositEnabled, withdrawEnabled).Scan(&instanceID)
+				if err != nil {
+					log.Printf("[Database] Failed to seed instance for %s (%s): %v", p.Name, instanceName, err)
+					return "", false
+				}
+				created = true
+				log.Printf("[Database] ✅ Created default instance for: %s (%s)", p.DisplayName, instanceName)
+			} else if err != nil {
+				log.Printf("[Database] Error checking instance for %s (%s): %v", p.Name, instanceName, err)
+				return "", false
+			} else {
+				if isPrimary {
+					adminDB.Exec("UPDATE provider_instances SET is_primary = FALSE WHERE provider_id = $1", p.ID)
+				}
+				adminDB.Exec(`
+					UPDATE provider_instances
+					SET is_active = TRUE,
+						is_primary = $1,
+						is_global = $2,
+						is_test_mode = $3,
+						vault_secret_path = $4,
+						health_status = 'active',
+						deposit_enabled = $5,
+						withdraw_enabled = $6,
+						updated_at = NOW()
+					WHERE id = $7
+				`, isPrimary, isGlobalProvider, isTestMode, vaultPath, depositEnabled, withdrawEnabled, instanceID)
+				log.Printf("[Database] ✅ Updated default instance for: %s (%s)", p.DisplayName, instanceName)
 			}
-			log.Printf("[Database] ✅ Created default instance for: %s", p.DisplayName)
-		} else if err != nil {
-			log.Printf("[Database] Error checking instance for %s: %v", p.Name, err)
-			continue
-		} else {
-			// Update existing instance to be active
-			adminDB.Exec(`
-				UPDATE provider_instances
-				SET is_active = TRUE, is_primary = TRUE, is_global = $1, vault_secret_path = $2, health_status = 'active'
-				WHERE id = $3
-			`, isGlobalProvider, vaultPath, instanceID)
-			log.Printf("[Database] ✅ Updated default instance for: %s", p.DisplayName)
-
+			return instanceID, created
 		}
 
-		// 3b. Ensure credentials exist for the instance.
+		isMTN := p.Name == "mtn_money" || p.Name == "mtn_momo"
+		isSandboxLiveCapable := isMTN || p.Name == "paypal" || p.Name == "stripe" || p.Name == "flutterwave" || p.Name == "paystack"
+		var instanceIDs []string
+		if isMTN {
+			// Four instances: (Collections/Disbursements) x (Sandbox/Live)
+			// Sandbox
+			id1, _ := createOrUpdate("MTN Collections (Sandbox)", true, true, false)
+			if id1 != "" {
+				instanceIDs = append(instanceIDs, id1)
+			}
+			id2, _ := createOrUpdate("MTN Disbursements (Sandbox)", false, false, true)
+			if id2 != "" {
+				instanceIDs = append(instanceIDs, id2)
+			}
+			// Live
+			id3, _ := createOrUpdate("MTN Collections (Live)", false, true, false)
+			if id3 != "" {
+				instanceIDs = append(instanceIDs, id3)
+			}
+			id4, _ := createOrUpdate("MTN Disbursements (Live)", false, false, true)
+			if id4 != "" {
+				instanceIDs = append(instanceIDs, id4)
+			}
+		} else if isSandboxLiveCapable {
+			idSandbox, _ := createOrUpdate(p.DisplayName+" (Sandbox)", true, true, true)
+			if idSandbox != "" {
+				instanceIDs = append(instanceIDs, idSandbox)
+			}
+			idLive, _ := createOrUpdate(p.DisplayName+" (Live)", false, true, true)
+			if idLive != "" {
+				instanceIDs = append(instanceIDs, idLive)
+			}
+		} else {
+			id, _ := createOrUpdate("Instance Principale", true, true, true)
+			if id != "" {
+				instanceIDs = append(instanceIDs, id)
+			}
+		}
+
+		// 3b. Ensure credentials exist for each instance.
 		// seedDefaultAPIKeys runs BEFORE instances are created (during createAdminTables),
 		// so fresh DB resets would end up with empty credentials unless we seed them here.
-		var currentCreds []byte
-		credErr := adminDB.QueryRow(`SELECT COALESCE(api_credentials, '{}'::jsonb) FROM provider_instances WHERE id = $1`, instanceID).Scan(&currentCreds)
-		if credErr == nil {
-			// If currentCreds is empty JSON, seed minimal values
-			trimmed := strings.TrimSpace(string(currentCreds))
-			if trimmed == "" || trimmed == "{}" {
-				seedCreds := buildSeedInstanceCredentials(p.Name, p.ProviderType, p.BaseURL)
-				if len(seedCreds) > 0 {
-					credJSON, err := json.Marshal(seedCreds)
-					if err == nil {
-						_, _ = adminDB.Exec(`UPDATE provider_instances SET api_credentials = $1, updated_at = NOW() WHERE id = $2`, credJSON, instanceID)
-						log.Printf("[Database] ✅ Seeded credentials for instance: %s (%s)", p.DisplayName, instanceName)
+		for _, instanceID := range instanceIDs {
+			var currentCreds []byte
+			credErr := adminDB.QueryRow(`SELECT COALESCE(api_credentials, '{}'::jsonb) FROM provider_instances WHERE id = $1`, instanceID).Scan(&currentCreds)
+			if credErr == nil {
+				trimmed := strings.TrimSpace(string(currentCreds))
+				if trimmed == "" || trimmed == "{}" {
+					seedCreds := buildSeedInstanceCredentials(p.Name, p.ProviderType, p.BaseURL)
+					// For MTN live instances, prefill production defaults so both modes are visible after reset.
+					if isMTN {
+						var instanceName string
+						_ = adminDB.QueryRow(`SELECT name FROM provider_instances WHERE id = $1`, instanceID).Scan(&instanceName)
+						if strings.Contains(strings.ToLower(instanceName), "(live)") {
+							seedCreds["environment"] = "production"
+							seedCreds["target_environment"] = "production"
+							seedCreds["base_url"] = "https://proxy.momoapi.mtn.com"
+						}
+					}
+					// Generic sandbox/live hints for providers that support both
+					if strings.Contains(strings.ToLower(instanceName), "(sandbox)") {
+						seedCreds["mode"] = "sandbox"
+					}
+					if strings.Contains(strings.ToLower(instanceName), "(live)") {
+						seedCreds["mode"] = "live"
+					}
+					if len(seedCreds) > 0 {
+						credJSON, err := json.Marshal(seedCreds)
+						if err == nil {
+							_, _ = adminDB.Exec(`UPDATE provider_instances SET api_credentials = $1, updated_at = NOW() WHERE id = $2`, credJSON, instanceID)
+							log.Printf("[Database] ✅ Seeded credentials for instance: %s (%s)", p.DisplayName, instanceID)
+						}
 					}
 				}
 			}
 		}
 
-		linkedCount := 0
-		for _, hw := range hotWallets {
-			if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
-				_, err := adminDB.Exec(`
-					INSERT INTO provider_instance_wallets (instance_id, currency, hot_wallet_id, is_active, priority)
-					VALUES ($1, $2, $3, TRUE, 50)
-					ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE SET is_active = TRUE
-				`, instanceID, hw.Currency, hw.ID)
-				if err != nil {
-					log.Printf("[Database] Failed to link wallet %s to instance %s: %v", hw.ID, instanceID, err)
-				} else {
-					linkedCount++
+		for _, instanceID := range instanceIDs {
+			linkedCount := 0
+			for _, hw := range hotWallets {
+				if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
+					_, err := adminDB.Exec(`
+						INSERT INTO provider_instance_wallets (instance_id, currency, hot_wallet_id, is_active, priority)
+						VALUES ($1, $2, $3, TRUE, 50)
+						ON CONFLICT (instance_id, currency, hot_wallet_id) DO UPDATE SET is_active = TRUE
+					`, instanceID, hw.Currency, hw.ID)
+					if err != nil {
+						log.Printf("[Database] Failed to link wallet %s to instance %s: %v", hw.ID, instanceID, err)
+					} else {
+						linkedCount++
+					}
 				}
 			}
-		}
-		if linkedCount > 0 {
-			log.Printf("[Database] ✅ Linked %d hot wallets to instance: %s", linkedCount, p.DisplayName)
+			if linkedCount > 0 {
+				log.Printf("[Database] ✅ Linked %d hot wallets to instance: %s (%s)", linkedCount, p.DisplayName, instanceID)
+			}
 		}
 
 		// IMPORTANT: make aggregator_instances.id stable and equal to provider_instances.id.
@@ -937,45 +1033,54 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		var aggregatorID string
 		aggErr := mainDB.QueryRow(`SELECT id FROM aggregator_settings WHERE provider_code = $1`, p.Name).Scan(&aggregatorID)
 		if aggErr == nil {
-			var aggInstanceID string
-			aggInstErr := mainDB.QueryRow(`
-				INSERT INTO aggregator_instances (
-					id,
-					aggregator_id,
-					instance_name,
-					api_credentials,
-					vault_secret_path,
-					enabled,
-					is_global,
-					priority,
-					health_status,
-					is_test_mode
-				)
-				VALUES ($1, $2, $3, '{}'::jsonb, $4, TRUE, $5, 50, 'active', TRUE)
-				ON CONFLICT (id) DO UPDATE SET
-					aggregator_id = EXCLUDED.aggregator_id,
-					instance_name = EXCLUDED.instance_name,
-					vault_secret_path = EXCLUDED.vault_secret_path,
-					enabled = TRUE,
-					is_global = EXCLUDED.is_global,
-					health_status = 'active',
-					updated_at = NOW()
-				RETURNING id
-			`, instanceID, aggregatorID, instanceName, vaultPath, isGlobalProvider).Scan(&aggInstanceID)
-			if aggInstErr != nil {
-				log.Printf("[Database] Failed to upsert aggregator instance for %s: %v", p.Name, aggInstErr)
-				continue
-			}
+			for _, instanceID := range instanceIDs {
+				var instanceName string
+				_ = adminDB.QueryRow(`SELECT name FROM provider_instances WHERE id = $1`, instanceID).Scan(&instanceName)
+				isTestMode := true
+				if strings.Contains(strings.ToLower(instanceName), "(live)") {
+					isTestMode = false
+				}
+				var aggInstanceID string
+				aggInstErr := mainDB.QueryRow(`
+					INSERT INTO aggregator_instances (
+						id,
+						aggregator_id,
+						instance_name,
+						api_credentials,
+						vault_secret_path,
+						enabled,
+						is_global,
+						priority,
+						health_status,
+						is_test_mode
+					)
+					VALUES ($1, $2, $3, '{}'::jsonb, $4, TRUE, $5, 50, 'active', $6)
+					ON CONFLICT (id) DO UPDATE SET
+						aggregator_id = EXCLUDED.aggregator_id,
+						instance_name = EXCLUDED.instance_name,
+						vault_secret_path = EXCLUDED.vault_secret_path,
+						enabled = TRUE,
+						is_global = EXCLUDED.is_global,
+						health_status = 'active',
+						is_test_mode = EXCLUDED.is_test_mode,
+						updated_at = NOW()
+					RETURNING id
+				`, instanceID, aggregatorID, instanceName, vaultPath, isGlobalProvider, isTestMode).Scan(&aggInstanceID)
+				if aggInstErr != nil {
+					log.Printf("[Database] Failed to upsert aggregator instance for %s (%s): %v", p.Name, instanceName, aggInstErr)
+					continue
+				}
 
-			for _, hw := range hotWallets {
-				if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
-					_, err := mainDB.Exec(`
-						INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
-						VALUES ($1, $2, $3, TRUE, 50, TRUE)
-						ON CONFLICT (instance_id, hot_wallet_id, currency) DO UPDATE SET enabled = TRUE, is_primary = TRUE
-					`, aggInstanceID, hw.ID, hw.Currency)
-					if err != nil {
-						log.Printf("[Database] Failed to link wallet %s to aggregator instance %s: %v", hw.ID, aggInstanceID, err)
+				for _, hw := range hotWallets {
+					if len(p.Currencies) == 0 || p.Currencies[hw.Currency] {
+						_, err := mainDB.Exec(`
+							INSERT INTO aggregator_instance_wallets (instance_id, hot_wallet_id, currency, is_primary, priority, enabled)
+							VALUES ($1, $2, $3, TRUE, 50, TRUE)
+							ON CONFLICT (instance_id, hot_wallet_id, currency) DO UPDATE SET enabled = TRUE, is_primary = TRUE
+						`, aggInstanceID, hw.ID, hw.Currency)
+						if err != nil {
+							log.Printf("[Database] Failed to link wallet %s to aggregator instance %s: %v", hw.ID, aggInstanceID, err)
+						}
 					}
 				}
 			}

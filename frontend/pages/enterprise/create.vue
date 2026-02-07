@@ -7,7 +7,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Create New Enterprise</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Créer une entreprise</h1>
       </div>
 
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
@@ -15,35 +15,34 @@
           
           <!-- Name -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Enterprise Name</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom de l'entreprise</label>
             <input v-model="form.name" type="text" required 
                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                   placeholder="e.g. Acme Corp" />
+                   placeholder="Ex: Mon Entreprise" />
           </div>
 
           <!-- Type -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Business Type</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type d'activité</label>
             <select v-model="form.type" required
                     class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
-              <option value="GENERIC">General Service</option>
-              <option value="SCHOOL">School / Education</option>
-              <option value="TRANSPORT">Public Transport</option>
-              <option value="UTILITY">Utility (Water, Energy)</option>
+              <option value="SERVICE">Service Général</option>
+              <option value="SCHOOL">École / Éducation</option>
+              <option value="TRANSPORT">Transport</option>
+              <option value="UTILITY">Eau / Électricité / Gaz</option>
             </select>
           </div>
 
-          <!-- Modules -->
-          <div class="space-y-3">
-             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Active Modules</label>
-             <div class="flex items-center space-x-3">
-                <input type="checkbox" v-model="form.has_payroll" id="payroll" class="rounded text-primary-600 focus:ring-primary-500 w-5 h-5 bg-gray-100 border-gray-300">
-                <label for="payroll" class="text-gray-700 dark:text-gray-300">Payroll Management</label>
-             </div>
-             <div class="flex items-center space-x-3">
-                <input type="checkbox" v-model="form.has_invoicing" id="invoicing" class="rounded text-primary-600 focus:ring-primary-500 w-5 h-5 bg-gray-100 border-gray-300">
-                <label for="invoicing" class="text-gray-700 dark:text-gray-300">Recurring Billing / Invoicing</label>
-             </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nombre d'employés</label>
+            <select v-model="form.employee_count_range"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+              <option value="1-10">1 - 10 employés</option>
+              <option value="11-50">11 - 50 employés</option>
+              <option value="51-200">51 - 200 employés</option>
+              <option value="201-500">201 - 500 employés</option>
+              <option value="500+">Plus de 500 employés</option>
+            </select>
           </div>
 
           <div class="pt-4">
@@ -51,7 +50,7 @@
                      :disabled="loading"
                      class="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
                 <span v-if="loading" class="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
-                {{ loading ? 'Creating...' : 'Launch Enterprise' }}
+                {{ loading ? 'Création...' : 'Créer' }}
              </button>
           </div>
 
@@ -62,27 +61,32 @@
 </template>
 
 <script setup>
-const { enterpriseApi } = useApi()
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
+import { enterpriseAPI } from '@/composables/useApi'
+
+definePageMeta({ middleware: ['auth'], layout: 'dashboard' })
+
 const router = useRouter()
 const toast = useToast()
 
 const loading = ref(false)
 const form = reactive({
   name: '',
-  type: 'GENERIC',
-  has_payroll: true,
-  has_invoicing: true
+  type: 'SERVICE',
+  employee_count_range: '1-10'
 })
 
 const createEnterprise = async () => {
   loading.value = true
   try {
-    const res = await enterpriseApi.create(form)
-    toast.success('Enterprise created successfully!')
+    await enterpriseAPI.create(form)
+    toast.success('Entreprise créée avec succès !')
     router.push('/enterprise')
   } catch (err) {
     console.error(err)
-    toast.error(err.response?.data?.error || 'Failed to create enterprise')
+    toast.error(err.response?.data?.error || 'Échec de la création')
   } finally {
     loading.value = false
   }

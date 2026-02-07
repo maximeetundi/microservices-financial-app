@@ -25,6 +25,7 @@ type ProviderInstance struct {
 	Name            string     `json:"name" db:"name"`
 	VaultSecretPath string     `json:"vault_secret_path" db:"vault_secret_path"`
 	HotWalletID     *string    `json:"hot_wallet_id,omitempty" db:"hot_wallet_id"`
+	IsTestMode      bool       `json:"is_test_mode" db:"is_test_mode"`
 	DepositEnabled  bool       `json:"deposit_enabled" db:"deposit_enabled"`
 	WithdrawEnabled bool       `json:"withdraw_enabled" db:"withdraw_enabled"`
 	IsActive        bool       `json:"is_active" db:"is_active"`
@@ -142,6 +143,7 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 
 	query := `
 		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
+		       COALESCE(is_test_mode, TRUE) as is_test_mode,
 		       COALESCE(deposit_enabled, TRUE) as deposit_enabled,
 		       COALESCE(withdraw_enabled, TRUE) as withdraw_enabled,
 		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global,
@@ -164,6 +166,7 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 		var inst ProviderInstance
 		err := rows.Scan(
 			&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+			&inst.IsTestMode,
 			&inst.DepositEnabled, &inst.WithdrawEnabled,
 			&inst.IsActive, &inst.IsPrimary, &inst.IsGlobal, &inst.IsPaused,
 			&inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
@@ -185,6 +188,7 @@ func (h *InstanceHandler) GetProviderInstance(c *gin.Context) {
 	var inst ProviderInstance
 	query := `
 		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
+		       COALESCE(is_test_mode, TRUE) as is_test_mode,
 		       COALESCE(deposit_enabled, TRUE) as deposit_enabled,
 		       COALESCE(withdraw_enabled, TRUE) as withdraw_enabled,
 		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global,
@@ -197,6 +201,7 @@ func (h *InstanceHandler) GetProviderInstance(c *gin.Context) {
 
 	err := h.db.QueryRow(query, instanceID, providerID).Scan(
 		&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+		&inst.IsTestMode,
 		&inst.DepositEnabled, &inst.WithdrawEnabled,
 		&inst.IsActive, &inst.IsPrimary, &inst.IsGlobal, &inst.IsPaused,
 		&inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
@@ -212,6 +217,7 @@ func (h *InstanceHandler) GetProviderInstance(c *gin.Context) {
 func (h *InstanceHandler) GetAllInstances(c *gin.Context) {
 	query := `
 		SELECT i.id, i.provider_id, i.name, i.vault_secret_path, i.hot_wallet_id,
+		       COALESCE(i.is_test_mode, TRUE) as is_test_mode,
 		       COALESCE(i.deposit_enabled, TRUE) as deposit_enabled,
 		       COALESCE(i.withdraw_enabled, TRUE) as withdraw_enabled,
 		       i.is_active, i.is_primary, i.priority, i.request_count, i.last_used_at,
@@ -233,6 +239,7 @@ func (h *InstanceHandler) GetAllInstances(c *gin.Context) {
 		var inst ProviderInstance
 		err := rows.Scan(
 			&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+			&inst.IsTestMode,
 			&inst.DepositEnabled, &inst.WithdrawEnabled,
 			&inst.IsActive, &inst.IsPrimary, &inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
 			&inst.LastError, &inst.HealthStatus, &inst.CreatedAt, &inst.UpdatedAt,
@@ -270,6 +277,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		IsActive    bool                `json:"is_active"`
 		IsPrimary   bool                `json:"is_primary"`
 		IsGlobal    bool                `json:"is_global"`
+		IsTestMode  bool                `json:"is_test_mode"`
 		DepositEnabled  *bool               `json:"deposit_enabled,omitempty"`
 		WithdrawEnabled *bool               `json:"withdraw_enabled,omitempty"`
 		Priority    int                 `json:"priority"`
@@ -306,10 +314,16 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		priority = 50
 	}
 
-	query := `
-		INSERT INTO provider_instances
-		(id, provider_id, name, vault_secret_path, hot_wallet_id, deposit_enabled, withdraw_enabled, is_active, is_primary, priority, health_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
+	insertQuery := `
+		INSERT INTO provider_instances (
+			provider_id, name, vault_secret_path, hot_wallet_id,
+			is_active, is_primary, is_global, is_test_mode, priority,
+			api_credentials
+		) VALUES (
+			$1, $2, $3, NULLIF($4, ''),
+			$5, $6, $7, $8, $9,
+			$10
+		)
 		RETURNING id`
 
 	var hotWalletID *string
@@ -331,15 +345,14 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 	}
 
 	var returnedID string
-	err = h.db.QueryRow(query,
-		id, providerID, req.Name, req.VaultSecretPath, hotWalletID,
-		depositEnabled, withdrawEnabled,
-		req.IsActive, req.IsPrimary, priority,
+	err = h.db.QueryRow(
+		insertQuery,
+		providerID, req.Name, req.VaultSecretPath, req.HotWalletID,
+		req.IsActive, req.IsPrimary, req.IsGlobal, req.IsTestMode, req.Priority,
+		credJSON,
 	).Scan(&returnedID)
-
 	if err != nil {
-		log.Printf("Error creating instance: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instance: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create instance"})
 		return
 	}
 
@@ -380,7 +393,7 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 				if err != nil {
 					log.Printf("[InstanceHandler] Warning: Failed to save credentials to DB: %v", err)
 				} else {
-					log.Printf("[InstanceHandler] ✅ Credentials saved to database for instance %s", returnedID)
+					log.Printf("[InstanceHandler] Credentials saved to database for instance %s", returnedID)
 					credentialsSaved = true
 				}
 			}
@@ -413,6 +426,7 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		IsActive        *bool                  `json:"is_active,omitempty"`
 		IsPrimary       *bool                  `json:"is_primary,omitempty"`
 		IsGlobal        *bool                  `json:"is_global,omitempty"`
+		IsTestMode      *bool                  `json:"is_test_mode,omitempty"`
 		DepositEnabled  *bool                  `json:"deposit_enabled,omitempty"`
 		WithdrawEnabled *bool                  `json:"withdraw_enabled,omitempty"`
 		Priority        *int                   `json:"priority,omitempty"`
@@ -458,6 +472,11 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 	if req.IsGlobal != nil {
 		updates = append(updates, "is_global = $"+string(rune('0'+argNum)))
 		args = append(args, *req.IsGlobal)
+		argNum++
+	}
+	if req.IsTestMode != nil {
+		updates = append(updates, "is_test_mode = $"+string(rune('0'+argNum)))
+		args = append(args, *req.IsTestMode)
 		argNum++
 	}
 	if req.DepositEnabled != nil {
@@ -1173,13 +1192,14 @@ func joinStrings(strs []string, sep string) string {
 func (h *InstanceHandler) syncAggregatorInstanceFromProviderInstance(providerInstanceID string) (string, error) {
 	var providerCode, instanceName, vaultSecretPath string
 	var isActive, isGlobal bool
+	var isTestMode bool
 	var priority int
 	if err := h.db.QueryRow(`
-		SELECT pp.name, pi.name, COALESCE(pi.vault_secret_path, ''), COALESCE(pi.is_active, TRUE), COALESCE(pi.is_global, FALSE), COALESCE(pi.priority, 50)
+		SELECT pp.name, pi.name, COALESCE(pi.vault_secret_path, ''), COALESCE(pi.is_active, TRUE), COALESCE(pi.is_global, FALSE), COALESCE(pi.is_test_mode, TRUE), COALESCE(pi.priority, 50)
 		FROM provider_instances pi
 		JOIN payment_providers pp ON pi.provider_id = pp.id
 		WHERE pi.id = $1
-	`, providerInstanceID).Scan(&providerCode, &instanceName, &vaultSecretPath, &isActive, &isGlobal, &priority); err != nil {
+	`, providerInstanceID).Scan(&providerCode, &instanceName, &vaultSecretPath, &isActive, &isGlobal, &isTestMode, &priority); err != nil {
 		return "", err
 	}
 
@@ -1195,9 +1215,9 @@ func (h *InstanceHandler) syncAggregatorInstanceFromProviderInstance(providerIns
 	if err == sql.ErrNoRows {
 		err = h.db.QueryRow(`
 			INSERT INTO aggregator_instances (aggregator_id, instance_name, api_credentials, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
-			VALUES ($1, $2, '{}'::jsonb, $3, $4, $5, $6, 'active', TRUE)
+			VALUES ($1, $2, '{}'::jsonb, $3, $4, $5, $6, 'active', $7)
 			RETURNING id
-		`, aggregatorID, instanceName, vaultSecretPath, isActive, isGlobal, priority).Scan(&aggInstanceID)
+		`, aggregatorID, instanceName, vaultSecretPath, isActive, isGlobal, priority, isTestMode).Scan(&aggInstanceID)
 		if err != nil {
 			return "", err
 		}
@@ -1211,12 +1231,13 @@ func (h *InstanceHandler) syncAggregatorInstanceFromProviderInstance(providerIns
 		UPDATE aggregator_instances
 		SET enabled = $1,
 			is_global = $2,
-			priority = $3,
-			vault_secret_path = $4,
+			is_test_mode = $3,
+			priority = $4,
+			vault_secret_path = $5,
 			health_status = 'active',
 			updated_at = NOW()
-		WHERE id = $5
-	`, isActive, isGlobal, priority, vaultSecretPath, aggInstanceID)
+		WHERE id = $6
+	`, isActive, isGlobal, isTestMode, priority, vaultSecretPath, aggInstanceID)
 
 	return aggInstanceID, nil
 }

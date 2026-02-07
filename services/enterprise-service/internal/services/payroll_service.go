@@ -235,3 +235,7 @@ func (s *PayrollService) sendPayrollNotifications(ctx context.Context, run *mode
 func (s *PayrollService) ListPayrollRuns(ctx context.Context, enterpriseID string, year int) ([]models.PayrollRun, error) {
 	return s.payrollRepo.FindByEnterpriseAndYear(ctx, enterpriseID, year)
 }
+
+func (s *PayrollService) ListAllPayrollRuns(ctx context.Context, enterpriseID string) ([]models.PayrollRun, error) {
+	return s.payrollRepo.FindByEnterprise(ctx, enterpriseID)
+}

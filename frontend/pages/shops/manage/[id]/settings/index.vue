@@ -46,6 +46,43 @@
 
       <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
+          <PhotoIcon class="h-6 w-6 text-indigo-500" />
+          Images
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logo</label>
+            <div class="aspect-square border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors">
+              <input type="file" @change="uploadLogo" accept="image/*" class="hidden" ref="logoInput">
+              <div v-if="form.logo_url" class="w-full h-full">
+                <img :src="form.logo_url" class="w-full h-full object-cover rounded-xl">
+              </div>
+              <div v-else @click="($refs.logoInput as HTMLInputElement).click()" class="text-center p-4">
+                <div class="text-4xl mb-2">📷</div>
+                <p class="text-sm text-gray-500">Cliquer pour ajouter</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bannière</label>
+            <div class="aspect-video border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors">
+              <input type="file" @change="uploadBanner" accept="image/*" class="hidden" ref="bannerInput">
+              <div v-if="form.banner_url" class="w-full h-full">
+                <img :src="form.banner_url" class="w-full h-full object-cover rounded-xl">
+              </div>
+              <div v-else @click="($refs.bannerInput as HTMLInputElement).click()" class="text-center p-4">
+                <div class="text-4xl mb-2">🖼️</div>
+                <p class="text-sm text-gray-500">Cliquer pour ajouter</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 shadow-sm ring-1 ring-gray-900/5 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b border-gray-100 dark:border-gray-700 pb-2 flex items-center gap-2">
           <span class="text-indigo-500">🧩</span>
           Cartes de confiance
         </h2>
@@ -199,7 +236,8 @@ import {
   Cog6ToothIcon, 
   BuildingStorefrontIcon, 
   MapPinIcon, 
-  TruckIcon 
+  TruckIcon,
+  PhotoIcon
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -217,6 +255,8 @@ const form = ref({
   name: '',
   description: '',
   is_public: true,
+  logo_url: '',
+  banner_url: '',
   contact_info: {
     email: '',
     phone: '',
@@ -249,6 +289,8 @@ const fetchShop = async () => {
     form.value.name = shop.name
     form.value.description = shop.description
     form.value.is_public = shop.is_public
+    form.value.logo_url = shop.logo_url || ''
+    form.value.banner_url = shop.banner_url || ''
     
     if (shop.contact_info) form.value.contact_info = { ...shop.contact_info }
     if (shop.address) form.value.address = { ...shop.address }
@@ -267,6 +309,28 @@ const fetchShop = async () => {
     console.error('Failed to load shop', e)
   } finally {
     loading.value = false
+  }
+}
+
+const uploadLogo = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    const result = await shopApi.uploadMedia(file)
+    form.value.logo_url = result.url
+  } catch (e: any) {
+    toast.error('Échec de l\'upload du logo. Veuillez réessayer.')
+  }
+}
+
+const uploadBanner = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    const result = await shopApi.uploadMedia(file)
+    form.value.banner_url = result.url
+  } catch (e: any) {
+    toast.error('Échec de l\'upload de la bannière. Veuillez réessayer.')
   }
 }
 

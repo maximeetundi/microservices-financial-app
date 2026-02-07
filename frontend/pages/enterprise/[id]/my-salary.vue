@@ -14,9 +14,9 @@
       <div v-if="employee?.salary_config" class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-6 text-white">
         <p class="text-sm opacity-80 mb-1">Salaire mensuel net</p>
         <p class="text-3xl font-bold">
-          {{ formatAmount(employee.salary_config.base_salary) }} {{ employee.salary_config.currency }}
+          {{ formatAmount(employee.salary_config.net_payable || employee.salary_config.base_amount) }} XOF
         </p>
-        <p class="text-sm opacity-80 mt-2">Prochain paiement prévu le {{ formatDate(employee.salary_config.next_payment_date) }}</p>
+        <p class="text-sm opacity-80 mt-2">Fréquence : {{ employee.salary_config.frequency || 'Non défini' }}</p>
       </div>
 
       <!-- Salary History -->

@@ -65,19 +65,19 @@
           <div class="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
             <p class="text-sm text-gray-500 dark:text-gray-400">Salaire de base</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">
-              {{ formatAmount(employee.salary_config.base_salary) }} {{ employee.salary_config.currency }}
+              {{ formatAmount(employee.salary_config.base_amount) }} XOF
             </p>
           </div>
           <div class="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Type de paiement</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Salaire net</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">
-              {{ paymentTypeLabel }}
+              {{ formatAmount(employee.salary_config.net_payable) }} XOF
             </p>
           </div>
           <div class="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Prochain paiement</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Fréquence</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">
-              {{ formatDate(employee.salary_config.next_payment_date) }}
+              {{ employee.salary_config.frequency || 'Non défini' }}
             </p>
           </div>
         </div>
@@ -117,16 +117,6 @@ const roleLabel = computed(() => {
     'EMPLOYEE': 'Employé'
   }
   return map[employee.value?.role] || employee.value?.role
-})
-
-const paymentTypeLabel = computed(() => {
-  const type = employee.value?.salary_config?.payment_type
-  const map: Record<string, string> = {
-    'MONTHLY': 'Mensuel',
-    'BIWEEKLY': 'Bi-hebdomadaire',
-    'WEEKLY': 'Hebdomadaire',
-  }
-  return map[type] || type || 'Non défini'
 })
 
 const formatDate = (date: string) => {

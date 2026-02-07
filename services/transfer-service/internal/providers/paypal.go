@@ -29,6 +29,32 @@ type PayPalProvider struct {
 	tokenExpiry time.Time
 }
 
+func normalizePayPalBaseURL(raw string, mode string) string {
+	base := strings.TrimRight(strings.TrimSpace(raw), "/")
+	// Strip version suffixes if user provided /v1 or /v2
+	for _, suffix := range []string{"/v1", "/v2"} {
+		if strings.HasSuffix(base, suffix) {
+			base = strings.TrimSuffix(base, suffix)
+		}
+	}
+
+	// Some users configure https://api.paypal.com which is not the correct REST host.
+	// Use the documented REST hosts.
+	lower := strings.ToLower(base)
+	if strings.Contains(lower, "api.paypal.com") || strings.Contains(lower, "api.sandbox.paypal.com") {
+		if strings.ToLower(mode) == "live" {
+			return "https://api-m.paypal.com"
+		}
+		return "https://api-m.sandbox.paypal.com"
+	}
+
+	return base
+}
+
+func (p *PayPalProvider) apiBaseURL() string {
+	return normalizePayPalBaseURL(p.config.BaseURL, p.config.Mode)
+}
+
 // NewPayPalProvider creates a new PayPal provider
 func NewPayPalProvider(config PayPalConfig) *PayPalProvider {
 	if config.BaseURL == "" {
@@ -38,6 +64,7 @@ func NewPayPalProvider(config PayPalConfig) *PayPalProvider {
 			config.BaseURL = "https://api-m.sandbox.paypal.com"
 		}
 	}
+	config.BaseURL = normalizePayPalBaseURL(config.BaseURL, config.Mode)
 	return &PayPalProvider{
 		config: config,
 		httpClient: &http.Client{
@@ -107,11 +134,7 @@ func (p *PayPalProvider) GetAccessToken(ctx context.Context) (string, error) {
 	log.Printf("[PayPal]    Client ID: %s", clientIDMasked)
 	log.Printf("[PayPal]    Client Secret: %d characters", len(p.config.ClientSecret))
 
-	baseURL := strings.TrimRight(strings.TrimSpace(p.config.BaseURL), "/")
-	// Guard against user-provided base_url like "https://api-m.sandbox.paypal.com/v1"
-	if strings.HasSuffix(baseURL, "/v1") {
-		baseURL = strings.TrimSuffix(baseURL, "/v1")
-	}
+	baseURL := p.apiBaseURL()
 	tokenURL := baseURL + "/v1/oauth2/token"
 	log.Printf("[PayPal] 📡 Sending token request to: %s", tokenURL)
 
@@ -252,7 +275,8 @@ func (p *PayPalProvider) CreateOrder(ctx context.Context, amount float64, curren
 	}
 
 	body, _ := json.Marshal(orderReq)
-	req, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v2/checkout/orders", bytes.NewBuffer(body))
+	baseURL := p.apiBaseURL()
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/v2/checkout/orders", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +311,9 @@ func (p *PayPalProvider) CaptureOrder(ctx context.Context, orderID string) (*Pay
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
+	baseURL := p.apiBaseURL()
 	req, err := http.NewRequestWithContext(ctx, "POST",
-		fmt.Sprintf("%s/v2/checkout/orders/%s/capture", p.config.BaseURL, orderID), nil)
+		fmt.Sprintf("%s/v2/checkout/orders/%s/capture", baseURL, orderID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -323,8 +348,9 @@ func (p *PayPalProvider) GetOrder(ctx context.Context, orderID string) (*PayPalO
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
+	baseURL := p.apiBaseURL()
 	req, err := http.NewRequestWithContext(ctx, "GET",
-		fmt.Sprintf("%s/v2/checkout/orders/%s", p.config.BaseURL, orderID), nil)
+		fmt.Sprintf("%s/v2/checkout/orders/%s", baseURL, orderID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -403,9 +429,6 @@ func (p *PayPalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (
 		Status:            PayoutStatusAccordingTo(resp.BatchHeader.BatchStatus),
 		AmountReceived:    req.Amount,
 		ReceivedCurrency:  req.Currency,
-		Fee:               0, // PayPal fees are usually deducted from sender or receiver depending on config
-	}, nil
-}
 
 // createPayoutInternal sends money to a PayPal account (for withdrawals)
 func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmail string, amount float64, currency, reference, note string) (*PayPalPayoutResponse, error) {
@@ -435,7 +458,8 @@ func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmai
 	}
 
 	body, _ := json.Marshal(payout)
-	req, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/payments/payouts", bytes.NewBuffer(body))
+	baseURL := p.apiBaseURL()
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/v1/payments/payouts", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -464,20 +488,6 @@ func (p *PayPalProvider) createPayoutInternal(ctx context.Context, recipientEmai
 	return &payoutResp, nil
 }
 
-// GetPayoutStatus retrieves payout batch status (Interface Implementation)
-func (p *PayPalProvider) GetPayoutStatus(ctx context.Context, referenceID string) (*PayoutStatusResponse, error) {
-	batchHeader, err := p.getPayoutStatusInternal(ctx, referenceID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PayoutStatusResponse{
-		ReferenceID:       referenceID,
-		ProviderReference: batchHeader.PayoutBatchID,
-		Status:            PayoutStatusAccordingTo(batchHeader.BatchStatus),
-	}, nil
-}
-
 // getPayoutStatusInternal retrieves payout batch status (Internal)
 func (p *PayPalProvider) getPayoutStatusInternal(ctx context.Context, payoutBatchID string) (*PayPalBatchHeader, error) {
 	token, err := p.GetAccessToken(ctx)
@@ -485,8 +495,9 @@ func (p *PayPalProvider) getPayoutStatusInternal(ctx context.Context, payoutBatc
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
+	baseURL := p.apiBaseURL()
 	req, err := http.NewRequestWithContext(ctx, "GET",
-		fmt.Sprintf("%s/v1/payments/payouts/%s", p.config.BaseURL, payoutBatchID), nil)
+		fmt.Sprintf("%s/v1/payments/payouts/%s", baseURL, payoutBatchID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -514,27 +525,6 @@ func (p *PayPalProvider) getPayoutStatusInternal(ctx context.Context, payoutBatc
 	return &batchResp.BatchHeader, nil
 }
 
-// CancelPayout cancels a pending payout
-func (p *PayPalProvider) CancelPayout(ctx context.Context, referenceID string) error {
-	return fmt.Errorf("PayPal payout cancellation not yet implemented")
-}
-
-// ==================== WEBHOOK VERIFICATION ====================
-
-type PayPalWebhookVerification struct {
-	AuthAlgo         string          `json:"auth_algo"`
-	CertURL          string          `json:"cert_url"`
-	TransmissionID   string          `json:"transmission_id"`
-	TransmissionSig  string          `json:"transmission_sig"`
-	TransmissionTime string          `json:"transmission_time"`
-	WebhookID        string          `json:"webhook_id"`
-	WebhookEvent     json.RawMessage `json:"webhook_event"`
-}
-
-type PayPalVerificationResponse struct {
-	VerificationStatus string `json:"verification_status"` // SUCCESS or FAILURE
-}
-
 // VerifyWebhookSignature validates a PayPal webhook event
 func (p *PayPalProvider) VerifyWebhookSignature(ctx context.Context, headers http.Header, body []byte) (bool, error) {
 	token, err := p.GetAccessToken(ctx)
@@ -553,8 +543,9 @@ func (p *PayPalProvider) VerifyWebhookSignature(ctx context.Context, headers htt
 	}
 
 	reqBody, _ := json.Marshal(verification)
+	baseURL := p.apiBaseURL()
 	req, err := http.NewRequestWithContext(ctx, "POST",
-		p.config.BaseURL+"/v1/notifications/verify-webhook-signature", bytes.NewBuffer(reqBody))
+		baseURL+"/v1/notifications/verify-webhook-signature", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return false, err
 	}

@@ -481,18 +481,31 @@ func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.A
 		return nil, fmt.Errorf("failed to get MTN MoMo credentials: %w", err)
 	}
 
-	environment := creds["environment"]
-	if environment == "" {
+	mode := strings.TrimSpace(strings.ToLower(creds["environment"]))
+	if mode == "" {
 		if instance.IsTestMode {
-			environment = "sandbox"
+			mode = "sandbox"
 		} else {
-			environment = "prod"
+			mode = "production"
 		}
+	}
+	if mode == "prod" || mode == "live" {
+		mode = "production"
+	}
+	if mode != "production" {
+		mode = "sandbox"
+	}
+
+	targetEnv := strings.TrimSpace(creds["target_environment"])
+	if targetEnv == "" {
+		// Backward compatible default: use mode.
+		// In production, you should set target_environment to the operator environment required by MTN.
+		targetEnv = mode
 	}
 
 	baseURL := creds["base_url"]
 	if baseURL == "" {
-		if environment == "sandbox" {
+		if mode == "sandbox" {
 			baseURL = "https://sandbox.momodeveloper.mtn.com"
 		} else {
 			baseURL = "https://proxy.momoapi.mtn.com"
@@ -504,7 +517,8 @@ func (l *InstanceBasedProviderLoader) loadMTNMoMoFromInstance(instance *models.A
 		APIKey:          creds["api_key"],
 		SubscriptionKey: creds["subscription_key"],
 		BaseURL:         baseURL,
-		Environment:     environment,
+		Mode:            mode,
+		TargetEnvironment: targetEnv,
 	}
 
 	return NewMTNMoMoCollectionProvider(config), nil

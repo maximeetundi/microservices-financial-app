@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+  <div class="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 flex flex-col">
     <!-- Mobile Sidebar Backdrop -->
     <div 
       v-if="isMobileMenuOpen" 
@@ -32,6 +32,15 @@
 
       <!-- Mobile Navigation -->
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+        <NuxtLink
+          to="/shops/my-shops"
+          class="flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors group text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+          @click="isMobileMenuOpen = false"
+        >
+          <span class="mr-3">←</span>
+          Mes Boutiques
+        </NuxtLink>
+
         <NuxtLink 
           :to="`/shops/manage/${slug}`"
           class="flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors group"
@@ -117,6 +126,12 @@
 
               <!-- Right: Actions -->
               <div class="flex items-center gap-3">
+                <NuxtLink
+                  to="/shops/my-shops"
+                  class="hidden sm:inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
+                >
+                  ← Mes boutiques
+                </NuxtLink>
                 <NuxtLink 
                   :to="`/shops/${slug}`"
                   target="_blank"

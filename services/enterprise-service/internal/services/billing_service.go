@@ -35,6 +35,10 @@ func NewBillingService(
 	}
 }
 
+func (s *BillingService) ListInvoicesForClient(ctx context.Context, enterpriseID, clientID string) ([]models.Invoice, error) {
+	return s.invRepo.FindByEnterpriseAndClientID(ctx, enterpriseID, clientID)
+}
+
 // CreateInvoice (Single manual or system generated)
 func (s *BillingService) CreateInvoice(ctx context.Context, inv *models.Invoice) error {
 	inv.Status = models.InvoiceStatusDraft

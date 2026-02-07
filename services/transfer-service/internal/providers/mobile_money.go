@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,8 +23,9 @@ type MTNMomoConfig struct {
 	SubscriptionKey string // Ocp-Apim-Subscription-Key
 	APIUser         string
 	APIKey          string
-	BaseURL         string // https://sandbox.momodeveloper.mtn.com or https://momodeveloper.mtn.com
-	Environment     string // sandbox or production
+	BaseURL         string // e.g. https://sandbox.momodeveloper.mtn.com or https://proxy.momoapi.mtn.com
+	Mode            string // sandbox or production (controls default BaseURL)
+	TargetEnvironment string // X-Target-Environment header (sandbox in test; in prod often an operator env like mtncameroon)
 	CallbackURL     string
 }
 
@@ -37,11 +39,33 @@ type MTNMomoProvider struct {
 
 // NewMTNMomoProvider creates a new MTN MoMo provider
 func NewMTNMomoProvider(config MTNMomoConfig) *MTNMomoProvider {
-	if config.Environment == "prod" {
-		config.Environment = "production"
+	// Backward compatibility: older configs used Environment for both mode and target.
+	// We now separate Mode (base URL selection) and TargetEnvironment (header).
+	if config.Mode == "" && config.TargetEnvironment == "" {
+		// If nothing provided, assume sandbox.
+		config.Mode = "sandbox"
+		config.TargetEnvironment = "sandbox"
+	}
+	if config.Mode == "" {
+		config.Mode = config.TargetEnvironment
+	}
+	if config.TargetEnvironment == "" {
+		config.TargetEnvironment = config.Mode
+	}
+	if strings.EqualFold(config.Mode, "prod") {
+		config.Mode = "production"
+	}
+	if strings.EqualFold(config.TargetEnvironment, "prod") {
+		config.TargetEnvironment = "production"
+	}
+	if strings.EqualFold(config.Mode, "live") {
+		config.Mode = "production"
+	}
+	if strings.EqualFold(config.TargetEnvironment, "live") {
+		config.TargetEnvironment = "production"
 	}
 	if config.BaseURL == "" {
-		if config.Environment == "production" {
+		if strings.EqualFold(config.Mode, "production") {
 			config.BaseURL = "https://proxy.momoapi.mtn.com"
 		} else {
 			config.BaseURL = "https://sandbox.momodeveloper.mtn.com"
@@ -159,7 +183,7 @@ func (m *MTNMomoProvider) RequestToPay(ctx context.Context, phoneNumber string, 
 
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("X-Reference-Id", referenceID)
-	req.Header.Set("X-Target-Environment", m.config.Environment)
+	req.Header.Set("X-Target-Environment", m.config.TargetEnvironment)
 	req.Header.Set("Ocp-Apim-Subscription-Key", m.config.SubscriptionKey)
 	req.Header.Set("Content-Type", "application/json")
 	if m.config.CallbackURL != "" {
@@ -206,7 +230,7 @@ func (m *MTNMomoProvider) GetRequestToPayStatus(ctx context.Context, referenceID
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-Target-Environment", m.config.Environment)
+	req.Header.Set("X-Target-Environment", m.config.TargetEnvironment)
 	req.Header.Set("Ocp-Apim-Subscription-Key", m.config.SubscriptionKey)
 
 	resp, err := m.httpClient.Do(req)
@@ -268,7 +292,7 @@ func (m *MTNMomoProvider) Transfer(ctx context.Context, phoneNumber string, amou
 
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("X-Reference-Id", referenceID)
-	req.Header.Set("X-Target-Environment", m.config.Environment)
+	req.Header.Set("X-Target-Environment", m.config.TargetEnvironment)
 	req.Header.Set("Ocp-Apim-Subscription-Key", m.config.SubscriptionKey)
 	req.Header.Set("Content-Type", "application/json")
 
