@@ -252,7 +252,7 @@ func main() {
 			webhooks.POST("/bank/callback", transferHandler.HandleBankCallback)
 		}
 
-		// Deposit/Collection routes
+		// Deposit routes
 		deposits := api.Group("/deposits")
 		{
 			deposits.POST("/initiate", middleware.JWTAuth(cfg.JWTSecret), depositHandler.InitiateDeposit)
@@ -260,11 +260,15 @@ func main() {
 			deposits.POST("/:id/cancel", middleware.JWTAuth(cfg.JWTSecret), depositHandler.CancelDeposit)
 			deposits.GET("/user/:user_id", middleware.JWTAuth(cfg.JWTSecret), depositHandler.GetUserDeposits)
 
+			// PayPal JS SDK (server-side order creation + capture)
+			deposits.POST("/paypal/create-order", middleware.JWTAuth(cfg.JWTSecret), depositHandler.CreatePayPalOrder)
+			deposits.POST("/paypal/capture", middleware.JWTAuth(cfg.JWTSecret), depositHandler.CapturePayPalOrder)
+
 			// Webhooks (no auth - verified by signature)
 			deposits.POST("/webhook/:provider", depositHandler.HandleWebhook)
 		}
 
-		// Payout/Withdrawal routes (external transfers: Mobile Money, Bank, PayPal)
+		// Payout routes
 		payouts := api.Group("/payouts")
 		{
 			payouts.POST("/quote", middleware.JWTAuth(cfg.JWTSecret), payoutHandler.GetPayoutQuote)
@@ -275,7 +279,7 @@ func main() {
 			payouts.GET("/banks", payoutHandler.GetBanks)
 			payouts.GET("/mobile-operators", payoutHandler.GetMobileOperators)
 
-			// Payout webhooks (no auth - verified by signature)
+			// Webhooks (no auth - verified by signature)
 			payouts.POST("/webhook/:provider", payoutHandler.HandleWebhook)
 		}
 	}

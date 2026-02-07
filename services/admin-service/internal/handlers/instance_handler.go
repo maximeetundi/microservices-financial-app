@@ -4,10 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/crypto-bank/microservices-financial-app/services/common/secrets"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -22,6 +25,8 @@ type ProviderInstance struct {
 	Name            string     `json:"name" db:"name"`
 	VaultSecretPath string     `json:"vault_secret_path" db:"vault_secret_path"`
 	HotWalletID     *string    `json:"hot_wallet_id,omitempty" db:"hot_wallet_id"`
+	DepositEnabled  bool       `json:"deposit_enabled" db:"deposit_enabled"`
+	WithdrawEnabled bool       `json:"withdraw_enabled" db:"withdraw_enabled"`
 	IsActive        bool       `json:"is_active" db:"is_active"`
 	IsPrimary       bool       `json:"is_primary" db:"is_primary"`
 	IsGlobal        bool       `json:"is_global" db:"is_global"`
@@ -137,6 +142,8 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 
 	query := `
 		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
+		       COALESCE(deposit_enabled, TRUE) as deposit_enabled,
+		       COALESCE(withdraw_enabled, TRUE) as withdraw_enabled,
 		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global,
 		       COALESCE(is_paused, FALSE) as is_paused,
 		       priority, request_count, last_used_at,
@@ -157,6 +164,7 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 		var inst ProviderInstance
 		err := rows.Scan(
 			&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+			&inst.DepositEnabled, &inst.WithdrawEnabled,
 			&inst.IsActive, &inst.IsPrimary, &inst.IsGlobal, &inst.IsPaused,
 			&inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
 			&inst.LastError, &inst.HealthStatus, &inst.CreatedAt, &inst.UpdatedAt,
@@ -170,10 +178,42 @@ func (h *InstanceHandler) GetProviderInstances(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"instances": instances})
 }
 
-// GetAllInstances returns all instances across all providers
+func (h *InstanceHandler) GetProviderInstance(c *gin.Context) {
+	providerID := c.Param("id")
+	instanceID := c.Param("instanceId")
+
+	var inst ProviderInstance
+	query := `
+		SELECT id, provider_id, name, vault_secret_path, hot_wallet_id,
+		       COALESCE(deposit_enabled, TRUE) as deposit_enabled,
+		       COALESCE(withdraw_enabled, TRUE) as withdraw_enabled,
+		       is_active, is_primary, COALESCE(is_global, FALSE) as is_global,
+		       COALESCE(is_paused, FALSE) as is_paused,
+		       priority, request_count, last_used_at,
+		       last_error, health_status, created_at, updated_at
+		FROM provider_instances
+		WHERE id = $1 AND provider_id = $2
+		LIMIT 1`
+
+	err := h.db.QueryRow(query, instanceID, providerID).Scan(
+		&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+		&inst.DepositEnabled, &inst.WithdrawEnabled,
+		&inst.IsActive, &inst.IsPrimary, &inst.IsGlobal, &inst.IsPaused,
+		&inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
+		&inst.LastError, &inst.HealthStatus, &inst.CreatedAt, &inst.UpdatedAt,
+	)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"instance": inst})
+}
 func (h *InstanceHandler) GetAllInstances(c *gin.Context) {
 	query := `
 		SELECT i.id, i.provider_id, i.name, i.vault_secret_path, i.hot_wallet_id,
+		       COALESCE(i.deposit_enabled, TRUE) as deposit_enabled,
+		       COALESCE(i.withdraw_enabled, TRUE) as withdraw_enabled,
 		       i.is_active, i.is_primary, i.priority, i.request_count, i.last_used_at,
 		       i.last_error, i.health_status, i.created_at, i.updated_at,
 		       p.display_name as provider_name
@@ -193,6 +233,7 @@ func (h *InstanceHandler) GetAllInstances(c *gin.Context) {
 		var inst ProviderInstance
 		err := rows.Scan(
 			&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.HotWalletID,
+			&inst.DepositEnabled, &inst.WithdrawEnabled,
 			&inst.IsActive, &inst.IsPrimary, &inst.Priority, &inst.RequestCount, &inst.LastUsedAt,
 			&inst.LastError, &inst.HealthStatus, &inst.CreatedAt, &inst.UpdatedAt,
 			&inst.ProviderName,
@@ -229,6 +270,8 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		IsActive    bool                `json:"is_active"`
 		IsPrimary   bool                `json:"is_primary"`
 		IsGlobal    bool                `json:"is_global"`
+		DepositEnabled  *bool               `json:"deposit_enabled,omitempty"`
+		WithdrawEnabled *bool               `json:"withdraw_enabled,omitempty"`
 		Priority    int                 `json:"priority"`
 		Credentials map[string]interface{} `json:"credentials,omitempty"`
 	}
@@ -265,8 +308,8 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 
 	query := `
 		INSERT INTO provider_instances
-		(id, provider_id, name, vault_secret_path, hot_wallet_id, is_active, is_primary, priority, health_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active')
+		(id, provider_id, name, vault_secret_path, hot_wallet_id, deposit_enabled, withdraw_enabled, is_active, is_primary, priority, health_status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
 		RETURNING id`
 
 	var hotWalletID *string
@@ -278,9 +321,19 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		hotWalletID = &req.Wallets[0].HotWalletID
 	}
 
+	depositEnabled := true
+	withdrawEnabled := true
+	if req.DepositEnabled != nil {
+		depositEnabled = *req.DepositEnabled
+	}
+	if req.WithdrawEnabled != nil {
+		withdrawEnabled = *req.WithdrawEnabled
+	}
+
 	var returnedID string
 	err = h.db.QueryRow(query,
 		id, providerID, req.Name, req.VaultSecretPath, hotWalletID,
+		depositEnabled, withdrawEnabled,
 		req.IsActive, req.IsPrimary, priority,
 	).Scan(&returnedID)
 
@@ -360,6 +413,8 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 		IsActive        *bool                  `json:"is_active,omitempty"`
 		IsPrimary       *bool                  `json:"is_primary,omitempty"`
 		IsGlobal        *bool                  `json:"is_global,omitempty"`
+		DepositEnabled  *bool                  `json:"deposit_enabled,omitempty"`
+		WithdrawEnabled *bool                  `json:"withdraw_enabled,omitempty"`
 		Priority        *int                   `json:"priority,omitempty"`
 		HealthStatus    string                 `json:"health_status"`
 		Credentials     map[string]interface{} `json:"credentials,omitempty"`
@@ -398,6 +453,21 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 	if req.IsPrimary != nil {
 		updates = append(updates, "is_primary = $"+string(rune('0'+argNum)))
 		args = append(args, *req.IsPrimary)
+		argNum++
+	}
+	if req.IsGlobal != nil {
+		updates = append(updates, "is_global = $"+string(rune('0'+argNum)))
+		args = append(args, *req.IsGlobal)
+		argNum++
+	}
+	if req.DepositEnabled != nil {
+		updates = append(updates, "deposit_enabled = $"+string(rune('0'+argNum)))
+		args = append(args, *req.DepositEnabled)
+		argNum++
+	}
+	if req.WithdrawEnabled != nil {
+		updates = append(updates, "withdraw_enabled = $"+string(rune('0'+argNum)))
+		args = append(args, *req.WithdrawEnabled)
 		argNum++
 	}
 	if req.Priority != nil {
@@ -484,34 +554,47 @@ func (h *InstanceHandler) UpdateProviderInstance(c *gin.Context) {
 // UpdateInstanceCredentials updates the credentials in database for an instance
 func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 	instanceID := c.Param("instanceId")
+	source := c.DefaultQuery("source", "db")
+	source = strings.ToLower(strings.TrimSpace(source))
 
-	// Use map to accept flexible input (camelCase or snake_case)
-	var req struct {
-		Credentials map[string]interface{} `json:"credentials"`
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(body, &raw); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Check instance exists
-	var exists bool
-	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM provider_instances WHERE id = $1)", instanceID).Scan(&exists)
-	if err != nil || !exists {
+	var credsIn map[string]interface{}
+	if v, ok := raw["credentials"]; ok {
+		if m, ok := v.(map[string]interface{}); ok {
+			credsIn = m
+		}
+	}
+	if credsIn == nil {
+		credsIn = raw
+	}
+
+	var inst ProviderInstance
+	err = h.db.QueryRow(`
+		SELECT id, provider_id, name, vault_secret_path, is_active
+		FROM provider_instances WHERE id = $1
+	`, instanceID).Scan(&inst.ID, &inst.ProviderID, &inst.Name, &inst.VaultSecretPath, &inst.IsActive)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
 		return
 	}
 
-	// Helper to normalize and filter credentials
 	normalizedCreds := make(map[string]interface{})
-	
-	// Allow empty credentials map - this means we're just updating with empty values
-	if req.Credentials == nil {
-		req.Credentials = make(map[string]interface{})
+
+	if credsIn == nil {
+		credsIn = make(map[string]interface{})
 	}
-	
-	// Define comprehensive key mapping for both snake_case and camelCase inputs
+
 	keyMapping := map[string]string{
 		// Standard snake_case
 		"client_id": "client_id", "client_secret": "client_secret", "api_key": "api_key",
@@ -530,8 +613,7 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 		"businessId": "business_id",
 	}
 
-	for k, v := range req.Credentials {
-		// Filter empty strings
+	for k, v := range credsIn {
 		if str, ok := v.(string); ok && str == "" {
 			continue
 		}
@@ -542,6 +624,26 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 			// If key is not in our mapping, save it as-is for future compatibility
 			normalizedCreds[k] = v
 		}
+	}
+
+	if source == "vault" {
+		if strings.TrimSpace(inst.VaultSecretPath) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "vault_secret_path is not configured for this instance"})
+			return
+		}
+		vc, err := secrets.NewVaultClient()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Vault client unavailable"})
+			return
+		}
+		if err := vc.WriteSecret(inst.VaultSecretPath, normalizedCreds); err != nil {
+			log.Printf("[InstanceHandler] Failed to write Vault secret %s: %v", inst.VaultSecretPath, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credentials to Vault"})
+			return
+		}
+		log.Printf("[InstanceHandler] ✅ Credentials saved to Vault for instance %s", instanceID)
+		c.JSON(http.StatusOK, gin.H{"message": "Credentials saved successfully"})
+		return
 	}
 
 	// Convert to JSON for storage (even if empty - this allows clearing credentials)
@@ -573,6 +675,61 @@ func (h *InstanceHandler) UpdateInstanceCredentials(c *gin.Context) {
 // GetInstanceCredentials retrieves credentials from database (masked for security)
 func (h *InstanceHandler) GetInstanceCredentials(c *gin.Context) {
 	instanceID := c.Param("instanceId")
+	source := c.DefaultQuery("source", "db")
+	source = strings.ToLower(strings.TrimSpace(source))
+
+	if source == "vault" {
+		var vaultPath string
+		err := h.db.QueryRow("SELECT COALESCE(vault_secret_path, '') FROM provider_instances WHERE id = $1", instanceID).Scan(&vaultPath)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Instance not found"})
+			return
+		}
+		vaultPath = strings.TrimSpace(vaultPath)
+		if vaultPath == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "vault_secret_path is not configured for this instance"})
+			return
+		}
+		vc, err := secrets.NewVaultClient()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Vault client unavailable"})
+			return
+		}
+		data, err := vc.GetSecret(vaultPath)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"credentials": map[string]interface{}{}, "has_credentials": false})
+			return
+		}
+		credentials := make(map[string]interface{})
+		for k, v := range data {
+			credentials[k] = v
+		}
+
+		maskedCreds := make(map[string]interface{})
+		secretKeys := map[string]bool{
+			"api_key": true, "secret_key": true, "client_secret": true,
+			"webhook_secret": true, "encryption_key": true, "private_key": true,
+		}
+		for key, value := range credentials {
+			if str, ok := value.(string); ok && str != "" {
+				if secretKeys[key] {
+					if len(str) > 8 {
+						maskedCreds[key] = str[:4] + "****" + str[len(str)-4:]
+					} else {
+						maskedCreds[key] = "****"
+					}
+				} else {
+					maskedCreds[key] = str
+				}
+			} else if value != nil {
+				maskedCreds[key] = value
+			}
+		}
+
+		hasCredentials := len(credentials) > 0
+		c.JSON(http.StatusOK, gin.H{"credentials": maskedCreds, "has_credentials": hasCredentials})
+		return
+	}
 
 	// Get credentials from database
 	var credJSON []byte
@@ -635,6 +792,7 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		Country      string  `json:"country" binding:"required"`
 		Amount       float64 `json:"amount"`
 		Currency     string  `json:"currency"`
+		Operation    string  `json:"operation"` // deposit | withdraw
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -645,11 +803,18 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 	log.Printf("[InternalAPI] GetBestInstance request: provider=%s, country=%s, amount=%.2f",
 		req.ProviderCode, req.Country, req.Amount)
 
+	operation := strings.ToLower(strings.TrimSpace(req.Operation))
+	if operation == "" {
+		operation = "deposit"
+	}
+
 	// Find the best active instance for this provider and country
 	query := `
 		SELECT
 			pi.id, pi.name, pi.is_active, pi.is_primary, pi.is_global, pi.is_paused,
 			pi.pause_reason, pi.priority, pi.request_count, pi.health_status,
+			COALESCE(pi.deposit_enabled, TRUE) as deposit_enabled,
+			COALESCE(pi.withdraw_enabled, TRUE) as withdraw_enabled,
 			COALESCE(pi.api_credentials, '{}') as api_credentials,
 			pp.name as provider_code, pp.display_name as provider_name,
 			pp.is_demo_mode as is_test_mode, pp.logo_url as provider_logo
@@ -657,6 +822,10 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		JOIN payment_providers pp ON pi.provider_id = pp.id
 		WHERE pp.name = $1
 		  AND pi.is_active = TRUE
+		  AND (
+			($3 = 'deposit' AND COALESCE(pi.deposit_enabled, TRUE) = TRUE)
+			OR ($3 = 'withdraw' AND COALESCE(pi.withdraw_enabled, TRUE) = TRUE)
+		  )
 		  AND (pi.is_paused = FALSE OR pi.is_paused IS NULL)
 		  AND (
 			pi.is_global = TRUE
@@ -680,6 +849,8 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		Priority       int     `db:"priority"`
 		RequestCount   int64   `db:"request_count"`
 		HealthStatus   string  `db:"health_status"`
+		DepositEnabled bool    `db:"deposit_enabled"`
+		WithdrawEnabled bool   `db:"withdraw_enabled"`
 		APICredentials []byte  `db:"api_credentials"`
 		ProviderCode   string  `db:"provider_code"`
 		ProviderName   string  `db:"provider_name"`
@@ -687,10 +858,11 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		ProviderLogo   string  `db:"provider_logo"`
 	}
 
-	err := h.db.QueryRow(query, req.ProviderCode, req.Country).Scan(
+	err := h.db.QueryRow(query, req.ProviderCode, req.Country, operation).Scan(
 		&instance.ID, &instance.Name, &instance.IsActive, &instance.IsPrimary,
 		&instance.IsGlobal, &instance.IsPaused, &instance.PauseReason,
 		&instance.Priority, &instance.RequestCount, &instance.HealthStatus,
+		&instance.DepositEnabled, &instance.WithdrawEnabled,
 		&instance.APICredentials, &instance.ProviderCode, &instance.ProviderName,
 		&instance.IsTestMode, &instance.ProviderLogo,
 	)
@@ -731,6 +903,8 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 			"priority":        instance.Priority,
 			"health_status":   instance.HealthStatus,
 			"is_test_mode":    instance.IsTestMode,
+			"deposit_enabled":  instance.DepositEnabled,
+			"withdraw_enabled": instance.WithdrawEnabled,
 			"api_credentials": credentials,
 		},
 	})
@@ -745,6 +919,8 @@ func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
 		SELECT
 			pi.id, pi.name, pi.is_active, pi.is_primary, pi.is_global, pi.is_paused,
 			pi.pause_reason, pi.priority, pi.request_count, pi.health_status,
+			COALESCE(pi.deposit_enabled, TRUE) as deposit_enabled,
+			COALESCE(pi.withdraw_enabled, TRUE) as withdraw_enabled,
 			COALESCE(pi.api_credentials, '{}') as api_credentials,
 			pp.name as provider_code, pp.display_name as provider_name,
 			pp.is_demo_mode as is_test_mode
@@ -764,6 +940,8 @@ func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
 		Priority       int     `db:"priority"`
 		RequestCount   int64   `db:"request_count"`
 		HealthStatus   string  `db:"health_status"`
+		DepositEnabled bool    `db:"deposit_enabled"`
+		WithdrawEnabled bool   `db:"withdraw_enabled"`
 		APICredentials []byte  `db:"api_credentials"`
 		ProviderCode   string  `db:"provider_code"`
 		ProviderName   string  `db:"provider_name"`
@@ -774,6 +952,7 @@ func (h *InstanceHandler) InternalGetInstanceByID(c *gin.Context) {
 		&instance.ID, &instance.Name, &instance.IsActive, &instance.IsPrimary,
 		&instance.IsGlobal, &instance.IsPaused, &instance.PauseReason,
 		&instance.Priority, &instance.RequestCount, &instance.HealthStatus,
+		&instance.DepositEnabled, &instance.WithdrawEnabled,
 		&instance.APICredentials, &instance.ProviderCode, &instance.ProviderName,
 		&instance.IsTestMode,
 	)

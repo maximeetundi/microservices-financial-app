@@ -41,6 +41,44 @@
                   {{ currency }}
                 </span>
               </div>
+
+
+          <!-- Step: PayPal Checkout (JS SDK Buttons) -->
+          <div v-if="currentStep === 'paypal'" class="space-y-4">
+            <div class="text-center mb-2">
+              <img
+                :src="getProviderLogo(selectedProvider)"
+                :alt="selectedProvider?.display_name"
+                class="w-16 h-16 mx-auto rounded-xl bg-white p-2 mb-3"
+              />
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Payer avec PayPal
+              </h3>
+              <p class="text-gray-500 dark:text-gray-400">
+                Montant: {{ formatAmount(amount) }} {{ currency }}
+              </p>
+            </div>
+
+            <div
+              v-if="paypalError"
+              class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+            >
+              <p class="text-red-600 dark:text-red-400 text-sm">{{ paypalError }}</p>
+            </div>
+
+            <div v-if="paypalLoading" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+
+            <div id="paypal-buttons" class="min-h-[40px]"></div>
+
+            <button
+              @click="currentStep = 'provider'"
+              class="text-indigo-500 hover:text-indigo-600 text-sm font-medium"
+            >
+              ← Changer de méthode
+            </button>
+          </div>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Min: {{ formatAmount(minAmount) }} {{ currency }} - Max: {{ formatAmount(maxAmount) }} {{ currency }}
               </p>
@@ -347,7 +385,7 @@ const authStore = useAuthStore()
 const walletStore = useWalletStore()
 
 // State
-const currentStep = ref<'provider' | 'phone' | 'processing' | 'redirect' | 'pending' | 'success' | 'failed'>('provider')
+const currentStep = ref<'provider' | 'phone' | 'processing' | 'redirect' | 'paypal' | 'pending' | 'success' | 'failed'>('provider')
 const amount = ref(5000)
 const phoneNumber = ref('')
 const selectedProvider = ref<any>(null)
@@ -359,6 +397,8 @@ const transactionId = ref('')
 const paymentUrl = ref('')
 const newBalance = ref<number | null>(null)
 const sdkConfig = ref<any>(null)
+const paypalLoading = ref(false)
+const paypalError = ref('')
 
 // Config
 const minAmount = 100
@@ -538,8 +578,12 @@ const handlePaymentFlow = (data: any) => {
       break
 
     case 'paypal':
-      // PayPal redirect
-      redirectToPayment(data.payment_url)
+      // PayPal JS SDK Buttons (fallback to redirect if not possible)
+      if (sdkConfig.value?.public_key) {
+        openPayPalButtons(data)
+      } else {
+        redirectToPayment(data.payment_url)
+      }
       break
 
     default:
@@ -557,6 +601,112 @@ const redirectToPayment = (url: string) => {
     window.open(url, '_blank')
     currentStep.value = 'pending'
   }, 1500)
+}
+
+const loadPayPalSdk = (clientId: string) => {
+  return new Promise<void>((resolve, reject) => {
+    if (window.paypal) {
+      resolve()
+      return
+    }
+
+    const existing = document.getElementById('paypal-sdk') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      existing.addEventListener('error', () => reject(new Error('PayPal SDK load error')))
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'paypal-sdk'
+    script.async = true
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency.value)}`
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('PayPal SDK load error'))
+    document.head.appendChild(script)
+  })
+}
+
+const openPayPalButtons = async (_data: any) => {
+  paypalError.value = ''
+  paypalLoading.value = true
+  currentStep.value = 'paypal'
+
+  try {
+    const clientId = sdkConfig.value?.public_key
+    if (!clientId) {
+      throw new Error('PayPal client_id manquant (sdk_config.public_key)')
+    }
+
+    await loadPayPalSdk(clientId)
+
+    const container = document.getElementById('paypal-buttons')
+    if (!container) {
+      throw new Error('PayPal container introuvable')
+    }
+    container.innerHTML = ''
+
+    if (!window.paypal?.Buttons) {
+      throw new Error('PayPal SDK non initialisé')
+    }
+
+    window.paypal.Buttons({
+      createOrder: async () => {
+        const resp = await fetch(`${API_URL}/transfer-service/api/v1/deposits/paypal/create-order`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ transaction_id: transactionId.value })
+        })
+
+        const payload = await resp.json().catch(() => ({}))
+        if (!resp.ok) {
+          throw new Error(payload.error || 'Impossible de créer la commande PayPal')
+        }
+
+        return payload.order_id
+      },
+
+      onApprove: async (data: any) => {
+        const resp = await fetch(`${API_URL}/transfer-service/api/v1/deposits/paypal/capture`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            transaction_id: transactionId.value,
+            order_id: data?.orderID
+          })
+        })
+
+        const payload = await resp.json().catch(() => ({}))
+        if (!resp.ok) {
+          throw new Error(payload.error || 'Capture PayPal échouée')
+        }
+
+        if (payload.status === 'completed') {
+          currentStep.value = 'success'
+          emit('success', { transactionId: transactionId.value, amount: amount.value })
+          walletStore.fetchWallets()
+        } else {
+          currentStep.value = 'pending'
+        }
+      },
+
+      onError: (err: any) => {
+        console.error('PayPal Buttons error:', err)
+        paypalError.value = 'Erreur PayPal. Veuillez réessayer.'
+      }
+    }).render('#paypal-buttons')
+  } catch (e: any) {
+    console.error('PayPal init error:', e)
+    paypalError.value = e?.message || 'Erreur lors de l\'initialisation PayPal'
+  } finally {
+    paypalLoading.value = false
+  }
 }
 
 // Flutterwave SDK Integration
@@ -676,6 +826,8 @@ const resetForm = () => {
   transactionId.value = ''
   paymentUrl.value = ''
   newBalance.value = null
+  paypalError.value = ''
+  paypalLoading.value = false
 }
 
 const closeModal = () => {
@@ -735,6 +887,7 @@ declare global {
     PaystackPop: {
       setup: (config: any) => { openIframe: () => void }
     }
+    paypal?: any
   }
 }
 </script>

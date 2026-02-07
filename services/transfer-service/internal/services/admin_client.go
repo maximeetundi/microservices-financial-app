@@ -172,13 +172,18 @@ type InstanceData struct {
 	Priority       int               `json:"priority"`
 	HealthStatus   string            `json:"health_status"`
 	IsTestMode     bool              `json:"is_test_mode"`
+	DepositEnabled bool              `json:"deposit_enabled"`
+	WithdrawEnabled bool             `json:"withdraw_enabled"`
 	APICredentials map[string]string `json:"api_credentials"`
 }
 
 // GetBestInstanceWithCredentials fetches the best instance with full API credentials
 // from admin-service internal API (service-to-service communication)
-func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string) (*models.AggregatorInstanceWithDetails, error) {
+func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string, operation string) (*models.AggregatorInstanceWithDetails, error) {
 	log.Printf("[AdminClient] 🔐 Fetching instance with credentials: provider=%s, country=%s", providerCode, country)
+	if operation == "" {
+		operation = "deposit"
+	}
 
 	// Build request
 	reqBody := map[string]interface{}{
@@ -186,6 +191,7 @@ func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country strin
 		"country":       country,
 		"amount":        amount,
 		"currency":      currency,
+		"operation":     operation,
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
@@ -239,6 +245,8 @@ func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country strin
 		IsTestMode:     inst.IsTestMode,
 		PauseReason:    inst.PauseReason,
 		APICredentials: inst.APICredentials,
+		DepositEnabled: inst.DepositEnabled,
+		WithdrawEnabled: inst.WithdrawEnabled,
 	}
 
 	return instance, nil

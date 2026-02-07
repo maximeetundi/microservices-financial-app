@@ -324,6 +324,7 @@ func main() {
 		payments.GET("/:id/instances", instanceHandler.GetProviderInstances)
 		payments.POST("/:id/instances", instanceHandler.CreateProviderInstance)
 		payments.GET("/:id/instances/best", instanceHandler.SelectBestInstance)
+		payments.GET("/:id/instances/:instanceId", instanceHandler.GetProviderInstance)
 		payments.PUT("/:id/instances/:instanceId", instanceHandler.UpdateProviderInstance)
 		payments.DELETE("/:id/instances/:instanceId", instanceHandler.DeleteProviderInstance)
 		payments.POST("/:id/instances/:instanceId/link-wallet", instanceHandler.LinkHotWallet)

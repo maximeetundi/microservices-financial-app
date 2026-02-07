@@ -311,6 +311,174 @@ func (h *DepositHandler) buildSDKConfig(provider string, instance *models.Aggreg
 	return config
 }
 
+type CreatePayPalOrderRequest struct {
+	TransactionID string `json:"transaction_id" binding:"required"`
+}
+
+// CreatePayPalOrder creates a PayPal order server-side for the JS SDK Buttons flow
+// POST /api/v1/deposits/paypal/create-order
+func (h *DepositHandler) CreatePayPalOrder(c *gin.Context) {
+	var req CreatePayPalOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	deposit, err := h.depositRepo.GetByID(ctx, req.TransactionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load deposit"})
+		return
+	}
+	if deposit == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	if userIDStr := fmt.Sprintf("%v", userID); userIDStr == "" || userIDStr != deposit.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	if strings.ToLower(deposit.ProviderCode) != "paypal" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider for PayPal order"})
+		return
+	}
+	if deposit.AggregatorInstanceID == nil || *deposit.AggregatorInstanceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing aggregator instance"})
+		return
+	}
+
+	instance, err := h.providerLoader.CredentialsClient().GetInstanceByID(*deposit.AggregatorInstanceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load provider instance"})
+		return
+	}
+
+	creds := instance.APICredentials
+	mode := strings.ToLower(strings.TrimSpace(creds["mode"]))
+	if mode == "" {
+		if instance.IsTestMode {
+			mode = "sandbox"
+		} else {
+			mode = "live"
+		}
+	}
+
+	config := providers.PayPalConfig{
+		ClientID:     creds["client_id"],
+		ClientSecret: creds["client_secret"],
+		Mode:         mode,
+		BaseURL:      creds["base_url"],
+	}
+
+	pp := providers.NewPayPalProvider(config)
+
+	// Best-effort wallet id (used as custom_id on purchase_unit)
+	walletID := ""
+	if deposit.UserWalletID != nil {
+		walletID = *deposit.UserWalletID
+	}
+	if deposit.Metadata != nil {
+		var metadata map[string]interface{}
+		if err := json.Unmarshal(deposit.Metadata, &metadata); err == nil {
+			if v, ok := metadata["user_wallet_id"]; ok {
+				walletID = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+
+	order, err := pp.CreateOrder(ctx, deposit.Amount, deposit.Currency, walletID, "Wallet Deposit")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_ = h.depositRepo.UpdateProviderReference(ctx, deposit.ID, order.ID, "")
+
+	c.JSON(http.StatusOK, gin.H{"order_id": order.ID})
+}
+
+type CapturePayPalOrderRequest struct {
+	TransactionID string `json:"transaction_id" binding:"required"`
+	OrderID       string `json:"order_id" binding:"required"`
+}
+
+// CapturePayPalOrder captures a PayPal order server-side and completes the deposit
+// POST /api/v1/deposits/paypal/capture
+func (h *DepositHandler) CapturePayPalOrder(c *gin.Context) {
+	var req CapturePayPalOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	deposit, err := h.depositRepo.GetByID(ctx, req.TransactionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load deposit"})
+		return
+	}
+	if deposit == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	if userIDStr := fmt.Sprintf("%v", userID); userIDStr == "" || userIDStr != deposit.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	if strings.ToLower(deposit.ProviderCode) != "paypal" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider for PayPal capture"})
+		return
+	}
+	if deposit.AggregatorInstanceID == nil || *deposit.AggregatorInstanceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing aggregator instance"})
+		return
+	}
+
+	instance, err := h.providerLoader.CredentialsClient().GetInstanceByID(*deposit.AggregatorInstanceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load provider instance"})
+		return
+	}
+
+	creds := instance.APICredentials
+	mode := strings.ToLower(strings.TrimSpace(creds["mode"]))
+	if mode == "" {
+		if instance.IsTestMode {
+			mode = "sandbox"
+		} else {
+			mode = "live"
+		}
+	}
+
+	config := providers.PayPalConfig{
+		ClientID:     creds["client_id"],
+		ClientSecret: creds["client_secret"],
+		Mode:         mode,
+		BaseURL:      creds["base_url"],
+	}
+
+	pp := providers.NewPayPalProvider(config)
+	order, err := pp.CaptureOrder(ctx, req.OrderID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if strings.ToUpper(order.Status) == "COMPLETED" {
+		h.completeDeposit(ctx, deposit, 0)
+		c.JSON(http.StatusOK, gin.H{"status": "completed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "pending", "order_status": order.Status})
+}
+
 // processInstantDemoDeposit handles instant credit for demo providers
 func (h *DepositHandler) processInstantDemoDeposit(c *gin.Context, req InitiateDepositRequest, transactionID string) {
 	ctx := c.Request.Context()
@@ -1197,6 +1365,9 @@ func (h *DepositHandler) RegisterRoutes(router *gin.RouterGroup) {
 		deposits.GET("/:id/status", h.GetDepositStatus)
 		deposits.POST("/:id/cancel", h.CancelDeposit)
 		deposits.GET("/user/:user_id", h.GetUserDeposits)
+
+		deposits.POST("/paypal/create-order", h.CreatePayPalOrder)
+		deposits.POST("/paypal/capture", h.CapturePayPalOrder)
 
 		// Webhook endpoints
 		deposits.POST("/webhook/:provider", h.HandleWebhook)

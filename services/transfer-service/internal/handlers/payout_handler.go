@@ -157,10 +157,20 @@ func (h *PayoutHandler) GetPayoutQuote(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Get best instance for this provider
-	_, instance, err := h.providerLoader.GetBestProviderForDeposit(ctx, req.Provider, req.Country, req.Amount)
+	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Provider not available for withdrawals",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Load provider from this instance (withdraw uses same provider type)
+	provider, err := h.providerLoader.LoadProviderFromInstance(ctx, instance)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Failed to load provider",
 			"details": err.Error(),
 		})
 		return
@@ -239,12 +249,21 @@ func (h *PayoutHandler) InitiatePayout(c *gin.Context) {
 		return
 	}
 
-	// 2. Get best instance for this provider
-	provider, instance, err := h.providerLoader.GetBestProviderForDeposit(ctx, req.Provider, req.Country, req.Amount)
+	// 2. Get best instance for this provider (withdraw)
+	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw")
 	if err != nil {
 		log.Printf("[PayoutHandler] Provider not available: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Provider not available for withdrawals",
+			"error":   "Provider not available",
+			"details": err.Error(),
+		})
+		return
+	}
+	provider, err := h.providerLoader.LoadProviderFromInstance(ctx, instance)
+	if err != nil {
+		log.Printf("[PayoutHandler] Failed to load provider: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Failed to load provider",
 			"details": err.Error(),
 		})
 		return

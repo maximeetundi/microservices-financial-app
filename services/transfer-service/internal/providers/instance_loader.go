@@ -13,7 +13,7 @@ import (
 // InstanceCredentialsClient interface for fetching instance credentials
 // This interface is implemented by services.AdminClient to avoid import cycles
 type InstanceCredentialsClient interface {
-	GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string) (*models.AggregatorInstanceWithDetails, error)
+	GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string, operation string) (*models.AggregatorInstanceWithDetails, error)
 	GetInstanceByID(instanceID string) (*models.AggregatorInstanceWithDetails, error)
 }
 
@@ -46,6 +46,10 @@ func NewInstanceBasedProviderLoader(client InstanceCredentialsClient) *InstanceB
 	return &InstanceBasedProviderLoader{
 		credentialsClient: client,
 	}
+}
+
+func (l *InstanceBasedProviderLoader) CredentialsClient() InstanceCredentialsClient {
+	return l.credentialsClient
 }
 
 // getCredentials returns credentials from database (api_credentials JSONB column)
@@ -672,7 +676,7 @@ func (l *InstanceBasedProviderLoader) GetBestProviderForDeposit(
 		providerCode, country, amount)
 
 	// Get best instance with credentials from admin-service API
-	instance, err := l.credentialsClient.GetBestInstanceWithCredentials(providerCode, country, amount, "XOF")
+	instance, err := l.credentialsClient.GetBestInstanceWithCredentials(providerCode, country, amount, "XOF", "deposit")
 	if err != nil {
 		log.Printf("[InstanceLoader] ❌ Failed to get instance from admin-service: %v", err)
 		return nil, nil, fmt.Errorf("no available instance for provider %s: %w", providerCode, err)

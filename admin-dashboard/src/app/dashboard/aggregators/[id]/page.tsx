@@ -406,6 +406,7 @@ export default function AggregatorInstancesPage() {
       if (response.ok) {
         const data = await response.json();
         setProviderName(data.provider.display_name || data.provider.name);
+        setProviderCode(data.provider.name || "");
         setCountries(data.provider.countries || []);
       }
     } catch (e) {
@@ -1129,7 +1130,11 @@ export default function AggregatorInstancesPage() {
               <div className="flex gap-2 pt-4 border-t border-gray-100">
                 {/* Edit Button */}
                 <button
-                  onClick={() => openEditModal(inst)}
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/aggregators/${providerId}/instances/${inst.id}`,
+                    )
+                  }
                   className="flex-1 btn-secondary text-xs flex items-center justify-center gap-1"
                 >
                   <PencilIcon className="w-3.5 h-3.5" />

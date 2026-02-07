@@ -37,9 +37,12 @@ type MTNMomoProvider struct {
 
 // NewMTNMomoProvider creates a new MTN MoMo provider
 func NewMTNMomoProvider(config MTNMomoConfig) *MTNMomoProvider {
+	if config.Environment == "prod" {
+		config.Environment = "production"
+	}
 	if config.BaseURL == "" {
 		if config.Environment == "production" {
-			config.BaseURL = "https://momodeveloper.mtn.com"
+			config.BaseURL = "https://proxy.momoapi.mtn.com"
 		} else {
 			config.BaseURL = "https://sandbox.momodeveloper.mtn.com"
 		}
@@ -61,7 +64,7 @@ func (m *MTNMomoProvider) GetName() string {
 
 func (m *MTNMomoProvider) GetSupportedCountries() []string {
 	return []string{
-		"BJ", "CI", "CM", "CD", "GH", "GN", "LR", "RW", "UG", "ZA", "ZM",
+		"BJ", "CI", "CM", "CD", "GH", "GN", "IR", "LR", "NG", "RW", "SS", "SZ", "UG", "ZA", "ZM",
 	}
 }
 
