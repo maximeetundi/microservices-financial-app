@@ -221,7 +221,8 @@ func (p *ProviderConfigLoader) LoadMTNMoMoConfig(ctx context.Context) (MTNMomoCo
 		APIKey:          p.getString(data, "api_key"),
 		SubscriptionKey: p.getString(data, "subscription_key"),
 		BaseURL:         p.getString(data, "base_url"),
-		Environment:     "sandbox", // Default to sandbox
+		Mode:            "sandbox", // Default to sandbox
+		TargetEnvironment: "sandbox",
 	}, nil
 }
 

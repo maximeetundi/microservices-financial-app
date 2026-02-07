@@ -414,6 +414,20 @@ type PayPalBatchHeader struct {
 	SenderBatchHeader PayPalSenderBatchHeader `json:"sender_batch_header"`
 }
 
+type PayPalWebhookVerification struct {
+	AuthAlgo         string `json:"auth_algo"`
+	CertURL          string `json:"cert_url"`
+	TransmissionID   string `json:"transmission_id"`
+	TransmissionSig  string `json:"transmission_sig"`
+	TransmissionTime string `json:"transmission_time"`
+	WebhookID        string `json:"webhook_id"`
+	WebhookEvent     []byte `json:"webhook_event"`
+}
+
+type PayPalVerificationResponse struct {
+	VerificationStatus string `json:"verification_status"`
+}
+
 // CreatePayout sends money to a PayPal account (for withdrawals)
 func (p *PayPalProvider) CreatePayout(ctx context.Context, req *PayoutRequest) (*PayoutResponse, error) {
 	// Call internal payout logic
@@ -572,6 +586,10 @@ func (p *PayPalProvider) VerifyWebhookSignature(ctx context.Context, headers htt
 	}
 
 	return verifyResp.VerificationStatus == "SUCCESS", nil
+}
+
+func (p *PayPalProvider) CancelPayout(ctx context.Context, referenceID string) error {
+	return fmt.Errorf("PayPal does not support payout cancellation")
 }
 
 // ==================== AVAILABLE METHODS ====================

@@ -118,7 +118,8 @@ func LoadConfigFromVault(vaultClient *secrets.VaultClient) *Config {
 			APIUser:         mtnSecrets.APIUser,
 			APIKey:          mtnSecrets.APIKey,
 			BaseURL:         mtnSecrets.BaseURL,
-			Environment:     mtnSecrets.Environment,
+			Mode:            mtnSecrets.Environment,
+			TargetEnvironment: mtnSecrets.Environment,
 			CallbackURL:     getEnv("MTN_CALLBACK_URL", ""),
 		}
 		log.Println("[Config] ✅ Loaded MTN MoMo config from Vault")
