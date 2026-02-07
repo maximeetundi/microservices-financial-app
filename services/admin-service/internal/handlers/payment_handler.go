@@ -114,14 +114,18 @@ func (h *PaymentHandler) GetPaymentProvider(c *gin.Context) {
 
 	query := `
 		SELECT id, name, display_name, provider_type, api_base_url,
-		       is_active, is_demo_mode, logo_url, supported_currencies, config_json,
+		       is_active, is_demo_mode, deposit_enabled, withdraw_enabled,
+		       logo_url, supported_currencies, config_json,
+		       fee_percentage, fee_fixed, min_transaction, max_transaction, daily_limit, priority,
 		       created_at, updated_at
 		FROM payment_providers WHERE id = $1`
 
 	var p PaymentProvider
 	err := h.db.QueryRow(query, id).Scan(
 		&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBaseURL,
-		&p.IsActive, &p.IsDemoMode, &p.LogoURL, &p.SupportedCurrencies, &p.ConfigJSON,
+		&p.IsActive, &p.IsDemoMode, &p.DepositEnabled, &p.WithdrawEnabled,
+		&p.LogoURL, &p.SupportedCurrencies, &p.ConfigJSON,
+		&p.FeePercentage, &p.FeeFixed, &p.MinTransaction, &p.MaxTransaction, &p.DailyLimit, &p.Priority,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {

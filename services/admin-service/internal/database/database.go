@@ -973,6 +973,8 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 		// so fresh DB resets would end up with empty credentials unless we seed them here.
 		for _, instanceID := range instanceIDs {
 			var currentCreds []byte
+			var instanceName string
+			_ = adminDB.QueryRow(`SELECT name FROM provider_instances WHERE id = $1`, instanceID).Scan(&instanceName)
 			credErr := adminDB.QueryRow(`SELECT COALESCE(api_credentials, '{}'::jsonb) FROM provider_instances WHERE id = $1`, instanceID).Scan(&currentCreds)
 			if credErr == nil {
 				trimmed := strings.TrimSpace(string(currentCreds))
@@ -980,8 +982,6 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 					seedCreds := buildSeedInstanceCredentials(p.Name, p.ProviderType, p.BaseURL)
 					// For MTN live instances, prefill production defaults so both modes are visible after reset.
 					if isMTN {
-						var instanceName string
-						_ = adminDB.QueryRow(`SELECT name FROM provider_instances WHERE id = $1`, instanceID).Scan(&instanceName)
 						if strings.Contains(strings.ToLower(instanceName), "(live)") {
 							seedCreds["environment"] = "production"
 							seedCreds["target_environment"] = "production"

@@ -308,7 +308,21 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 		h.db.Exec("UPDATE provider_instances SET is_primary = FALSE WHERE provider_id = $1", providerID)
 	}
 
-	id := uuid.New().String()
+	credJSON := []byte("{}")
+	if req.Credentials != nil {
+		filteredCreds := make(map[string]interface{})
+		for k, v := range req.Credentials {
+			if str, ok := v.(string); ok && str == "" {
+				continue
+			}
+			filteredCreds[k] = v
+		}
+		if len(filteredCreds) > 0 {
+			if b, err := json.Marshal(filteredCreds); err == nil {
+				credJSON = b
+			}
+		}
+	}
 	priority := req.Priority
 	if priority == 0 {
 		priority = 50
@@ -325,24 +339,6 @@ func (h *InstanceHandler) CreateProviderInstance(c *gin.Context) {
 			$10
 		)
 		RETURNING id`
-
-	var hotWalletID *string
-	if req.HotWalletID != "" {
-		hotWalletID = &req.HotWalletID
-	}
-	// If explicit hot_wallet_id not set but wallets array is, take the first one as primary reference
-	if hotWalletID == nil && len(req.Wallets) > 0 {
-		hotWalletID = &req.Wallets[0].HotWalletID
-	}
-
-	depositEnabled := true
-	withdrawEnabled := true
-	if req.DepositEnabled != nil {
-		depositEnabled = *req.DepositEnabled
-	}
-	if req.WithdrawEnabled != nil {
-		withdrawEnabled = *req.WithdrawEnabled
-	}
 
 	var returnedID string
 	err = h.db.QueryRow(

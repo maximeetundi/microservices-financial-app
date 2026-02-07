@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeftIcon,
@@ -17,6 +17,10 @@ import {
   EyeSlashIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
+
+const getApiUrl = () =>
+  (globalThis as any)?.process?.env?.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8088";
 
 // Credentials field configuration per provider
 const PROVIDER_CREDENTIALS: Record<
@@ -191,6 +195,11 @@ export default function AggregatorInstancesPage() {
   const [expandedInstance, setExpandedInstance] = useState<string | null>(null);
   const [providerCode, setProviderCode] = useState("");
 
+  const [instanceSearch, setInstanceSearch] = useState("");
+  const [modeFilter, setModeFilter] = useState<"all" | "sandbox" | "live">(
+    "all",
+  );
+
   // Credentials management
   const [editTab, setEditTab] = useState<"general" | "credentials">("general");
   const [credentials, setCredentials] = useState<ProviderCredentials>({});
@@ -260,9 +269,71 @@ export default function AggregatorInstancesPage() {
     },
   };
 
+  const toggleInstanceDeposit = async (inst: ProviderInstance) => {
+    try {
+      const API_URL = getApiUrl();
+      const token = localStorage.getItem("admin_token");
+      const current = (inst as any)?.deposit_enabled !== false;
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ deposit_enabled: !current }),
+        },
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        alert(errData.error || "Erreur lors de la modification");
+        return;
+      }
+
+      await loadInstances();
+    } catch (e) {
+      console.error("toggleInstanceDeposit failed", e);
+      alert("Erreur réseau");
+    }
+  };
+
+  const toggleInstanceWithdraw = async (inst: ProviderInstance) => {
+    try {
+      const API_URL = getApiUrl();
+      const token = localStorage.getItem("admin_token");
+      const current = (inst as any)?.withdraw_enabled !== false;
+
+      const response = await fetch(
+        `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ withdraw_enabled: !current }),
+        },
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        alert(errData.error || "Erreur lors de la modification");
+        return;
+      }
+
+      await loadInstances();
+    } catch (e) {
+      console.error("toggleInstanceWithdraw failed", e);
+      alert("Erreur réseau");
+    }
+  };
+
   const setSandboxInstancesEnabled = async (enabled: boolean) => {
     const sandboxInstances = (instances || []).filter(
-      (i) => (i as any)?.is_test_mode === true,
+      (i: ProviderInstance) => (i as any)?.is_test_mode === true,
     );
 
     if (sandboxInstances.length === 0) {
@@ -280,12 +351,11 @@ export default function AggregatorInstancesPage() {
     }
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       await Promise.all(
-        sandboxInstances.map((inst) =>
+        sandboxInstances.map((inst: ProviderInstance) =>
           fetch(
             `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${inst.id}`,
             {
@@ -319,7 +389,7 @@ export default function AggregatorInstancesPage() {
     const region = REGION_PRESETS[regionKey];
     if (!region) return;
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+    const API_URL = getApiUrl();
     const token = localStorage.getItem("admin_token");
 
     let addedCount = 0;
@@ -358,8 +428,29 @@ export default function AggregatorInstancesPage() {
     is_active: true,
     is_primary: false,
     is_global: false,
+    is_test_mode: true,
+    deposit_enabled: true,
+    withdraw_enabled: true,
     priority: 50,
   });
+
+  const filteredInstances = useMemo(() => {
+    const q = instanceSearch.trim().toLowerCase();
+    return (instances || [])
+      .filter((i: ProviderInstance) => {
+        if (modeFilter === "sandbox") return (i as any)?.is_test_mode === true;
+        if (modeFilter === "live") return (i as any)?.is_test_mode === false;
+        return true;
+      })
+      .filter((i: ProviderInstance) => {
+        if (!q) return true;
+        return (
+          String(i.name || "").toLowerCase().includes(q) ||
+          String(i.vault_secret_path || "").toLowerCase().includes(q) ||
+          String(i.id || "").toLowerCase().includes(q)
+        );
+      });
+  }, [instances, instanceSearch, modeFilter]);
 
   // Get credential fields for current provider
   const getCredentialFields = () => {
@@ -371,8 +462,7 @@ export default function AggregatorInstancesPage() {
   const loadCredentials = async (instanceId: string) => {
     setLoadingCredentials(true);
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/credentials`,
@@ -380,13 +470,13 @@ export default function AggregatorInstancesPage() {
       );
       if (response.ok) {
         const data = await response.json();
-        setCredentials(data.credentials || {});
+        setCredentials((data.credentials || {}) as ProviderCredentials);
       } else {
-        setCredentials({});
+        setCredentials({} as ProviderCredentials);
       }
     } catch (error) {
       console.error("Failed to load credentials:", error);
-      setCredentials({});
+      setCredentials({} as ProviderCredentials);
     } finally {
       setLoadingCredentials(false);
     }
@@ -396,15 +486,15 @@ export default function AggregatorInstancesPage() {
   const saveCredentials = async (instanceId: string) => {
     setSavingCredentials(true);
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       // Filter out empty values
       const filteredCreds: ProviderCredentials = {};
       Object.entries(credentials).forEach(([key, value]) => {
-        if (value && value.trim() !== "" && !value.startsWith("****")) {
-          filteredCreds[key] = value;
+        const v = String(value || "");
+        if (v && v.trim() !== "" && !v.startsWith("****")) {
+          filteredCreds[key] = v;
         }
       });
 
@@ -439,7 +529,10 @@ export default function AggregatorInstancesPage() {
 
   // Toggle secret visibility
   const toggleSecretVisibility = (key: string) => {
-    setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
+    setShowSecrets((prev: Record<string, boolean>) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   useEffect(() => {
@@ -452,8 +545,7 @@ export default function AggregatorInstancesPage() {
 
   const loadProviderDetails = async () => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}`,
@@ -488,8 +580,7 @@ export default function AggregatorInstancesPage() {
 
   const toggleCountry = async (countryCode: string, isActive: boolean) => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       const response = await fetch(
@@ -517,8 +608,7 @@ export default function AggregatorInstancesPage() {
   const loadInstances = async () => {
     setLoading(true);
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances`,
@@ -537,8 +627,7 @@ export default function AggregatorInstancesPage() {
 
   const loadHotWallets = async () => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/platform/accounts?type=operations`,
@@ -557,8 +646,7 @@ export default function AggregatorInstancesPage() {
 
   const loadInstanceWallets = async (instanceId: string) => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`,
@@ -568,7 +656,7 @@ export default function AggregatorInstancesPage() {
       );
       if (response.ok) {
         const data = await response.json();
-        setInstanceWallets((prev) => ({
+        setInstanceWallets((prev: Record<string, InstanceWallet[]>) => ({
           ...prev,
           [instanceId]: data.wallets || [],
         }));
@@ -584,8 +672,7 @@ export default function AggregatorInstancesPage() {
     hotWalletId: string,
   ) => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets`,
@@ -617,8 +704,7 @@ export default function AggregatorInstancesPage() {
   ) => {
     if (!confirm("Retirer ce wallet de l'instance ?")) return;
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${instanceId}/wallets/${walletLinkId}`,
@@ -634,7 +720,7 @@ export default function AggregatorInstancesPage() {
   };
 
   const toggleWalletSelection = (walletId: string) => {
-    setSelectedWalletIds((prev) =>
+    setSelectedWalletIds((prev: string[]) =>
       prev.includes(walletId)
         ? prev.filter((id) => id !== walletId)
         : [...prev, walletId],
@@ -645,23 +731,22 @@ export default function AggregatorInstancesPage() {
     if (selectedWalletIds.length === hotWallets.length) {
       setSelectedWalletIds([]);
     } else {
-      setSelectedWalletIds(hotWallets.map((w) => w.id));
+      setSelectedWalletIds(hotWallets.map((w: PlatformAccount) => w.id));
     }
   };
 
-  const handleCreateInstance = async (e: React.FormEvent) => {
+  const handleCreateInstance = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       const path =
         newInstance.vault_secret_path ||
         `secret/aggregators/${providerName.toLowerCase().replace(/\s+/g, "_")}/${newInstance.name.toLowerCase().replace(/\s+/g, "_")}`;
 
       // Build wallets array
-      const walletsPayload = selectedWalletIds.map((id) => {
-        const w = hotWallets.find((hw) => hw.id === id);
+      const walletsPayload = selectedWalletIds.map((id: string) => {
+        const w = hotWallets.find((hw: PlatformAccount) => hw.id === id);
         return {
           hot_wallet_id: id,
           currency: w?.currency || "XOF",
@@ -693,6 +778,9 @@ export default function AggregatorInstancesPage() {
           is_active: true,
           is_primary: false,
           is_global: false,
+          is_test_mode: true,
+          deposit_enabled: true,
+          withdraw_enabled: true,
           priority: 50,
         });
         setSelectedWalletIds([]);
@@ -706,13 +794,12 @@ export default function AggregatorInstancesPage() {
     }
   };
 
-  const handleLinkWallet = async (e: React.FormEvent) => {
+  const handleLinkWallet = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedInstance) return;
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       const response = await fetch(
@@ -741,8 +828,7 @@ export default function AggregatorInstancesPage() {
   const deleteInstance = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette instance ?")) return;
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
       await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/instances/${id}`,
@@ -766,10 +852,13 @@ export default function AggregatorInstancesPage() {
       is_active: inst.is_active,
       is_primary: inst.is_primary,
       is_global: inst.is_global || false,
+      is_test_mode: (inst as any)?.is_test_mode ?? false,
+      deposit_enabled: (inst as any)?.deposit_enabled ?? true,
+      withdraw_enabled: (inst as any)?.withdraw_enabled ?? true,
       priority: inst.priority,
     });
     setEditTab("general");
-    setCredentials({});
+    setCredentials({} as ProviderCredentials);
     setShowSecrets({});
     setShowEditModal(true);
     // Load credentials in background
@@ -793,8 +882,7 @@ export default function AggregatorInstancesPage() {
     }
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       const response = await fetch(
@@ -823,13 +911,12 @@ export default function AggregatorInstancesPage() {
   };
 
   // Update existing instance
-  const handleUpdateInstance = async (e: React.FormEvent) => {
+  const handleUpdateInstance = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingInstance) return;
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       // Build request body
@@ -839,18 +926,22 @@ export default function AggregatorInstancesPage() {
         is_active: newInstance.is_active,
         is_primary: newInstance.is_primary,
         is_global: newInstance.is_global,
+        is_test_mode: (newInstance as any).is_test_mode,
+        deposit_enabled: (newInstance as any).deposit_enabled,
+        withdraw_enabled: (newInstance as any).withdraw_enabled,
         priority: newInstance.priority,
       };
 
       // Include credentials if any were modified (not masked)
-      const hasRealCredentials = Object.entries(credentials).some(
-        ([_, v]) => v && v.trim() !== "" && !v.startsWith("****"),
+      const hasRealCredentials = Object.values(credentials).some(
+        (v) => v && v.trim() !== "" && !v.startsWith("****"),
       );
       if (hasRealCredentials) {
         const filteredCreds: ProviderCredentials = {};
         Object.entries(credentials).forEach(([key, value]) => {
-          if (value && value.trim() !== "" && !value.startsWith("****")) {
-            filteredCreds[key] = value;
+          const v = String(value || "");
+          if (v && v.trim() !== "" && !v.startsWith("****")) {
+            filteredCreds[key] = v;
           }
         });
         requestBody.credentials = filteredCreds;
@@ -871,7 +962,7 @@ export default function AggregatorInstancesPage() {
       if (response.ok) {
         setShowEditModal(false);
         setEditingInstance(null);
-        setCredentials({});
+        setCredentials({} as ProviderCredentials);
         setShowSecrets({});
         loadInstances();
         setNewInstance({
@@ -880,6 +971,9 @@ export default function AggregatorInstancesPage() {
           is_active: true,
           is_primary: false,
           is_global: false,
+          is_test_mode: true,
+          deposit_enabled: true,
+          withdraw_enabled: true,
           priority: 50,
         });
         alert("✅ Instance mise à jour avec succès!");
@@ -902,11 +996,10 @@ export default function AggregatorInstancesPage() {
     return `secret/aggregators/${providerSlug}/${instanceSlug}`;
   };
 
-  const handleAddCountry = async (e: React.FormEvent) => {
+  const handleAddCountry = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
+      const API_URL = getApiUrl();
       const token = localStorage.getItem("admin_token");
 
       const response = await fetch(
@@ -1042,7 +1135,7 @@ export default function AggregatorInstancesPage() {
                     type="checkbox"
                     className="sr-only peer"
                     checked={country.is_active}
-                    onChange={(e) =>
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       toggleCountry(country.country_code, e.target.checked)
                     }
                   />
@@ -1510,11 +1603,14 @@ export default function AggregatorInstancesPage() {
                       checked={selectedWalletIds.includes(wallet.id)}
                       onChange={() => {
                         if (selectedWalletIds.includes(wallet.id)) {
-                          setSelectedWalletIds((prev) =>
+                          setSelectedWalletIds((prev: string[]) =>
                             prev.filter((id) => id !== wallet.id),
                           );
                         } else {
-                          setSelectedWalletIds((prev) => [...prev, wallet.id]);
+                          setSelectedWalletIds((prev: string[]) => [
+                            ...prev,
+                            wallet.id,
+                          ]);
                         }
                       }}
                     />
@@ -1553,7 +1649,9 @@ export default function AggregatorInstancesPage() {
                   if (selectedInstance && selectedWalletIds.length > 0) {
                     // Loop through to add multiple
                     for (const wid of selectedWalletIds) {
-                      const w = hotWallets.find((hw) => hw.id === wid);
+                      const w = hotWallets.find(
+                        (hw: PlatformAccount) => hw.id === wid,
+                      );
                       if (w) {
                         await addWalletToInstance(
                           selectedInstance.id,
@@ -1715,7 +1813,7 @@ export default function AggregatorInstancesPage() {
                   setShowEditModal(false);
                   setEditingInstance(null);
                   setEditTab("general");
-                  setCredentials({});
+                  setCredentials({} as ProviderCredentials);
                   setShowSecrets({});
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1973,7 +2071,7 @@ export default function AggregatorInstancesPage() {
                   setShowEditModal(false);
                   setEditingInstance(null);
                   setEditTab("general");
-                  setCredentials({});
+                  setCredentials({} as ProviderCredentials);
                   setShowSecrets({});
                 }}
                 className="flex-1 py-2.5 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
