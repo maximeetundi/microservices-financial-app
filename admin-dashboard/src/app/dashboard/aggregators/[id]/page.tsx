@@ -400,17 +400,31 @@ export default function AggregatorInstancesPage() {
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         },
       );
-      if (response.ok) {
-        const data = await response.json();
-        setProviderName(data.provider.display_name || data.provider.name);
-        setProviderCode(data.provider.name || "");
-        setCountries(data.provider.countries || []);
+
+      if (!response.ok) {
+        throw new Error("Failed to load provider details");
       }
+
+      const data = await response.json();
+      const provider = data.provider || data;
+
+      const name = String(provider?.name || provider?.display_name || "");
+      setProviderName(name);
+
+      const code = String(
+        provider?.code || provider?.name || provider?.provider_code || "default",
+      ).toLowerCase();
+      setProviderCode(code);
+
+      setCountries(provider?.countries || data.countries || []);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load provider details", e);
     }
   };
 
@@ -420,7 +434,6 @@ export default function AggregatorInstancesPage() {
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088";
       const token = localStorage.getItem("admin_token");
 
-      // Assuming endpoint structure based on standard conventions in this project
       const response = await fetch(
         `${API_URL}/api/v1/admin/payment-providers/${providerId}/countries/${countryCode}/toggle`,
         {
@@ -434,7 +447,7 @@ export default function AggregatorInstancesPage() {
       );
 
       if (response.ok) {
-        loadProviderDetails(); // Reload to get updated state
+        loadProviderDetails();
       } else {
         alert("Erreur lors de la modification du pays");
       }

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +34,13 @@ type cacheEntry struct {
 // NewAdminClient creates a new AdminClient
 func NewAdminClient(cfg *config.Config) *AdminClient {
 	ttl := time.Duration(cfg.AggregatorCacheTTL) * time.Second
-	if ttl == 0 {
-		ttl = 30 * time.Minute // Increased to 30 mins to reduce load
+	disableCache := strings.TrimSpace(strings.ToLower(os.Getenv("DISABLE_ADMIN_CACHE")))
+	if disableCache == "1" || disableCache == "true" || disableCache == "yes" {
+		ttl = 0
+	}
+	// If ttl is 0, caching is disabled (useful during development)
+	if ttl < 0 {
+		ttl = 0
 	}
 
 	return &AdminClient{
@@ -54,18 +61,20 @@ type PaymentMethodResponse struct {
 
 // GetPaymentMethods fetches payment methods from admin-service with caching
 func (c *AdminClient) GetPaymentMethods(country string) ([]models.AggregatorForFrontend, error) {
-	// 1. Check Cache
-	c.cacheMu.RLock()
-	entry, found := c.cache[country]
-	c.cacheMu.RUnlock()
+	// 1. Check Cache (unless disabled)
+	if c.cacheTTL > 0 {
+		c.cacheMu.RLock()
+		entry, found := c.cache[country]
+		c.cacheMu.RUnlock()
 
-	if found && time.Now().Before(entry.ExpiresAt) {
-		log.Printf("[AdminClient] ⚡ Cache HIT for country: %s", country)
-		return entry.Data, nil
+		if found && time.Now().Before(entry.ExpiresAt) {
+			log.Printf("[AdminClient] ⚡ Cache HIT for country: %s", country)
+			return entry.Data, nil
+		}
+		log.Printf("[AdminClient] 🔄 Cache MISS for country: %s. Fetching from Admin Service...", country)
+	} else {
+		log.Printf("[AdminClient] ♻️ Cache disabled. Fetching payment methods from Admin Service for country: %s", country)
 	}
-
-	// 2. Cache Miss - Fetch from Admin Service
-	log.Printf("[AdminClient] 🔄 Cache MISS for country: %s. Fetching from Admin Service...", country)
 
 	url := fmt.Sprintf("%s/api/v1/admin/payment-methods?country=%s", c.baseURL, country)
 
@@ -89,12 +98,14 @@ func (c *AdminClient) GetPaymentMethods(country string) ([]models.AggregatorForF
 	aggregators := c.mapToAggregators(result.PaymentMethods)
 
 	// 5. Update Cache
-	c.cacheMu.Lock()
-	c.cache[country] = cacheEntry{
-		Data:      aggregators,
-		ExpiresAt: time.Now().Add(c.cacheTTL),
+	if c.cacheTTL > 0 {
+		c.cacheMu.Lock()
+		c.cache[country] = cacheEntry{
+			Data:      aggregators,
+			ExpiresAt: time.Now().Add(c.cacheTTL),
+		}
+		c.cacheMu.Unlock()
 	}
-	c.cacheMu.Unlock()
 
 	return aggregators, nil
 }

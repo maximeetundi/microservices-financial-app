@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -106,7 +107,12 @@ func (p *PayPalProvider) GetAccessToken(ctx context.Context) (string, error) {
 	log.Printf("[PayPal]    Client ID: %s", clientIDMasked)
 	log.Printf("[PayPal]    Client Secret: %d characters", len(p.config.ClientSecret))
 
-	tokenURL := p.config.BaseURL + "/v1/oauth2/token"
+	baseURL := strings.TrimRight(strings.TrimSpace(p.config.BaseURL), "/")
+	// Guard against user-provided base_url like "https://api-m.sandbox.paypal.com/v1"
+	if strings.HasSuffix(baseURL, "/v1") {
+		baseURL = strings.TrimSuffix(baseURL, "/v1")
+	}
+	tokenURL := baseURL + "/v1/oauth2/token"
 	log.Printf("[PayPal] 📡 Sending token request to: %s", tokenURL)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL,

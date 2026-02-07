@@ -192,7 +192,7 @@ export default function AggregatorInstanceEditPage() {
     const data = await resp.json();
     const p = (data.provider || data) as ProviderDetails;
     setProviderDetails(p);
-    const code = String(p.code || "default").toLowerCase();
+    const code = String((p as any)?.code || (p as any)?.name || "default").toLowerCase();
     setProviderCode(code || "default");
   };
 

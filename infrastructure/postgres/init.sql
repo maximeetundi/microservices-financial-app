@@ -1074,8 +1074,62 @@ BEGIN
     FOR v_agg IN SELECT id, provider_code, provider_name FROM aggregator_settings LOOP
         SELECT id INTO v_inst_id FROM aggregator_instances WHERE aggregator_id = v_agg.id AND instance_name = 'Instance Principale';
         IF v_inst_id IS NULL THEN
-            INSERT INTO aggregator_instances (aggregator_id, instance_name, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
-            VALUES (v_agg.id, 'Instance Principale', 'secret/aggregators/' || v_agg.provider_code || '/default', true, true, 100, 'active', true)
+            INSERT INTO aggregator_instances (aggregator_id, instance_name, api_credentials, vault_secret_path, enabled, is_global, priority, health_status, is_test_mode)
+            VALUES (
+                v_agg.id,
+                'Instance Principale',
+                CASE v_agg.provider_code
+                    WHEN 'paypal' THEN jsonb_build_object(
+                        'client_id', 'REPLACE_ME',
+                        'client_secret', 'REPLACE_ME',
+                        'mode', 'sandbox'
+                    )
+                    WHEN 'stripe' THEN jsonb_build_object(
+                        'api_key', 'REPLACE_ME',
+                        'public_key', 'REPLACE_ME',
+                        'webhook_secret', 'REPLACE_ME'
+                    )
+                    WHEN 'flutterwave' THEN jsonb_build_object(
+                        'public_key', 'REPLACE_ME',
+                        'secret_key', 'REPLACE_ME',
+                        'encryption_key', 'REPLACE_ME'
+                    )
+                    WHEN 'cinetpay' THEN jsonb_build_object(
+                        'api_key', 'REPLACE_ME',
+                        'site_id', 'REPLACE_ME',
+                        'secret_key', 'REPLACE_ME'
+                    )
+                    WHEN 'paystack' THEN jsonb_build_object(
+                        'public_key', 'REPLACE_ME',
+                        'secret_key', 'REPLACE_ME'
+                    )
+                    WHEN 'orange_money' THEN jsonb_build_object(
+                        'client_id', 'REPLACE_ME',
+                        'client_secret', 'REPLACE_ME',
+                        'merchant_key', 'REPLACE_ME'
+                    )
+                    WHEN 'mtn_momo' THEN jsonb_build_object(
+                        'api_user', 'REPLACE_ME',
+                        'api_key', 'REPLACE_ME',
+                        'subscription_key', 'REPLACE_ME',
+                        'environment', 'sandbox'
+                    )
+                    WHEN 'wave' THEN jsonb_build_object(
+                        'api_key', 'REPLACE_ME'
+                    )
+                    WHEN 'lygos' THEN jsonb_build_object(
+                        'api_key', 'REPLACE_ME',
+                        'secret_key', 'REPLACE_ME'
+                    )
+                    ELSE '{}'::jsonb
+                END,
+                'secret/aggregators/' || v_agg.provider_code || '/default',
+                true,
+                true,
+                100,
+                'active',
+                true
+            )
             RETURNING id INTO v_inst_id;
         END IF;
         IF v_inst_id IS NOT NULL THEN
