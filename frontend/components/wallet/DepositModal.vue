@@ -353,21 +353,53 @@
               </svg>
             </div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Redirection vers {{ selectedProvider?.display_name }}
+              Continuer vers {{ selectedProvider?.display_name }}
             </h3>
             <p class="text-gray-500 dark:text-gray-400 mb-4">
-              Vous allez être redirigé vers la page de paiement sécurisée.
+              Pour finaliser votre dépôt, le paiement doit être validé sur la page sécurisée du prestataire.
             </p>
+            <p v-if="redirectReason" class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              {{ redirectReason }}
+            </p>
+
+            <div class="max-w-md mx-auto text-left bg-gray-50 dark:bg-slate-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+              <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
+                <span>Montant</span>
+                <span class="font-semibold">{{ formatAmount(amount) }} {{ currency }}</span>
+              </div>
+              <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300 mt-2">
+                <span>Prestataire</span>
+                <span class="font-semibold">{{ selectedProvider?.display_name || selectedProvider?.name }}</span>
+              </div>
+              <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300 mt-2">
+                <span>Transaction</span>
+                <span class="font-mono text-xs">{{ transactionId }}</span>
+              </div>
+            </div>
             <p class="text-sm text-gray-400 dark:text-gray-500">
-              Transaction: {{ transactionId }}
+              Un nouvel onglet sera ouvert.
             </p>
+            <button
+              v-if="paymentUrl"
+              @click="continueToPayment"
+              class="inline-block mt-4 px-6 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors"
+            >
+              Valider et continuer
+            </button>
+
+            <button
+              @click="cancelRedirect"
+              class="block mx-auto mt-3 text-indigo-500 hover:text-indigo-600 text-sm font-medium"
+            >
+              ← Annuler / Retour
+            </button>
             <a
               v-if="paymentUrl"
               :href="paymentUrl"
               target="_blank"
-              class="inline-block mt-4 px-6 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors"
+              class="inline-block mt-3 px-6 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
             >
-              Ouvrir la page de paiement
+              Ouvrir manuellement
             </a>
           </div>
 
@@ -751,7 +783,7 @@ const initiateDeposit = async () => {
 }
 
 const handlePaymentFlow = (data: any) => {
-  const provider = selectedProvider.value.name
+  const provider = String(selectedProvider.value?.name || '').toLowerCase().trim()
 
   // Try SDK first, fallback to redirect
   switch (provider) {
@@ -759,7 +791,7 @@ const handlePaymentFlow = (data: any) => {
       if (!isMobile.value && window.FlutterwaveCheckout && sdkConfig.value?.public_key) {
         openFlutterwaveModal(data)
       } else {
-        redirectToPayment(data.payment_url)
+        redirectToPayment(data.payment_url, 'Le paiement intégré n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page du prestataire.')
       }
       break
 
@@ -767,13 +799,13 @@ const handlePaymentFlow = (data: any) => {
       if (!isMobile.value && window.PaystackPop && sdkConfig.value?.public_key) {
         openPaystackModal(data)
       } else {
-        redirectToPayment(data.payment_url)
+        redirectToPayment(data.payment_url, 'Le paiement intégré n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page du prestataire.')
       }
       break
 
     case 'stripe':
       // Stripe Checkout redirect
-      redirectToPayment(data.payment_url)
+      redirectToPayment(data.payment_url, 'Stripe utilise une page de paiement hébergée pour finaliser la transaction.')
       break
 
     case 'paypal':
@@ -781,25 +813,35 @@ const handlePaymentFlow = (data: any) => {
       if (!isMobile.value && sdkConfig.value?.public_key) {
         openPayPalButtons(data)
       } else {
-        redirectToPayment(data.payment_url)
+        redirectToPayment(data.payment_url, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.')
       }
       break
 
     default:
       // All other providers: redirect
-      redirectToPayment(data.payment_url)
+      redirectToPayment(data.payment_url, 'Ce moyen de paiement nécessite une validation externe sur la page du prestataire.')
   }
 }
 
-const redirectToPayment = (url: string) => {
+const redirectReason = ref('')
+
+const redirectToPayment = (url: string, reason = '') => {
   currentStep.value = 'redirect'
   paymentUrl.value = url
+  redirectReason.value = reason
+}
 
-  // Open in new tab after a short delay
-  setTimeout(() => {
-    window.open(url, '_blank')
-    currentStep.value = 'pending'
-  }, 1500)
+const continueToPayment = () => {
+  if (!paymentUrl.value) return
+  window.open(paymentUrl.value, '_blank')
+  currentStep.value = 'pending'
+}
+
+const cancelRedirect = () => {
+  paymentUrl.value = ''
+  redirectReason.value = ''
+  transactionId.value = ''
+  currentStep.value = 'provider'
 }
 
 const loadPayPalSdk = (clientId: string) => {
