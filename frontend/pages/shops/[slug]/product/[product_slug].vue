@@ -486,6 +486,33 @@ const shopApi = useShopApi()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 
+const shopSlug = computed(() => route.params.slug as string)
+const productSlug = computed(() => route.params.product_slug as string)
+
+const favoritesVersion = ref(0)
+const isFavorite = computed(() => {
+  favoritesVersion.value
+  if (typeof window === 'undefined') return false
+  try {
+    const key = `shop_favorites_${shopSlug.value}`
+    const favs = JSON.parse(localStorage.getItem(key) || '[]')
+    return favs.includes(product.value?.id)
+  } catch {
+    return false
+  }
+})
+
+const toggleFavorite = () => {
+  if (typeof window === 'undefined' || !product.value?.id) return
+  const key = `shop_favorites_${shopSlug.value}`
+  const favs = JSON.parse(localStorage.getItem(key) || '[]')
+  const idx = favs.indexOf(product.value.id)
+  if (idx > -1) favs.splice(idx, 1)
+  else favs.push(product.value.id)
+  localStorage.setItem(key, JSON.stringify(favs))
+  favoritesVersion.value++
+}
+
 // ...
 
 const contactSeller = async () => {

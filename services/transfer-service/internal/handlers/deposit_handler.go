@@ -196,6 +196,14 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		if _, ok := paypalSupportedCurrencies[chargeCurrency]; !ok {
 			ex := services.NewExchangeClient()
 			rate, err := ex.GetRate(chargeCurrency, "USD")
+			if err != nil {
+				// Some deployments only store USD->XOF (or USD->XAF) and not the inverse.
+				invRate, invErr := ex.GetRate("USD", chargeCurrency)
+				if invErr == nil && invRate > 0 {
+					rate = 1.0 / invRate
+					err = nil
+				}
+			}
 			if err != nil || rate <= 0 {
 				log.Printf("[DepositHandler] PayPal FX conversion failed %s->USD: %v (rate=%f)", chargeCurrency, err, rate)
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Currency not supported for PayPal"})

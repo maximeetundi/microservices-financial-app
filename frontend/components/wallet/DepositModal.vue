@@ -819,7 +819,8 @@ const loadPayPalSdk = (clientId: string) => {
     const script = document.createElement('script')
     script.id = 'paypal-sdk'
     script.async = true
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency.value)}`
+    const sdkCurrency = sdkConfig.value?.currency || currency.value
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(sdkCurrency)}`
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('PayPal SDK load error'))
     document.head.appendChild(script)
@@ -1071,7 +1072,9 @@ watch(() => props.isOpen, (isOpen) => {
 
 onMounted(() => {
   try {
-    isMobile.value = window.matchMedia?.('(pointer: coarse)')?.matches || false
+    const isCoarse = window.matchMedia?.('(pointer: coarse)')?.matches || false
+    const isSmallScreen = typeof window.innerWidth === 'number' ? window.innerWidth < 768 : false
+    isMobile.value = isSmallScreen || isCoarse
   } catch (_e) {
     isMobile.value = false
   }

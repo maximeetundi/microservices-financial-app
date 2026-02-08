@@ -48,7 +48,15 @@
                 >
                   -
                 </button>
-                <span class="w-8 text-center font-bold">{{ item.quantity }}</span>
+                <input
+                  :value="item.quantity"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  class="w-20 input-premium text-center"
+                  @change="(e) => updateQuantity(item.product_id, Number((e.target as HTMLInputElement).value))"
+                >
                 <button 
                   @click="updateQuantity(item.product_id, item.quantity + 1)"
                   class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600"
@@ -82,11 +90,11 @@
               </div>
               <div class="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Livraison</span>
-                <span>À calculer</span>
+                <span>{{ formatPrice(deliveryFee, cartStore.shopCurrency || 'XOF') }}</span>
               </div>
               <div class="border-t border-gray-100 dark:border-gray-800 pt-3 flex justify-between text-lg font-bold text-gray-900 dark:text-white">
                 <span>Total</span>
-                <span>{{ formatPrice(cartStore.subtotal, cartStore.shopCurrency || 'XOF') }}</span>
+                <span>{{ formatPrice(totalAmount, cartStore.shopCurrency || 'XOF') }}</span>
               </div>
             </div>
 
@@ -111,12 +119,14 @@
               <div class="flex gap-2">
                 <button 
                   @click="deliveryType = 'pickup'"
+                  :disabled="!shopSettings?.allow_pickup"
                   :class="['flex-1 py-2 rounded-lg border', deliveryType === 'pickup' ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-600' : 'border-gray-200 dark:border-gray-700']"
                 >
                   🏃 Retrait
                 </button>
                 <button 
                   @click="deliveryType = 'delivery'"
+                  :disabled="!shopSettings?.allow_delivery"
                   :class="['flex-1 py-2 rounded-lg border', deliveryType === 'delivery' ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-600' : 'border-gray-200 dark:border-gray-700']"
                 >
                   🚚 Livraison
@@ -157,6 +167,7 @@ const wallets = ref<any[]>([])
 const selectedWalletId = ref('')
 const deliveryType = ref('pickup')
 const processing = ref(false)
+const shopSettings = ref<any | null>(null)
 
 const formatPrice = (amount: number, currency: string) => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currency || 'XOF' }).format(amount)
@@ -173,11 +184,41 @@ const removeItem = (productId: string) => {
 const loadWallets = async () => {
   try {
     const result = await walletApi.getWallets()
-    wallets.value = result.wallets || []
+    wallets.value = result.data?.wallets || result.wallets || []
   } catch (e) {
     console.error('Failed to load wallets', e)
   }
 }
+
+const loadShopSettings = async () => {
+  try {
+    if (!cartStore.shopSlug) return
+    const shop = await shopApi.getShop(cartStore.shopSlug)
+    shopSettings.value = shop?.settings || null
+
+    const allowPickup = shopSettings.value?.allow_pickup !== false
+    const allowDelivery = shopSettings.value?.allow_delivery === true
+
+    if (deliveryType.value === 'delivery' && !allowDelivery) {
+      deliveryType.value = allowPickup ? 'pickup' : 'delivery'
+    }
+    if (deliveryType.value === 'pickup' && !allowPickup) {
+      deliveryType.value = allowDelivery ? 'delivery' : 'pickup'
+    }
+  } catch (e) {
+    console.error('Failed to load shop settings', e)
+  }
+}
+
+const deliveryFee = computed(() => {
+  if (deliveryType.value !== 'delivery') return 0
+  const fee = Number(shopSettings.value?.delivery_fee)
+  return Number.isFinite(fee) ? fee : 0
+})
+
+const totalAmount = computed(() => {
+  return cartStore.subtotal + deliveryFee.value
+})
 
 const checkout = async () => {
   if (!cartStore.shopId || !selectedWalletId.value) return
@@ -207,5 +248,6 @@ const checkout = async () => {
 onMounted(() => {
   cartStore.loadFromStorage()
   loadWallets()
+  loadShopSettings()
 })
 </script>
