@@ -808,6 +808,7 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		Amount       float64 `json:"amount"`
 		Currency     string  `json:"currency"`
 		Operation    string  `json:"operation"` // deposit | withdraw
+		IsTestMode   *bool   `json:"is_test_mode,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -828,15 +829,17 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		SELECT
 			pi.id, pi.name, pi.is_active, pi.is_primary, pi.is_global, pi.is_paused,
 			pi.pause_reason, pi.priority, pi.request_count, pi.health_status,
+			COALESCE(pi.is_test_mode, FALSE) as is_test_mode,
 			COALESCE(pi.deposit_enabled, TRUE) as deposit_enabled,
 			COALESCE(pi.withdraw_enabled, TRUE) as withdraw_enabled,
 			COALESCE(pi.api_credentials, '{}') as api_credentials,
 			pp.name as provider_code, pp.display_name as provider_name,
-			pp.is_demo_mode as is_test_mode, pp.logo_url as provider_logo
+			pp.logo_url as provider_logo
 		FROM provider_instances pi
 		JOIN payment_providers pp ON pi.provider_id = pp.id
 		WHERE pp.name = $1
 		  AND pi.is_active = TRUE
+		  AND ($4::boolean IS NULL OR COALESCE(pi.is_test_mode, FALSE) = $4)
 		  AND (
 			($3 = 'deposit' AND COALESCE(pi.deposit_enabled, TRUE) = TRUE)
 			OR ($3 = 'withdraw' AND COALESCE(pi.withdraw_enabled, TRUE) = TRUE)
@@ -873,13 +876,14 @@ func (h *InstanceHandler) InternalGetBestInstance(c *gin.Context) {
 		ProviderLogo   string  `db:"provider_logo"`
 	}
 
-	err := h.db.QueryRow(query, req.ProviderCode, req.Country, operation).Scan(
+	err := h.db.QueryRow(query, req.ProviderCode, req.Country, operation, req.IsTestMode).Scan(
 		&instance.ID, &instance.Name, &instance.IsActive, &instance.IsPrimary,
 		&instance.IsGlobal, &instance.IsPaused, &instance.PauseReason,
 		&instance.Priority, &instance.RequestCount, &instance.HealthStatus,
+		&instance.IsTestMode,
 		&instance.DepositEnabled, &instance.WithdrawEnabled,
 		&instance.APICredentials, &instance.ProviderCode, &instance.ProviderName,
-		&instance.IsTestMode, &instance.ProviderLogo,
+		&instance.ProviderLogo,
 	)
 
 	if err != nil {

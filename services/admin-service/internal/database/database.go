@@ -79,10 +79,21 @@ func buildSeedInstanceCredentials(providerName, providerType, baseURL string) ma
 		creds["publishable_key"] = fmt.Sprintf("pk_%s_%s", providerName, suffix)
 		creds["secret_key"] = fmt.Sprintf("sk_%s_%s", providerName, uuid.New().String()[:12])
 		creds["webhook_secret"] = fmt.Sprintf("whsec_%s_%s", providerName, uuid.New().String()[:12])
-		if creds["base_url"] == "" {
-			creds["base_url"] = "https://api.stripe.com/v1"
+		if providerName == "paypal" {
+			// PayPal uses client_id/client_secret. Provide a stable-ish placeholder.
+			suffix := uuid.New().String()[:8]
+			creds["client_id"] = fmt.Sprintf("client_%s_%s", providerName, suffix)
+			creds["client_secret"] = fmt.Sprintf("secret_%s_%s", providerName, uuid.New().String()[:12])
+			// Default to sandbox, overridden later based on instance name.
+			creds["base_url"] = "https://api-m.sandbox.paypal.com"
+			creds["mode"] = "sandbox"
+			return creds
 		}
-
+		creds["api_key"] = fmt.Sprintf("api_%s_%s", providerName, uuid.New().String()[:12])
+		creds["secret_key"] = fmt.Sprintf("sk_%s_%s", providerName, uuid.New().String()[:12])
+		if creds["base_url"] == "" {
+			creds["base_url"] = "https://api.example.com"
+		}
 	case "international":
 		creds["client_id"] = fmt.Sprintf("client_%s_%s", providerName, suffix)
 		creds["client_secret"] = fmt.Sprintf("secret_%s_%s", providerName, uuid.New().String()[:12])
@@ -639,7 +650,7 @@ func seedDefaultProviders(db *sql.DB) error {
 			Name:        "paypal",
 			DisplayName: "PayPal",
 			Type:        "international", // International type is global
-			BaseURL:     "https://api.paypal.com/v1",
+			BaseURL:     "https://api-m.paypal.com",
 			LogoURL:     "/icons/aggregators/paypal.svg",
 			Capability:  "mixed",
 			Countries:   []struct{ Code, Name, Currency string }{}, // Empty = global
@@ -995,6 +1006,15 @@ func SeedProviderInstances(adminDB, mainDB *sql.DB) error {
 					if strings.Contains(strings.ToLower(instanceName), "(live)") {
 						seedCreds["mode"] = "live"
 					}
+					// Ensure PayPal base URL matches mode
+					if p.Name == "paypal" {
+						mode := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", seedCreds["mode"])))
+						if mode == "live" {
+							seedCreds["base_url"] = "https://api-m.paypal.com"
+						} else {
+							seedCreds["base_url"] = "https://api-m.sandbox.paypal.com"
+						}
+					}
 					if len(seedCreds) > 0 {
 						credJSON, err := json.Marshal(seedCreds)
 						if err == nil {
@@ -1235,7 +1255,7 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 
 	// Get all provider instances that don't have API credentials yet
 	rows, err := db.Query(`
-		SELECT pi.id, pi.name, p.name as provider_name, p.provider_type
+		SELECT pi.id, pi.name, p.name as provider_name, p.provider_type, COALESCE(p.api_base_url, '') as api_base_url
 		FROM provider_instances pi
 		JOIN payment_providers p ON pi.provider_id = p.id
 		WHERE (pi.api_credentials IS NULL OR pi.api_credentials = '{}'::jsonb)
@@ -1251,12 +1271,13 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 		Name         string
 		ProviderName string
 		ProviderType string
+		ProviderBaseURL string
 	}
 
 	var instances []InstanceInfo
 	for rows.Next() {
 		var inst InstanceInfo
-		if err := rows.Scan(&inst.ID, &inst.Name, &inst.ProviderName, &inst.ProviderType); err != nil {
+		if err := rows.Scan(&inst.ID, &inst.Name, &inst.ProviderName, &inst.ProviderType, &inst.ProviderBaseURL); err != nil {
 			continue
 		}
 		instances = append(instances, inst)
@@ -1288,8 +1309,19 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 			credentials["client_id"] = fmt.Sprintf("client_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			credentials["client_secret"] = fmt.Sprintf("secret_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["api_key"] = fmt.Sprintf("api_%s_%s", inst.ProviderName, uuid.New().String()[:8])
-			credentials["base_url"] = "https://api.paypal.com/v1"
-			credentials["environment"] = "sandbox"
+			if inst.ProviderName == "paypal" {
+				isLive := strings.Contains(strings.ToLower(inst.Name), "(live)") || strings.Contains(strings.ToLower(inst.Name), "live")
+				if isLive {
+					credentials["base_url"] = "https://api-m.paypal.com"
+					credentials["mode"] = "live"
+				} else {
+					credentials["base_url"] = "https://api-m.sandbox.paypal.com"
+					credentials["mode"] = "sandbox"
+				}
+			} else {
+				credentials["base_url"] = inst.ProviderBaseURL
+				credentials["environment"] = "sandbox"
+			}
 			
 		case "crypto_ramp":
 			credentials["api_key"] = fmt.Sprintf("pk_%s_%s", inst.ProviderName, uuid.New().String()[:8])

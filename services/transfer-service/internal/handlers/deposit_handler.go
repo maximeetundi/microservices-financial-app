@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,9 +20,16 @@ import (
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/providers"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/service"
+	"github.com/crypto-bank/microservices-financial-app/services/transfer-service/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+var paypalSupportedCurrencies = map[string]struct{}{
+	"AUD": {}, "BRL": {}, "CAD": {}, "CHF": {}, "CNY": {}, "CZK": {}, "DKK": {}, "EUR": {}, "GBP": {},
+	"HKD": {}, "HUF": {}, "ILS": {}, "JPY": {}, "MXN": {}, "NOK": {}, "NZD": {}, "PHP": {}, "PLN": {},
+	"SEK": {}, "SGD": {}, "THB": {}, "TWD": {}, "USD": {},
+}
 
 // DepositHandler handles deposit collection flows with instance-based providers
 type DepositHandler struct {
@@ -66,6 +74,7 @@ type InitiateDepositRequest struct {
 	Currency  string  `json:"currency" binding:"required"`
 	Provider  string  `json:"provider" binding:"required"`
 	Country   string  `json:"country" binding:"required"`
+	IsTestMode *bool  `json:"is_test_mode,omitempty"`
 	Email     string  `json:"email"`
 	Phone     string  `json:"phone"`
 	DepositNumberID string `json:"deposit_number_id"`
@@ -154,6 +163,7 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		req.Provider,
 		req.Country,
 		req.Amount,
+		req.IsTestMode,
 	)
 
 	if err != nil {
@@ -179,6 +189,28 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	// Calculate expiry time
 	expiresAt := time.Now().Add(DefaultDepositTimeout)
 
+	chargeAmount := req.Amount
+	chargeCurrency := strings.ToUpper(strings.TrimSpace(req.Currency))
+	fxMeta := map[string]interface{}{}
+	if strings.ToLower(strings.TrimSpace(req.Provider)) == "paypal" {
+		if _, ok := paypalSupportedCurrencies[chargeCurrency]; !ok {
+			ex := services.NewExchangeClient()
+			rate, err := ex.GetRate(chargeCurrency, "USD")
+			if err != nil || rate <= 0 {
+				log.Printf("[DepositHandler] PayPal FX conversion failed %s->USD: %v (rate=%f)", chargeCurrency, err, rate)
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Currency not supported for PayPal"})
+				return
+			}
+			chargeAmount = req.Amount * rate
+			chargeCurrency = "USD"
+			fxMeta["fx_from_currency"] = strings.ToUpper(strings.TrimSpace(req.Currency))
+			fxMeta["fx_to_currency"] = chargeCurrency
+			fxMeta["fx_rate"] = rate
+			fxMeta["charge_amount"] = chargeAmount
+			fxMeta["charge_currency"] = chargeCurrency
+		}
+	}
+
 	// Create deposit transaction record
 	depositReq := &repository.CreateDepositRequest{
 		ID:                   transactionID,
@@ -202,6 +234,9 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
 	}
+	for k, v := range fxMeta {
+		depositReq.Metadata[k] = v
+	}
 
 	_, err = h.depositRepo.Create(ctx, depositReq)
 	if err != nil {
@@ -215,8 +250,8 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 		ReferenceID: transactionID,
 		UserID:      req.UserID,
 		WalletID:    walletID,
-		Amount:      req.Amount,
-		Currency:    req.Currency,
+		Amount:      chargeAmount,
+		Currency:    chargeCurrency,
 		Country:     req.Country,
 		Email:       req.Email,
 		PhoneNumber: req.Phone,
@@ -226,6 +261,10 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 			"user_id":        req.UserID,
 			"wallet_id":      walletID,
 		},
+	}
+	if strings.ToLower(strings.TrimSpace(req.Provider)) == "paypal" {
+		collectionReq.Metadata["charge_currency"] = chargeCurrency
+		collectionReq.Metadata["charge_amount"] = fmt.Sprintf("%.2f", chargeAmount)
 	}
 
 	// Initiate collection with provider
@@ -256,7 +295,7 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	)
 
 	// Build SDK config for frontend
-	sdkConfig := h.buildSDKConfig(req.Provider, instance, req)
+	sdkConfig := h.buildSDKConfig(req.Provider, instance, req, chargeCurrency)
 
 	log.Printf("[DepositHandler] ✅ Deposit initiated: %s | Provider: %s | Amount: %.2f %s",
 		transactionID, req.Provider, req.Amount, req.Currency)
@@ -278,12 +317,20 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 }
 
 // buildSDKConfig builds SDK configuration for frontend integration
-func (h *DepositHandler) buildSDKConfig(provider string, instance *models.AggregatorInstanceWithDetails, req InitiateDepositRequest) *SDKConfig {
+func (h *DepositHandler) buildSDKConfig(provider string, instance *models.AggregatorInstanceWithDetails, req InitiateDepositRequest, chargeCurrency string) *SDKConfig {
 	config := &SDKConfig{
 		Environment: "test",
 		Currency:    req.Currency,
 		Country:     req.Country,
 		Extra:       make(map[string]string),
+	}
+
+	// For PayPal, the currency used in the JS SDK must match the order currency.
+	if strings.ToLower(strings.TrimSpace(provider)) == "paypal" {
+		cc := strings.ToUpper(strings.TrimSpace(chargeCurrency))
+		if cc != "" {
+			config.Currency = cc
+		}
 	}
 
 	if !instance.IsTestMode {
@@ -421,7 +468,26 @@ func (h *DepositHandler) CreatePayPalOrder(c *gin.Context) {
 		}
 	}
 
-	order, err := pp.CreateOrder(ctx, deposit.Amount, deposit.Currency, walletID, "Wallet Deposit")
+	orderAmount := deposit.Amount
+	orderCurrency := deposit.Currency
+	if deposit.Metadata != nil {
+		var md map[string]interface{}
+		if err := json.Unmarshal(deposit.Metadata, &md); err == nil {
+			if v, ok := md["charge_amount"]; ok {
+				if f, ok := v.(float64); ok {
+					orderAmount = f
+				} else {
+					if parsed, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
+						orderAmount = parsed
+					}
+				}
+			}
+			if v, ok := md["charge_currency"]; ok {
+				orderCurrency = fmt.Sprintf("%v", v)
+			}
+		}
+	}
+	order, err := pp.CreateOrder(ctx, orderAmount, orderCurrency, walletID, "Wallet Deposit")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

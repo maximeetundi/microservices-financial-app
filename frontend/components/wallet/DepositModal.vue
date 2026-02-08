@@ -198,6 +198,60 @@
             </div>
           </div>
 
+          <!-- Step: Choose Mode (Sandbox / Live) -->
+          <div v-if="currentStep === 'mode'" class="space-y-4">
+            <div class="text-center mb-6">
+              <img
+                :src="getProviderLogo(selectedProvider)"
+                :alt="selectedProvider?.display_name"
+                class="w-16 h-16 mx-auto rounded-xl bg-white p-2 mb-3"
+              />
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Choisir le mode
+              </h3>
+              <p class="text-gray-500 dark:text-gray-400">
+                {{ selectedProvider?.display_name }}
+              </p>
+            </div>
+
+            <div class="grid gap-3">
+              <button
+                @click="selectMode(false)"
+                class="flex items-center gap-4 p-4 rounded-xl border-2 transition-all"
+                :class="selectedIsTestMode === false
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  : 'border-gray-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600'"
+              >
+                <span class="text-2xl">🟦</span>
+                <div class="flex-1 text-left">
+                  <p class="font-semibold text-gray-900 dark:text-white">Live</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Production</p>
+                </div>
+              </button>
+
+              <button
+                @click="selectMode(true)"
+                class="flex items-center gap-4 p-4 rounded-xl border-2 transition-all"
+                :class="selectedIsTestMode === true
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  : 'border-gray-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-600'"
+              >
+                <span class="text-2xl">🧪</span>
+                <div class="flex-1 text-left">
+                  <p class="font-semibold text-gray-900 dark:text-white">Sandbox</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">Test</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              @click="currentStep = 'provider'"
+              class="text-indigo-500 hover:text-indigo-600 text-sm font-medium"
+            >
+              ← Changer de méthode
+            </button>
+          </div>
+
           <!-- Step 2: Phone Number for Mobile Money -->
           <div v-if="currentStep === 'phone'" class="space-y-4">
             <div class="text-center mb-6">
@@ -383,7 +437,7 @@
         </div>
 
         <!-- Footer Actions -->
-        <div v-if="['provider', 'phone'].includes(currentStep)" class="p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+        <div v-if="['provider', 'mode', 'phone'].includes(currentStep)" class="p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
           <button
             @click="initiateDeposit"
             :disabled="!canProceed || loading"
@@ -432,7 +486,7 @@ const authStore = useAuthStore()
 const walletStore = useWalletStore()
 
 // State
-const currentStep = ref<'provider' | 'phone' | 'processing' | 'redirect' | 'paypal' | 'pending' | 'success' | 'failed'>('provider')
+const currentStep = ref<'provider' | 'mode' | 'phone' | 'processing' | 'redirect' | 'paypal' | 'pending' | 'success' | 'failed'>('provider')
 const amount = ref(5000)
 const phoneNumber = ref('')
 const depositNumbers = ref<any[]>([])
@@ -441,6 +495,7 @@ const depositNumbersLoading = ref(false)
 const newDepositNumberPhone = ref('')
 const newDepositNumberLabel = ref('')
 const selectedProvider = ref<any>(null)
+const selectedIsTestMode = ref<boolean | null>(null)
 const providers = ref<any[]>([])
 const loadingProviders = ref(false)
 const loading = ref(false)
@@ -451,6 +506,7 @@ const newBalance = ref<number | null>(null)
 const sdkConfig = ref<any>(null)
 const paypalLoading = ref(false)
 const paypalError = ref('')
+const isMobile = ref(false)
 
 // Config
 const minAmount = 100
@@ -479,6 +535,7 @@ const cryptoProviders = computed(() =>
 
 const canProceed = computed(() => {
   if (!selectedProvider.value) return false
+  if (selectedIsTestMode.value === null) return false
   if (amount.value < minAmount || amount.value > maxAmount) return false
   if (currentStep.value === 'phone' && !selectedDepositNumberId.value && !phoneNumber.value) return false
   return true
@@ -583,6 +640,13 @@ const addDepositNumber = async () => {
 
 const selectProvider = (provider: any) => {
   selectedProvider.value = provider
+  selectedIsTestMode.value = null
+  currentStep.value = 'mode'
+  error.value = ''
+}
+
+const selectMode = (isTest: boolean) => {
+  selectedIsTestMode.value = isTest
   error.value = ''
 }
 
@@ -596,11 +660,28 @@ const formatAmount = (value: number) => {
   return new Intl.NumberFormat('fr-FR').format(value)
 }
 
+const isMobileMoneySelected = computed(() => {
+  if (!selectedProvider.value) return false
+  return mobileMoneyProviders.value.some(p => p.name === selectedProvider.value.name)
+})
+
 const initiateDeposit = async () => {
   if (!selectedProvider.value || !amount.value) return
 
+  if (selectedIsTestMode.value === null) {
+    currentStep.value = 'mode'
+    return
+  }
+
+  if (currentStep.value === 'mode') {
+    if (isMobileMoneySelected.value) {
+      currentStep.value = 'phone'
+      return
+    }
+  }
+
   // For mobile money, check phone number
-  if (mobileMoneyProviders.value.some(p => p.name === selectedProvider.value.name)) {
+  if (isMobileMoneySelected.value) {
     if (currentStep.value === 'provider') {
       currentStep.value = 'phone'
       return
@@ -628,9 +709,10 @@ const initiateDeposit = async () => {
         currency: currency.value,
         provider: selectedProvider.value.name,
         country: userCountry.value,
+        is_test_mode: selectedIsTestMode.value,
         email: authStore.user?.email,
-        phone: phoneNumber.value,
-        deposit_number_id: selectedDepositNumberId.value,
+        phone: isMobileMoneySelected.value ? phoneNumber.value : undefined,
+        deposit_number_id: isMobileMoneySelected.value ? selectedDepositNumberId.value : undefined,
         return_url: returnUrl,
         cancel_url: cancelUrl
       })
@@ -674,7 +756,7 @@ const handlePaymentFlow = (data: any) => {
   // Try SDK first, fallback to redirect
   switch (provider) {
     case 'flutterwave':
-      if (window.FlutterwaveCheckout && sdkConfig.value?.public_key) {
+      if (!isMobile.value && window.FlutterwaveCheckout && sdkConfig.value?.public_key) {
         openFlutterwaveModal(data)
       } else {
         redirectToPayment(data.payment_url)
@@ -682,7 +764,7 @@ const handlePaymentFlow = (data: any) => {
       break
 
     case 'paystack':
-      if (window.PaystackPop && sdkConfig.value?.public_key) {
+      if (!isMobile.value && window.PaystackPop && sdkConfig.value?.public_key) {
         openPaystackModal(data)
       } else {
         redirectToPayment(data.payment_url)
@@ -696,7 +778,7 @@ const handlePaymentFlow = (data: any) => {
 
     case 'paypal':
       // PayPal JS SDK Buttons (fallback to redirect if not possible)
-      if (sdkConfig.value?.public_key) {
+      if (!isMobile.value && sdkConfig.value?.public_key) {
         openPayPalButtons(data)
       } else {
         redirectToPayment(data.payment_url)
@@ -938,6 +1020,7 @@ const checkStatus = async () => {
 const resetForm = () => {
   currentStep.value = 'provider'
   selectedProvider.value = null
+  selectedIsTestMode.value = null
   phoneNumber.value = ''
   error.value = ''
   transactionId.value = ''
@@ -983,6 +1066,14 @@ watch(() => props.isOpen, (isOpen) => {
     fetchDepositNumbers()
   } else {
     resetForm()
+  }
+})
+
+onMounted(() => {
+  try {
+    isMobile.value = window.matchMedia?.('(pointer: coarse)')?.matches || false
+  } catch (_e) {
+    isMobile.value = false
   }
 })
 

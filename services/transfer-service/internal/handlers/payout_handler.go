@@ -62,6 +62,7 @@ type InitiatePayoutRequest struct {
 	Currency       string  `json:"currency" binding:"required"`
 	Provider       string  `json:"provider" binding:"required"` // flutterwave, stripe, paypal, mtn_momo, orange_money, etc.
 	Country        string  `json:"country" binding:"required"`
+	IsTestMode     *bool   `json:"is_test_mode,omitempty"`
 	PayoutMethod   string  `json:"payout_method" binding:"required"` // mobile_money, bank_transfer, paypal, card
 	RecipientName  string  `json:"recipient_name" binding:"required"`
 	RecipientEmail string  `json:"recipient_email,omitempty"`
@@ -104,6 +105,7 @@ type PayoutQuoteRequest struct {
 	Currency     string  `json:"currency" binding:"required"`
 	Provider     string  `json:"provider" binding:"required"`
 	Country      string  `json:"country" binding:"required"`
+	IsTestMode   *bool   `json:"is_test_mode,omitempty"`
 	PayoutMethod string  `json:"payout_method" binding:"required"`
 }
 
@@ -157,7 +159,7 @@ func (h *PayoutHandler) GetPayoutQuote(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Get best instance for this provider
-	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw")
+	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw", req.IsTestMode)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Provider not available for withdrawals",
@@ -250,7 +252,7 @@ func (h *PayoutHandler) InitiatePayout(c *gin.Context) {
 	}
 
 	// 2. Get best instance for this provider (withdraw)
-	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw")
+	instance, err := h.providerLoader.CredentialsClient().GetBestInstanceWithCredentials(req.Provider, req.Country, req.Amount, req.Currency, "withdraw", req.IsTestMode)
 	if err != nil {
 		log.Printf("[PayoutHandler] Provider not available: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{

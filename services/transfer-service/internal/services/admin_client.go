@@ -190,7 +190,7 @@ type InstanceData struct {
 
 // GetBestInstanceWithCredentials fetches the best instance with full API credentials
 // from admin-service internal API (service-to-service communication)
-func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string, operation string) (*models.AggregatorInstanceWithDetails, error) {
+func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country string, amount float64, currency string, operation string, isTestMode *bool) (*models.AggregatorInstanceWithDetails, error) {
 	log.Printf("[AdminClient] 🔐 Fetching instance with credentials: provider=%s, country=%s", providerCode, country)
 	if operation == "" {
 		operation = "deposit"
@@ -203,6 +203,9 @@ func (c *AdminClient) GetBestInstanceWithCredentials(providerCode, country strin
 		"amount":        amount,
 		"currency":      currency,
 		"operation":     operation,
+	}
+	if isTestMode != nil {
+		reqBody["is_test_mode"] = *isTestMode
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
