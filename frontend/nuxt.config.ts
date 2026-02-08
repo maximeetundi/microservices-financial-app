@@ -51,11 +51,6 @@ export default defineNuxtConfig({
   nitro: {
     compressPublicAssets: true,
     routeRules: {
-      '/**': {
-        headers: {
-          'Content-Security-Policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com; connect-src 'self' https://api.app.tech-afm.com https://www.paypal.com https://www.sandbox.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com; img-src 'self' data: https://www.paypalobjects.com https://www.paypal.com https://www.sandbox.paypal.com; style-src 'self' 'unsafe-inline'; frame-src https://www.paypal.com https://www.sandbox.paypal.com;"
-        }
-      },
       '/_nuxt/**': {
         headers: { 'Cache-Control': 'public, max-age=31536000, immutable' }
       }
