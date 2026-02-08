@@ -1361,6 +1361,30 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 	}
 
 	log.Println("[Database] ✅ Default API keys seeding complete")
+
+	// Backfill PayPal business_currencies for existing instances that already have credentials.
+	// This avoids having the admin retype the list after a DB reset or partial data restore.
+	if _, err := db.Exec(`
+		UPDATE provider_instances pi
+		SET api_credentials = jsonb_set(
+			COALESCE(pi.api_credentials, '{}'::jsonb),
+			'{business_currencies}',
+			to_jsonb('AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MYR,MXN,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD'::text),
+			true
+		),
+		updated_at = NOW()
+		FROM payment_providers p
+		WHERE pi.provider_id = p.id
+		AND p.name = 'paypal'
+		AND (
+			pi.api_credentials IS NULL
+			OR pi.api_credentials = '{}'::jsonb
+			OR COALESCE(pi.api_credentials->>'business_currencies', '') = ''
+		)
+	`); err != nil {
+		log.Printf("Warning: failed to backfill PayPal business_currencies: %v", err)
+	}
+
 	return nil
 }
 
