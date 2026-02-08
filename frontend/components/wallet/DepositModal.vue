@@ -19,7 +19,7 @@
         </div>
 
         <!-- Content -->
-        <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+        <div ref="contentRef" class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
 
           <!-- Step 1: Select Provider -->
           <div v-if="currentStep === 'provider'" class="space-y-4">
@@ -498,7 +498,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useWalletStore } from '~/stores/wallet'
 import { depositNumbersAPI } from '~/composables/useApi'
@@ -538,6 +538,7 @@ const sdkConfig = ref<any>(null)
 const paypalLoading = ref(false)
 const paypalError = ref('')
 const isMobile = ref(false)
+const contentRef = ref<HTMLElement | null>(null)
 
 // Config
 const minAmount = 100
@@ -809,7 +810,7 @@ const handlePaymentFlow = (data: any) => {
 
     case 'paypal':
       // PayPal JS SDK Buttons (fallback to redirect if not possible)
-      if (!isMobile.value && sdkConfig.value?.public_key) {
+      if (sdkConfig.value?.public_key) {
         openPayPalButtons(data)
       } else {
         redirectToPayment(data.payment_url, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.')
@@ -945,10 +946,21 @@ const openPayPalButtons = async (_data: any) => {
   } catch (e: any) {
     console.error('PayPal init error:', e)
     paypalError.value = e?.message || 'Erreur lors de l\'initialisation PayPal'
+
+		if (paymentUrl.value) {
+			redirectToPayment(paymentUrl.value, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.')
+		}
   } finally {
     paypalLoading.value = false
   }
 }
+
+watch(currentStep, async () => {
+	await nextTick()
+	if (contentRef.value) {
+		contentRef.value.scrollTop = 0
+	}
+})
 
 // Flutterwave SDK Integration
 const openFlutterwaveModal = (data: any) => {
