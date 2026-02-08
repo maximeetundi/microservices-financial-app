@@ -41,44 +41,6 @@
                   {{ currency }}
                 </span>
               </div>
-
-
-          <!-- Step: PayPal Checkout (JS SDK Buttons) -->
-          <div v-if="currentStep === 'paypal'" class="space-y-4">
-            <div class="text-center mb-2">
-              <img
-                :src="getProviderLogo(selectedProvider)"
-                :alt="selectedProvider?.display_name"
-                class="w-16 h-16 mx-auto rounded-xl bg-white p-2 mb-3"
-              />
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                Payer avec PayPal
-              </h3>
-              <p class="text-gray-500 dark:text-gray-400">
-                Montant: {{ formatAmount(amount) }} {{ currency }}
-              </p>
-            </div>
-
-            <div
-              v-if="paypalError"
-              class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
-            >
-              <p class="text-red-600 dark:text-red-400 text-sm">{{ paypalError }}</p>
-            </div>
-
-            <div v-if="paypalLoading" class="flex justify-center py-4">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-            </div>
-
-            <div id="paypal-buttons" class="min-h-[40px]"></div>
-
-            <button
-              @click="currentStep = 'provider'"
-              class="text-indigo-500 hover:text-indigo-600 text-sm font-medium"
-            >
-              ← Changer de méthode
-            </button>
-          </div>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Min: {{ formatAmount(minAmount) }} {{ currency }} - Max: {{ formatAmount(maxAmount) }} {{ currency }}
               </p>
@@ -196,6 +158,43 @@
             <div v-if="error" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
               <p class="text-red-600 dark:text-red-400 text-sm">{{ error }}</p>
             </div>
+          </div>
+
+          <!-- Step: PayPal Checkout (JS SDK Buttons) -->
+          <div v-if="currentStep === 'paypal'" class="space-y-4">
+            <div class="text-center mb-2">
+              <img
+                :src="getProviderLogo(selectedProvider)"
+                :alt="selectedProvider?.display_name"
+                class="w-16 h-16 mx-auto rounded-xl bg-white p-2 mb-3"
+              />
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Payer avec PayPal
+              </h3>
+              <p class="text-gray-500 dark:text-gray-400">
+                Montant: {{ formatAmount(amount) }} {{ currency }}
+              </p>
+            </div>
+
+            <div
+              v-if="paypalError"
+              class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+            >
+              <p class="text-red-600 dark:text-red-400 text-sm">{{ paypalError }}</p>
+            </div>
+
+            <div v-if="paypalLoading" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+
+            <div id="paypal-buttons" class="min-h-[40px]"></div>
+
+            <button
+              @click="currentStep = 'provider'"
+              class="text-indigo-500 hover:text-indigo-600 text-sm font-medium"
+            >
+              ← Changer de méthode
+            </button>
           </div>
 
           <!-- Step: Choose Mode (Sandbox / Live) -->
