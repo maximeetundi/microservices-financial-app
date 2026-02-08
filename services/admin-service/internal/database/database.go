@@ -1310,6 +1310,7 @@ func seedDefaultAPIKeys(db *sql.DB) error {
 			credentials["client_secret"] = fmt.Sprintf("secret_%s_%s", inst.ProviderName, uuid.New().String()[:12])
 			credentials["api_key"] = fmt.Sprintf("api_%s_%s", inst.ProviderName, uuid.New().String()[:8])
 			if inst.ProviderName == "paypal" {
+				credentials["business_currencies"] = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MYR,MXN,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD"
 				isLive := strings.Contains(strings.ToLower(inst.Name), "(live)") || strings.Contains(strings.ToLower(inst.Name), "live")
 				if isLive {
 					credentials["base_url"] = "https://api-m.paypal.com"

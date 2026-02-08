@@ -83,6 +83,12 @@ const PROVIDER_CREDENTIALS: Record<
       secret: true,
     },
     {
+      key: "business_currencies",
+      label: "Devises PayPal Business (ex: USD,EUR,GBP)",
+      required: false,
+      secret: false,
+    },
+    {
       key: "mode",
       label: "Mode (sandbox/live)",
       required: false,

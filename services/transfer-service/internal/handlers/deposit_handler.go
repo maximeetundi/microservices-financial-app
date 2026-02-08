@@ -192,30 +192,33 @@ func (h *DepositHandler) InitiateDeposit(c *gin.Context) {
 	chargeAmount := req.Amount
 	chargeCurrency := strings.ToUpper(strings.TrimSpace(req.Currency))
 	fxMeta := map[string]interface{}{}
+
 	if strings.ToLower(strings.TrimSpace(req.Provider)) == "paypal" {
-		if _, ok := paypalSupportedCurrencies[chargeCurrency]; !ok {
-			ex := services.NewExchangeClient()
-			rate, err := ex.GetRate(chargeCurrency, "USD")
-			if err != nil {
-				// Some deployments only store USD->XOF (or USD->XAF) and not the inverse.
-				invRate, invErr := ex.GetRate("USD", chargeCurrency)
-				if invErr == nil && invRate > 0 {
-					rate = 1.0 / invRate
-					err = nil
+		if !instance.IsTestMode {
+			if _, ok := paypalSupportedCurrencies[chargeCurrency]; !ok {
+				ex := services.NewExchangeClient()
+				rate, err := ex.GetRate(chargeCurrency, "USD")
+				if err != nil {
+					// Some deployments only store USD->XOF (or USD->XAF) and not the inverse.
+					invRate, invErr := ex.GetRate("USD", chargeCurrency)
+					if invErr == nil && invRate > 0 {
+						rate = 1.0 / invRate
+						err = nil
+					}
 				}
+				if err != nil || rate <= 0 {
+					log.Printf("[DepositHandler] PayPal FX conversion failed %s->USD: %v (rate=%f)", chargeCurrency, err, rate)
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Currency not supported for PayPal"})
+					return
+				}
+				chargeAmount = req.Amount * rate
+				chargeCurrency = "USD"
+				fxMeta["fx_from_currency"] = strings.ToUpper(strings.TrimSpace(req.Currency))
+				fxMeta["fx_to_currency"] = chargeCurrency
+				fxMeta["fx_rate"] = rate
+				fxMeta["charge_amount"] = chargeAmount
+				fxMeta["charge_currency"] = chargeCurrency
 			}
-			if err != nil || rate <= 0 {
-				log.Printf("[DepositHandler] PayPal FX conversion failed %s->USD: %v (rate=%f)", chargeCurrency, err, rate)
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Currency not supported for PayPal"})
-				return
-			}
-			chargeAmount = req.Amount * rate
-			chargeCurrency = "USD"
-			fxMeta["fx_from_currency"] = strings.ToUpper(strings.TrimSpace(req.Currency))
-			fxMeta["fx_to_currency"] = chargeCurrency
-			fxMeta["fx_rate"] = rate
-			fxMeta["charge_amount"] = chargeAmount
-			fxMeta["charge_currency"] = chargeCurrency
 		}
 	}
 
@@ -376,6 +379,11 @@ func (h *DepositHandler) buildSDKConfig(provider string, instance *models.Aggreg
 	case "paypal":
 		if clientID, ok := instance.APICredentials["client_id"]; ok {
 			config.PublicKey = clientID
+		}
+		if businessCurrencies, ok := instance.APICredentials["business_currencies"]; ok {
+			config.Extra["business_currencies"] = businessCurrencies
+		} else if businessCountries, ok := instance.APICredentials["business_countries"]; ok {
+			config.Extra["business_currencies"] = businessCountries
 		}
 
 	case "lygos":
