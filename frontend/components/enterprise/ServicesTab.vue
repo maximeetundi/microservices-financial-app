@@ -50,6 +50,11 @@ import ServiceGroupsManager from './ServiceGroupsManager.vue'
 const props = defineProps({
   enterprise: {
     type: Object,
+    required: false,
+    default: null
+  },
+  enterpriseId: {
+    type: String,
     required: true
   }
 })
@@ -93,11 +98,14 @@ const addGroup = () => {
 const saveServices = async () => {
   isSaving.value = true
   try {
+    if (!props.enterpriseId) {
+      throw new Error('enterpriseId manquant')
+    }
     const updated = {
-      ...props.enterprise,
+      ...(props.enterprise || {}),
       service_groups: serviceGroups.value
     }
-    await enterpriseAPI.update(props.enterprise.id, updated)
+    await enterpriseAPI.update(props.enterpriseId, updated)
     emit('update', updated)
   } catch (error) {
     console.error('Failed to save services:', error)

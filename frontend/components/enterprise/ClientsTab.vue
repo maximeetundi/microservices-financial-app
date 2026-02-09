@@ -87,6 +87,7 @@
     <AddClientModal 
       v-if="showAddModal"
       :enterprise="enterprise"
+      :enterprise-id="enterpriseId"
       @close="showAddModal = false"
       @added="handleClientAdded" />
   </div>
@@ -100,7 +101,8 @@ import { usePin } from '@/composables/usePin'
 import AddClientModal from './AddClientModal.vue'
 
 const props = defineProps({
-  enterprise: { type: Object, required: true }
+  enterprise: { type: Object, required: false, default: null },
+  enterpriseId: { type: String, required: true }
 })
 
 const { requirePin, checkPinStatus } = usePin()
@@ -117,7 +119,7 @@ onMounted(async () => {
 })
 
 const allServices = computed(() => {
-  return (props.enterprise.service_groups || []).flatMap(g => g.services || [])
+  return (props.enterprise?.service_groups || []).flatMap(g => g.services || [])
 })
 
 const getServiceName = (id) => {
@@ -128,7 +130,11 @@ const getServiceName = (id) => {
 const fetchClients = async () => {
   isLoading.value = true
   try {
-    const { data } = await enterpriseAPI.getSubscriptions(props.enterprise.id, selectedService.value)
+    if (!props.enterpriseId) {
+      clients.value = []
+      return
+    }
+    const { data } = await enterpriseAPI.getSubscriptions(props.enterpriseId, selectedService.value)
     clients.value = (data || []).sort((a, b) => (a.client_name || '').localeCompare(b.client_name || ''))
   } catch (e) {
     console.error('Failed to fetch clients', e)
@@ -153,7 +159,7 @@ const downloadExport = () => {
   const blob = new Blob([csv], { type: 'text/csv' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `clients_${props.enterprise.name}_${new Date().toISOString().split('T')[0]}.csv`
+  a.download = `clients_${props.enterprise?.name || 'entreprise'}_${new Date().toISOString().split('T')[0]}.csv`
   a.click()
 }
 
@@ -163,7 +169,8 @@ const confirmCancel = async (sub) => {
   
   await requirePin(async () => {
     try {
-      await enterpriseAPI.cancelSubscription(props.enterprise.id, sub.id)
+      if (!props.enterpriseId) throw new Error('enterpriseId manquant')
+      await enterpriseAPI.cancelSubscription(props.enterpriseId, sub.id)
       fetchClients()
       alert('Abonnement résilié avec succès')
     } catch (e) {

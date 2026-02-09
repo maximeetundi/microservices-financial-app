@@ -19,7 +19,7 @@
       <select v-model="selectedService" @change="loadSubscribers"
         class="w-full md:w-1/2 px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
         <option value="">-- Sélectionner un service --</option>
-        <optgroup v-for="group in enterprise.service_groups" :key="group.id" :label="group.name">
+        <optgroup v-for="group in (enterprise?.service_groups || [])" :key="group.id" :label="group.name">
           <option v-for="svc in group.services" :key="svc.id" :value="svc.id">
             {{ svc.name }} ({{ svc.billing_type === 'USAGE' ? 'Compteur' : 'Fixe' }})
           </option>
@@ -130,7 +130,8 @@ import { DocumentTextIcon, DocumentArrowUpIcon, PencilSquareIcon, CheckIcon, Use
 import { enterpriseAPI } from '@/composables/useApi'
 
 const props = defineProps({
-  enterprise: { type: Object, required: true }
+  enterprise: { type: Object, required: false, default: null },
+  enterpriseId: { type: String, required: true }
 })
 
 const selectedService = ref('')
@@ -151,6 +152,7 @@ const uploadFile = async () => {
   if (!importFile.value) return
   isUploading.value = true
   try {
+    if (!props.enterpriseId) throw new Error('enterpriseId manquant')
     const formData = new FormData()
     formData.append('file', importFile.value)
     formData.append('service_id', selectedService.value)
@@ -158,7 +160,7 @@ const uploadFile = async () => {
     formData.append('col_amount_idx', '1')
     formData.append('col_consumption_idx', '2')
 
-    await enterpriseAPI.importInvoices(props.enterprise.id, formData)
+    await enterpriseAPI.importInvoices(props.enterpriseId, formData)
     alert('Import réussi ! Factures générées en brouillon.')
     importFile.value = null
   } catch (e) {
@@ -172,7 +174,8 @@ const loadSubscribers = async () => {
   if (!selectedService.value) return
   isLoadingSubscribers.value = true
   try {
-    const { data } = await enterpriseAPI.getSubscriptions(props.enterprise.id, selectedService.value)
+    if (!props.enterpriseId) throw new Error('enterpriseId manquant')
+    const { data } = await enterpriseAPI.getSubscriptions(props.enterpriseId, selectedService.value)
     subscribers.value = data || []
     
     // Initialize entries
@@ -191,6 +194,7 @@ const submitManualBatch = async () => {
   if (!confirm('Générer les factures ?')) return
   isGenerating.value = true
   try {
+    if (!props.enterpriseId) throw new Error('enterpriseId manquant')
     const items = Object.entries(entries)
       .map(([subId, val]) => ({
         subscription_id: subId,
@@ -204,7 +208,7 @@ const submitManualBatch = async () => {
       return
     }
 
-    await enterpriseAPI.createBatchInvoices(props.enterprise.id, items)
+    await enterpriseAPI.createBatchInvoices(props.enterpriseId, items)
     alert('Factures générées avec succès')
   } catch (e) {
     alert('Erreur: ' + e.message)

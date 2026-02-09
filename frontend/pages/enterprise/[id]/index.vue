@@ -140,6 +140,7 @@
     <QRCodeModal 
       :is-open="showQRModal" 
       :enterprise="enterprise"
+      :enterprise-id="String(enterpriseId || '')"
       @close="showQRModal = false" 
     />
   </NuxtLayout>

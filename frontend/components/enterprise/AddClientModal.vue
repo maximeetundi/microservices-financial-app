@@ -39,7 +39,7 @@
           <select v-model="form.service_id"
             class="w-full px-4 py-2.5 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
             <option value="">-- Sélectionner --</option>
-            <optgroup v-for="group in enterprise.service_groups" :key="group.id" :label="group.name">
+            <optgroup v-for="group in (enterprise?.service_groups || [])" :key="group.id" :label="group.name">
               <option v-for="svc in group.services" :key="svc.id" :value="svc.id">{{ svc.name }}</option>
             </optgroup>
           </select>
@@ -92,7 +92,8 @@ import { UserPlusIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/vue/24/outl
 import { enterpriseAPI, authAPI } from '@/composables/useApi'
 
 const props = defineProps({
-  enterprise: { type: Object, required: true }
+  enterprise: { type: Object, required: false, default: null },
+  enterpriseId: { type: String, required: true }
 })
 
 const emit = defineEmits(['close', 'added'])
@@ -109,7 +110,7 @@ const form = reactive({
 })
 
 const allServices = computed(() => {
-  return (props.enterprise.service_groups || []).flatMap(g => g.services || [])
+  return (props.enterprise?.service_groups || []).flatMap(g => g.services || [])
 })
 
 const selectedServiceSchema = computed(() => {
@@ -160,7 +161,8 @@ const addClient = async () => {
       amount: svc?.base_price || 0,
       billing_frequency: svc?.billing_frequency || 'MONTHLY'
     }
-    await enterpriseAPI.createSubscription(props.enterprise.id, payload)
+    if (!props.enterpriseId) throw new Error('enterpriseId manquant')
+    await enterpriseAPI.createSubscription(props.enterpriseId, payload)
     emit('added')
   } catch (e) {
     alert('Erreur: ' + (e.response?.data?.error || e.message))

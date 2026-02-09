@@ -167,7 +167,12 @@ const props = defineProps({
   },
   enterprise: {
     type: Object,
-    required: true
+    required: false,
+    default: null
+  },
+  enterpriseId: {
+    type: String,
+    default: ''
   },
   baseUrl: {
     type: String,
@@ -202,9 +207,10 @@ const canShowQR = computed(() => {
 })
 
 const subscriptionLink = computed(() => {
-  if (!props.enterprise?.id) return ''
+  const entId = props.enterpriseId || props.enterprise?.id || props.enterprise?._id
+  if (!entId) return ''
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.tech-afm.com'
-  let url = `${origin}/enterprises/${props.enterprise.id}/subscribe`
+  let url = `${origin}/enterprises/${entId}/subscribe`
   
   if (qrType.value === 'SERVICE' && selectedService.value) {
     url += `?service_id=${selectedService.value}`
@@ -243,7 +249,8 @@ const displayDescription = computed(() => {
 })
 
 const displayCode = computed(() => {
-  if (qrType.value === 'ENTERPRISE') return `ENT-${props.enterprise?.id}`
+  const entId = props.enterpriseId || props.enterprise?.id || props.enterprise?._id
+  if (qrType.value === 'ENTERPRISE') return `ENT-${entId || ''}`
   if (qrType.value === 'GROUP') return `GRP-${selectedGroup.value}`
   if (qrType.value === 'SERVICE') return `SVC-${selectedService.value}`
   return 'CODE'
@@ -259,6 +266,10 @@ const generateQRCode = async () => {
   isGenerating.value = true
   try {
     const url = subscriptionLink.value
+    if (!url || String(url).trim().length === 0) {
+      qrCodeDataUrl.value = ''
+      return
+    }
     qrCodeDataUrl.value = await QRCode.toDataURL(url, {
       width: 300,
       margin: 2,

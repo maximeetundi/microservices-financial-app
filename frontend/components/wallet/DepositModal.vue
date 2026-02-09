@@ -574,7 +574,14 @@ const canProceed = computed(() => {
 })
 
 // API Base URL
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.app.tech-afm.com'
+const API_URL = (() => {
+  try {
+    const config = useRuntimeConfig()
+    return config.public.apiBaseUrl || 'https://api.app.tech-afm.com'
+  } catch {
+    return 'https://api.app.tech-afm.com'
+  }
+})()
 
 // Methods
 const fetchProviders = async () => {
@@ -582,9 +589,14 @@ const fetchProviders = async () => {
   error.value = ''
 
   try {
+    await authStore.initializeAuth()
+    const token = authStore.accessToken || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : '')
+    if (!token) {
+      throw new Error('Veuillez vous reconnecter pour voir les moyens de paiement.')
+    }
     const response = await fetch(`${API_URL}/transfer-service/api/v1/aggregators/deposit?country=${userCountry.value}`, {
       headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -1114,10 +1126,11 @@ const loadSDKScripts = () => {
 }
 
 // Watch for modal open
-watch(() => props.isOpen, (isOpen) => {
+watch(() => props.isOpen, async (isOpen) => {
   if (isOpen) {
-    fetchProviders()
-    fetchDepositNumbers()
+    await authStore.initializeAuth()
+    await fetchProviders()
+    await fetchDepositNumbers()
   } else {
     resetForm()
   }

@@ -204,10 +204,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { 
-  ShieldCheckIcon, PlusIcon, TrashIcon, ClockIcon, 
-  InformationCircleIcon, ShieldExclamationIcon 
+import { ref, computed, watch, onMounted } from 'vue'
+import {
+  ShieldCheckIcon, PlusIcon, InformationCircleIcon, ClockIcon,
+  ShieldExclamationIcon, TrashIcon
 } from '@heroicons/vue/24/outline'
 import { enterpriseAPI } from '@/composables/useApi'
 import PinModal from '@/components/common/PinModal.vue'
@@ -215,6 +215,11 @@ import PinModal from '@/components/common/PinModal.vue'
 const props = defineProps({
   enterprise: {
     type: Object,
+    required: false,
+    default: null
+  },
+  enterpriseId: {
+    type: String,
     required: true
   }
 })
@@ -281,6 +286,7 @@ const updateApprovalMode = (policy) => {
 const savePolicies = async () => {
   isSaving.value = true
   try {
+    if (!props.enterpriseId) throw new Error('enterpriseId manquant')
     // Convert approval_mode back to backend format
     const formattedPolicies = policies.value.map(p => ({
       id: p.id,
@@ -295,10 +301,10 @@ const savePolicies = async () => {
     }))
 
     const updated = {
-      ...props.enterprise,
+      ...(props.enterprise || {}),
       security_policies: formattedPolicies
     }
-    await enterpriseAPI.update(props.enterprise.id, updated)
+    await enterpriseAPI.update(props.enterpriseId, updated)
     emit('update', updated)
     alert('✅ Règles de sécurité enregistrées')
   } catch (error) {
@@ -311,7 +317,11 @@ const savePolicies = async () => {
 
 const loadPendingApprovals = async () => {
   try {
-    const { data } = await enterpriseAPI.getPendingApprovals(props.enterprise.id)
+    if (!props.enterpriseId) {
+      pendingApprovals.value = []
+      return
+    }
+    const { data } = await enterpriseAPI.getPendingApprovals(props.enterpriseId)
     pendingApprovals.value = data || []
   } catch (error) {
     console.error('Failed to load pending approvals:', error)

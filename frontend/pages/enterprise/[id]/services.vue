@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="enterprise">
-    <ServicesTab :enterprise="enterprise" @update="handleUpdate" />
+    <ServicesTab :enterprise="enterprise" :enterprise-id="enterpriseId?.value || ''" @update="handleUpdate" />
   </NuxtLayout>
 </template>
 
@@ -9,6 +9,7 @@ import { inject, ref } from 'vue'
 const ServicesTab = defineAsyncComponent(() => import('@/components/enterprise/ServicesTab.vue'))
 
 const enterprise = inject('enterprise', ref(null))
+const enterpriseId = inject('enterpriseId', ref(''))
 
 const handleUpdate = (updated) => {
   enterprise.value = updated

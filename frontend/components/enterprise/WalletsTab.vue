@@ -316,6 +316,11 @@ import PinModal from '@/components/common/PinModal.vue'
 const props = defineProps({
   enterprise: {
     type: Object,
+    required: false,
+    default: null
+  },
+  enterpriseId: {
+    type: String,
     required: true
   }
 })
@@ -396,7 +401,7 @@ const loadWallets = async () => {
       allWallets = data.wallets
     }
     
-    const walletIds = [props.enterprise.default_wallet_id, ...(props.enterprise.wallet_ids || [])].filter(Boolean)
+    const walletIds = [props.enterprise?.default_wallet_id, ...(props.enterprise?.wallet_ids || [])].filter(Boolean)
     
     if (walletIds.length > 0) {
       wallets.value = allWallets.filter(w => walletIds.includes(w.id))
@@ -419,20 +424,23 @@ const createWallet = async () => {
     const { data } = await walletAPI.create({
       currency: newWallet.value.currency,
       wallet_type: 'fiat',
-      name: newWallet.value.name || `${props.enterprise.name} - ${newWallet.value.currency}`
+      name: newWallet.value.name || `${props.enterprise?.name || 'Entreprise'} - ${newWallet.value.currency}`
     })
     
-    const updatedWalletIds = [...(props.enterprise.wallet_ids || []), data.id]
+    const updatedWalletIds = [...(props.enterprise?.wallet_ids || []), data.id]
     const updates = {
-      ...props.enterprise,
+      ...(props.enterprise || {}),
       wallet_ids: updatedWalletIds
     }
     
-    if (!props.enterprise.default_wallet_id) {
+    if (!props.enterprise?.default_wallet_id) {
       updates.default_wallet_id = data.id
     }
     
-    await enterpriseAPI.update(props.enterprise.id, updates)
+    if (!props.enterpriseId) {
+      throw new Error("enterpriseId manquant")
+    }
+    await enterpriseAPI.update(props.enterpriseId, updates)
     
     emit('update', updates)
     showCreateWallet.value = false
@@ -449,11 +457,14 @@ const createWallet = async () => {
 
 const setAsDefault = async (wallet) => {
   try {
-    await enterpriseAPI.update(props.enterprise.id, {
-      ...props.enterprise,
+    if (!props.enterpriseId) {
+      throw new Error("enterpriseId manquant")
+    }
+    await enterpriseAPI.update(props.enterpriseId, {
+      ...(props.enterprise || {}),
       default_wallet_id: wallet.id
     })
-    emit('update', { ...props.enterprise, default_wallet_id: wallet.id })
+    emit('update', { ...(props.enterprise || {}), default_wallet_id: wallet.id })
   } catch (error) {
     console.error('Failed to set default wallet:', error)
   }

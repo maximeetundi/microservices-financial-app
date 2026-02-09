@@ -1,6 +1,6 @@
 <template>
   <NuxtLayout name="enterprise">
-    <EmployeesTab :enterprise="enterprise" />
+    <EmployeesTab :enterprise="enterprise" :enterprise-id="enterpriseId?.value || ''" />
   </NuxtLayout>
 </template>
 
@@ -9,4 +9,5 @@ import { inject, ref } from 'vue'
 import EmployeesTab from '@/components/enterprise/EmployeesTab.vue'
 
 const enterprise = inject('enterprise', ref(null))
+const enterpriseId = inject('enterpriseId', ref(''))
 </script>

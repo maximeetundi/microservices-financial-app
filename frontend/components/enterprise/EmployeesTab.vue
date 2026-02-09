@@ -149,9 +149,9 @@
 
     <!-- Invite Modal -->
     <InviteEmployeeModal 
-      v-if="showInviteModal && enterprise" 
-      :enterprise-id="enterprise.id"
-      :job-positions="enterprise.job_positions || []"
+      v-if="showInviteModal" 
+      :enterprise-id="resolvedEnterpriseId"
+      :job-positions="enterprise?.job_positions || []"
       @close="showInviteModal = false"
       @invited="handleInvited" />
 
@@ -166,7 +166,7 @@
     <PromoteAdminModal 
       v-if="showPromoteModal && employeeToPromote" 
       :employee="employeeToPromote"
-      :enterprise-id="enterprise.id || enterprise._id"
+      :enterprise-id="resolvedEnterpriseId"
       @close="showPromoteModal = false; employeeToPromote = null"
       @promoted="handlePromoted" />
   </div>
@@ -187,6 +187,11 @@ import PromoteAdminModal from './PromoteAdminModal.vue'
 const props = defineProps({
   enterprise: {
     type: Object,
+    required: false,
+    default: null
+  },
+  enterpriseId: {
+    type: String,
     required: true
   }
 })
@@ -232,7 +237,11 @@ const totalMasseSalariale = computed(() =>
 const fetchEmployees = async () => {
   isLoading.value = true
   try {
-    const { data } = await enterpriseAPI.listEmployees(props.enterprise.id)
+    if (!props.enterpriseId) {
+      employees.value = []
+      return
+    }
+    const { data } = await enterpriseAPI.listEmployees(props.enterpriseId)
     employees.value = data || []
   } catch (e) {
     console.error('Failed to fetch employees', e)
@@ -241,6 +250,8 @@ const fetchEmployees = async () => {
     isLoading.value = false
   }
 }
+
+const resolvedEnterpriseId = computed(() => props.enterpriseId || props.enterprise?.id || props.enterprise?._id || '')
 
 const getStatusClass = (status) => {
   switch(status) {
