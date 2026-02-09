@@ -180,10 +180,23 @@ func (h *MessageHandler) GetConversations(c *gin.Context) {
 	for i := range conversations {
 		convID := conversations[i].ID.Hex()
 
+		// Set conversation name based on context type
+		if conversations[i].Context != nil && conversations[i].Context.Type == "shop" && conversations[i].Context.ShopName != "" {
+			// For shop conversations, use the shop name
+			conversations[i].Name = conversations[i].Context.ShopName
+		} else {
+			// For regular conversations, find the other participant's name
+			for _, p := range conversations[i].Participants {
+				if p.UserID != userID {
+					conversations[i].Name = p.Name
+					break
+				}
+			}
+		}
+
 		// Find the other participant and get online status
 		for j, p := range conversations[i].Participants {
 			if p.UserID != userID {
-				conversations[i].Name = p.Name
 				otherUserIDs = append(otherUserIDs, p.UserID)
 
 				// Check online status (will be updated after batch call)
@@ -362,8 +375,14 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 			existingConv.Context = req.Context
 		}
 
+		// Set conversation name based on context type
+		if existingConv.Context != nil && existingConv.Context.Type == "shop" && existingConv.Context.ShopName != "" {
+			existingConv.Name = existingConv.Context.ShopName
+		} else {
+			existingConv.Name = req.ParticipantName
+		}
+
 		// Conversation already exists, return it
-		existingConv.Name = req.ParticipantName
 		c.JSON(http.StatusOK, existingConv)
 		return
 	}
@@ -394,7 +413,13 @@ func (h *MessageHandler) CreateConversation(c *gin.Context) {
 		return
 	}
 
-	conversation.Name = req.ParticipantName
+	// Set conversation name based on context type
+	if conversation.Context != nil && conversation.Context.Type == "shop" && conversation.Context.ShopName != "" {
+		conversation.Name = conversation.Context.ShopName
+	} else {
+		conversation.Name = req.ParticipantName
+	}
+
 	c.JSON(http.StatusCreated, conversation)
 }
 
