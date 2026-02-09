@@ -110,7 +110,7 @@ func main() {
 
 	// 9. Initialize Handlers
 	shopHandler := handlers.NewShopHandler(shopService)
-	productHandler := handlers.NewProductHandler(productService)
+	productHandler := handlers.NewProductHandler(productService, orderRepo, storageService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	uploadHandler := handlers.NewUploadHandler(storageService)
@@ -143,6 +143,7 @@ func main() {
 		api.GET("/shops/:id", shopHandler.Get)
 		api.GET("/shops/:id/products", productHandler.ListByShop)
 		api.GET("/shops/:id/products/:productSlug", productHandler.Get)
+		api.GET("/products/:id", productHandler.GetByID)
 		api.GET("/shops/:id/categories", categoryHandler.ListByShop)
 		api.GET("/shops/:id/categories/tree", categoryHandler.ListWithHierarchy)
 		api.GET("/products/:id/reviews", reviewHandler.ListByProduct)
@@ -192,6 +193,8 @@ func main() {
 
 			// Upload
 			protected.POST("/upload", uploadHandler.UploadMedia)
+			protected.POST("/upload/digital", uploadHandler.UploadDigitalFile)
+			protected.GET("/products/:id/digital-download", productHandler.GetDigitalDownload)
 		}
 	}
 

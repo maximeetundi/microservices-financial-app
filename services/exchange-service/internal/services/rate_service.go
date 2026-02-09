@@ -109,7 +109,48 @@ func (s *RateService) GetRate(fromCurrency, toCurrency string) (*models.Exchange
 
 		// Let's trigger a full update if we really have nothing.
 		s.updateAllRates()
-		return s.rateRepo.GetRate(fromCurrency, toCurrency)
+		updated, uerr := s.rateRepo.GetRate(fromCurrency, toCurrency)
+		if uerr == nil {
+			return updated, nil
+		}
+
+		fc := strings.ToUpper(strings.TrimSpace(fromCurrency))
+		tc := strings.ToUpper(strings.TrimSpace(toCurrency))
+		fallbackPairs := map[string]float64{
+			"USD:XAF": 600.0,
+			"USD:XOF": 600.0,
+		}
+		if v, ok := fallbackPairs[fc+":"+tc]; ok {
+			exRate := &models.ExchangeRate{
+				FromCurrency: fc,
+				ToCurrency:   tc,
+				Rate:         v,
+				BidPrice:     v * 0.998,
+				AskPrice:     v * 1.002,
+				Spread:       v * 0.004,
+				Source:       "fallback",
+				LastUpdated:  time.Now(),
+			}
+			_ = s.rateRepo.SaveRate(exRate)
+			return exRate, nil
+		}
+		if v, ok := fallbackPairs[tc+":"+fc]; ok && v > 0 {
+			rev := 1 / v
+			exRate := &models.ExchangeRate{
+				FromCurrency: fc,
+				ToCurrency:   tc,
+				Rate:         rev,
+				BidPrice:     rev * 0.998,
+				AskPrice:     rev * 1.002,
+				Spread:       rev * 0.004,
+				Source:       "fallback(inverse)",
+				LastUpdated:  time.Now(),
+			}
+			_ = s.rateRepo.SaveRate(exRate)
+			return exRate, nil
+		}
+
+		return nil, uerr
 	}
 
 	return rate, err
@@ -230,6 +271,7 @@ func (s *RateService) updateAllRates() {
 	fiatRates, source, err := s.fiatProvider.GetRates("USD")
 	if err != nil {
 		fmt.Printf("[RateService] Error fetching fiat rates: %v\n", err)
+		fiatRates = map[string]float64{}
 	} else {
 		fmt.Printf("[RateService] Fetched %d fiat rates from %s\n", len(fiatRates), source)
 
@@ -266,6 +308,50 @@ func (s *RateService) updateAllRates() {
 				s.rateRepo.SaveRate(reverseRate)
 			}
 		}
+	}
+
+	if fiatRates == nil {
+		fiatRates = map[string]float64{}
+	}
+	if _, ok := fiatRates["XAF"]; !ok {
+		fiatRates["XAF"] = 600.0
+	}
+	if _, ok := fiatRates["XOF"]; !ok {
+		fiatRates["XOF"] = 600.0
+	}
+	if source == "" {
+		source = "fallback"
+	}
+	for currency, rate := range fiatRates {
+		if currency == "USD" {
+			continue
+		}
+		if rate <= 0 {
+			continue
+		}
+		exRate := &models.ExchangeRate{
+			FromCurrency: "USD",
+			ToCurrency:   currency,
+			Rate:         rate,
+			BidPrice:     rate * 0.998,
+			AskPrice:     rate * 1.002,
+			Spread:       rate * 0.004,
+			Source:       source,
+			LastUpdated:  time.Now(),
+		}
+		_ = s.rateRepo.SaveRate(exRate)
+
+		reverseRate := &models.ExchangeRate{
+			FromCurrency: currency,
+			ToCurrency:   "USD",
+			Rate:         1 / rate,
+			BidPrice:     (1 / rate) * 0.998,
+			AskPrice:     (1 / rate) * 1.002,
+			Spread:       (1 / rate) * 0.004,
+			Source:       source,
+			LastUpdated:  time.Now(),
+		}
+		_ = s.rateRepo.SaveRate(reverseRate)
 	}
 
 	// ========== 2. CRYPTO RATES VIA COINGECKO ==========

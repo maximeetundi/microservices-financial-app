@@ -1,6 +1,6 @@
 <template>
   <!-- Cart Floating Button -->
-  <div v-if="cartItemCount > 0" class="fixed bottom-6 right-6 z-50">
+  <div v-if="cartItemCount > 0" :class="['fixed', bottomClass, rightClass, 'z-50']">
     <button
       @click="showCartModal = true"
       class="relative w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full shadow-lg shadow-orange-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 group"
@@ -148,6 +148,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '~/stores/cart'
+
+const props = defineProps<{ bottomClass?: string; rightClass?: string }>()
+
+const bottomClass = computed(() => props.bottomClass || 'bottom-6')
+const rightClass = computed(() => props.rightClass || 'right-6')
 
 const router = useRouter()
 const cartStore = useCartStore()

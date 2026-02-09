@@ -71,6 +71,9 @@ export interface Product {
     compare_at_price: number
     currency: string
     images: string[]
+    is_digital?: boolean
+    digital_file_url?: string
+    license_text?: string
     stock: number
     is_customizable: boolean
     custom_fields: CustomField[]
@@ -236,6 +239,16 @@ export const shopAPI = {
         })
     },
 
+    uploadDigitalFile: (file: File) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        return api.post(`${baseUrl}/upload/digital`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
+    },
+
+    getDigitalDownload: (id: string) => api.get(`${baseUrl}/products/${id}/digital-download`),
+
     // Manager management
     inviteManager: (shopId: string, email: string, role: string, permissions: string[]) =>
         api.post(`${baseUrl}/shops/${shopId}/managers`, { email, role, permissions }),
@@ -370,6 +383,16 @@ export function useShopApi() {
         // Upload
         uploadMedia: async (file: File) => {
             const response = await shopAPI.uploadMedia(file)
+            return response.data
+        },
+
+        uploadDigitalFile: async (file: File) => {
+            const response = await shopAPI.uploadDigitalFile(file)
+            return response.data
+        },
+
+        getDigitalDownload: async (id: string) => {
+            const response = await shopAPI.getDigitalDownload(id)
             return response.data
         },
         // Managers

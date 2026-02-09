@@ -25,11 +25,12 @@
               <button type="button" @click="removeImage(idx)" class="remove-btn">✕</button>
             </div>
             <label v-if="images.length < 5" class="image-upload">
-              <input type="file" accept="image/*" @change="handleImageUpload" hidden>
+              <input type="file" accept="image/*" @change="handleImageUpload" hidden :disabled="uploadingImage">
               <span class="upload-icon">+</span>
               <span class="upload-text">Ajouter</span>
             </label>
           </div>
+          <p v-if="uploadError" class="helper-text" style="color: #ef4444;">{{ uploadError }}</p>
           <p class="helper-text">Ajoutez jusqu'à 5 images (la première sera l'image principale)</p>
         </div>
 
@@ -158,6 +159,19 @@
             <input type="checkbox" v-model="form.is_digital">
             <span class="checkbox-label">💻 Produit numérique (pas de livraison)</span>
           </label>
+
+          <div v-if="form.is_digital" class="mt-4" style="display: grid; gap: 12px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Fichier numérique (PDF/ZIP/DOCX/TXT)</label>
+              <input type="file" @change="handleDigitalFileUpload" class="input">
+              <p v-if="digitalUploadError" class="helper-text" style="color: #ef4444;">{{ digitalUploadError }}</p>
+              <p v-else-if="form.digital_file_url" class="helper-text" style="color: #10b981;">✓ Fichier uploadé</p>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Licence / Conditions (optionnel)</label>
+              <textarea v-model="form.license_text" rows="3" class="input" placeholder="Ex: Usage personnel uniquement, interdiction de revente..."></textarea>
+            </div>
+          </div>
         </div>
 
         <!-- Actions -->
@@ -189,6 +203,9 @@ const shopId = ref('')
 const images = ref<string[]>([])
 const categories = ref<Category[]>([])
 
+const uploadError = ref('')
+const uploadingImage = ref(false)
+
 const form = ref({
   name: '',
   description: '',
@@ -200,31 +217,84 @@ const form = ref({
   weight: 0,
   is_featured: false,
   is_digital: false,
+  digital_file_url: '',
+  license_text: '',
   status: 'active',
   category_id: ''
 })
 
 const submitting = ref(false)
 
+const digitalUploadError = ref('')
+const uploadingDigitalFile = ref(false)
+
+const handleDigitalFileUpload = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  digitalUploadError.value = ''
+
+  if (file.size > 50 * 1024 * 1024) {
+    digitalUploadError.value = 'Fichier trop grand (max 50MB).'
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+
+  try {
+    uploadingDigitalFile.value = true
+    const result = await shopApi.uploadDigitalFile(file)
+    if (result?.url) {
+      form.value.digital_file_url = result.url
+    } else {
+      digitalUploadError.value = 'Upload échoué: URL de fichier manquante.'
+    }
+  } catch (e) {
+    console.error('Digital file upload failed', e)
+    digitalUploadError.value = 'Impossible d\'uploader le fichier. Réessayez.'
+  } finally {
+    uploadingDigitalFile.value = false
+    ;(event.target as HTMLInputElement).value = ''
+  }
+}
+
 const handleImageUpload = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
+
+  uploadError.value = ''
+
+  if (images.value.length >= 5) {
+    uploadError.value = 'Vous avez déjà ajouté 5 images.'
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+
+  if (!file.type.startsWith('image/')) {
+    uploadError.value = 'Format non supporté. Veuillez choisir une image.'
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    uploadError.value = 'Image trop grande (max 5MB).'
+    ;(event.target as HTMLInputElement).value = ''
+    return
+  }
   
   try {
-    // Upload to server
+    uploadingImage.value = true
     const result = await shopApi.uploadMedia(file)
-    if (result.url) {
+    if (result?.url) {
       images.value.push(result.url)
+    } else {
+      uploadError.value = 'Upload échoué: URL de fichier manquante.'
     }
   } catch (e) {
-    // Fallback to local preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        images.value.push(e.target.result as string)
-      }
-    }
-    reader.readAsDataURL(file)
+    console.error('Image upload failed', e)
+    uploadError.value = 'Impossible d\'uploader l\'image. Réessayez avec une image plus petite.'
+  } finally {
+    uploadingImage.value = false
+    ;(event.target as HTMLInputElement).value = ''
   }
 }
 
@@ -237,12 +307,19 @@ const submitProduct = async () => {
   
   try {
     submitting.value = true
-    await shopApi.createProduct({
+
+    const payload: any = {
       shop_id: shopId.value,
       ...form.value,
       images: images.value,
       image_url: images.value[0] || ''
-    })
+    }
+
+    if (payload.is_digital) {
+      payload.stock = -1
+    }
+
+    await shopApi.createProduct(payload)
     router.push(`/shops/manage/${slug}/products`)
   } catch (e: any) {
     alert('Erreur: ' + (e.message || 'Impossible de créer le produit'))

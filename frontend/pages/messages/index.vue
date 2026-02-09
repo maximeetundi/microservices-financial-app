@@ -480,8 +480,9 @@ const enrichConversationParticipants = async () => {
   
   for (const conv of userConversations.value) {
     for (const p of conv.participants || []) {
-      if (p.user_id !== currentUserId.value && !p.phone && !p.email) {
-        userIdsToFetch.add(p.user_id)
+      const uid = p?.user_id || p
+      if (uid && uid !== currentUserId.value && !p?.phone && !p?.email && !p?.name) {
+        userIdsToFetch.add(String(uid))
       }
     }
   }
@@ -501,8 +502,13 @@ const enrichConversationParticipants = async () => {
   
   for (const conv of userConversations.value) {
     for (const p of conv.participants || []) {
-      if (p.user_id !== currentUserId.value && userDataMap[p.user_id]) {
-        const userData = userDataMap[p.user_id]
+      const uid = p?.user_id || p
+      if (uid && uid !== currentUserId.value && userDataMap[String(uid)]) {
+        const userData = userDataMap[String(uid)]
+        const first = userData.first_name || userData.firstName || ''
+        const last = userData.last_name || userData.lastName || ''
+        const fullName = `${first} ${last}`.trim()
+        if (!p.name && fullName) p.name = fullName
         if (!p.phone && userData.phone) p.phone = userData.phone
         if (!p.email && userData.email) p.email = userData.email
       }
@@ -550,6 +556,11 @@ const getOtherParticipantName = (conv: any) => {
   for (const p of participants) {
     const uid = p.user_id || p
     if (uid !== currentUserId.value) {
+      const name = p.name || p.participant_name
+      if (name && String(name).trim().length > 0) {
+        return String(name).trim()
+      }
+
       const phone = p.phone
       const email = p.email
       
@@ -567,6 +578,8 @@ const getOtherParticipantName = (conv: any) => {
     }
   }
   
+  if (conv.participant_name) return conv.participant_name
+  if (conv.other_user_name) return conv.other_user_name
   if (conv.other_user_phone) return formatPhoneNumber(conv.other_user_phone)
   if (conv.other_user_email) return conv.other_user_email
   

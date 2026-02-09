@@ -274,7 +274,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect, provide, onMounted } from 'vue'
+import { ref, computed, watch, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import { enterpriseAPI } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/auth'
@@ -300,6 +300,11 @@ const route = useRoute()
 const authStore = useAuthStore()
 const enterpriseId = computed(() => route.params.id as string)
 const isMobileMenuOpen = ref(false)
+
+const enterpriseCache = useState<Record<string, any>>('enterprise_cache', () => ({}))
+const enterpriseEmployeeCache = useState<Record<string, any>>('enterprise_employee_cache', () => ({}))
+const enterpriseSubscriptionsCache = useState<Record<string, any[]>>('enterprise_subscriptions_cache', () => ({}))
+
 const enterprise = ref<any>(null)
 const userEmployee = ref<any>(null)
 const mySubscriptions = ref<any[]>([])
@@ -342,37 +347,57 @@ const isActive = (section: string) => {
   return route.path.includes(`/enterprise/${enterpriseId.value}/${section}`)
 }
 
-// Fetch enterprise and user's role
-watchEffect(async () => {
-  if (!enterpriseId.value) return
+let loadToken = 0
+const loadEnterpriseContext = async (id: string) => {
+  if (!id) return
+
+  const token = ++loadToken
   isLoading.value = true
-  
+
+  // Hydrate from cache immediately to prevent menu flicker on remount/navigation
+  if (enterpriseCache.value[id]) enterprise.value = enterpriseCache.value[id]
+  if (enterpriseEmployeeCache.value[id] !== undefined) userEmployee.value = enterpriseEmployeeCache.value[id]
+  if (enterpriseSubscriptionsCache.value[id]) mySubscriptions.value = enterpriseSubscriptionsCache.value[id]
+
   try {
-    // Get enterprise data
-    const { data } = await enterpriseAPI.get(enterpriseId.value)
+    const { data } = await enterpriseAPI.get(id)
+    if (token !== loadToken) return
     enterprise.value = data
-    
-    // Get current user's employee record (if any)
+    enterpriseCache.value[id] = data
+
     try {
-      const empRes = await enterpriseAPI.getMyEmployee(enterpriseId.value)
+      const empRes = await enterpriseAPI.getMyEmployee(id)
+      if (token !== loadToken) return
       userEmployee.value = empRes.data
+      enterpriseEmployeeCache.value[id] = empRes.data
     } catch {
+      if (token !== loadToken) return
       userEmployee.value = null
+      enterpriseEmployeeCache.value[id] = null
     }
-    
-    // Get user's subscriptions (if any)
+
     try {
-      const subRes = await enterpriseAPI.getMySubscriptions(enterpriseId.value)
+      const subRes = await enterpriseAPI.getMySubscriptions(id)
+      if (token !== loadToken) return
       mySubscriptions.value = subRes.data || []
+      enterpriseSubscriptionsCache.value[id] = subRes.data || []
     } catch {
+      if (token !== loadToken) return
       mySubscriptions.value = []
+      enterpriseSubscriptionsCache.value[id] = []
     }
   } catch (e) {
+    if (token !== loadToken) return
     console.error('Layout failed to load enterprise', e)
   } finally {
+    if (token !== loadToken) return
     isLoading.value = false
   }
-})
+}
+
+watch(enterpriseId, (id) => {
+  if (id) loadEnterpriseContext(id)
+}, { immediate: true })
 
 // Provide to child pages
 provide('enterprise', enterprise)

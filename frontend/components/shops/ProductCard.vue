@@ -4,7 +4,7 @@
   >
     <!-- Image Container -->
     <div class="relative aspect-square overflow-hidden bg-gray-50 dark:bg-slate-800">
-      <NuxtLink :to="`/shops/${shopSlug}/product/${product.slug || product.id}`">
+      <NuxtLink :to="`/shops/${shopSlug}/product/${product.slug}`">
         <img
           v-if="product.images?.length"
           :src="product.images[0]"
@@ -94,7 +94,7 @@
       </span>
 
       <!-- Name -->
-      <NuxtLink :to="`/shops/${shopSlug}/product/${product.slug || product.id}`">
+      <NuxtLink :to="`/shops/${shopSlug}/product/${product.slug}`">
         <h3 class="font-semibold text-gray-900 dark:text-white text-sm mb-1.5 line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight">
           {{ product.name }}
         </h3>

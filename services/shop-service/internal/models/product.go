@@ -41,6 +41,9 @@ type Product struct {
 	CompareAtPrice float64            `json:"compare_at_price,omitempty" bson:"compare_at_price,omitempty"`
 	Currency       string             `json:"currency" bson:"currency"`
 	Images         []string           `json:"images" bson:"images"`
+	IsDigital      bool               `json:"is_digital" bson:"is_digital"`
+	DigitalFileURL string             `json:"digital_file_url,omitempty" bson:"digital_file_url,omitempty"`
+	LicenseText    string             `json:"license_text,omitempty" bson:"license_text,omitempty"`
 	Stock          int                `json:"stock" bson:"stock"` // -1 for unlimited
 	SKU            string             `json:"sku,omitempty" bson:"sku,omitempty"`
 	Barcode        string             `json:"barcode,omitempty" bson:"barcode,omitempty"`
@@ -70,6 +73,9 @@ type CreateProductRequest struct {
 	Price          float64       `json:"price" binding:"required,gt=0"`
 	CompareAtPrice float64       `json:"compare_at_price"`
 	Images         []string      `json:"images"`
+	IsDigital      bool          `json:"is_digital"`
+	DigitalFileURL string        `json:"digital_file_url"`
+	LicenseText    string        `json:"license_text"`
 	Stock          int           `json:"stock"`
 	SKU            string        `json:"sku"`
 	Weight         float64       `json:"weight"`
@@ -89,6 +95,9 @@ type UpdateProductRequest struct {
 	Price          *float64      `json:"price"`
 	CompareAtPrice *float64      `json:"compare_at_price"`
 	Images         []string      `json:"images"`
+	IsDigital      *bool         `json:"is_digital"`
+	DigitalFileURL *string       `json:"digital_file_url"`
+	LicenseText    *string       `json:"license_text"`
 	Stock          *int          `json:"stock"`
 	SKU            *string       `json:"sku"`
 	Weight         *float64      `json:"weight"`

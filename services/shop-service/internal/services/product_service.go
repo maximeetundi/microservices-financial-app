@@ -58,6 +58,9 @@ func (s *ProductService) Create(ctx context.Context, req *models.CreateProductRe
 		CompareAtPrice: req.CompareAtPrice,
 		Currency:       shop.Currency,
 		Images:         req.Images,
+		IsDigital:      req.IsDigital,
+		DigitalFileURL: req.DigitalFileURL,
+		LicenseText:    req.LicenseText,
 		Stock:          req.Stock,
 		SKU:            req.SKU,
 		Weight:         req.Weight,
@@ -235,6 +238,15 @@ func (s *ProductService) Update(ctx context.Context, productID string, req *mode
 	}
 	if req.IsFeatured != nil {
 		product.IsFeatured = *req.IsFeatured
+	}
+	if req.IsDigital != nil {
+		product.IsDigital = *req.IsDigital
+	}
+	if req.DigitalFileURL != nil {
+		product.DigitalFileURL = *req.DigitalFileURL
+	}
+	if req.LicenseText != nil {
+		product.LicenseText = *req.LicenseText
 	}
 	if req.CategoryID != nil {
 		if *req.CategoryID == "" {

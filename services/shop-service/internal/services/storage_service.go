@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"io"
 	"path/filepath"
 	"time"
@@ -83,4 +84,26 @@ func (s *StorageService) UploadQRCode(ctx context.Context, data []byte, entityTy
 func (s *StorageService) DeleteFile(ctx context.Context, url string) error {
 	objectName := filepath.Base(url)
 	return s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
+}
+
+func (s *StorageService) PresignGet(ctx context.Context, fileURL string, expiry time.Duration) (string, error) {
+	if s == nil || s.client == nil {
+		return "", fmt.Errorf("storage service not available")
+	}
+
+	parsed, err := url.Parse(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid file url: %w", err)
+	}
+	objectName := filepath.Base(parsed.Path)
+	if objectName == "" {
+		return "", fmt.Errorf("invalid object name")
+	}
+
+	presigned, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to presign url: %w", err)
+	}
+
+	return presigned.String(), nil
 }

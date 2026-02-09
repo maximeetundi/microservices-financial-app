@@ -174,6 +174,29 @@
             {{ product.description }}
           </p>
 
+          <!-- Digital Product Info -->
+          <div v-if="product.is_digital" class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl">
+            <p class="font-semibold text-emerald-700 dark:text-emerald-300">💻 Produit numérique</p>
+            <p class="text-sm text-emerald-700/80 dark:text-emerald-200/80 mt-1">Téléchargement disponible après achat.</p>
+
+            <div v-if="product.license_text" class="mt-3">
+              <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Licence / Conditions</p>
+              <p class="text-sm text-emerald-800/80 dark:text-emerald-200/80 whitespace-pre-line">{{ product.license_text }}</p>
+            </div>
+
+            <div class="mt-4">
+              <button
+                type="button"
+                @click="downloadDigital"
+                :disabled="downloadingDigital"
+                class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                {{ downloadingDigital ? 'Préparation...' : '⬇️ Télécharger' }}
+              </button>
+              <p v-if="digitalDownloadError" class="text-sm mt-2" style="color: #ef4444;">{{ digitalDownloadError }}</p>
+            </div>
+          </div>
+
           <!-- Tags -->
           <div v-if="product.tags && product.tags.length > 0" class="flex flex-wrap gap-2 mt-4">
             <span 
@@ -422,27 +445,41 @@
 
           <!-- Shipping Tab -->
           <div v-if="activeTab === 'shipping'" class="space-y-4">
-            <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">📦</span>
+            <div v-if="product.is_digital" class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
+              <span class="text-2xl">�</span>
               <div>
-                <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Livraison Standard</h4>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Livraison en 3-5 jours ouvrés. Gratuite à partir de 25 000 FCFA.</p>
+                <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Aucune livraison</h4>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Ce produit est numérique. Vous pourrez le télécharger après achat.</p>
               </div>
             </div>
-            <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">⚡</span>
-              <div>
-                <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Livraison Express</h4>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Livraison en 24-48h. Frais de 2 500 FCFA.</p>
+
+            <template v-else>
+              <div v-if="shop?.settings?.allow_delivery" class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
+                <span class="text-2xl">🚚</span>
+                <div>
+                  <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Livraison</h4>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Frais: {{ formatPrice(shop.settings.delivery_fee || 0) }}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <span class="text-2xl">🏪</span>
-              <div>
-                <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Retrait en point relais</h4>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Récupérez votre commande dans l'un de nos points relais partenaires.</p>
+
+              <div v-if="shop?.settings?.allow_pickup" class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
+                <span class="text-2xl">🏪</span>
+                <div>
+                  <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Retrait</h4>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Retrait disponible selon les conditions du vendeur.</p>
+                </div>
               </div>
-            </div>
+
+              <div v-if="!shop?.settings?.allow_delivery && !shop?.settings?.allow_pickup" class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl">
+                <span class="text-2xl">ℹ️</span>
+                <div>
+                  <h4 class="font-semibold text-gray-900 dark:text-white mb-1">Informations de livraison</h4>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Le vendeur n'a pas configuré la livraison pour le moment.</p>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -486,8 +523,19 @@ const shopApi = useShopApi()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 
+const downloadingDigital = ref(false)
+const digitalDownloadError = ref('')
+
 const shopSlug = computed(() => route.params.slug as string)
 const productSlug = computed(() => route.params.product_slug as string)
+
+const looksLikeMongoObjectId = (value: string) => {
+  return /^[0-9a-f]{24}$/i.test(value)
+}
+
+const looksLikeUUID = (value: string) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
 
 const favoritesVersion = ref(0)
 const isFavorite = computed(() => {
@@ -511,6 +559,43 @@ const toggleFavorite = () => {
   else favs.push(product.value.id)
   localStorage.setItem(key, JSON.stringify(favs))
   favoritesVersion.value++
+}
+
+const downloadDigital = async () => {
+  if (!product.value?.id) return
+
+  digitalDownloadError.value = ''
+  downloadingDigital.value = true
+
+  try {
+    await authStore.initializeAuth()
+    if (!authStore.isAuthenticated) {
+      router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+      return
+    }
+
+    const res = await shopApi.getDigitalDownload(product.value.id)
+    const url = res?.url
+    if (!url) {
+      digitalDownloadError.value = 'Lien de téléchargement indisponible.'
+      return
+    }
+
+    window.open(url, '_blank')
+  } catch (e: any) {
+    const status = e?.response?.status
+    if (status === 403) {
+      digitalDownloadError.value = 'Téléchargement réservé aux acheteurs (commande payée requise).'
+      return
+    }
+    if (status === 404) {
+      digitalDownloadError.value = 'Fichier numérique introuvable.'
+      return
+    }
+    digitalDownloadError.value = 'Impossible de préparer le téléchargement. Réessayez plus tard.'
+  } finally {
+    downloadingDigital.value = false
+  }
 }
 
 // ...
@@ -558,7 +643,16 @@ const loadData = async () => {
   // ...
   
   try {
-    product.value = await shopApi.getProduct(shopSlug.value, productSlug.value)
+    try {
+      product.value = await shopApi.getProduct(shopSlug.value, productSlug.value)
+    } catch (e) {
+      const slugParam = productSlug.value
+      if (looksLikeMongoObjectId(slugParam) || looksLikeUUID(slugParam)) {
+        product.value = await shopApi.getProductById(slugParam)
+      } else {
+        throw e
+      }
+    }
     
     // Load reviews
     const reviewsData = await shopApi.listReviews(product.value.id)

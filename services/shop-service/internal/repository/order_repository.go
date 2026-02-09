@@ -207,6 +207,20 @@ func (r *OrderRepository) SumRevenueByShop(ctx context.Context, shopID primitive
 	return results[0].Total, nil
 }
 
+func (r *OrderRepository) BuyerHasCompletedOrderWithProduct(ctx context.Context, buyerID string, productID primitive.ObjectID) (bool, error) {
+	filter := bson.M{
+		"buyer_id":        buyerID,
+		"payment_status":  "completed",
+		"items.product_id": productID,
+	}
+
+	count, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func generateOrderNumber() string {
 	return fmt.Sprintf("ORD-%d-%s", time.Now().Unix(), primitive.NewObjectID().Hex()[:6])
 }

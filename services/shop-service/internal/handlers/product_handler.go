@@ -3,18 +3,22 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/crypto-bank/microservices-financial-app/services/shop-service/internal/models"
+	"github.com/crypto-bank/microservices-financial-app/services/shop-service/internal/repository"
 	"github.com/crypto-bank/microservices-financial-app/services/shop-service/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
 type ProductHandler struct {
 	productService *services.ProductService
+	orderRepo      *repository.OrderRepository
+	storageService *services.StorageService
 }
 
-func NewProductHandler(productService *services.ProductService) *ProductHandler {
-	return &ProductHandler{productService: productService}
+func NewProductHandler(productService *services.ProductService, orderRepo *repository.OrderRepository, storageService *services.StorageService) *ProductHandler {
+	return &ProductHandler{productService: productService, orderRepo: orderRepo, storageService: storageService}
 }
 
 // ListByShop returns products for a shop
@@ -123,4 +127,57 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted"})
+}
+
+// GetDigitalDownload returns a temporary download URL for a digital product.
+// Authorization: user must have a completed order containing this product.
+func (h *ProductHandler) GetDigitalDownload(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	productID := c.Param("id")
+	product, err := h.productService.GetByID(c.Request.Context(), productID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	if !product.IsDigital {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Product is not digital"})
+		return
+	}
+	if product.DigitalFileURL == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Digital file not available"})
+		return
+	}
+
+	if h.orderRepo == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Order repository not available"})
+		return
+	}
+
+	hasAccess, err := h.orderRepo.BuyerHasCompletedOrderWithProduct(c.Request.Context(), userID, product.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate purchase"})
+		return
+	}
+	if !hasAccess {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	expiry := 15 * time.Minute
+	if h.storageService != nil {
+		url, err := h.storageService.PresignGet(c.Request.Context(), product.DigitalFileURL, expiry)
+		if err == nil {
+			c.JSON(http.StatusOK, gin.H{"url": url, "expires_in_seconds": int(expiry.Seconds())})
+			return
+		}
+	}
+
+	// Fallback to stored URL (still protected by this endpoint)
+	c.JSON(http.StatusOK, gin.H{"url": product.DigitalFileURL})
 }
