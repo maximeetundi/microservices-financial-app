@@ -1140,8 +1140,8 @@ const handlePinSubmit = async () => {
     } else {
       pinError.value = result.message
     }
-  } catch (error: any) {
-    pinError.value = error.message || 'Erreur de vérification'
+  } catch (error) {
+    pinError.value = (error as any).message || 'Erreur de vérification'
   } finally {
     pinLoading.value = false
   }

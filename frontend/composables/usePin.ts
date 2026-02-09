@@ -144,8 +144,8 @@ export function usePin() {
             }
             
             return { success: true, message: 'PIN défini avec succès' }
-        } catch (error: any) {
-            const message = error.response?.data?.error || 'Échec de la définition du PIN'
+        } catch (error) {
+            const message = (error as any).response?.data?.error || 'Échec de la définition du PIN'
             return { success: false, message }
         } finally {
             pinState.value.isLoading = false
@@ -172,11 +172,12 @@ export function usePin() {
                     message: 'PIN incorrect',
                 }
             }
-        } catch (error: any) {
+        } catch (error) {
+            const data = (error as any).response?.data
             return {
                 valid: false,
-                attemptsLeft: 3,
-                message: 'Échec de la vérification du PIN',
+                attemptsLeft: data?.attempts_left,
+                message: data?.message || 'Échec de la vérification du PIN',
             }
         } finally {
             pinState.value.isLoading = false
@@ -208,8 +209,8 @@ export function usePin() {
             storePinLocally(newPin)
             
             return { success: true, message: 'PIN modifié avec succès' }
-        } catch (error: any) {
-            const message = error.response?.data?.error || 'Échec de la modification du PIN'
+        } catch (error) {
+            const message = (error as any).response?.data?.error || 'Échec de la modification du PIN'
             return { success: false, message }
         } finally {
             pinState.value.isLoading = false
