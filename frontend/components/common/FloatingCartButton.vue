@@ -144,7 +144,7 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '~/stores/cart'
@@ -165,14 +165,14 @@ const cartTotal = computed(() => cartStore.subtotal || 0)
 const cartCurrency = computed(() => cartStore.shopCurrency || 'XOF')
 
 // Methods
-const formatMoney = (amount) => {
+const formatMoney = (amount: number) => {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: cartCurrency.value
   }).format(amount)
 }
 
-const updateQuantity = (productId, newQuantity) => {
+const updateQuantity = (productId: string, newQuantity: number) => {
   if (newQuantity <= 0) {
     removeFromCart(productId)
   } else {
@@ -180,7 +180,7 @@ const updateQuantity = (productId, newQuantity) => {
   }
 }
 
-const removeFromCart = (productId) => {
+const removeFromCart = (productId: string) => {
   cartStore.removeItem(productId)
 }
 
