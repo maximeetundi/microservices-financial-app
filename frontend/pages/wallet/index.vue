@@ -602,12 +602,12 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
-import { usePin } from '~/composables/usePin'
+import { usePin } from '~/composables/usePinSimple'
 import { usePaymentProviders } from '~/composables/usePaymentProviders'
 import DepositModal from '~/components/wallet/DepositModal.vue'
 
 import { storeToRefs } from 'pinia'
-import { useWalletStore } from '~/stores/wallet'
+import { useWalletStore } from '~/stores/walletSimple'
 
 const router = useRouter()
 const { requirePin } = usePin()

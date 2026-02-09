@@ -1,32 +1,11 @@
+// Simple wallet store without TypeScript complications
 import { defineStore } from 'pinia'
 import { walletAPI, systemConfigAPI } from '~/composables/useApi'
 import { useExchangeStore } from './exchange'
 import { usePin } from '~/composables/usePinSimple'
 
-interface Wallet {
-    id: string
-    currency: string
-    balance: string
-    type: string
-    is_default: boolean
-    usd_rate?: number
-    balanceUSD?: number
-    status?: string // Added status field
-}
-
-interface WalletState {
-    wallets: Wallet[]
-    totalBalance: number
-    cryptoBalance: number
-    loading: boolean
-    error: string | null
-    lastUpdated: number | null
-    testnetEnabled: boolean
-    pinVerified: boolean
-}
-
 export const useWalletStore = defineStore('wallet', {
-    state: (): WalletState => ({
+    state: () => ({
         wallets: [],
         totalBalance: 0,
         cryptoBalance: 0,
@@ -39,13 +18,13 @@ export const useWalletStore = defineStore('wallet', {
 
     actions: {
         // Helper to get rates from exchange store
-        getRate(currency: string): number {
+        getRate(currency) {
             const exchangeStore = useExchangeStore()
             return exchangeStore.getRate(currency, 'USD')
         },
 
         // SECURE: Verify balance with PIN locally before sensitive operations
-        async verifyBalanceWithPin(pin: string): Promise<{ success: boolean; message: string; balance?: number }> {
+        async verifyBalanceWithPin(pin) {
             const { verifyPin } = usePin()
             
             // First verify PIN locally (never sends PIN to backend)
@@ -70,7 +49,7 @@ export const useWalletStore = defineStore('wallet', {
         },
 
         // Check if PIN verification is required
-        isPinVerificationRequired(): boolean {
+        isPinVerificationRequired() {
             return !this.pinVerified
         },
 
@@ -118,7 +97,7 @@ export const useWalletStore = defineStore('wallet', {
                 }
 
                 if (walletResponse.data && walletResponse.data.wallets) {
-                    this.wallets = walletResponse.data.wallets.map((w: any) => ({
+                    this.wallets = walletResponse.data.wallets.map((w) => ({
                         ...w,
                         type: w.wallet_type || w.type || 'fiat',
                         wallet_type: w.wallet_type || w.type || 'fiat'
@@ -129,7 +108,7 @@ export const useWalletStore = defineStore('wallet', {
 
                     this.persist()
                 }
-            } catch (err: any) {
+            } catch (err) {
                 this.error = err.message || 'Failed to fetch wallets'
             } finally {
                 this.loading = false

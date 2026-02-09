@@ -1,5 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-export default defineNuxtConfig({
+module.exports = {
   devtools: { enabled: false },
   modules: [
     '@pinia/nuxt',
@@ -27,6 +27,10 @@ export default defineNuxtConfig({
     }
   },
   ssr: true,
+  typescript: {
+    strict: false,
+    typeCheck: false
+  },
   app: {
     head: {
       title: 'Zekora - Secure Digital Banking',
@@ -46,7 +50,7 @@ export default defineNuxtConfig({
     }
   },
   build: {
-    transpile: ['chart.js']
+    transpile: ['chart.js', 'crypto-js']
   },
   nitro: {
     compressPublicAssets: true,
@@ -59,4 +63,4 @@ export default defineNuxtConfig({
   experimental: {
     payloadExtraction: false
   }
-})
+}

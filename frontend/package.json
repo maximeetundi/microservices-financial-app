@@ -14,10 +14,12 @@
     "@nuxt/devtools": "^1.0.0",
     "@nuxtjs/color-mode": "^3.3.2",
     "@types/node": "^20",
+    "@types/crypto-js": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "nuxt": "^3.8.0",
     "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.6"
+    "tailwindcss": "^3.3.6",
+    "vue-tsc": "^1.8.22"
   },
   "dependencies": {
     "@headlessui/vue": "^1.7.16",
