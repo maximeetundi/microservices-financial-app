@@ -32,117 +32,216 @@
           </div>
         </div>
 
+        <!-- Conversation Tabs -->
+        <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div class="flex">
+            <button 
+              @click="activeTab = 'all'"
+              :class="['flex-1 py-3 text-sm font-medium transition-colors relative', 
+                activeTab === 'all' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300']">
+              Toutes
+              <div v-if="activeTab === 'all'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600"></div>
+            </button>
+            <button 
+              v-if="hasShopConversations"
+              @click="activeTab = 'shops'"
+              :class="['flex-1 py-3 text-sm font-medium transition-colors relative', 
+                activeTab === 'shops' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300']">
+              Boutiques
+              <div v-if="activeTab === 'shops'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600"></div>
+            </button>
+            <button 
+              v-if="hasEnterpriseConversations"
+              @click="activeTab = 'enterprises'"
+              :class="['flex-1 py-3 text-sm font-medium transition-colors relative', 
+                activeTab === 'enterprises' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300']">
+              Entreprises
+              <div v-if="activeTab === 'enterprises'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600"></div>
+            </button>
+            <button 
+              @click="activeTab = 'personal'"
+              :class="['flex-1 py-3 text-sm font-medium transition-colors relative', 
+                activeTab === 'personal' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300']">
+              Personnel
+              <div v-if="activeTab === 'personal'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600"></div>
+            </button>
+          </div>
+        </div>
+
         <!-- Conversations List -->
         <div class="flex-1 overflow-y-auto">
-          <div v-if="filteredShopConversations.length > 0" class="px-4 pt-4 pb-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
-            Boutiques
+          <!-- Shop conversations -->
+          <div v-if="activeTab === 'all' || activeTab === 'shops'">
+            <div v-if="activeTab === 'all' && filteredShopConversations.length > 0" class="px-4 pt-4 pb-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
+              Boutiques
+            </div>
+
+            <div v-for="conv in (activeTab === 'shops' ? filteredShopConversations : filteredShopConversations)" :key="conv.id" @click="selectConversation(conv)"
+              :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
+                selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
+              
+              <!-- Avatar with online indicator -->
+              <div class="relative flex-shrink-0">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
+                </div>
+                <!-- Online indicator -->
+                <div v-if="getParticipantStatus(conv) === 'online'" 
+                  class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-baseline">
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
+                  <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <!-- Typing indicator in list -->
+                  <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
+                    écrit...
+                  </span>
+                  <!-- Last message with read status -->
+                  <template v-else>
+                    <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
+                  </template>
+                </div>
+              </div>
+              
+              <!-- Unread badge -->
+              <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
+                class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
+                {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+              </div>
+
+              
+              <!-- Delete button -->
+              <button @click.stop="deleteConversation(conv)" 
+                class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div v-for="conv in filteredShopConversations" :key="conv.id" @click="selectConversation(conv)"
-            :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
-              selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
-            
-            <!-- Avatar with online indicator -->
-            <div class="relative flex-shrink-0">
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
-              </div>
-              <!-- Online indicator -->
-              <div v-if="getParticipantStatus(conv) === 'online'" 
-                class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
-            </div>
-            
-            <div class="flex-1 min-w-0">
-              <div class="flex justify-between items-baseline">
-                <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
-                <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
-              </div>
-              <div class="flex items-center gap-1">
-                <!-- Typing indicator in list -->
-                <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
-                  écrit...
-                </span>
-                <!-- Last message with read status -->
-                <template v-else>
-                  <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
-                </template>
-              </div>
-            </div>
-            
-            <!-- Unread badge -->
-            <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
-              class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
-              {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+          <!-- Enterprise conversations -->
+          <div v-if="activeTab === 'all' || activeTab === 'enterprises'">
+            <div v-if="activeTab === 'all' && filteredEnterpriseConversations.length > 0" class="px-4 pt-4 pb-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
+              Entreprises
             </div>
 
-            
-            <!-- Delete button -->
-            <button @click.stop="deleteConversation(conv)" 
-              class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            <div v-for="conv in (activeTab === 'enterprises' ? filteredEnterpriseConversations : filteredEnterpriseConversations)" :key="conv.id" @click="selectConversation(conv)"
+              :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
+                selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
+              
+              <!-- Avatar with online indicator -->
+              <div class="relative flex-shrink-0">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'E' }}
+                </div>
+                <!-- Online indicator -->
+                <div v-if="getParticipantStatus(conv) === 'online'" 
+                  class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-baseline">
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
+                  <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <!-- Typing indicator in list -->
+                  <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
+                    écrit...
+                  </span>
+                  <!-- Last message with read status -->
+                  <template v-else>
+                    <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
+                  </template>
+                </div>
+              </div>
+              
+              <!-- Unread badge -->
+              <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
+                class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
+                {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+              </div>
+
+              
+              <!-- Delete button -->
+              <button @click.stop="deleteConversation(conv)" 
+                class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div v-if="filteredUserConversations.length > 0" class="px-4 pt-4 pb-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
-            Personnel
-          </div>
-
-          <div v-for="conv in filteredUserConversations" :key="conv.id" @click="selectConversation(conv)"
-            :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
-              selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
-            
-            <!-- Avatar with online indicator -->
-            <div class="relative flex-shrink-0">
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
-              </div>
-              <!-- Online indicator -->
-              <div v-if="getParticipantStatus(conv) === 'online'" 
-                class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
-            </div>
-            
-            <div class="flex-1 min-w-0">
-              <div class="flex justify-between items-baseline">
-                <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
-                <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
-              </div>
-              <div class="flex items-center gap-1">
-                <!-- Typing indicator in list -->
-                <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
-                  écrit...
-                </span>
-                <!-- Last message with read status -->
-                <template v-else>
-                  <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
-                </template>
-              </div>
-            </div>
-            
-            <!-- Unread badge -->
-            <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
-              class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
-              {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+          <!-- Personal conversations -->
+          <div v-if="activeTab === 'all' || activeTab === 'personal'">
+            <div v-if="activeTab === 'all' && filteredUserConversations.length > 0" class="px-4 pt-4 pb-2 text-xs font-semibold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
+              Personnel
             </div>
 
-            
-            <!-- Delete button -->
-            <button @click.stop="deleteConversation(conv)" 
-              class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            <div v-for="conv in (activeTab === 'personal' ? filteredUserConversations : filteredUserConversations)" :key="conv.id" @click="selectConversation(conv)"
+              :class="['group flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all border-l-4', 
+                selectedConv?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'border-transparent hover:border-gray-200']">
+              
+              <!-- Avatar with online indicator -->
+              <div class="relative flex-shrink-0">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  {{ getOtherParticipantName(conv)?.[0]?.toUpperCase() || 'U' }}
+                </div>
+                <!-- Online indicator -->
+                <div v-if="getParticipantStatus(conv) === 'online'" 
+                  class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-baseline">
+                  <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ getOtherParticipantName(conv) }}</h3>
+                  <span class="text-xs text-gray-500 flex-shrink-0 ml-2"><ClientOnly>{{ formatTime(conv.lastMessageAt || conv.updated_at) }}</ClientOnly></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <!-- Typing indicator in list -->
+                  <span v-if="typingUsers[getOtherParticipantId(conv)]" class="text-sm text-green-600 dark:text-green-400 italic">
+                    écrit...
+                  </span>
+                  <!-- Last message with read status -->
+                  <template v-else>
+                    <svg v-if="conv.lastMessageMine && conv.lastMessageRead" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ conv.lastMessage || conv.last_message?.content || 'Nouvelle conversation' }}</p>
+                  </template>
+                </div>
+              </div>
+              
+              <!-- Unread badge -->
+              <div v-if="(conv.unread_count || conv.unreadCount) && (conv.unread_count || conv.unreadCount) > 0" 
+                class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold shadow-sm">
+                {{ (conv.unread_count || conv.unreadCount) > 9 ? '9+' : (conv.unread_count || conv.unreadCount) }}
+              </div>
+
+              
+              <!-- Delete button -->
+              <button @click.stop="deleteConversation(conv)" 
+                class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full opacity-0 group-hover:opacity-100 transition-all" title="Supprimer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </div>
           
-          <div v-if="filteredConversations.length === 0" class="p-8 text-center">
+          <div v-if="getTabConversations().length === 0" class="p-8 text-center">
             <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
               <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -180,7 +279,12 @@
             <p :class="['text-xs transition-colors truncate', 
               isOtherTyping ? 'text-green-600 dark:text-green-400 font-medium' :
               selectedUserStatus === 'En ligne' ? 'text-green-500' : 'text-gray-500']">
-              {{ isOtherTyping ? 'écrit...' : selectedUserStatus }}
+              <span v-if="selectedConv?.context?.type === 'shop' && getAgentName(selectedConv)">
+                {{ getAgentName(selectedConv) }} • {{ isOtherTyping ? 'écrit...' : selectedUserStatus }}
+              </span>
+              <span v-else>
+                {{ isOtherTyping ? 'écrit...' : selectedUserStatus }}
+              </span>
             </p>
           </div>
           
@@ -301,6 +405,7 @@ const typingUsers = ref<Record<string, boolean>>({})
 const currentUserId = ref<string>('')
 const syncedContacts = ref<Array<{id: string, phone: string, email: string, name: string}>>([])
 const isOtherTyping = ref(false)
+const activeTab = ref('all')
 
 // Initialize auth store
 const authStore = useAuthStore()
@@ -325,13 +430,45 @@ const isShopConversation = (conv: any) => {
   return !!ctx.shop_id
 }
 
+const isEnterpriseConversation = (conv: any) => {
+  const ctx = conv?.context
+  if (!ctx) return false
+  if (ctx.type === 'enterprise') return true
+  return !!ctx.enterprise_id
+}
+
 const filteredShopConversations = computed(() => {
   return filteredConversations.value.filter(isShopConversation)
 })
 
-const filteredUserConversations = computed(() => {
-  return filteredConversations.value.filter((c: any) => !isShopConversation(c))
+const filteredEnterpriseConversations = computed(() => {
+  return filteredConversations.value.filter(isEnterpriseConversation)
 })
+
+const filteredUserConversations = computed(() => {
+  return filteredConversations.value.filter((c: any) => !isShopConversation(c) && !isEnterpriseConversation(c))
+})
+
+const hasShopConversations = computed(() => {
+  return userConversations.value.some(isShopConversation)
+})
+
+const hasEnterpriseConversations = computed(() => {
+  return userConversations.value.some(isEnterpriseConversation)
+})
+
+const getTabConversations = () => {
+  switch (activeTab.value) {
+    case 'shops':
+      return filteredShopConversations.value
+    case 'enterprises':
+      return filteredEnterpriseConversations.value
+    case 'personal':
+      return filteredUserConversations.value
+    default:
+      return filteredConversations.value
+  }
+}
 
 // Get current user ID from auth store
 const getCurrentUserId = () => {
@@ -552,6 +689,11 @@ const getParticipantStatus = (conv: any) => {
 const getOtherParticipantName = (conv: any) => {
   if (!conv) return 'Inconnu'
   
+  // Check if this is a shop conversation and use shop name
+  if (conv.context?.type === 'shop' && conv.context?.shop_name) {
+    return conv.context.shop_name
+  }
+  
   const participants = conv.participants || []
   for (const p of participants) {
     const uid = p.user_id || p
@@ -584,6 +726,24 @@ const getOtherParticipantName = (conv: any) => {
   if (conv.other_user_email) return conv.other_user_email
   
   return conv.phone || 'Conversation'
+}
+
+// Get agent name for shop conversations
+const getAgentName = (conv: any) => {
+  if (!conv || conv.context?.type !== 'shop') return null
+  
+  const participants = conv.participants || []
+  for (const p of participants) {
+    const uid = p.user_id || p
+    if (uid !== currentUserId.value) {
+      const name = p.name || p.participant_name
+      if (name && String(name).trim().length > 0) {
+        return String(name).trim()
+      }
+    }
+  }
+  
+  return null
 }
 
 // Format phone number

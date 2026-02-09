@@ -517,6 +517,10 @@ import { useCartStore } from '~/stores/cart'
 import { messagingAPI } from '~/composables/useApi'
 import { useAuthStore } from '~/stores/auth'
 
+definePageMeta({
+  layout: 'shop-layout'
+})
+
 const route = useRoute()
 const router = useRouter()
 const shopApi = useShopApi()
@@ -528,6 +532,21 @@ const digitalDownloadError = ref('')
 
 const shopSlug = computed(() => route.params.slug as string)
 const productSlug = computed(() => route.params.product_slug as string)
+
+// Missing variables
+const loading = ref(false)
+const error = ref(false)
+const shop = ref<Shop | null>(null)
+const product = ref<Product | null>(null)
+const reviews = ref<Review[]>([])
+const similarProducts = ref<Product[]>([])
+const quantity = ref(1)
+const selectedImageIndex = ref(0)
+const showLightbox = ref(false)
+const activeTab = ref('description')
+const newReview = ref({ rating: 0, comment: '' })
+const submittingReview = ref(false)
+const addingToCart = ref(false)
 
 const looksLikeMongoObjectId = (value: string) => {
   return /^[0-9a-f]{24}$/i.test(value)
@@ -549,6 +568,102 @@ const isFavorite = computed(() => {
     return false
   }
 })
+
+// Utility functions
+const formatPrice = (amount: number) => {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: shop.value?.currency || 'XOF' }).format(amount)
+}
+
+const discountPercent = computed(() => {
+  if (!product.value?.compare_at_price || product.value.compare_at_price <= product.value.price) return 0
+  return Math.round(((product.value.compare_at_price - product.value.price) / product.value.compare_at_price) * 100)
+})
+
+const averageRating = computed(() => {
+  if (reviews.value.length === 0) return 0
+  const sum = reviews.value.reduce((acc, review) => acc + review.rating, 0)
+  return sum / reviews.value.length
+})
+
+const visibleTrustBadges = computed(() => {
+  const defaults: ShopTrustBadge[] = [
+    { key: 'fast_delivery', icon: '🚚', title: 'Livraison rapide', subtitle: 'Partout au Sénégal', enabled: true, order: 1 },
+    { key: 'secure_payment', icon: '🔒', title: 'Paiement sécurisé', subtitle: '100% sécurisé', enabled: true, order: 2 },
+    { key: 'quality_guarantee', icon: '⭐', title: 'Qualité garantie', subtitle: 'Produits vérifiés', enabled: true, order: 3 },
+    { key: 'support_24_7', icon: '💬', title: 'Support 24/7', subtitle: 'À votre écoute', enabled: true, order: 4 },
+  ]
+
+  const badges = (shop.value?.trust_badges?.length ? shop.value.trust_badges : defaults)
+  return [...badges]
+    .filter(b => b.enabled)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+})
+
+const tabs = computed(() => [
+  { id: 'description', label: 'Description', count: null },
+  { id: 'reviews', label: 'Avis', count: reviews.value.length },
+  { id: 'shipping', label: 'Livraison', count: null }
+])
+
+const ratingLabels = ['Très mauvais', 'Mauvais', 'Moyen', 'Bon', 'Excellent']
+
+const prevImage = () => {
+  if (!product.value?.images?.length) return
+  selectedImageIndex.value = (selectedImageIndex.value - 1 + product.value.images.length) % product.value.images.length
+}
+
+const nextImage = () => {
+  if (!product.value?.images?.length) return
+  selectedImageIndex.value = (selectedImageIndex.value + 1) % product.value.images.length
+}
+
+const scrollToReviews = () => {
+  document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+const getRatingPercent = (rating: number) => {
+  if (reviews.value.length === 0) return 0
+  const count = reviews.value.filter(r => Math.round(r.rating) === rating).length
+  return (count / reviews.value.length) * 100
+}
+
+const getRatingCount = (rating: number) => {
+  return reviews.value.filter(r => Math.round(r.rating) === rating).length
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  })
+}
+
+const likeReview = async (reviewId: string) => {
+  // TODO: Implement like functionality
+  console.log('Like review:', reviewId)
+}
+
+const shareProduct = () => {
+  if (navigator.share) {
+    navigator.share({
+      title: product.value?.name,
+      text: product.value?.description,
+      url: window.location.href
+    })
+  } else {
+    navigator.clipboard.writeText(window.location.href)
+    alert('Lien copié dans le presse-papiers!')
+  }
+}
+
+const addToCart = () => {
+  if (!product.value || !shop.value) return
+  if (shop.value.id && shop.value.name) {
+    cartStore.setShopInfo(shop.value.id, shopSlug.value, shop.value.name, shop.value.currency || 'XOF')
+  }
+  cartStore.addItem(product.value, quantity.value)
+}
 
 const toggleFavorite = () => {
   if (typeof window === 'undefined' || !product.value?.id) return
@@ -640,30 +755,60 @@ const contactSeller = async () => {
 
 const loadData = async () => {
   loading.value = true
-  // ...
+  error.value = false
   
   try {
+    // First, try to load shop data
+    try {
+      shop.value = await shopApi.getShop(shopSlug.value)
+    } catch (shopError) {
+      console.error('Failed to load shop', shopError)
+      error.value = true
+      return
+    }
+    
+    // Then load product data
     try {
       product.value = await shopApi.getProduct(shopSlug.value, productSlug.value)
-    } catch (e) {
+    } catch (productError) {
+      console.error('Failed to load product by slug', productError)
+      
+      // Try to load by ID if slug looks like an ID
       const slugParam = productSlug.value
       if (looksLikeMongoObjectId(slugParam) || looksLikeUUID(slugParam)) {
-        product.value = await shopApi.getProductById(slugParam)
+        try {
+          product.value = await shopApi.getProductById(slugParam)
+        } catch (idError) {
+          console.error('Failed to load product by ID', idError)
+          error.value = true
+          return
+        }
       } else {
-        throw e
+        error.value = true
+        return
       }
     }
     
     // Load reviews
-    const reviewsData = await shopApi.listReviews(product.value.id)
-    reviews.value = reviewsData.reviews || []
+    try {
+      const reviewsData = await shopApi.listReviews(product.value.id)
+      reviews.value = reviewsData.reviews || []
+    } catch (reviewError) {
+      console.warn('Failed to load reviews', reviewError)
+      reviews.value = []
+    }
     
     // Load similar products
-    const similar = await shopApi.listProducts(shopSlug.value, 1, 4, { category: product.value.category_slug })
-    similarProducts.value = similar.products?.filter((p: Product) => p.id !== product.value?.id).slice(0, 4) || []
+    try {
+      const similar = await shopApi.listProducts(shopSlug.value, 1, 4, { category: product.value.category_slug })
+      similarProducts.value = similar.products?.filter((p: Product) => p.id !== product.value?.id).slice(0, 4) || []
+    } catch (similarError) {
+      console.warn('Failed to load similar products', similarError)
+      similarProducts.value = []
+    }
     
   } catch (e) {
-    console.error('Failed to load product', e)
+    console.error('Unexpected error in loadData', e)
     error.value = true
   } finally {
     loading.value = false
@@ -694,4 +839,8 @@ const submitReview = async () => {
 }
 
 watch([shopSlug, productSlug], loadData, { immediate: true })
+
+onMounted(() => {
+  cartStore.loadFromStorage()
+})
 </script>
