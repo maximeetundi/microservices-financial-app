@@ -118,6 +118,8 @@ export function usePaymentProviders() {
             const config = useRuntimeConfig()
             const API_URL = config.public.apiBaseUrl || 'http://localhost:8000'
 
+			const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+
             // Build countries list from params or auto-detect
             let countryList = countries || []
 
@@ -145,7 +147,9 @@ export function usePaymentProviders() {
             // Use Transfer Service Aggregator Proxy instead of direct Admin Service call
             const url = `${API_URL}/transfer-service/api/v1/aggregators?${params.toString()}`
             console.log('[Debug] Fetching Payment Methods (Transfer Service):', url)
-            const response = await fetch(url)
+            const response = await fetch(url, {
+				headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+			})
 
             if (!response.ok) {
                 throw new Error('Failed to load payment methods')
