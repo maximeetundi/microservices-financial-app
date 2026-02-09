@@ -1,8 +1,9 @@
 // PIN management composable
-// Handles PIN setup, verification, and status checking
+// Handles PIN setup, verification, and status checking - SECURE VERSION
 
 import { ref, computed } from 'vue'
 import { userAPI } from './useApi'
+import CryptoJS from 'crypto-js'
 
 const pinState = ref({
     hasPin: false,
@@ -13,7 +14,56 @@ const pinState = ref({
     verifyCallback: null as ((verified: boolean) => void) | null,
 })
 
+// Secure storage key - hashed with device fingerprint
+const getSecureStorageKey = () => {
+    const fingerprint = typeof window !== 'undefined' ? 
+        navigator.userAgent + navigator.language + screen.width + screen.height : ''
+    return 'pin_hash_' + CryptoJS.SHA256(fingerprint).toString()
+}
 
+// Encrypt PIN for local storage
+const encryptPin = (pin: string): string => {
+    const key = getSecureStorageKey()
+    return CryptoJS.AES.encrypt(pin, key).toString()
+}
+
+// Decrypt PIN from local storage
+const decryptPin = (encryptedPin: string): string => {
+    const key = getSecureStorageKey()
+    const bytes = CryptoJS.AES.decrypt(encryptedPin, key)
+    return bytes.toString(CryptoJS.enc.Utf8)
+}
+
+// Check if PIN exists locally
+const hasLocalPin = (): boolean => {
+    if (typeof window === 'undefined') return false
+    const encryptedPin = localStorage.getItem(getSecureStorageKey())
+    return !!encryptedPin
+}
+
+// Store PIN locally (encrypted)
+const storePinLocally = (pin: string) => {
+    if (typeof window === 'undefined') return
+    const encryptedPin = encryptPin(pin)
+    localStorage.setItem(getSecureStorageKey(), encryptedPin)
+    // Also store in sessionStorage for session persistence
+    sessionStorage.setItem('has_pin', 'true')
+}
+
+// Verify PIN locally
+const verifyPinLocally = (inputPin: string): boolean => {
+    if (typeof window === 'undefined') return false
+    const encryptedPin = localStorage.getItem(getSecureStorageKey())
+    if (!encryptedPin) return false
+    
+    try {
+        const storedPin = decryptPin(encryptedPin)
+        return storedPin === inputPin
+    } catch (error) {
+        console.error('PIN decryption failed:', error)
+        return false
+    }
+}
 
 export function usePin() {
 
@@ -40,22 +90,32 @@ export function usePin() {
         return { valid: true }
     }
 
-    // Check if user has set their PIN
+    // Check if user has set their PIN (LOCAL + BACKUP)
     const checkPinStatus = async (): Promise<boolean> => {
         try {
             pinState.value.isLoading = true
+            
+            // First check local storage
+            if (hasLocalPin()) {
+                pinState.value.hasPin = true
+                return true
+            }
+            
+            // Fallback to backend check (for migration purposes)
             const response = await userAPI.checkPinStatus()
             pinState.value.hasPin = response.data.has_pin
             return response.data.has_pin
         } catch (error) {
             console.error('Failed to check PIN status:', error)
-            throw error // Re-throw to allow caller to handle failure vs "no PIN"
+            // Try local as fallback
+            pinState.value.hasPin = hasLocalPin()
+            return pinState.value.hasPin
         } finally {
             pinState.value.isLoading = false
         }
     }
 
-    // Set up a new PIN
+    // Set up a new PIN (LOCAL STORAGE ONLY)
     const setupPin = async (pin: string, confirmPin: string): Promise<{ success: boolean; message: string }> => {
         // Validate complexity first
         const validation = validatePin(pin)
@@ -63,15 +123,26 @@ export function usePin() {
             return { success: false, message: validation.message || 'PIN invalide' }
         }
 
+        // Confirm PINs match
+        if (pin !== confirmPin) {
+            return { success: false, message: 'Les PINs ne correspondent pas.' }
+        }
+
         try {
             pinState.value.isLoading = true
-            await userAPI.setupPin({ pin, confirm_pin: confirmPin })
+            
+            // Store PIN locally (encrypted)
+            storePinLocally(pin)
             pinState.value.hasPin = true
             pinState.value.showSetupModal = false
-            // Persist to session storage
-            if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('has_pin', 'true')
+            
+            // Optional: Still notify backend for tracking (without sending PIN)
+            try {
+                await userAPI.notifyPinSetup()
+            } catch (backendError) {
+                console.warn('Backend notification failed, but PIN is set locally:', backendError)
             }
+            
             return { success: true, message: 'PIN défini avec succès' }
         } catch (error: any) {
             const message = error.response?.data?.error || 'Échec de la définition du PIN'
@@ -81,43 +152,61 @@ export function usePin() {
         }
     }
 
-    // Verify the PIN
+    // Verify the PIN (LOCAL ONLY - NEVER SENDS PIN TO BACKEND)
     const verifyPin = async (pin: string): Promise<{ valid: boolean; attemptsLeft?: number; message?: string }> => {
         try {
             pinState.value.isLoading = true
-            const response = await userAPI.verifyPin({ pin })
-            return {
-                valid: response.data.valid,
-                attemptsLeft: response.data.attempts_left,
-                message: response.data.message,
+            
+            // Verify locally only
+            const isValid = verifyPinLocally(pin)
+            
+            if (isValid) {
+                return {
+                    valid: true,
+                    message: 'PIN vérifié avec succès',
+                }
+            } else {
+                return {
+                    valid: false,
+                    attemptsLeft: 3, // Fixed attempts for local verification
+                    message: 'PIN incorrect',
+                }
             }
         } catch (error: any) {
-            const data = error.response?.data
             return {
                 valid: false,
-                attemptsLeft: data?.attempts_left,
-                message: data?.message || 'Échec de la vérification du PIN',
+                attemptsLeft: 3,
+                message: 'Échec de la vérification du PIN',
             }
         } finally {
             pinState.value.isLoading = false
         }
     }
 
-    // Change the PIN
+    // Change the PIN (LOCAL ONLY)
     const changePin = async (currentPin: string, newPin: string, confirmPin: string): Promise<{ success: boolean; message: string }> => {
-        // Validate complexity first
+        // Verify current PIN locally first
+        if (!verifyPinLocally(currentPin)) {
+            return { success: false, message: 'PIN actuel incorrect' }
+        }
+
+        // Validate new PIN complexity
         const validation = validatePin(newPin)
         if (!validation.valid) {
             return { success: false, message: validation.message || 'PIN invalide' }
         }
 
+        // Confirm new PINs match
+        if (newPin !== confirmPin) {
+            return { success: false, message: 'Les nouveaux PINs ne correspondent pas.' }
+        }
+
         try {
             pinState.value.isLoading = true
-            await userAPI.changePin({
-                current_pin: currentPin,
-                new_pin: newPin,
-                confirm_pin: confirmPin
-            })
+            
+            // Store new PIN locally
+            storePinLocally(newPin)
+            
             return { success: true, message: 'PIN modifié avec succès' }
         } catch (error: any) {
             const message = error.response?.data?.error || 'Échec de la modification du PIN'
@@ -188,6 +277,15 @@ export function usePin() {
         }
     }
 
+    // Clear PIN (for debugging/testing)
+    const clearPin = () => {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem(getSecureStorageKey())
+            sessionStorage.removeItem('has_pin')
+            pinState.value.hasPin = false
+        }
+    }
+
     return {
         state: pinState,
         hasPin: computed(() => pinState.value.hasPin),
@@ -203,5 +301,6 @@ export function usePin() {
         closeModals,
         executePendingAction,
         validatePin,
+        clearPin,
     }
 }

@@ -34,6 +34,7 @@
     "qrcode": "^1.5.3",
     "vue-chartjs": "^5.2.0",
     "vue-toastification": "^2.0.0-rc.5",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "crypto-js": "^4.2.0"
   }
 }

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosRequestConfig, type AxiosResponse, type AxiosError } from "axios";
 
 // Flag to prevent infinite redirect loop
 let isLoggingOut = false;
@@ -22,7 +22,7 @@ const getApiUrl = () => {
     return "https://api.app.tech-afm.com";
   }
   // Server-side or fallback
-  return process.env.API_BASE_URL || "http://api-gateway:8080";
+  return (process.env.API_BASE_URL as string) || "http://api-gateway:8080";
 };
 
 const API_URL = getApiUrl();
@@ -35,10 +35,11 @@ const api = axios.create({
 });
 
 // Request interceptor
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: AxiosRequestConfig) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("accessToken");
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
@@ -77,9 +78,9 @@ const onRefreshFailed = () => {
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const requestUrl = originalRequest?.url || "";
 
     // Skip 401 handling for auth endpoints to prevent logout loops
@@ -231,6 +232,8 @@ export const userAPI = {
     api.post("/auth-service/api/v1/users/pin/setup", data),
   verifyPin: (data: { pin: string }) =>
     api.post("/auth-service/api/v1/users/pin/verify", data),
+  notifyPinSetup: () =>
+    api.post("/auth-service/api/v1/users/pin/notify-setup"), // Notification without PIN
   changePin: (data: {
     current_pin: string;
     new_pin: string;

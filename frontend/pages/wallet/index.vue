@@ -4,7 +4,12 @@
       <!-- Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">My Wallets 👛</h1>
+          <div class="flex items-center gap-2 mb-2">
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white">My Wallets 👛</h1>
+            <div v-if="!walletStore.pinVerified" class="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded-full font-medium">
+              🔒 Protégé
+            </div>
+          </div>
           <p class="text-gray-500 dark:text-gray-400">Manage your fiat and crypto currencies</p>
         </div>
 
@@ -37,17 +42,49 @@
             <p class="text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider text-sm">Valeur Totale</p>
             <div class="flex items-baseline gap-3">
               <div v-if="loading" class="h-14 w-64 bg-gray-200 dark:bg-slate-800 rounded-xl animate-pulse my-1"></div>
+              
+              <!-- Secure Balance Display -->
+              <div v-else-if="!walletStore.pinVerified" class="flex items-center gap-3">
+                <h2 class="text-5xl font-extrabold text-gray-400 dark:text-gray-600">
+                  ••••••
+                </h2>
+                <button 
+                  @click="showPinModal = true"
+                  class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  🔓 Débloquer
+                </button>
+              </div>
+              
               <h2 v-else class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
                 {{ formatMoney(totalBalance) }}
               </h2>
             </div>
-            <p class="text-sm mt-3 flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full w-fit">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Calculé en temps réel
-            </p>
+            
+            <div class="flex items-center gap-3 mt-3">
+              <p v-if="walletStore.pinVerified" class="text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full w-fit">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Calculé en temps réel
+              </p>
+              
+              <p v-else class="text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-500/10 px-3 py-1 rounded-full w-fit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Solde protégé par PIN
+              </p>
+              
+              <button 
+                v-if="walletStore.pinVerified"
+                @click="walletStore.resetPinVerification"
+                class="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                🔒 Verrouiller
+              </button>
+            </div>
           </div>
           <div class="flex flex-wrap gap-3">
              <!-- Recharger / Deposit -->
@@ -488,6 +525,76 @@
          </div>
       </div>
     </div>
+
+    <!-- PIN Verification Modal -->
+    <div v-if="showPinModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            Vérification de sécurité
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400">
+            Entrez votre code PIN pour afficher votre solde
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Code PIN
+            </label>
+            <input
+              v-model="pinInput"
+              type="password"
+              maxlength="5"
+              pattern="[0-9]*"
+              inputmode="numeric"
+              class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-800 text-center text-2xl font-mono"
+              placeholder="•••••"
+              @input="pinError = ''"
+              @keyup.enter="handlePinSubmit"
+            />
+            <p v-if="pinError" class="mt-2 text-sm text-red-600 dark:text-red-400">
+              {{ pinError }}
+            </p>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button
+              @click="closePinModal"
+              class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
+            >
+              Annuler
+            </button>
+            <button
+              @click="handlePinSubmit"
+              :disabled="pinLoading || pinInput.length !== 5"
+              class="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              <span v-if="pinLoading" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Vérification...
+              </span>
+              <span v-else>Vérifier</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
+            🔒 Votre PIN est stocké localement et n'est jamais transmis à nos serveurs
+          </p>
+        </div>
+      </div>
+    </div>
   </NuxtLayout>
 </template>
 
@@ -589,6 +696,10 @@ const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showTopUpModal = ref(false)
 const showDepositModal = ref(false)
+const showPinModal = ref(false)
+const pinInput = ref('')
+const pinError = ref('')
+const pinLoading = ref(false)
 const topUpOpening = ref(false)
 const creatingWallet = ref(false)
 // loading is now from store
@@ -1007,6 +1118,40 @@ const createWallet = async () => {
   } finally {
     creatingWallet.value = false
   }
+}
+
+// PIN Verification handlers
+const handlePinSubmit = async () => {
+  if (pinInput.value.length !== 5) {
+    pinError.value = 'Le PIN doit contenir 5 chiffres'
+    return
+  }
+
+  pinLoading.value = true
+  pinError.value = ''
+
+  try {
+    const result = await walletStore.verifyBalanceWithPin(pinInput.value)
+    
+    if (result.success) {
+      showPinModal.value = false
+      pinInput.value = ''
+      // Success notification could be added here
+    } else {
+      pinError.value = result.message
+    }
+  } catch (error: any) {
+    pinError.value = error.message || 'Erreur de vérification'
+  } finally {
+    pinLoading.value = false
+  }
+}
+
+const closePinModal = () => {
+  showPinModal.value = false
+  pinInput.value = ''
+  pinError.value = ''
+  pinLoading.value = false
 }
 
 onMounted(async () => {

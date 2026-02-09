@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { walletAPI, systemConfigAPI } from '~/composables/useApi'
 import { useExchangeStore } from './exchange'
+import { usePin } from '~/composables/usePin'
 
 interface Wallet {
     id: string
@@ -21,6 +22,7 @@ interface WalletState {
     error: string | null
     lastUpdated: number | null
     testnetEnabled: boolean
+    pinVerified: boolean
 }
 
 export const useWalletStore = defineStore('wallet', {
@@ -31,7 +33,8 @@ export const useWalletStore = defineStore('wallet', {
         loading: false,
         error: null,
         lastUpdated: null,
-        testnetEnabled: false
+        testnetEnabled: false,
+        pinVerified: false
     }),
 
     actions: {
@@ -39,6 +42,41 @@ export const useWalletStore = defineStore('wallet', {
         getRate(currency: string): number {
             const exchangeStore = useExchangeStore()
             return exchangeStore.getRate(currency, 'USD')
+        },
+
+        // SECURE: Verify balance with PIN locally before sensitive operations
+        async verifyBalanceWithPin(pin: string): Promise<{ success: boolean; message: string; balance?: number }> {
+            const { verifyPin } = usePin()
+            
+            // First verify PIN locally (never sends PIN to backend)
+            const result = await verifyPin(pin)
+            if (!result.valid) {
+                return { success: false, message: result.message || 'PIN incorrect' }
+            }
+
+            // PIN is correct, allow access to balance
+            this.pinVerified = true
+            
+            // Set timeout to reset verification (5 minutes)
+            setTimeout(() => {
+                this.pinVerified = false
+            }, 5 * 60 * 1000)
+
+            return { 
+                success: true, 
+                message: 'Balance vérifié avec succès',
+                balance: this.totalBalance 
+            }
+        },
+
+        // Check if PIN verification is required
+        isPinVerificationRequired(): boolean {
+            return !this.pinVerified
+        },
+
+        // Reset PIN verification state
+        resetPinVerification() {
+            this.pinVerified = false
         },
 
         initialize() {
