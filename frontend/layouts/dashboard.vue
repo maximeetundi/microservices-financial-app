@@ -99,6 +99,11 @@
           <p class="text-xs font-semibold text-muted px-4 uppercase tracking-wider">Opérations</p>
         </div>
 
+        <NuxtLink to="/orders" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
+          <span class="icon">📋</span>
+          <span>Ordres & Factures</span>
+        </NuxtLink>
+
         <NuxtLink to="/transactions" class="nav-item" active-class="active" @click="closeSidebarOnMobile">
           <span class="icon">📝</span>
           <span>Historique</span>
