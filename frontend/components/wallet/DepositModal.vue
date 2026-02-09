@@ -854,6 +854,15 @@ const redirectToPayment = async (url: string, reason = '', autoRedirect = true) 
   paymentUrl.value = url
   redirectReason.value = reason
 
+  // Store ongoing payment in localStorage to handle page reload
+  if (transactionId.value && selectedProvider.value) {
+    localStorage.setItem('deposit_ongoing', JSON.stringify({
+      provider: selectedProvider.value.name.toLowerCase(),
+      transactionId: transactionId.value,
+      timestamp: Date.now()
+    }))
+  }
+
   await nextTick()
 
   if (autoRedirect && url) {
@@ -905,32 +914,30 @@ const loadPayPalSdk = (clientId: string) => {
   })
 }
 
-const openPayPalButtons = async (_data: any) => {
-  paypalError.value = ''
-  paypalLoading.value = true
+const openPayPalButtons = async (data: any) => {
+  if (!window.paypal) {
+    await loadPayPalSdk(sdkConfig.value?.public_key)
+  }
+
+  if (!window.paypal) {
+    console.error('PayPal SDK failed to load')
+    paypalError.value = 'Le SDK PayPal n\'a pas pu être chargé. Veuillez réessayer.'
+    if (paymentUrl.value) {
+      redirectToPayment(paymentUrl.value, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.', true)
+    }
+    return
+  }
+
   currentStep.value = 'paypal'
+  paypalLoading.value = true
+  paypalError.value = ''
+
+  await nextTick()
 
   try {
     const resolvedToken = authStore.accessToken || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null)
     if (!resolvedToken) {
       throw new Error('Session expirée. Veuillez vous reconnecter.')
-    }
-
-    const clientId = sdkConfig.value?.public_key
-    if (!clientId) {
-      throw new Error('PayPal client_id manquant (sdk_config.public_key)')
-    }
-
-    await loadPayPalSdk(clientId)
-
-    const container = document.getElementById('paypal-buttons')
-    if (!container) {
-      throw new Error('PayPal container introuvable')
-    }
-    container.innerHTML = ''
-
-    if (!window.paypal?.Buttons) {
-      throw new Error('PayPal SDK non initialisé')
     }
 
     window.paypal.Buttons({
@@ -1123,6 +1130,8 @@ const resetForm = () => {
   newBalance.value = null
   paypalError.value = ''
   paypalLoading.value = false
+  // Clear ongoing payment data
+  localStorage.removeItem('deposit_ongoing')
 }
 
 const closeModal = () => {
@@ -1160,8 +1169,45 @@ watch(() => props.isOpen, async (isOpen) => {
     await authStore.initializeAuth()
     await fetchProviders()
     await fetchDepositNumbers()
+    
+    // Check if we're returning from PayPal payment
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('deposit_callback') === 'true') {
+      // Payment completed, refresh wallet
+      walletStore.fetchWallets()
+      // Clear URL params to prevent loop
+      window.history.replaceState({}, '', window.location.pathname)
+      // Don't reset form - keep success state visible
+      return
+    }
+    
+    if (urlParams.get('deposit_cancelled') === 'true') {
+      // Clear URL params to prevent loop
+      window.history.replaceState({}, '', window.location.pathname)
+      // Don't reset form immediately - let user see cancelled state
+      return
+    }
+    
+    // Check if we have an ongoing payment from localStorage
+    const ongoingPayment = localStorage.getItem('deposit_ongoing')
+    if (ongoingPayment) {
+      try {
+        const paymentData = JSON.parse(ongoingPayment)
+        if (paymentData.provider === 'paypal' && paymentData.transactionId) {
+          // Restore PayPal payment state
+          transactionId.value = paymentData.transactionId
+          currentStep.value = 'paypal'
+          return
+        }
+      } catch (e) {
+        // Clear corrupted data
+        localStorage.removeItem('deposit_ongoing')
+      }
+    }
   } else {
     resetForm()
+    // Clear ongoing payment when modal is closed by user
+    localStorage.removeItem('deposit_ongoing')
   }
 })
 
@@ -1178,12 +1224,6 @@ onMounted(() => {
 // Check URL params for callback
 onMounted(() => {
   loadSDKScripts()
-
-  const urlParams = new URLSearchParams(window.location.search)
-  if (urlParams.get('deposit_callback') === 'true') {
-    // Payment completed, refresh wallet
-    walletStore.fetchWallets()
-  }
 })
 
 // Type declarations for SDK globals
