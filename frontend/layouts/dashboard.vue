@@ -280,7 +280,7 @@
     />
 
     <!-- Floating Cart Button (only show when cart has items) -->
-    <FloatingCartButton bottomClass="bottom-24" rightClass="right-6" />
+    <FloatingCartButton bottomClass="bottom-6" rightClass="right-24" />
   </div>
 </template>
 

@@ -540,6 +540,8 @@ const paypalError = ref('')
 const isMobile = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 
+const redirectTimer = ref<number | null>(null)
+
 // Config
 const minAmount = 100
 const maxAmount = 5000000
@@ -740,10 +742,15 @@ const initiateDeposit = async () => {
     const returnUrl = `${window.location.origin}/wallet?deposit_callback=true`
     const cancelUrl = `${window.location.origin}/wallet?deposit_cancelled=true`
 
+    const resolvedToken = authStore.accessToken || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null)
+    if (!resolvedToken) {
+      throw new Error('Session expirée. Veuillez vous reconnecter.')
+    }
+
     const response = await fetch(`${API_URL}/transfer-service/api/v1/deposits/initiate`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
+        'Authorization': `Bearer ${resolvedToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -837,10 +844,23 @@ const handlePaymentFlow = (data: any) => {
 
 const redirectReason = ref('')
 
-const redirectToPayment = (url: string, reason = '') => {
+const redirectToPayment = async (url: string, reason = '', autoRedirect = true) => {
+  if (redirectTimer.value) {
+    window.clearTimeout(redirectTimer.value)
+    redirectTimer.value = null
+  }
+
   currentStep.value = 'redirect'
   paymentUrl.value = url
   redirectReason.value = reason
+
+  await nextTick()
+
+  if (autoRedirect && url) {
+    redirectTimer.value = window.setTimeout(() => {
+      window.location.assign(url)
+    }, 900)
+  }
 }
 
 const continueToPayment = () => {
@@ -850,6 +870,10 @@ const continueToPayment = () => {
 }
 
 const cancelRedirect = () => {
+  if (redirectTimer.value) {
+    window.clearTimeout(redirectTimer.value)
+    redirectTimer.value = null
+  }
   paymentUrl.value = ''
   redirectReason.value = ''
   transactionId.value = ''
@@ -887,6 +911,11 @@ const openPayPalButtons = async (_data: any) => {
   currentStep.value = 'paypal'
 
   try {
+    const resolvedToken = authStore.accessToken || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null)
+    if (!resolvedToken) {
+      throw new Error('Session expirée. Veuillez vous reconnecter.')
+    }
+
     const clientId = sdkConfig.value?.public_key
     if (!clientId) {
       throw new Error('PayPal client_id manquant (sdk_config.public_key)')
@@ -909,7 +938,7 @@ const openPayPalButtons = async (_data: any) => {
         const resp = await fetch(`${API_URL}/transfer-service/api/v1/deposits/paypal/create-order`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${authStore.accessToken}`,
+            'Authorization': `Bearer ${resolvedToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ transaction_id: transactionId.value })
@@ -927,7 +956,7 @@ const openPayPalButtons = async (_data: any) => {
         const resp = await fetch(`${API_URL}/transfer-service/api/v1/deposits/paypal/capture`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${authStore.accessToken}`,
+            'Authorization': `Bearer ${resolvedToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -960,7 +989,7 @@ const openPayPalButtons = async (_data: any) => {
     paypalError.value = e?.message || 'Erreur lors de l\'initialisation PayPal'
 
 		if (paymentUrl.value) {
-			redirectToPayment(paymentUrl.value, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.')
+			redirectToPayment(paymentUrl.value, 'Le paiement intégré PayPal n\'est pas disponible sur cet appareil. Vous pouvez continuer via la page PayPal.', true)
 		}
   } finally {
     paypalLoading.value = false

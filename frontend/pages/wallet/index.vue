@@ -7,6 +7,14 @@
           <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">My Wallets 👛</h1>
           <p class="text-gray-500 dark:text-gray-400">Manage your fiat and crypto currencies</p>
         </div>
+
+      <DepositModal
+        :isOpen="showDepositModal"
+        :walletId="selectedWallet?.id"
+        :currency="selectedWallet?.currency"
+        @close="showDepositModal = false"
+        @success="onDepositSuccess"
+      />
         <div class="flex gap-3">
            <NuxtLink to="/cards" class="btn-secondary flex items-center gap-2">
             <span class="text-xl">💳</span>
@@ -43,9 +51,17 @@
           </div>
           <div class="flex flex-wrap gap-3">
              <!-- Recharger / Deposit -->
-            <button @click="openTopUpModal" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              Recharger
+            <button
+              @click="openTopUpModal"
+              :disabled="topUpOpening"
+              class="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <svg v-if="!topUpOpening" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <svg v-else class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              {{ topUpOpening ? 'Chargement...' : 'Recharger' }}
             </button>
             <!-- Envoyer / Send -->
             <NuxtLink to="/transfer" class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/50 dark:bg-slate-800 text-gray-700 dark:text-white border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-slate-700 transition-all transform hover:-translate-y-0.5">
@@ -476,11 +492,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { walletAPI, transferAPI } from '~/composables/useApi'
 import { useRouter } from 'vue-router'
 import { usePin } from '~/composables/usePin'
 import { usePaymentProviders } from '~/composables/usePaymentProviders'
+import DepositModal from '~/components/wallet/DepositModal.vue'
 
 import { storeToRefs } from 'pinia'
 import { useWalletStore } from '~/stores/wallet'
@@ -571,6 +588,8 @@ const confirmDelete = async () => {
 const selectedWallet = ref(null)
 const showCreateWallet = ref(false)
 const showTopUpModal = ref(false)
+const showDepositModal = ref(false)
+const topUpOpening = ref(false)
 const creatingWallet = ref(false)
 // loading is now from store
 
@@ -791,42 +810,41 @@ const availableNetworks = computed(() => {
 })
 
 const openTopUpModal = async () => {
+  if (topUpOpening.value) return
+  topUpOpening.value = true
+  try {
     if (!selectedWallet.value && wallets.value.length > 0) {
-        selectedWallet.value = wallets.value[0]
+      selectedWallet.value = wallets.value[0]
     }
-    // Reset network state
+
+    // If fiat wallet: use DepositModal (supports PayPal inline flow)
+    if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
+      showDepositModal.value = true
+      await nextTick()
+      return
+    }
+
+    // Crypto deposit keeps existing modal
     selectedNetwork.value = ''
     targetAddress.value = ''
-
-    // Reset payment provider selection
-    selectedProvider.value = null
-    depositMethod.value = ''
-
-    // Load payment providers for detected countries (fiat only)
-    if (selectedWallet.value?.wallet_type !== 'crypto' && selectedWallet.value?.type !== 'crypto') {
-        // Detect both profile country (origin) and IP country (current location)
-        await Promise.all([getUserCountry(), detectIpCountry()])
-
-        // Build country list from detected countries only
-        const countries = []
-        if (userCountry.value) countries.push(userCountry.value)
-        if (ipCountry.value && ipCountry.value !== userCountry.value) {
-            countries.push(ipCountry.value)
-        }
-
-        // Load providers for all detected countries
-        await loadPaymentProviders(countries.length > 0 ? countries : undefined)
-    }
-
-    // If only one network (or native), might auto-select or just show default address
     if (availableNetworks.value.length === 0 && selectedWallet.value?.wallet_type === 'crypto') {
-         targetAddress.value = selectedWallet.value.wallet_address
+      targetAddress.value = selectedWallet.value.wallet_address
     } else if (availableNetworks.value.length === 1) {
-        selectedNetwork.value = availableNetworks.value[0]
-        fetchDepositAddress()
+      selectedNetwork.value = availableNetworks.value[0]
+      fetchDepositAddress()
     }
-
     showTopUpModal.value = true
+  } finally {
+    topUpOpening.value = false
+  }
+}
+
+const onDepositSuccess = async () => {
+  try {
+    await fetchWallets()
+  } catch (_e) {
+    // ignore
+  }
 }
 
 const openTopUpForWallet = async (wallet) => {

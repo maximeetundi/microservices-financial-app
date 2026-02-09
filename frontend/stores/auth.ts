@@ -176,6 +176,7 @@ export const useAuthStore = defineStore('auth', {
         localStorage.removeItem('refreshToken')
         localStorage.removeItem('user') // Clear user
         localStorage.removeItem('wallet_store') // Clear wallet store
+        localStorage.removeItem('panel')
 
         // Clear session storage including PIN flags
         if (typeof sessionStorage !== 'undefined') {
